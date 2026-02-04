@@ -5339,7 +5339,7 @@ def get_monthly_payments(student_id):
                 'tariff_name': payment.tariff_name or ''
             })
             payments_by_month[month_key]['total_paid'] += float(payment.amount_paid)
-            payments_by_month[month_key]['remainder'] = max(0, tariff_price - total_paid)
+            payments_by_month[month_key]['remainder'] = max(0, tariff_price - payments_by_month[month_key]['total_paid'])
         
         return jsonify({
             'payments_by_month': payments_by_month,
@@ -5430,6 +5430,21 @@ def add_monthly_payment():
                 amount_paid=amount,
                 debt=debt if debt > 0 else None
             )
+            
+            # --- УВЕДОМЛЕНИЕ ДЛЯ РУКОВОДСТВА ---
+            msg_mgmt = (
+                f"💰 <b>Новая оплата (Помесячно)</b>\n"
+                f"👤 Ученик: {student.full_name}\n"
+                f"📆 Месяц: {month_label}\n"
+                f"💵 Сумма: {format_currency(amount)} сум\n"
+                f"💳 Тип: {payment_type}\n"
+                f"📅 Дата: {payment.payment_date.strftime('%d.%m.%Y')}\n"
+            )
+            if debt > 0:
+                msg_mgmt += f"⚠️ Долг за месяц: {format_currency(debt)} сум\n"
+            
+            send_management_notification(msg_mgmt, roles=['director', 'founder', 'cashier'])
+            
         except Exception as e:
             print(f"Ошибка отправки уведомления об оплате: {e}")
             # Не прерываем выполнение, если уведомление не отправилось
