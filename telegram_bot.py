@@ -12,7 +12,7 @@ import os
 import requests
 import time
 from datetime import datetime, timedelta
-from telegram import Update
+from telegram import Update, ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 
 # URL вашего приложения
