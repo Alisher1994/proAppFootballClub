@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Посещаемость</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        /* Кастомный скроллбар для основного контента */
+        .game-layout>div[style*="overflow-y: auto"]::-webkit-scrollbar {
+            width: 12px !important;
+            height: 12px !important;
+            background: transparent !important;
+        }
+
+        /* Темная тема - скроллбар */
+        .game-layout>div[style*="overflow-y: auto"]::-webkit-scrollbar-track {
+            background: rgba(30, 41, 59, 0.5) !important;
+            border-radius: 12px !important;
+            border: 1px solid rgba(51, 65, 85, 0.5) !important;
+            margin: 8px 4px !important;
+        }
+
+        .game-layout>div[style*="overflow-y: auto"]::-webkit-scrollbar-thumb {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+            border-radius: 12px !important;
+            border: 2px solid rgba(30, 41, 59, 0.5) !important;
+            min-height: 40px !important;
+            box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.2), 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+            transition: all 0.3s ease !important;
+        }
+
+        .game-layout>div[style*="overflow-y: auto"]::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(135deg, #5568d3 0%, #6a3f91 100%) !important;
+            border-color: rgba(51, 65, 85, 0.7) !important;
+            box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.3), 0 3px 6px rgba(0, 0, 0, 0.15) !important;
+            transform: scale(1.05) !important;
+        }
+
+        /* Светлая тема - скроллбар */
+        body.theme-light .game-layout>div[style*="overflow-y: auto"]::-webkit-scrollbar-track {
+            background: #e5e7eb !important;
+            border-radius: 12px !important;
+            border: 1px solid #d1d5db !important;
+            margin: 8px 4px !important;
+        }
+
+        body.theme-light .game-layout>div[style*="overflow-y: auto"]::-webkit-scrollbar-thumb {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+            border-radius: 12px !important;
+            border: 2px solid #e5e7eb !important;
+            min-height: 40px !important;
+            box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.1), 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+            transition: all 0.3s ease !important;
+        }
+
+        body.theme-light .game-layout>div[style*="overflow-y: auto"]::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(135deg, #5568d3 0%, #6a3f91 100%) !important;
+            border-color: #cbd5e1 !important;
+            box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.2), 0 3px 6px rgba(0, 0, 0, 0.15) !important;
+            transform: scale(1.05) !important;
+        }
+
+        /* Для Firefox */
+        .game-layout>div[style*="overflow-y: auto"] {
+            scrollbar-width: thin !important;
+            scrollbar-color: #667eea rgba(30, 41, 59, 0.5) !important;
+        }
+
+        body.theme-light .game-layout>div[style*="overflow-y: auto"] {
+            scrollbar-width: thin !important;
+            scrollbar-color: #667eea #e5e7eb !important;
+        }
+
+        .game-layout>div[style*="overflow-y: auto"]::-webkit-scrollbar-corner {
+            background: transparent !important;
+        }
+    </style>
+    <style>
+        /* Темный фон для main-content */
+        .game-main-content {
+            background: var(--theme-bg-primary);
+            min-height: 100vh;
+            padding: 0 !important;
+            margin-left: 280px !important;
+            width: calc(100% - 280px) !important;
+        }
+
+        body.theme-light .game-main-content {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        }
+
+        /* Адаптация при свернутом sidebar */
+        body:has(.sidebar.collapsed) .game-main-content,
+        .sidebar.collapsed~.main-content.game-main-content {
+            margin-left: 80px !important;
+            width: calc(100% - 80px) !important;
+        }
+
+        /* Игровой интерфейс стили */
+        .game-layout {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+            height: 100vh;
+            background: var(--theme-bg-primary);
+            overflow: hidden;
+            transition: background-color 0.3s ease;
+        }
+
+        body.theme-light .game-layout {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        }
+    </style>
+</head>
+
+<body>
+    {% include '_sidebar.html' %}
+
+    <div class="main-content game-main-content">
+        <!-- Игровой интерфейс -->
+        <!-- Игровой интерфейс -->
+        <div class="game-layout">
+            <!-- Контент -->
+            <div style="flex: 1; overflow-y: auto; padding: 20px;">
+
+                <!-- Навигация по датам -->
+                <div class="date-navigator">
+                    <button class="nav-btn" onclick="changeDate(-1)">←</button>
+                    <div class="current-date-display">
+                        <h2 id="currentDateDisplay">Сегодня</h2>
+                        <span id="currentDateSubtext" class="subtext">Загрузка...</span>
+                    </div>
+                    <button class="nav-btn" onclick="changeDate(1)">→</button>
+                </div>
+
+                <!-- Список групп (Главный экран) -->
+                <div id="groupsView" class="animate-fade-in">
+                    <div id="groupsGrid" class="groups-grid">
+                        <!-- Карточки групп будут здесь -->
+                        <div class="loading-spinner">Загрузка расписания...</div>
+                    </div>
+                </div>
+
+                <!-- Список учеников (Экран группы) -->
+                <div id="studentsView" class="animate-fade-in" style="display: none;">
+                    <div class="view-header">
+                        <button class="btn-back" onclick="showGroupsView()">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <path d="M19 12H5M12 19l-7-7 7-7" />
+                            </svg>
+                            Назад
+                        </button>
+                        <h2 id="selectedGroupName">Название группы</h2>
+                    </div>
+
+                    <div id="studentsGrid" class="students-grid">
+                        <!-- Карточки учеников будут здесь -->
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <style>
+        /* Стили для нового интерфейса посещаемости */
+        .date-navigator {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 24px;
+            background: var(--theme-bg-secondary);
+            padding: 16px;
+            border-radius: 16px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        }
+
+        .current-date-display {
+            text-align: center;
+        }
+
+        .current-date-display h2 {
+            font-size: 1.25rem;
+            margin: 0;
+            color: var(--theme-text-primary);
+        }
+
+        .current-date-display .subtext {
+            font-size: 0.875rem;
+            color: var(--theme-text-secondary);
+        }
+
+        .nav-btn {
+            background: var(--theme-bg-tertiary);
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--theme-text-primary);
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .nav-btn:hover {
+            background: var(--theme-primary);
+            color: white;
+        }
+
+        /* Сетка групп */
+        .groups-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 16px;
+        }
+
+        .group-card {
+            background: var(--theme-bg-secondary);
+            border-radius: 16px;
+            padding: 20px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            border: 1px solid var(--theme-border);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .group-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+            border-color: var(--theme-primary);
+        }
+
+        .group-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+            background: var(--theme-primary);
+        }
+
+        .group-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .group-name {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--theme-text-primary);
+        }
+
+        .group-time {
+            background: var(--theme-bg-tertiary);
+            padding: 4px 10px;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--theme-text-secondary);
+        }
+
+        .group-stats {
+            display: flex;
+            gap: 16px;
+            color: var(--theme-text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        /* Заголовок вида учеников */
+        .view-header {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .btn-back {
+            background: transparent;
+            border: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--theme-text-secondary);
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 1rem;
+            padding: 8px 0;
+        }
+
+        /* Сетка учеников */
+        .students-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            gap: 16px;
+        }
+
+        .student-card {
+            background: var(--theme-bg-secondary);
+            border-radius: 16px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            cursor: pointer;
+            border: 2px solid transparent;
+            /* Для рамки при выборе */
+            transition: all 0.2s;
+            position: relative;
+        }
+
+        .student-card.checked {
+            background: rgba(16, 185, 129, 0.1);
+            /* Зеленоватый фон */
+            border-color: #10b981;
+        }
+
+        body.theme-light .student-card.checked {
+            background: rgba(16, 185, 129, 0.15);
+        }
+
+        .student-photo {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            object-fit: cover;
+            margin-bottom: 12px;
+            border: 3px solid var(--theme-bg-tertiary);
+            transition: border-color 0.2s;
+        }
+
+        .student-card.checked .student-photo {
+            border-color: #10b981;
+        }
+
+        .student-name {
+            font-weight: 600;
+            color: var(--theme-text-primary);
+            font-size: 0.95rem;
+            line-height: 1.3;
+            margin-bottom: 4px;
+        }
+
+        .student-balance {
+            font-size: 0.75rem;
+            color: var(--theme-text-secondary);
+        }
+
+        .check-indicator {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            width: 24px;
+            height: 24px;
+            background: var(--theme-bg-tertiary);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: transparent;
+            transition: all 0.2s;
+        }
+
+        .student-card.checked .check-indicator {
+            background: #10b981;
+            color: white;
+            box-shadow: 0 2px 8px rgba(16, 185, 129, 0.4);
+        }
+
+        /* Loading styles */
+        .loading-spinner {
+            text-align: center;
+            padding: 40px;
+            color: var(--theme-text-secondary);
+            width: 100%;
+            grid-column: 1 / -1;
+        }
+
+        /* Mobile adjustments */
+        @media (max-width: 768px) {
+            .groups-grid {
+                grid-template-columns: 1fr;
+                /* Одна колонка на мобильном */
+            }
+
+            .students-grid {
+                grid-template-columns: repeat(2, 1fr);
+                /* 2 колонки для учеников */
+            }
+
+            .student-photo {
+                width: 60px;
+                height: 60px;
+            }
+        }
+    </style>
+
+    <script src="{{ url_for('static', filename='js/attendance.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/sidebar.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
+</body>
+
+</html>

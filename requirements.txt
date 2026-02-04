@@ -1,0 +1,17 @@
+Flask==3.0.0
+Flask-SQLAlchemy==3.1.1
+Flask-Login==0.6.3
+Flask-Bcrypt==1.0.1
+# CV/face deps убраны для Railway; включите при необходимости локально
+opencv-python-headless==4.8.1.78
+Pillow==10.1.0
+numpy==1.26.2
+python-dotenv==1.0.0
+Werkzeug==3.0.1
+gunicorn==21.2.0
+psycopg2-binary==2.9.9
+
+python-telegram-bot==20.7
+requests==2.31.0
+APScheduler==3.10.4
+pytz==2024.1

@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Вход - FK QORASUV</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="login-page">
+    <video class="login-bg-video" autoplay muted loop playsinline>
+        <source src="{{ url_for('static', filename='uploads/background.mp4') }}" type="video/mp4">
+    </video>
+    <svg class="login-bg-filter" width="0" height="0" aria-hidden="true" focusable="false">
+        <filter id="login-waves">
+            <feTurbulence type="fractalNoise" baseFrequency="0.008" numOctaves="2" seed="2">
+                <animate attributeName="baseFrequency" dur="8s" values="0.006;0.012;0.006" repeatCount="indefinite" />
+            </feTurbulence>
+            <feDisplacementMap in="SourceGraphic" scale="18">
+                <animate attributeName="scale" dur="6s" values="12;24;12" repeatCount="indefinite" />
+            </feDisplacementMap>
+        </filter>
+    </svg>
+    <div class="login-container">
+        <div class="login-box">
+            <div class="login-brand">
+                <img class="login-logo" src="{{ url_for('static', filename='uploads/logo.png') }}" alt="Logo">
+                <span>PRO APP</span>
+            </div>
+            <h2>Вход в систему</h2>
+            
+            <form id="loginForm">
+                <div class="form-group">
+                    <label>Логин</label>
+                    <input type="text" id="username" required>
+                </div>
+                
+                <div class="form-group">
+                    <label>Пароль</label>
+                    <input type="password" id="password" required>
+                </div>
+                
+                <button type="submit" class="btn-primary">Войти</button>
+                <div id="error-message" class="error"></div>
+            </form>
+        </div>
+    </div>
+
+    <div class="login-ticker" aria-label="Контакты поддержки">
+        <div class="login-ticker-track">
+            <span id="login-ticker-text"></span>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/login.js') }}"></script>
+</body>
+</html>

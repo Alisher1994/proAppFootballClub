@@ -1,0 +1,39 @@
+# Игнорировать виртуальное окружение
+venv/
+env/
+.venv/
+venv_win/
+
+# База данных
+database/*.db
+*.db
+
+# Загруженные файлы
+frontend/static/uploads/*
+!frontend/static/uploads/.gitkeep
+*.whl
+models/models/buffalo_s/*.zip
+models/models/buffalo_s/1k3d68.onnx
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Системные файлы
+.DS_Store
+Thumbs.db
+
+# Логи
+*.log
+
+# Переменные окружения
+.env

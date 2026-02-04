@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Оплаты - Мобильная версия</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        /* Мобильный дизайн */
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f5;
+        }
+
+        .mobile-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .mobile-header h1 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 600;
+        }
+
+        .mobile-header .user-info {
+            margin-top: 8px;
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .logout-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255,255,255,0.2);
+            border: 1px solid rgba(255,255,255,0.3);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            text-decoration: none;
+            font-size: 14px;
+        }
+
+        .mobile-container {
+            padding: 20px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .step-container {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+
+        .step-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .step-number {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            margin-right: 12px;
+        }
+
+        .step-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #2d3748;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            color: #4a5568;
+            margin-bottom: 8px;
+        }
+
+        .form-group select,
+        .form-group input {
+            width: 100%;
+            padding: 14px;
+            font-size: 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            background: white;
+            color: #2d3748;
+            box-sizing: border-box;
+            transition: all 0.3s;
+        }
+
+        .form-group select:focus,
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .student-card {
+            padding: 16px;
+            background: #f7fafc;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .student-card:hover {
+            border-color: #667eea;
+            background: #edf2f7;
+        }
+
+        .student-card.selected {
+            border-color: #667eea;
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+        }
+
+        .student-name {
+            font-size: 16px;
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 4px;
+        }
+
+        .student-info {
+            font-size: 14px;
+            color: #718096;
+        }
+
+        .student-debt {
+            display: inline-block;
+            background: #fed7d7;
+            color: #c53030;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-top: 8px;
+        }
+
+        .payment-summary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+        }
+
+        .summary-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 12px;
+            font-size: 14px;
+        }
+
+        .summary-row:last-child {
+            margin-bottom: 0;
+            padding-top: 12px;
+            border-top: 1px solid rgba(255,255,255,0.3);
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .btn-primary {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+            transition: all 0.3s;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(102, 126, 234, 0.5);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .success-message {
+            background: #c6f6d5;
+            color: #22543d;
+            padding: 16px;
+            border-radius: 8px;
+            text-align: center;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .error-message {
+            background: #fed7d7;
+            color: #c53030;
+            padding: 16px;
+            border-radius: 8px;
+            text-align: center;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #718096;
+        }
+
+        .no-students {
+            text-align: center;
+            padding: 40px 20px;
+            color: #718096;
+        }
+
+        .amount-input-wrapper {
+            position: relative;
+        }
+
+        .currency-label {
+            position: absolute;
+            right: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #718096;
+            font-size: 16px;
+            pointer-events: none;
+        }
+
+        .history-link {
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .history-link a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        /* Стили для выбора способа оплаты */
+        .payment-method-selector {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .payment-method-option {
+            flex: 1;
+        }
+
+        .payment-method-label {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 12px 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: white;
+        }
+
+        .payment-method-label:hover {
+            border-color: #667eea;
+            background: #f7fafc;
+        }
+
+        .payment-method-label input[type="radio"] {
+            display: none;
+        }
+
+        .payment-method-label input[type="radio"]:checked + .payment-method-text {
+            color: #667eea;
+            font-weight: 600;
+        }
+
+        .payment-method-label:has(input[type="radio"]:checked) {
+            border-color: #667eea;
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+        }
+
+        .payment-method-text {
+            font-size: 14px;
+            color: #4a5568;
+            transition: all 0.3s;
+        }
+
+        .payment-method-fields {
+            margin-top: 16px;
+            padding: 16px;
+            background: #f7fafc;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+        }
+    </style>
+</head>
+<body>
+    <div class="mobile-header">
+        <a href="/logout" class="logout-btn">Выход</a>
+        <h1>💰 Оплаты</h1>
+        <div class="user-info">{{ current_user.username }}</div>
+    </div>
+
+    <div class="mobile-container">
+        <div class="success-message" id="successMessage"></div>
+        <div class="error-message" id="errorMessage"></div>
+
+        <!-- Шаг 1: Выбор группы -->
+        <div class="step-container">
+            <div class="step-header">
+                <div class="step-number">1</div>
+                <div class="step-title">Выберите группу</div>
+            </div>
+            <div class="form-group">
+                <select id="groupSelect">
+                    <option value="">-- Выберите группу --</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Шаг 2: Выбор ученика -->
+        <div class="step-container hidden" id="studentStep">
+            <div class="step-header">
+                <div class="step-number">2</div>
+                <div class="step-title">Выберите ученика</div>
+            </div>
+            <div id="studentsList" class="loading">Загрузка учеников...</div>
+        </div>
+
+        <!-- Шаг 3: Ввод суммы -->
+        <div class="step-container hidden" id="paymentStep">
+            <div class="step-header">
+                <div class="step-number">3</div>
+                <div class="step-title">Введите сумму оплаты</div>
+            </div>
+            
+            <div class="payment-summary" id="paymentSummary"></div>
+
+            <div class="form-group">
+                <label>Способ оплаты *</label>
+                <div class="payment-method-selector">
+                    <div class="payment-method-option">
+                        <label class="payment-method-label">
+                            <input type="radio" name="payment_method" value="cash" id="payment_method_cash_mobile" checked>
+                            <span class="payment-method-text">Наличные</span>
+                        </label>
+                    </div>
+                    <div class="payment-method-option">
+                        <label class="payment-method-label">
+                            <input type="radio" name="payment_method" value="other" id="payment_method_other_mobile">
+                            <span class="payment-method-text">Другие способы</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Поля для наличных -->
+            <div id="cash_payment_fields_mobile" class="payment-method-fields">
+                <div class="form-group">
+                    <label>Сумма наличных (сум) *</label>
+                    <div class="amount-input-wrapper">
+                        <input type="number" id="cashAmount" placeholder="0" min="0" step="1000">
+                        <span class="currency-label">сум</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Поля для других способов -->
+            <div id="other_payment_fields_mobile" class="payment-method-fields" style="display: none;">
+                <div class="form-group">
+                    <label>Тип оплаты *</label>
+                    <select id="paymentType">
+                        <option value="card">Карта</option>
+                        <option value="click">Click</option>
+                        <option value="payme">Payme</option>
+                        <option value="uzum">Uzum</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Сумма оплаты (сум) *</label>
+                    <div class="amount-input-wrapper">
+                        <input type="number" id="otherAmount" placeholder="0" min="0" step="1000">
+                        <span class="currency-label">сум</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Примечание (необязательно)</label>
+                <input type="text" id="paymentNote" placeholder="Комментарий к оплате">
+            </div>
+
+            <button class="btn-primary" id="submitPayment">Добавить оплату</button>
+        </div>
+
+        <div class="history-link">
+            <a href="/mobile-payment-history">📋 История оплат</a>
+        </div>
+    </div>
+
+    <script>
+        let selectedGroup = null;
+        let selectedStudent = null;
+        let currentYear = new Date().getFullYear();
+        let currentMonth = new Date().getMonth() + 1;
+
+        // Загрузка групп
+        async function loadGroups() {
+            try {
+                const response = await fetch('/api/groups');
+                const groups = await response.json();
+                
+                const select = document.getElementById('groupSelect');
+                groups.forEach(group => {
+                    const option = document.createElement('option');
+                    option.value = group.id;
+                    option.textContent = group.name;
+                    select.appendChild(option);
+                });
+            } catch (error) {
+                showError('Ошибка загрузки групп');
+            }
+        }
+
+        // Выбор группы
+        document.getElementById('groupSelect').addEventListener('change', async (e) => {
+            selectedGroup = e.target.value;
+            selectedStudent = null;
+            
+            if (selectedGroup) {
+                document.getElementById('studentStep').classList.remove('hidden');
+                document.getElementById('paymentStep').classList.add('hidden');
+                await loadStudents(selectedGroup);
+            } else {
+                document.getElementById('studentStep').classList.add('hidden');
+                document.getElementById('paymentStep').classList.add('hidden');
+            }
+        });
+
+        // Загрузка учеников группы
+        async function loadStudents(groupId) {
+            const container = document.getElementById('studentsList');
+            container.innerHTML = '<div class="loading">Загрузка учеников...</div>';
+            
+            try {
+                const response = await fetch('/api/students');
+                const students = await response.json();
+                
+                const groupStudents = students.filter(s => s.group_id == groupId && s.status === 'active');
+                
+                if (groupStudents.length === 0) {
+                    container.innerHTML = '<div class="no-students">В этой группе нет учеников</div>';
+                    return;
+                }
+
+                container.innerHTML = '';
+                
+                for (const student of groupStudents) {
+                    // Получить информацию о долге
+                    const debtInfo = await getStudentDebt(student.id);
+                    
+                    const card = document.createElement('div');
+                    card.className = 'student-card';
+                    card.dataset.studentId = student.id;
+                    card.dataset.studentName = student.full_name;
+                    card.dataset.tariffPrice = student.tariff_price || 0;
+                    
+                    let debtBadge = '';
+                    if (debtInfo.debt > 0) {
+                        debtBadge = `<div class="student-debt">Долг: ${debtInfo.debt.toLocaleString()} сум</div>`;
+                    }
+                    
+                    card.innerHTML = `
+                        <div class="student-name">${student.full_name}</div>
+                        <div class="student-info">Тариф: ${student.tariff_price ? student.tariff_price.toLocaleString() + ' сум/мес' : 'не указан'}</div>
+                        ${debtBadge}
+                    `;
+                    
+                    card.addEventListener('click', () => selectStudent(card, student, debtInfo));
+                    container.appendChild(card);
+                }
+            } catch (error) {
+                container.innerHTML = '<div class="error-message">Ошибка загрузки учеников</div>';
+            }
+        }
+
+        // Получить долг ученика за текущий месяц
+        async function getStudentDebt(studentId) {
+            try {
+                const response = await fetch(`/api/students/${studentId}/monthly-payments`);
+                const data = await response.json();
+                
+                const monthKey = `${currentYear}-${String(currentMonth).padStart(2, '0')}`;
+                const monthData = data.payments_by_month[monthKey];
+                
+                // Получить тариф из данных API
+                const tariffPrice = data.tariff_price || 0;
+                
+                if (monthData) {
+                    return {
+                        debt: monthData.remainder,
+                        paid: monthData.total_paid,
+                        tariff: monthData.tariff_price
+                    };
+                }
+                
+                // Если за текущий месяц еще не было оплат, вернуть полный тариф как долг
+                return {
+                    debt: tariffPrice,
+                    paid: 0,
+                    tariff: tariffPrice
+                };
+            } catch (error) {
+                console.error('Ошибка получения данных о долге:', error);
+                // В случае ошибки попробовать получить тариф из данных студента
+                try {
+                    const studentResponse = await fetch(`/api/students/${studentId}`);
+                    const student = await studentResponse.json();
+                    return {
+                        debt: student.tariff_price || 0,
+                        paid: 0,
+                        tariff: student.tariff_price || 0
+                    };
+                } catch (err) {
+                    return { debt: 0, paid: 0, tariff: 0 };
+                }
+            }
+        }
+
+        // Выбор ученика
+        function selectStudent(cardElement, student, debtInfo) {
+            // Убрать выделение с других карточек
+            document.querySelectorAll('.student-card').forEach(c => c.classList.remove('selected'));
+            cardElement.classList.add('selected');
+            
+            selectedStudent = {
+                id: student.id,
+                name: student.full_name,
+                tariff: debtInfo.tariff,
+                paid: debtInfo.paid,
+                debt: debtInfo.debt
+            };
+            
+            // Показать форму оплаты
+            document.getElementById('paymentStep').classList.remove('hidden');
+            
+            // Обновить сводку
+            updatePaymentSummary();
+            
+            // Установить рекомендуемую сумму
+            document.getElementById('cashAmount').value = debtInfo.debt;
+            document.getElementById('otherAmount').value = debtInfo.debt;
+        }
+
+        // Обновить сводку оплаты
+        function updatePaymentSummary() {
+            const monthNames = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 
+                              'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
+            
+            const summary = document.getElementById('paymentSummary');
+            summary.innerHTML = `
+                <div class="summary-row">
+                    <span>Ученик:</span>
+                    <span>${selectedStudent.name}</span>
+                </div>
+                <div class="summary-row">
+                    <span>Месяц:</span>
+                    <span>${monthNames[currentMonth - 1]} ${currentYear}</span>
+                </div>
+                <div class="summary-row">
+                    <span>Тариф:</span>
+                    <span>${selectedStudent.tariff.toLocaleString()} сум</span>
+                </div>
+                <div class="summary-row">
+                    <span>Уже оплачено:</span>
+                    <span>${selectedStudent.paid.toLocaleString()} сум</span>
+                </div>
+                <div class="summary-row">
+                    <span>Осталось:</span>
+                    <span>${selectedStudent.debt.toLocaleString()} сум</span>
+                </div>
+            `;
+        }
+
+        // Обработчики переключения способа оплаты
+        document.getElementById('payment_method_cash_mobile')?.addEventListener('change', function() {
+            if (this.checked) {
+                document.getElementById('cash_payment_fields_mobile').style.display = 'block';
+                document.getElementById('other_payment_fields_mobile').style.display = 'none';
+            }
+        });
+
+        document.getElementById('payment_method_other_mobile')?.addEventListener('change', function() {
+            if (this.checked) {
+                document.getElementById('cash_payment_fields_mobile').style.display = 'none';
+                document.getElementById('other_payment_fields_mobile').style.display = 'block';
+            }
+        });
+
+        // Отправка оплаты
+        document.getElementById('submitPayment').addEventListener('click', async () => {
+            const note = document.getElementById('paymentNote').value;
+            
+            if (!selectedStudent) {
+                showError('Выберите ученика');
+                return;
+            }
+
+            // Определить способ оплаты и сумму
+            const paymentMethod = document.querySelector('input[name="payment_method"]:checked').value;
+            let amount = 0;
+            let paymentType = 'cash';
+            
+            if (paymentMethod === 'cash') {
+                amount = parseFloat(document.getElementById('cashAmount').value);
+                paymentType = 'cash';
+                if (!amount || amount <= 0) {
+                    showError('Введите корректную сумму наличных');
+                    return;
+                }
+            } else {
+                amount = parseFloat(document.getElementById('otherAmount').value);
+                paymentType = document.getElementById('paymentType').value;
+                if (!amount || amount <= 0) {
+                    showError('Введите корректную сумму оплаты');
+                    return;
+                }
+                if (!paymentType) {
+                    showError('Выберите тип оплаты');
+                    return;
+                }
+            }
+            
+            const btn = document.getElementById('submitPayment');
+            btn.disabled = true;
+            btn.textContent = 'Обработка...';
+            
+            try {
+                const response = await fetch('/api/students/add-monthly-payment', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        student_id: selectedStudent.id,
+                        year: currentYear,
+                        month: currentMonth,
+                        payment_date: new Date().toISOString().split('T')[0],
+                        amount: amount,
+                        payment_type: paymentType,
+                        notes: note
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    showSuccess(`Оплата на сумму ${amount.toLocaleString()} сум успешно добавлена!`);
+                    
+                    // Сбросить форму
+                    setTimeout(() => {
+                        resetForm();
+                    }, 2000);
+                } else {
+                    showError(result.error || 'Ошибка при добавлении оплаты');
+                }
+            } catch (error) {
+                showError('Ошибка соединения с сервером');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Добавить оплату';
+            }
+        });
+
+        // Сброс формы
+        function resetForm() {
+            document.getElementById('groupSelect').value = '';
+            document.getElementById('cashAmount').value = '';
+            document.getElementById('otherAmount').value = '';
+            document.getElementById('paymentNote').value = '';
+            document.getElementById('payment_method_cash_mobile').checked = true;
+            document.getElementById('payment_method_other_mobile').checked = false;
+            document.getElementById('cash_payment_fields_mobile').style.display = 'block';
+            document.getElementById('other_payment_fields_mobile').style.display = 'none';
+            document.getElementById('studentStep').classList.add('hidden');
+            document.getElementById('paymentStep').classList.add('hidden');
+            selectedGroup = null;
+            selectedStudent = null;
+        }
+
+        // Показать успех
+        function showSuccess(message) {
+            const el = document.getElementById('successMessage');
+            el.textContent = message;
+            el.style.display = 'block';
+            setTimeout(() => {
+                el.style.display = 'none';
+            }, 3000);
+        }
+
+        // Показать ошибку
+        function showError(message) {
+            const el = document.getElementById('errorMessage');
+            el.textContent = message;
+            el.style.display = 'block';
+            setTimeout(() => {
+                el.style.display = 'none';
+            }, 3000);
+        }
+
+        // Инициализация
+        loadGroups();
+    </script>
+</body>
+</html>

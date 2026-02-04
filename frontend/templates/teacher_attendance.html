@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Перекличка - Учитель</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f7fa;
+            padding-bottom: 80px;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+
+        .header .date {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .logout-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            text-decoration: none;
+            font-size: 14px;
+        }
+
+        .container {
+            padding: 20px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .group-info {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+
+        .group-info h2 {
+            font-size: 20px;
+            color: #2d3748;
+            margin-bottom: 15px;
+        }
+
+        .group-info .detail {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .group-info .detail:last-child {
+            border-bottom: none;
+        }
+
+        .group-info .label {
+            color: #718096;
+            font-size: 14px;
+        }
+
+        .group-info .value {
+            color: #2d3748;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: 12px;
+            padding: 15px 10px;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+
+        .stat-card .number {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+
+        .stat-card .label {
+            font-size: 11px;
+            color: #718096;
+            text-transform: uppercase;
+        }
+
+        .stat-card.total .number {
+            color: #3498db;
+        }
+
+        .stat-card.present .number {
+            color: #27ae60;
+        }
+
+        .stat-card.absent .number {
+            color: #e74c3c;
+        }
+
+        .stat-card.late .number {
+            color: #f39c12;
+        }
+
+        .student-list {
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+
+        .student-item {
+            display: flex;
+            align-items: center;
+            padding: 15px;
+            border-bottom: 1px solid #f0f0f0;
+            transition: background 0.2s;
+        }
+
+        .student-item:last-child {
+            border-bottom: none;
+        }
+
+        .student-item.present {
+            background: #f0fdf4;
+            border-left: none;
+        }
+
+        .student-item.absent {
+            background: #fef2f2;
+            border-left: none;
+        }
+
+        .student-item.late {
+            background: #fffbeb;
+            border-left: none;
+        }
+
+        .student-photo {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            margin-right: 15px;
+            object-fit: cover;
+            border: 2px solid #e0e0e0;
+        }
+
+        .student-photo.placeholder {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            font-size: 20px;
+        }
+
+        .student-info {
+            flex: 1;
+        }
+
+        .student-name {
+            font-size: 16px;
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 3px;
+        }
+
+        .student-number {
+            font-size: 13px;
+            color: #718096;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+        }
+
+        .action-btn {
+            width: 45px;
+            height: 45px;
+            border: none;
+            border-radius: 50%;
+            font-size: 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .action-btn:active {
+            transform: scale(0.95);
+        }
+
+        .btn-present {
+            background: #27ae60;
+            color: white;
+        }
+
+        .btn-present:hover {
+            background: #229954;
+        }
+
+        .btn-absent {
+            background: #e74c3c;
+            color: white;
+        }
+
+        .btn-absent:hover {
+            background: #c0392b;
+        }
+
+        .btn-late {
+            background: #f39c12;
+            color: white;
+        }
+
+        .btn-late:hover {
+            background: #e67e22;
+        }
+
+        .btn-present.active {
+            box-shadow: 0 0 0 3px rgba(39, 174, 96, 0.3);
+        }
+
+        .btn-absent.active {
+            box-shadow: 0 0 0 3px rgba(231, 76, 60, 0.3);
+        }
+
+        .btn-late.active {
+            box-shadow: 0 0 0 3px rgba(243, 156, 18, 0.3);
+        }
+
+        .group-selector {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+
+        .complete-btn {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            max-width: 560px;
+            margin: 0 auto;
+            padding: 18px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+            transition: all 0.3s;
+        }
+
+        .complete-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(102, 126, 234, 0.5);
+        }
+
+        .success-message {
+            background: #c6f6d5;
+            color: #22543d;
+            padding: 16px;
+            border-radius: 8px;
+            text-align: center;
+            margin-bottom: 20px;
+            display: none;
+            animation: slideDown 0.3s;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #718096;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #718096;
+        }
+
+        .empty-state-icon {
+            font-size: 60px;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="header">
+        <a href="/logout" class="logout-btn">Выход</a>
+        <h1>📋 Перекличка</h1>
+        <div class="date" id="currentDate"></div>
+    </div>
+
+    <div class="container">
+        <div class="success-message" id="successMessage"></div>
+
+        <!-- Выбор группы -->
+        <div class="group-selector" id="groupSelector">
+            <label style="display: block; margin-bottom: 10px; color: #2d3748; font-weight: 600;">Выберите
+                группу:</label>
+            <select id="groupSelect"
+                style="width: 100%; padding: 12px; font-size: 16px; border: 2px solid #e2e8f0; border-radius: 8px; background: white;"
+                onchange="selectGroup()">
+                <option value="">-- Выберите группу --</option>
+            </select>
+        </div>
+
+        <div class="group-info" id="groupInfo" style="display: none;">
+            <h2 id="groupName">Загрузка...</h2>
+            <div class="detail">
+                <span class="label">Время занятия</span>
+                <span class="value" id="scheduleTime">--:--</span>
+            </div>
+            <div class="detail">
+                <span class="label">Преподаватель</span>
+                <span class="value" id="teacherName">{{ current_user.username }}</span>
+            </div>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card total">
+                <div class="number" id="totalCount">0</div>
+                <div class="label">Всего</div>
+            </div>
+            <div class="stat-card present">
+                <div class="number" id="presentCount">0</div>
+                <div class="label">Присутствует</div>
+            </div>
+            <div class="stat-card absent">
+                <div class="number" id="absentCount">0</div>
+                <div class="label">Отсутствует</div>
+            </div>
+            <div class="stat-card late">
+                <div class="number" id="lateCount">0</div>
+                <div class="label">Опоздал</div>
+            </div>
+        </div>
+
+        <div class="student-list" id="studentList">
+            <div class="loading">Загрузка списка учеников...</div>
+        </div>
+
+        <button class="complete-btn" id="completeBtn" onclick="completeAttendance()">
+            ✓ Завершить перекличку
+        </button>
+    </div>
+
+    <script>
+        let groupId = null;
+        let students = [];
+        let attendanceStatus = {}; // { student_id: 'present'|'absent'|'late' }
+        let allGroups = [];
+
+        // Установить текущую дату
+        function setCurrentDate() {
+            const now = new Date();
+            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            document.getElementById('currentDate').textContent = now.toLocaleDateString('ru-RU', options);
+        }
+
+        // Загрузить список групп
+        async function loadGroups() {
+            try {
+                const response = await fetch('/api/groups');
+                allGroups = await response.json();
+
+                const select = document.getElementById('groupSelect');
+                allGroups.forEach(group => {
+                    const option = document.createElement('option');
+                    option.value = group.id;
+                    option.textContent = group.name;
+                    select.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Ошибка загрузки групп:', error);
+            }
+        }
+
+        // Выбрать группу
+        function selectGroup() {
+            groupId = parseInt(document.getElementById('groupSelect').value);
+            if (groupId) {
+                document.getElementById('groupSelector').style.display = 'none';
+                document.getElementById('groupInfo').style.display = 'block';
+                loadGroupData();
+            }
+        }
+
+        // Загрузить данные группы и учеников
+        async function loadGroupData() {
+            try {
+                // Найти информацию о группе
+                const group = allGroups.find(g => g.id === groupId);
+
+                if (group) {
+                    document.getElementById('groupName').textContent = group.name;
+                    document.getElementById('scheduleTime').textContent = group.schedule_time || '--:--';
+                }
+
+                // Загрузить учеников группы
+                const studentsResponse = await fetch('/api/students');
+                students = (await studentsResponse.json()).filter(s =>
+                    s.group_id === groupId && s.status === 'active'
+                );
+
+                // Загрузить сегодняшнюю посещаемость
+                const attendanceResponse = await fetch('/api/teacher/today-attendance');
+                const todayAttendance = await attendanceResponse.json();
+                attendanceStatus = todayAttendance;
+
+                displayStudents();
+                updateStats();
+
+            } catch (error) {
+                console.error('Ошибка загрузки данных:', error);
+                document.getElementById('studentList').innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">❌</div>
+                        <p>Ошибка загрузки данных</p>
+                    </div>
+                `;
+            }
+        }
+
+        // Отобразить список учеников
+        function displayStudents() {
+            const container = document.getElementById('studentList');
+
+            if (students.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">👥</div>
+                        <p>В группе пока нет учеников</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = students.map(student => {
+                const statusData = attendanceStatus[student.id];
+                const status = statusData ? statusData.status : '';
+                const statusClass = status ? status : '';
+
+                let photoHtml;
+                if (student.photo_path) {
+                    photoHtml = `<img src="${student.photo_path}" class="student-photo" alt="${student.full_name}">`;
+                } else {
+                    const initials = student.full_name.split(' ').map(n => n[0]).join('').substring(0, 2);
+                    photoHtml = `<div class="student-photo placeholder">${initials}</div>`;
+                }
+
+                return `
+                    <div class="student-item ${statusClass}" data-student-id="${student.id}">
+                        ${photoHtml}
+                        <div class="student-info">
+                            <div class="student-name">${student.full_name}</div>
+                            <div class="student-number">№${student.student_number || student.id}</div>
+                        </div>
+                        <div class="action-buttons">
+                            <button class="action-btn btn-present ${status === 'present' ? 'active' : ''}" 
+                                    onclick="setAttendance(${student.id}, 'present')"
+                                    title="Присутствует">
+                                ✓
+                            </button>
+                            <button class="action-btn btn-late ${status === 'late' ? 'active' : ''}" 
+                                    onclick="setAttendance(${student.id}, 'late')"
+                                    title="Опоздал">
+                                🕐
+                            </button>
+                            <button class="action-btn btn-absent ${status === 'absent' ? 'active' : ''}" 
+                                    onclick="setAttendance(${student.id}, 'absent')"
+                                    title="Отсутствует">
+                                ✕
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Установить статус посещаемости
+        function setAttendance(studentId, status) {
+            attendanceStatus[studentId] = { status: status };
+            displayStudents();
+            updateStats();
+            autoSave(studentId, status);
+        }
+
+        // Обновить статистику
+        function updateStats() {
+            const total = students.length;
+            const present = Object.values(attendanceStatus).filter(s => s.status === 'present').length;
+            const late = Object.values(attendanceStatus).filter(s => s.status === 'late').length;
+            const absent = Object.values(attendanceStatus).filter(s => s.status === 'absent').length;
+
+            document.getElementById('totalCount').textContent = total;
+            document.getElementById('presentCount').textContent = present;
+            document.getElementById('lateCount').textContent = late;
+            document.getElementById('absentCount').textContent = absent;
+        }
+
+        // Автосохранение при изменении статуса
+        async function autoSave(studentId, status) {
+            try {
+                const response = await fetch('/api/teacher/mark-attendance', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        student_id: studentId,
+                        status: status,
+                        date: new Date().toISOString().split('T')[0]
+                    })
+                });
+
+                if (response.ok) {
+                    console.log('Статус сохранен');
+                }
+            } catch (error) {
+                console.error('Ошибка автосохранения:', error);
+            }
+        }
+
+        // Завершить перекличку
+        async function completeAttendance() {
+            const unmarked = students.filter(s => !attendanceStatus[s.id]).length;
+
+            if (unmarked > 0) {
+                if (!confirm(`У ${unmarked} учеников не отмечен статус. Продолжить?`)) {
+                    return;
+                }
+            }
+
+            const msg = document.getElementById('successMessage');
+            msg.textContent = '✓ Перекличка завершена!';
+            msg.style.display = 'block';
+
+            setTimeout(() => {
+                msg.style.display = 'none';
+            }, 3000);
+        }
+
+        // Инициализация
+        setCurrentDate();
+        loadGroups();
+    </script>
+</body>
+
+</html>

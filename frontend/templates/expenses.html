@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Расходы школы</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    {% include '_sidebar.html' %}
+
+    <div class="main-content">
+        <div class="page-header">
+            <h1>💰 Расходы школы</h1>
+            <button id="addExpenseBtn" class="btn-primary">➕ Добавить расход</button>
+        </div>
+        
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Дата</th>
+                    <th>Категория</th>
+                    <th>Сумма</th>
+                    <th>Описание</th>
+                    <th>Действия</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for expense in expenses %}
+                <tr>
+                    <td>{{ expense.expense_date.strftime('%d.%m.%Y %H:%M') }}</td>
+                    <td>{{ expense.category }}</td>
+                    <td>{{ "%.0f"|format(expense.amount) }} сум</td>
+                    <td>{{ expense.description or '-' }}</td>
+                    <td>
+                        <button
+                            class="btn-small btn-info edit-expense-btn"
+                            data-id="{{ expense.id }}"
+                            data-category="{{ expense.category }}"
+                            data-amount="{{ expense.amount }}"
+                            data-description="{{ expense.description or '' }}"
+                        >✏️</button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Модальное окно: Добавить расход -->
+    <div id="addExpenseModal" class="modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header-fixed">
+                <h2>Добавить расход</h2>
+                <div class="modal-header-actions">
+                    <button type="button" class="btn-secondary" onclick="document.getElementById('addExpenseModal').style.display='none'">Отмена</button>
+                    <button type="submit" form="addExpenseForm" class="btn-primary">Сохранить</button>
+                </div>
+            </div>
+            <div class="modal-body-scrollable">
+                <form id="addExpenseForm">
+                    <div class="form-group">
+                        <label>Категория *</label>
+                        <select name="category" required>
+                            <option value="Аренда">Аренда</option>
+                            <option value="Зарплата">Зарплата</option>
+                            <option value="Оборудование">Оборудование</option>
+                            <option value="Коммунальные">Коммунальные услуги</option>
+                            <option value="Прочее">Прочее</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Сумма (сум) *</label>
+                        <input type="number" name="amount" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Описание</label>
+                        <textarea name="description" rows="3"></textarea>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно: Изменить расход -->
+    <div id="editExpenseModal" class="modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header-fixed">
+                <h2>Изменить расход</h2>
+                <div class="modal-header-actions">
+                    <button type="button" class="btn-secondary" onclick="document.getElementById('editExpenseModal').style.display='none'">Отмена</button>
+                    <button type="submit" form="editExpenseForm" class="btn-primary">Сохранить</button>
+                </div>
+            </div>
+            <div class="modal-body-scrollable">
+                <form id="editExpenseForm">
+                    <input type="hidden" name="id" id="editExpenseId">
+
+                    <div class="form-group">
+                        <label>Категория *</label>
+                        <select name="category" id="editCategory" required>
+                            <option value="Аренда">Аренда</option>
+                            <option value="Зарплата">Зарплата</option>
+                            <option value="Оборудование">Оборудование</option>
+                            <option value="Коммунальные">Коммунальные услуги</option>
+                            <option value="Прочее">Прочее</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Сумма (сум) *</label>
+                        <input type="number" name="amount" id="editAmount" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Описание</label>
+                        <textarea name="description" id="editDescription" rows="3"></textarea>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/expenses.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/sidebar.js') }}"></script>
+</body>
+</html>

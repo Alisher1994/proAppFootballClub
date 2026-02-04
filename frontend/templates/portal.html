@@ -1,0 +1,926 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PRO APP - Портал</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        * { box-sizing:border-box; margin:0; padding:0; }
+        body.portal-page { 
+            background: #f5f7fb; 
+            min-height:100vh; 
+            display:flex; 
+            flex-direction:column; 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+        .portal-header { 
+            padding:16px 20px; 
+            background: #ffffff; 
+            border-bottom:1px solid #e5e7eb; 
+            font-weight:700; 
+            color:#0f172a;
+            font-size:1.05rem;
+            display:flex;
+            justify-content:center;
+            align-items:center;
+            position:relative;
+        }
+        .portal-brand {
+            display:flex;
+            align-items:center;
+            gap:10px;
+            margin:0 auto;
+        }
+        .portal-brand-logo {
+            width:32px;
+            height:32px;
+            object-fit:contain;
+            border-radius:8px;
+            background:transparent;
+            padding:0;
+        }
+        .portal-brand-name {
+            font-weight:800;
+            font-size:1rem;
+            color:#0f172a;
+            letter-spacing:0.01em;
+        }
+        .portal-content { 
+            flex:1; 
+            padding:16px 16px 100px; 
+            overflow-y:auto;
+        }
+        .portal-card { 
+            background: #ffffff; 
+            border:1px solid #e5e7eb;
+            border-radius:16px; 
+            padding:16px; 
+            margin-bottom:16px;
+            box-shadow: 0 6px 20px rgba(15,23,42,0.05);
+        }
+        .portal-title { 
+            font-weight:700; 
+            font-size:1.2rem;
+            margin-bottom:16px; 
+            color:#1e293b;
+        }
+        .portal-muted { 
+            color:#64748b; 
+            font-size:0.9rem; 
+            padding:12px 0;
+        }
+        .portal-list { 
+            display:flex; 
+            flex-direction:column; 
+            gap:12px; 
+            margin-top:12px;
+        }
+        .portal-item { 
+            display:flex; 
+            justify-content:space-between; 
+            align-items:center;
+            gap:12px; 
+            font-size:0.95rem;
+            padding:12px;
+            background:#f8fafc;
+            border-radius:12px;
+        }
+        .portal-item-label {
+            flex:1;
+            color:#334155;
+            font-weight:500;
+        }
+        .portal-item-value {
+            color:#1e293b;
+            font-weight:600;
+        }
+        .portal-badge { 
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color:#fff; 
+            padding:6px 12px; 
+            border-radius:12px; 
+            font-size:0.85rem;
+            font-weight:600;
+            white-space:nowrap;
+        }
+        .portal-badge.success { background: linear-gradient(135deg, #10b981, #059669); }
+        .portal-badge.warning { background: linear-gradient(135deg, #f59e0b, #d97706); }
+        .portal-badge.danger { background: linear-gradient(135deg, #ef4444, #dc2626); }
+        .portal-badge.info { background: linear-gradient(135deg, #3b82f6, #2563eb); }
+        
+        .portal-profile-header {
+            text-align:center;
+            padding:24px 0;
+            border-bottom:1px solid #e2e8f0;
+            margin-bottom:20px;
+        }
+        .portal-profile-name {
+            font-size:1.1rem;
+            font-weight:700;
+            color:#1e293b;
+            margin-bottom:8px;
+        }
+        .portal-profile-group {
+            color:#64748b;
+            font-size:0.9rem;
+        }
+        .portal-schedule-row {
+            display:flex;
+            gap:4px;
+            justify-content:center;
+            flex-wrap:nowrap;
+            margin-top:6px;
+        }
+        .portal-schedule-day {
+            padding:5px 7px;
+            border-radius:10px;
+            background:#f1f5f9;
+            color:#6b7280;
+            font-size:0.8rem;
+            min-width:30px;
+            text-align:center;
+            font-weight:600;
+        }
+        .portal-schedule-day.active {
+            background:rgba(37,99,235,0.12);
+            color:#1d4ed8;
+            border:1px solid rgba(37,99,235,0.25);
+        }
+        .portal-schedule-info {
+            text-align:center;
+            margin-top:6px;
+            font-size:0.8rem;
+            color:#475569;
+        }
+        .portal-telegram-link {
+            width:22px;
+            height:22px;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            border-radius:50%;
+            background:#ffffff;
+            box-shadow:0 2px 6px rgba(15,23,42,0.18);
+            position:relative;
+            z-index:5;
+        }
+        .portal-telegram-link img {
+            width:18px;
+            height:18px;
+            object-fit:contain;
+        }
+        .portal-telegram-overlay {
+            position:absolute;
+            bottom:4px;
+            right:4px;
+            z-index:6;
+            pointer-events:auto;
+        }
+        .portal-stats {
+            display:grid;
+            grid-template-columns: repeat(2, minmax(0,1fr));
+            gap:10px;
+            margin-top:16px;
+        }
+        .portal-stat {
+            background:#f1f5f9;
+            padding:12px;
+            border-radius:16px;
+            text-align:center;
+        }
+        .portal-stat-value {
+            font-size:1.05rem;
+            font-weight:700;
+            color:#4f46e5;
+            margin-bottom:4px;
+        }
+        .portal-stat-label {
+            font-size:0.75rem;
+            color:#6b7280;
+            font-weight:600;
+        }
+        .portal-stat-sub {
+            font-size:0.76rem;
+            color:#475569;
+            font-weight:600;
+            margin-top:2px;
+        }
+        
+        .portal-bottom-nav { 
+            position:fixed; 
+            left:0; 
+            right:0; 
+            bottom:0; 
+            background:#ffffff; 
+            border-top:1px solid #e5e7eb; 
+            display:flex; 
+            gap:8px;
+            justify-content:space-evenly; 
+            padding:12px 10px 14px;
+            box-shadow: 0 -4px 18px rgba(15,23,42,0.05);
+            z-index:100;
+        }
+        .portal-tab-btn {
+            flex:1;
+            display:flex;
+            flex-direction:column; 
+            align-items:center; 
+            gap:6px;
+            cursor:pointer;
+            transition:all 0.18s ease;
+            padding:10px 6px;
+            border-radius:12px;
+            border:1px solid #e2e8f0;
+            background:#f8fafc;
+            color:#0f172a;
+            font-weight:600;
+            min-width:0;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.8), 0 1px 2px rgba(15,23,42,0.04);
+        }
+        .portal-tab-btn:active {
+            transform:scale(0.98);
+        }
+        .portal-tab-btn.active { 
+            color:#1d4ed8; 
+            border-color:#2563eb;
+            background:linear-gradient(180deg, #eef4ff, #e0eaff);
+            box-shadow: 0 0 0 1px rgba(37,99,235,0.12), 0 6px 14px rgba(37,99,235,0.12);
+            font-weight:700;
+        }
+        /* Make bottom nav look like admin bar: flat icons+labels, no card outline */
+        .portal-bottom-nav .portal-tab-btn {
+            border:none;
+            background:transparent;
+            box-shadow:none;
+            color:#94a3b8;
+            padding:10px 4px;
+            gap:6px;
+            font-weight:600;
+            font-size:0.85rem;
+        }
+        .portal-bottom-nav .portal-tab-btn:active {
+            transform:translateY(1px);
+        }
+        .portal-bottom-nav .portal-tab-btn.active {
+            color:#2563eb;
+            background:transparent;
+            box-shadow:none;
+        }
+        .portal-bottom-nav .portal-tab-icon {
+            width:22px;
+            height:22px;
+            stroke: currentColor;
+        }
+        .portal-cal-row {
+            display:grid !important;
+            grid-template-columns: repeat(7, minmax(0, 1fr));
+            gap:6px;
+            margin-top:6px;
+            width:100%;
+        }
+        .portal-tab-icon {
+            width:20px;
+            height:20px;
+            stroke: currentColor;
+        }
+        .portal-section { 
+            display:none; 
+        }
+        .portal-section.active { 
+            display:block; 
+        }
+        .portal-logout { 
+            color:#fff; 
+            text-decoration:none; 
+            font-weight:600;
+            font-size:0.95rem;
+            opacity:0.9;
+            position:absolute;
+            right:16px;
+        }
+        .portal-logout:hover {
+            opacity:1;
+        }
+        .portal-empty {
+            text-align:center;
+            padding:40px 20px;
+            color:#94a3b8;
+        }
+        .portal-empty-icon {
+            font-size:3rem;
+            margin-bottom:12px;
+        }
+
+        /* Attendance calendar */
+        .portal-attendance-grid {
+            display:flex;
+            flex-direction:column;
+            gap:14px;
+        }
+        .portal-cal-header {
+            text-align:center;
+            font-weight:700;
+            color:#0f172a;
+            margin-bottom:6px;
+            text-transform:capitalize;
+        }
+        .portal-badge { 
+            background: #e2e8f0;
+            color:#0f172a; 
+            padding:6px 12px; 
+            border-radius:12px; 
+            font-size:0.85rem;
+            font-weight:600;
+            white-space:nowrap;
+        }
+        .portal-badge.success { background: #d1fae5; color:#065f46; }
+        .portal-badge.warning { background: #fef3c7; color:#92400e; }
+        .portal-badge.danger { background: #fee2e2; color:#991b1b; }
+        .portal-badge.info { background: #dbeafe; color:#1d4ed8; }
+        .portal-cal-row.week { margin-top:0; }
+        .portal-cal-day {
+            height:32px;
+            border-radius:8px;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            font-size:0.9rem;
+            background:#e2e8f0;
+            color:#0f172a;
+        }
+        .portal-cal-day.head {
+            background:transparent;
+            color:#94a3b8;
+            font-weight:600;
+            height:28px;
+        }
+        .portal-cal-day.present { background:#34d399; color:#0f172a; font-weight:700; }
+        .portal-cal-day.absent { background:#f87171; color:#0f172a; font-weight:700; }
+        .portal-cal-day.neutral { background:#e2e8f0; color:#94a3b8; }
+        .portal-cal-day.empty { background:transparent; }
+    </style>
+</head>
+<body class="portal-page">
+    <div class="portal-header">
+        <div class="portal-brand">
+            <img class="portal-brand-logo" src="{{ url_for('static', filename='uploads/logo.png') }}" alt="Logo">
+            <span class="portal-brand-name">{{ system_name }}</span>
+        </div>
+        <a class="portal-logout" href="/portal/logout">Выйти</a>
+    </div>
+
+    <div class="portal-content">
+        <div id="portal-profile" class="portal-section active">
+            <div class="portal-card">
+                <div class="portal-profile-header" style="display:flex; gap:14px; align-items:center;">
+                    <div style="width:76px; height:76px; border-radius:50%; background:#e2e8f0; overflow:hidden; flex-shrink:0; display:flex; align-items:center; justify-content:center; position:relative;">
+                        <img id="portal-student-photo" src="" alt="photo" style="width:100%; height:100%; object-fit:cover; display:none;">
+                        <span id="portal-student-photo-fallback" style="color:#475569; font-weight:700;">👤</span>
+                    </div>
+                    <div style="flex:1; min-width:0;">
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <a class="portal-telegram-link" href="https://t.me/football_school_bot" target="_blank" rel="noopener" title="Telegram бот">
+                                <img src="{{ url_for('static', filename='uploads/telegram.webp') }}" alt="Telegram">
+                            </a>
+                            <div class="portal-profile-name" id="portal-student-name">—</div>
+                        </div>
+                        <div class="portal-schedule-row" id="portal-schedule-row"></div>
+                        <div class="portal-schedule-info" id="portal-schedule-info"></div>
+                    </div>
+                </div>
+                
+                <div class="portal-stats">
+                    <div class="portal-stat">
+                        <div class="portal-stat-value" id="portal-tariff-name">—</div>
+                        <div class="portal-stat-sub" id="portal-tariff-price">—</div>
+                    </div>
+                    <div class="portal-stat">
+                        <div class="portal-stat-value" id="portal-rewards-count">0</div>
+                        <div class="portal-stat-label">Наград</div>
+                    </div>
+                    <div class="portal-stat">
+                        <div class="portal-stat-value" id="portal-attendance-progress">0 из 0</div>
+                        <div class="portal-stat-label">Посещаемость</div>
+                    </div>
+                    <div class="portal-stat">
+                        <div class="portal-stat-value" id="portal-group-name">—</div>
+                        <div class="portal-stat-label">Группа</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="portal-card">
+                <div class="portal-title">Контакты и адрес</div>
+                <div class="portal-list">
+                    <div class="portal-item"><span class="portal-item-label">Телефон</span><span class="portal-item-value" id="portal-phone">—</span></div>
+                    <div class="portal-item"><span class="portal-item-label">Телефон родителя</span><span class="portal-item-value" id="portal-parent-phone">—</span></div>
+                    <div class="portal-item"><span class="portal-item-label">Адрес</span><span class="portal-item-value" id="portal-address">—</span></div>
+                </div>
+            </div>
+
+            <div class="portal-card">
+                <div class="portal-title">Паспорт / Данные</div>
+                <div class="portal-list">
+                    <div class="portal-item"><span class="portal-item-label">Год рождения</span><span class="portal-item-value" id="portal-birth-year">—</span></div>
+                    <div class="portal-item"><span class="portal-item-label">Серия / номер</span><span class="portal-item-value" id="portal-passport-num">—</span></div>
+                    <div class="portal-item"><span class="portal-item-label">Кем выдан</span><span class="portal-item-value" id="portal-passport-issued">—</span></div>
+                    <div class="portal-item"><span class="portal-item-label">Дата выдачи</span><span class="portal-item-value" id="portal-passport-issue-date">—</span></div>
+                    <div class="portal-item"><span class="portal-item-label">Действителен до</span><span class="portal-item-value" id="portal-passport-expiry">—</span></div>
+                </div>
+            </div>
+
+            <div class="portal-card">
+                <div class="portal-title">Параметры</div>
+                <div class="portal-list">
+                    <div class="portal-item"><span class="portal-item-label">Рост</span><span class="portal-item-value" id="portal-height">—</span></div>
+                    <div class="portal-item"><span class="portal-item-label">Вес</span><span class="portal-item-value" id="portal-weight">—</span></div>
+                    <div class="portal-item"><span class="portal-item-label">Размер футболки</span><span class="portal-item-value" id="portal-jersey">—</span></div>
+                    <div class="portal-item"><span class="portal-item-label">Размер шорт</span><span class="portal-item-value" id="portal-shorts">—</span></div>
+                    <div class="portal-item"><span class="portal-item-label">Размер бутс</span><span class="portal-item-value" id="portal-boots">—</span></div>
+                    <div class="portal-item"><span class="portal-item-label">Снаряжение</span><span class="portal-item-value" id="portal-equipment">—</span></div>
+                </div>
+            </div>
+
+        </div>
+
+        <div id="portal-attendance" class="portal-section">
+            <div class="portal-card">
+                <div class="portal-title">Посещаемость</div>
+                <div id="portal-attendance-calendar" class="portal-attendance-grid"></div>
+            </div>
+        </div>
+
+        <div id="portal-rewards-section" class="portal-section">
+            <div class="portal-card">
+                <div class="portal-title">Вознаграждения</div>
+                <div id="portal-rewards" class="portal-list"></div>
+                <button id="portal-rewards-more" class="portal-tab-btn" style="margin-top:10px; width:100%; display:none;">Ещё</button>
+            </div>
+        </div>
+
+        <div id="portal-cards-section" class="portal-section">
+            <div class="portal-card">
+                <div class="portal-title">Карточки</div>
+                <div id="portal-cards" class="portal-list"></div>
+                <button id="portal-cards-more" class="portal-tab-btn" style="margin-top:10px; width:100%; display:none;">Ещё</button>
+            </div>
+        </div>
+
+        <div id="portal-payments" class="portal-section">
+            <div class="portal-card">
+                <div class="portal-title">💳 История оплат</div>
+                <div id="portal-payments-list" class="portal-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="portal-bottom-nav">
+        <button class="portal-tab-btn active" data-tab="profile">
+            <svg class="portal-tab-icon" viewBox="0 0 24 24" fill="none" stroke-width="1.6"><path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5Zm0 2c-4.33 0-7 2.17-7 5v1h14v-1c0-2.83-2.67-5-7-5Z" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <span>Профиль</span>
+        </button>
+        <button class="portal-tab-btn" data-tab="attendance">
+            <svg class="portal-tab-icon" viewBox="0 0 24 24" fill="none" stroke-width="1.6"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M8 2v4m8-4v4M3 9h18" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <span>Посещения</span>
+        </button>
+        <button class="portal-tab-btn" data-tab="rewards">
+            <svg class="portal-tab-icon" viewBox="0 0 24 24" fill="none" stroke-width="1.6"><path d="M8 4h8v5a4 4 0 1 1-8 0Z"/><path d="M6 4h12v2a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2Z"/><path d="M10 15h4v6l-2-1-2 1Z" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <span>Награды</span>
+        </button>
+        <button class="portal-tab-btn" data-tab="cards">
+            <svg class="portal-tab-icon" viewBox="0 0 24 24" fill="none" stroke-width="1.6"><rect x="4" y="6" width="16" height="12" rx="2"/><path d="M4 10h16" stroke-linecap="round"/></svg>
+            <span>Карточки</span>
+        </button>
+        <button class="portal-tab-btn" data-tab="payments">
+            <svg class="portal-tab-icon" viewBox="0 0 24 24" fill="none" stroke-width="1.6"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="M4 10h16M9 14h2.5" stroke-linecap="round"/></svg>
+            <span>Оплаты</span>
+        </button>
+    </div>
+
+    <script>
+        const sections = {
+            profile: document.getElementById('portal-profile'),
+            attendance: document.getElementById('portal-attendance'),
+            rewards: document.getElementById('portal-rewards-section'),
+            cards: document.getElementById('portal-cards-section'),
+            payments: document.getElementById('portal-payments')
+        };
+
+        let rewardsData = [];
+        let cardsData = [];
+        let rewardsVisible = 2;
+        let cardsVisible = 2;
+        let scheduleDaysList = [];
+        let scheduleTimeString = '';
+        let scheduleInfoTimeout = null;
+        let admissionDateStr = null;
+        const dayNamesShort = ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
+
+        function normalizeTelegramUrl(raw) {
+            if (!raw) return '';
+            const trimmed = String(raw).trim();
+            if (!trimmed) return '';
+            if (trimmed.startsWith('http://') || trimmed.startsWith('https://') || trimmed.startsWith('tg://')) {
+                return trimmed;
+            }
+            if (trimmed.startsWith('@')) {
+                return `https://t.me/${trimmed.slice(1)}`;
+            }
+            return `https://t.me/${trimmed}`;
+        }
+
+        document.querySelectorAll('.portal-tab-btn[data-tab]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.portal-tab-btn[data-tab]').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                Object.values(sections).forEach(s => s.classList.remove('active'));
+                const target = sections[btn.dataset.tab];
+                if (target) target.classList.add('active');
+                if (btn.dataset.tab === 'attendance' && !sections.attendance.dataset.loaded) {
+                    loadAttendance();
+                    sections.attendance.dataset.loaded = 'true';
+                }
+                if (btn.dataset.tab === 'rewards') {
+                    renderRewards();
+                }
+                if (btn.dataset.tab === 'cards') {
+                    renderCards();
+                }
+                if (btn.dataset.tab === 'payments' && !sections.payments.dataset.loaded) {
+                    loadPayments();
+                    sections.payments.dataset.loaded = 'true';
+                }
+            });
+        });
+
+        async function loadProfile() {
+            try {
+                const resp = await fetch('/api/portal/me');
+                if (!resp.ok) return;
+                const data = await resp.json();
+                console.log('Portal API response:', data); // Для отладки
+                if (!data.success) return;
+                
+                const s = data.student;
+                admissionDateStr = s.admission_date || null;
+                document.getElementById('portal-student-name').textContent = s.full_name || '—';
+
+                // Ссылка на Telegram-бота
+                const telegramLinkEl = document.querySelector('.portal-telegram-link');
+                const botUrl = normalizeTelegramUrl(data.telegram_bot_url) || 'https://t.me/football_school_bot';
+                if (telegramLinkEl) {
+                    telegramLinkEl.href = botUrl;
+                }
+
+                // Фото
+                const photoEl = document.getElementById('portal-student-photo');
+                const fallbackEl = document.getElementById('portal-student-photo-fallback');
+                if (s.photo_url) {
+                    photoEl.src = s.photo_url;
+                    photoEl.style.display = 'block';
+                    fallbackEl.style.display = 'none';
+                } else {
+                    photoEl.style.display = 'none';
+                    fallbackEl.style.display = 'block';
+                }
+                
+                // Группа и расписание
+                const groupNameEl = document.getElementById('portal-group-name');
+                if (s.group && s.group.name) {
+                    groupNameEl.textContent = s.group.name;
+                    scheduleTimeString = s.group.schedule_time || '';
+                    if (Array.isArray(s.group.schedule_days_list) && s.group.schedule_days_list.length) {
+                        scheduleDaysList = s.group.schedule_days_list.map(Number).filter(Boolean);
+                    } else if (s.group.schedule_days) {
+                        scheduleDaysList = s.group.schedule_days.split(',').map(d => parseInt(d, 10)).filter(Boolean);
+                    } else {
+                        scheduleDaysList = [];
+                    }
+                    renderScheduleDays(scheduleDaysList);
+                } else {
+                    groupNameEl.textContent = 'Без группы';
+                    scheduleDaysList = [];
+                    scheduleTimeString = '';
+                    renderScheduleDays(scheduleDaysList);
+                }
+                
+                // Тариф с ценой
+                const tariffNameEl = document.getElementById('portal-tariff-name');
+                const tariffPriceEl = document.getElementById('portal-tariff-price');
+                if (s.tariff && s.tariff.name) {
+                    tariffNameEl.textContent = s.tariff.name;
+                    tariffPriceEl.textContent = s.tariff.price ? `${s.tariff.price.toLocaleString('ru-RU')} сум` : 'Цена не указана';
+                } else {
+                    tariffNameEl.textContent = 'Тариф не указан';
+                    tariffPriceEl.textContent = '—';
+                }
+
+                // Контакты и адрес
+                document.getElementById('portal-phone').textContent = s.phone || '—';
+                document.getElementById('portal-parent-phone').textContent = s.parent_phone || '—';
+                const addr = [s.city, s.district, s.street, s.house_number].filter(Boolean).join(', ');
+                document.getElementById('portal-address').textContent = addr || '—';
+
+                // Посещаемость месяца
+                const attendanceDone = Number(data.attendance_month_done || 0);
+                const attendanceTotal = Number(data.attendance_month_total || 0);
+                const attendanceText = `${attendanceDone} из ${attendanceTotal}`;
+                const attEl = document.getElementById('portal-attendance-progress');
+                if (attEl) attEl.textContent = attendanceText;
+
+                // Паспорт
+                document.getElementById('portal-birth-year').textContent = s.birth_year || '—';
+                const passNum = [s.passport_series, s.passport_number].filter(Boolean).join(' ');
+                document.getElementById('portal-passport-num').textContent = passNum || '—';
+                document.getElementById('portal-passport-issued').textContent = s.passport_issued_by || '—';
+                document.getElementById('portal-passport-issue-date').textContent = formatDate(s.passport_issue_date);
+                document.getElementById('portal-passport-expiry').textContent = formatDate(s.passport_expiry_date);
+
+                // Параметры
+                document.getElementById('portal-height').textContent = s.height ? `${s.height} см` : '—';
+                document.getElementById('portal-weight').textContent = s.weight ? `${s.weight} кг` : '—';
+                document.getElementById('portal-jersey').textContent = s.jersey_size || '—';
+                document.getElementById('portal-shorts').textContent = s.shorts_size || '—';
+                document.getElementById('portal-boots').textContent = s.boots_size || '—';
+                document.getElementById('portal-equipment').textContent = s.equipment_notes || '—';
+
+                rewardsData = data.rewards || [];
+                cardsData = data.cards || [];
+                document.getElementById('portal-rewards-count').textContent = rewardsData.length;
+                rewardsVisible = 2;
+                cardsVisible = 2;
+                renderRewards();
+                renderCards();
+            } catch(err) {
+                console.error('Ошибка загрузки профиля:', err);
+            }
+        }
+
+        function renderScheduleDays(days) {
+            const row = document.getElementById('portal-schedule-row');
+            const info = document.getElementById('portal-schedule-info');
+            if (!row) return;
+            const activeSet = new Set((days || []).map(Number).filter(Boolean));
+            row.innerHTML = dayNamesShort.map((label, idx) => {
+                const isActive = activeSet.has(idx + 1);
+                const cls = isActive ? 'portal-schedule-day active' : 'portal-schedule-day';
+                return `<span class="${cls}" data-day="${idx + 1}">${label}</span>`;
+            }).join('');
+            if (info) info.textContent = '';
+
+            row.querySelectorAll('.portal-schedule-day').forEach(el => {
+                el.addEventListener('click', () => {
+                    const dayNum = parseInt(el.dataset.day, 10);
+                    const label = dayNamesShort[dayNum - 1] || '';
+                    const timeText = scheduleTimeString ? scheduleTimeString : 'Время не указано';
+                    if (info) {
+                        info.textContent = `${label}: ${timeText}`;
+                        if (scheduleInfoTimeout) clearTimeout(scheduleInfoTimeout);
+                        scheduleInfoTimeout = setTimeout(() => {
+                            info.textContent = '';
+                        }, 3000);
+                    }
+                });
+            });
+        }
+
+        function renderRewards() {
+                const rewardsEl = document.getElementById('portal-rewards');
+            const moreBtn = document.getElementById('portal-rewards-more');
+            if (!rewardsData.length) {
+                    rewardsEl.innerHTML = '<div class="portal-empty"><div class="portal-empty-icon">•</div><div>Пока нет наград</div></div>';
+                moreBtn.style.display = 'none';
+                return;
+            }
+            const slice = rewardsData.slice(0, rewardsVisible);
+            rewardsEl.innerHTML = slice.map(r => {
+                const date = r.issued_at ? new Date(r.issued_at).toLocaleDateString('ru-RU', {day:'2-digit', month:'short', year:'numeric'}) : '—';
+                return `
+                    <div class="portal-item">
+                        <div style="display:flex; flex-direction:column; gap:4px;">
+                            <div class="portal-item-label" style="display:flex; align-items:center; gap:8px;">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M8 4h8v5a4 4 0 1 1-8 0Z" fill="#e0e7ff" stroke="none"/><path d="M10 15h4v6l-2-1-2 1Z" fill="#2563eb" stroke="none"/></svg>
+                                <span>${r.name}</span>
+                            </div>
+                            <div class="portal-muted" style="font-size:0.8rem;">${date}</div>
+                        </div>
+                        <span class="portal-badge success">${r.points} ${pluralize(r.points, 'балл', 'балла', 'баллов')}</span>
+                    </div>
+                `;
+            }).join('');
+            if (rewardsVisible < rewardsData.length) {
+                moreBtn.style.display = 'block';
+                moreBtn.onclick = () => { rewardsVisible += 3; renderRewards(); };
+            } else {
+                moreBtn.style.display = 'none';
+            }
+        }
+
+        function renderCards() {
+                const cardsEl = document.getElementById('portal-cards');
+            const moreBtn = document.getElementById('portal-cards-more');
+            if (!cardsData.length) {
+                    cardsEl.innerHTML = '<div class="portal-empty"><div class="portal-empty-icon">•</div><div>Нет карточек</div></div>';
+                moreBtn.style.display = 'none';
+                return;
+            }
+            const slice = cardsData.slice(0, cardsVisible);
+            cardsEl.innerHTML = slice.map(c => {
+                const badgeClass = c.is_active ? 'success' : 'danger';
+                const cardColor = c.card_type === 'red' ? '#ef4444' : c.card_type === 'yellow' ? '#f59e0b' : '#0f172a';
+                const date = c.issued_at ? new Date(c.issued_at).toLocaleDateString('ru-RU', {day:'2-digit', month:'short', year:'numeric'}) : '—';
+                return `
+                    <div class="portal-item">
+                        <div style="display:flex; flex-direction:column; gap:4px;">
+                            <div class="portal-item-label" style="display:flex; align-items:center; gap:8px;">
+                                <svg width="16" height="20" viewBox="0 0 16 20" fill="${cardColor}" stroke="${cardColor}" stroke-width="1.2"><rect x="2" y="2" width="12" height="16" rx="2" fill="${cardColor}"/></svg>
+                                <span>${c.name}</span>
+                            </div>
+                            <div class="portal-muted" style="font-size:0.8rem;">${date}</div>
+                        </div>
+                        <span class="portal-badge ${badgeClass}">${c.is_active ? 'Активна' : 'Снята'}</span>
+                    </div>
+                `;
+            }).join('');
+            if (cardsVisible < cardsData.length) {
+                moreBtn.style.display = 'block';
+                moreBtn.onclick = () => { cardsVisible += 3; renderCards(); };
+            } else {
+                moreBtn.style.display = 'none';
+            }
+        }
+
+        async function loadAttendance() {
+            try {
+                const resp = await fetch('/api/portal/attendance');
+                if (!resp.ok) return;
+                const data = await resp.json();
+                const items = data.attendance || [];
+                renderAttendanceCalendar(items, scheduleDaysList, admissionDateStr);
+            } catch(err) {
+                console.error('Ошибка загрузки посещаемости:', err);
+            }
+        }
+
+        async function loadPayments() {
+            try {
+                const resp = await fetch('/api/portal/payments');
+                if (!resp.ok) return;
+                const data = await resp.json();
+                const list = document.getElementById('portal-payments-list');
+                const items = data.payments || [];
+                
+                if (items.length) {
+                    list.innerHTML = items.map(p => {
+                        const date = p.payment_date ? new Date(p.payment_date).toLocaleDateString('ru-RU', {day:'2-digit', month:'short', year:'numeric'}) : '—';
+                        const amount = (p.amount_paid || 0).toLocaleString('ru-RU');
+                        const lessons = p.lessons_added || 0;
+                        
+                        return `
+                            <div class="portal-item">
+                                <div>
+                                    <div class="portal-item-label">💵 ${amount} сум</div>
+                                    <div class="portal-muted" style="font-size:0.8rem; margin-top:4px;">${date} • +${lessons} ${pluralize(lessons, 'занятие', 'занятия', 'занятий')}</div>
+                                </div>
+                                <span class="portal-badge info">${p.tariff_name || 'Оплата'}</span>
+                            </div>
+                        `;
+                    }).join('');
+                } else {
+                    list.innerHTML = '<div class="portal-empty"><div class="portal-empty-icon">💳</div><div>Нет истории оплат</div></div>';
+                }
+            } catch(err) {
+                console.error('Ошибка загрузки оплат:', err);
+            }
+        }
+
+        function pluralize(n, one, few, many) {
+            n = Math.abs(n) % 100;
+            const n1 = n % 10;
+            if (n > 10 && n < 20) return many;
+            if (n1 > 1 && n1 < 5) return few;
+            if (n1 === 1) return one;
+            return many;
+        }
+
+        function formatDate(str) {
+            if (!str) return '—';
+            const d = new Date(str);
+            if (Number.isNaN(d.getTime())) return '—';
+            return d.toLocaleDateString('ru-RU', {day:'2-digit', month:'short', year:'numeric'});
+        }
+
+        function renderAttendanceCalendar(items, scheduleDays, admissionDate) {
+            const container = document.getElementById('portal-attendance-calendar');
+            const scheduleSet = new Set((scheduleDays || []).map(Number).filter(Boolean));
+            const attendanceSet = new Set();
+            items.forEach(a => {
+                if (a.date) {
+                    // Используем дату напрямую без преобразования через Date
+                    // Формат уже правильный: YYYY-MM-DD
+                    attendanceSet.add(a.date);
+                }
+            });
+
+            const today = new Date();
+            today.setHours(0,0,0,0);
+
+            // Build months starting from admission month (if provided) up to the current month
+            const months = [];
+            const currentMonthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+            let startMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+
+            if (admissionDate) {
+                const adm = new Date(admissionDate);
+                if (!Number.isNaN(adm.getTime())) {
+                    const admMonthStart = new Date(adm.getFullYear(), adm.getMonth(), 1);
+                    // Не показываем месяцы до приёма ученика
+                    startMonth = admMonthStart > currentMonthStart ? currentMonthStart : admMonthStart;
+                }
+            }
+
+            let iter = new Date(startMonth.getTime());
+            while (iter <= currentMonthStart) {
+                months.push(new Date(iter.getTime()));
+                iter.setMonth(iter.getMonth() + 1);
+            }
+
+            if (!months.length) {
+                months.push(currentMonthStart);
+            }
+
+            const dayNames = ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
+
+            const monthBlocks = months.map(monthDate => {
+                const year = monthDate.getFullYear();
+                const month = monthDate.getMonth();
+                const daysInMonth = new Date(year, month+1, 0).getDate();
+                const firstDay = (new Date(year, month, 1).getDay() + 6) % 7; // 0=Mon
+
+                const days = [];
+                for (let i=0;i<firstDay;i++) {
+                    days.push({empty:true});
+                }
+                for (let day=1; day<=daysInMonth; day++) {
+                    const dateObj = new Date(year, month, day);
+                    // Ключ в локальном формате YYYY-MM-DD без UTC-сдвига
+                    const key = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+                    const dow = dateObj.getDay(); // 0=Sun
+                    const dowMon = dow === 0 ? 7 : dow; // 1..7
+                    const isScheduled = scheduleSet.size ? scheduleSet.has(dowMon) : false;
+
+                    // Не красим дни до даты приема ученика
+                    let isBeforeAdmission = false;
+                    if (admissionDate) {
+                        const adm = new Date(admissionDate);
+                        if (!Number.isNaN(adm.getTime())) {
+                            const admOnly = new Date(adm.getFullYear(), adm.getMonth(), adm.getDate());
+                            const dateOnly = new Date(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate());
+                            isBeforeAdmission = dateOnly < admOnly;
+                        }
+                    }
+
+                    let status = 'neutral';
+                    if (isScheduled && !isBeforeAdmission) {
+                        if (attendanceSet.has(key)) {
+                            status = 'present';
+                        } else if (dateObj <= today) {
+                            status = 'absent';
+                        }
+                    }
+                    days.push({day, status});
+                }
+
+                const monthTitle = monthDate.toLocaleDateString('ru-RU', {month:'long', year:'numeric'});
+                const rows = [];
+                for (let i=0; i<days.length; i+=7) {
+                    rows.push(days.slice(i, i+7));
+                }
+
+                const dayCells = rows.map(row => `
+                    <div class="portal-cal-row">
+                        ${row.map(cell => {
+                            if (cell.empty) return '<div class="portal-cal-day empty"></div>';
+                            const cls = cell.status === 'present' ? 'present' : cell.status === 'absent' ? 'absent' : 'neutral';
+                            return `<div class="portal-cal-day ${cls}">${cell.day}</div>`;
+                        }).join('')}
+                    </div>
+                `).join('');
+
+                const header = `<div class="portal-cal-header">${monthTitle.charAt(0).toUpperCase()+monthTitle.slice(1)}</div>`;
+                const weekRow = `<div class="portal-cal-row week">${dayNames.map(n => `<div class="portal-cal-day head">${n}</div>`).join('')}</div>`;
+                return `<div class="portal-cal">
+                    ${header}
+                    ${weekRow}
+                    ${dayCells}
+                </div>`;
+            }).join('');
+
+            container.innerHTML = monthBlocks || '<div class="portal-empty"><div class="portal-empty-icon">📅</div><div>Нет записей о посещениях</div></div>';
+        }
+
+        loadProfile();
+    </script>
+</body>
+</html>

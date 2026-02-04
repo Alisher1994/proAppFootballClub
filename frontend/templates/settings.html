@@ -1,0 +1,2132 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Настройки клуба</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        /* Кастомный скроллбар для модалок добавления/редактирования группы */
+        #addGroupModal .modal-content::-webkit-scrollbar,
+        #addGroupModal .modal-body::-webkit-scrollbar,
+        #editGroupModal .modal-content::-webkit-scrollbar,
+        #editGroupModal .modal-body::-webkit-scrollbar {
+            width: 12px !important;
+            height: 12px !important;
+            background: transparent !important;
+        }
+
+        /* Темная тема - скроллбар */
+        #addGroupModal .modal-content::-webkit-scrollbar-track,
+        #addGroupModal .modal-body::-webkit-scrollbar-track,
+        #editGroupModal .modal-content::-webkit-scrollbar-track,
+        #editGroupModal .modal-body::-webkit-scrollbar-track {
+            background: rgba(30, 41, 59, 0.5) !important;
+            border-radius: 12px !important;
+            border: 1px solid rgba(51, 65, 85, 0.5) !important;
+            margin: 8px 0 !important;
+        }
+
+        #addGroupModal .modal-content::-webkit-scrollbar-thumb,
+        #addGroupModal .modal-body::-webkit-scrollbar-thumb,
+        #editGroupModal .modal-content::-webkit-scrollbar-thumb,
+        #editGroupModal .modal-body::-webkit-scrollbar-thumb {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+            border-radius: 12px !important;
+            border: 2px solid rgba(30, 41, 59, 0.5) !important;
+            min-height: 40px !important;
+            box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.2), 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+            transition: all 0.3s ease !important;
+        }
+
+        #addGroupModal .modal-content::-webkit-scrollbar-thumb:hover,
+        #addGroupModal .modal-body::-webkit-scrollbar-thumb:hover,
+        #editGroupModal .modal-content::-webkit-scrollbar-thumb:hover,
+        #editGroupModal .modal-body::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(135deg, #5568d3 0%, #6a3f91 100%) !important;
+            border-color: rgba(51, 65, 85, 0.7) !important;
+            box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.3), 0 3px 6px rgba(0, 0, 0, 0.15) !important;
+            transform: scale(1.05) !important;
+        }
+
+        /* Светлая тема - скроллбар */
+        body.theme-light #addGroupModal .modal-content::-webkit-scrollbar-track,
+        body.theme-light #addGroupModal .modal-body::-webkit-scrollbar-track,
+        body.theme-light #editGroupModal .modal-content::-webkit-scrollbar-track,
+        body.theme-light #editGroupModal .modal-body::-webkit-scrollbar-track {
+            background: #e5e7eb !important;
+            border-radius: 12px !important;
+            border: 1px solid #d1d5db !important;
+            margin: 8px 0 !important;
+        }
+
+        body.theme-light #addGroupModal .modal-content::-webkit-scrollbar-thumb,
+        body.theme-light #addGroupModal .modal-body::-webkit-scrollbar-thumb,
+        body.theme-light #editGroupModal .modal-content::-webkit-scrollbar-thumb,
+        body.theme-light #editGroupModal .modal-body::-webkit-scrollbar-thumb {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+            border-radius: 12px !important;
+            border: 2px solid #e5e7eb !important;
+            min-height: 40px !important;
+            box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.1), 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+            transition: all 0.3s ease !important;
+        }
+
+        body.theme-light #addGroupModal .modal-content::-webkit-scrollbar-thumb:hover,
+        body.theme-light #addGroupModal .modal-body::-webkit-scrollbar-thumb:hover,
+        body.theme-light #editGroupModal .modal-content::-webkit-scrollbar-thumb:hover,
+        body.theme-light #editGroupModal .modal-body::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(135deg, #5568d3 0%, #6a3f91 100%) !important;
+            border-color: #cbd5e1 !important;
+            box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.2), 0 3px 6px rgba(0, 0, 0, 0.15) !important;
+            transform: scale(1.05) !important;
+        }
+
+        /* Для Firefox */
+        #addGroupModal .modal-content,
+        #addGroupModal .modal-body,
+        #editGroupModal .modal-content,
+        #editGroupModal .modal-body {
+            scrollbar-width: thin !important;
+            scrollbar-color: #667eea rgba(30, 41, 59, 0.5) !important;
+        }
+
+        body.theme-light #addGroupModal .modal-content,
+        body.theme-light #addGroupModal .modal-body,
+        body.theme-light #editGroupModal .modal-content,
+        body.theme-light #editGroupModal .modal-body {
+            scrollbar-width: thin !important;
+            scrollbar-color: #667eea #e5e7eb !important;
+        }
+
+        #addGroupModal .modal-content::-webkit-scrollbar-corner,
+        #editGroupModal .modal-content::-webkit-scrollbar-corner {
+            background: transparent !important;
+        }
+
+        /* Кастомный скроллбар для основного контента */
+        .game-layout>div[style*="overflow-y: auto"]::-webkit-scrollbar {
+            width: 12px !important;
+            height: 12px !important;
+            background: transparent !important;
+        }
+
+        /* Темная тема - скроллбар */
+        .game-layout>div[style*="overflow-y: auto"]::-webkit-scrollbar-track {
+            background: rgba(30, 41, 59, 0.5) !important;
+            border-radius: 12px !important;
+            border: 1px solid rgba(51, 65, 85, 0.5) !important;
+            margin: 8px 4px !important;
+        }
+
+        .game-layout>div[style*="overflow-y: auto"]::-webkit-scrollbar-thumb {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+            border-radius: 12px !important;
+            border: 2px solid rgba(30, 41, 59, 0.5) !important;
+            min-height: 40px !important;
+            box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.2), 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+            transition: all 0.3s ease !important;
+        }
+
+        .game-layout>div[style*="overflow-y: auto"]::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(135deg, #5568d3 0%, #6a3f91 100%) !important;
+            border-color: rgba(51, 65, 85, 0.7) !important;
+            box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.3), 0 3px 6px rgba(0, 0, 0, 0.15) !important;
+            transform: scale(1.05) !important;
+        }
+
+        /* Светлая тема - скроллбар */
+        body.theme-light .game-layout>div[style*="overflow-y: auto"]::-webkit-scrollbar-track {
+            background: #e5e7eb !important;
+            border-radius: 12px !important;
+            border: 1px solid #d1d5db !important;
+            margin: 8px 4px !important;
+        }
+
+        body.theme-light .game-layout>div[style*="overflow-y: auto"]::-webkit-scrollbar-thumb {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+            border-radius: 12px !important;
+            border: 2px solid #e5e7eb !important;
+            min-height: 40px !important;
+            box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.1), 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+            transition: all 0.3s ease !important;
+        }
+
+        body.theme-light .game-layout>div[style*="overflow-y: auto"]::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(135deg, #5568d3 0%, #6a3f91 100%) !important;
+            border-color: #cbd5e1 !important;
+            box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.2), 0 3px 6px rgba(0, 0, 0, 0.15) !important;
+            transform: scale(1.05) !important;
+        }
+
+        /* Для Firefox */
+        .game-layout>div[style*="overflow-y: auto"] {
+            scrollbar-width: thin !important;
+            scrollbar-color: #667eea rgba(30, 41, 59, 0.5) !important;
+        }
+
+        body.theme-light .game-layout>div[style*="overflow-y: auto"] {
+            scrollbar-width: thin !important;
+            scrollbar-color: #667eea #e5e7eb !important;
+        }
+
+        .game-layout>div[style*="overflow-y: auto"]::-webkit-scrollbar-corner {
+            background: transparent !important;
+        }
+
+        /* Темный фон для main-content */
+        .game-main-content {
+            background: var(--theme-bg-primary);
+            min-height: 100vh;
+            padding: 0 !important;
+            margin-left: 280px !important;
+            width: calc(100% - 280px) !important;
+        }
+
+        body.theme-light .game-main-content {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        }
+
+        /* Адаптация при свернутом sidebar */
+        body:has(.sidebar.collapsed) .game-main-content,
+        .sidebar.collapsed~.main-content.game-main-content {
+            margin-left: 80px !important;
+            width: calc(100% - 80px) !important;
+        }
+
+        /* Игровой интерфейс стили */
+        .game-layout {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+            height: 100vh;
+            background: var(--theme-bg-primary);
+            overflow: hidden;
+            transition: background-color 0.3s ease;
+        }
+
+        body.theme-light .game-layout {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        }
+
+        /* Стили для карточек */
+        .card {
+            background: var(--theme-card-bg);
+            border-radius: 20px;
+            padding: 32px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
+            border: 1px solid var(--theme-border);
+            transition: all 0.3s ease;
+            margin-bottom: 24px;
+            color: var(--theme-text-primary);
+        }
+
+        body.theme-light .card {
+            border: 1px solid rgba(255, 255, 255, 0.8);
+        }
+
+        .card:hover {
+            box-shadow: 0 15px 50px rgba(0, 0, 0, 0.12);
+            transform: translateY(-2px);
+        }
+
+        /* Улучшенные стили для формы */
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group:last-child {
+            margin-bottom: 0;
+        }
+
+        .form-group label {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+            font-weight: 600;
+            color: var(--theme-text-primary);
+            font-size: 0.95rem;
+            letter-spacing: -0.01em;
+            gap: 6px;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 14px 18px;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            font-size: 0.95rem;
+            background: #ffffff;
+            transition: all 0.3s ease;
+            color: #1a202c;
+            font-family: inherit;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+            outline: none;
+            transform: translateY(-1px);
+        }
+
+        .form-group input::placeholder {
+            color: var(--theme-text-tertiary);
+        }
+
+        .form-group small {
+            color: var(--theme-text-tertiary);
+            font-size: 0.85rem;
+            margin-top: 8px;
+            display: block;
+            line-height: 1.6;
+            transition: color 0.3s ease;
+            font-weight: 400;
+        }
+
+        /* Стили для рабочих дней */
+        .day-toggle-group {
+            display: grid;
+            grid-template-columns: repeat(7, minmax(60px, 1fr));
+            gap: 10px;
+        }
+
+        .day-toggle {
+            padding: 12px 8px;
+            border: 2px solid var(--theme-input-border);
+            border-radius: 12px;
+            background: var(--theme-input-bg);
+            cursor: pointer;
+            font-weight: 600;
+            color: var(--theme-text-primary);
+            transition: all 0.3s ease;
+            font-size: 0.9rem;
+            text-align: center;
+        }
+
+        .day-toggle:hover {
+            border-color: #667eea;
+            color: #667eea;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+        }
+
+        .day-toggle.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+            border-color: #667eea;
+            box-shadow: 0 4px 16px rgba(102, 126, 234, 0.3);
+            transform: translateY(-2px);
+        }
+
+        /* Стили для чекбокса */
+        .settings-form .checkbox-label,
+        .settings-section-content .checkbox-label {
+            display: flex !important;
+            align-items: center !important;
+            gap: 14px !important;
+            padding: 0 !important;
+            background: transparent !important;
+            border: none !important;
+            border-radius: 0 !important;
+            cursor: pointer !important;
+            transition: none !important;
+            color: var(--theme-text-primary) !important;
+            margin: 0 !important;
+        }
+
+        .settings-form .checkbox-label:hover,
+        .settings-section-content .checkbox-label:hover {
+            border: none !important;
+            background: transparent !important;
+        }
+
+        /* Кастомный чекбокс с высокой специфичностью */
+        .settings-form .checkbox-label input[type="checkbox"],
+        .settings-section-content .checkbox-label input[type="checkbox"],
+        #settingsForm .checkbox-label input[type="checkbox"] {
+            appearance: none !important;
+            -webkit-appearance: none !important;
+            -moz-appearance: none !important;
+            width: 22px !important;
+            height: 22px !important;
+            min-width: 22px !important;
+            max-width: 22px !important;
+            border: 2px solid #cbd5e1 !important;
+            border-radius: 6px !important;
+            background: #ffffff !important;
+            cursor: pointer !important;
+            position: relative !important;
+            transition: all 0.2s ease !important;
+            margin: 0 !important;
+            flex-shrink: 0 !important;
+            padding: 0 !important;
+            box-sizing: border-box !important;
+            transform: none !important;
+        }
+
+        body.theme-light .settings-form .checkbox-label input[type="checkbox"],
+        body.theme-light .settings-section-content .checkbox-label input[type="checkbox"],
+        .settings-form .checkbox-label input[type="checkbox"],
+        .settings-section-content .checkbox-label input[type="checkbox"] {
+            border-color: #cbd5e1 !important;
+            background: #ffffff !important;
+        }
+
+        .settings-form .checkbox-label input[type="checkbox"]:hover,
+        .settings-section-content .checkbox-label input[type="checkbox"]:hover {
+            border-color: #667eea !important;
+            background: #f8faff !important;
+        }
+
+        .settings-form .checkbox-label input[type="checkbox"]:checked,
+        .settings-section-content .checkbox-label input[type="checkbox"]:checked {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+            border-color: #667eea !important;
+        }
+
+        .settings-form .checkbox-label input[type="checkbox"]:checked::after,
+        .settings-section-content .checkbox-label input[type="checkbox"]:checked::after {
+            content: '✓' !important;
+            position: absolute !important;
+            top: 50% !important;
+            left: 50% !important;
+            transform: translate(-50%, -50%) !important;
+            color: white !important;
+            font-size: 14px !important;
+            font-weight: bold !important;
+            line-height: 1 !important;
+            display: block !important;
+        }
+
+        .settings-form .checkbox-label input[type="checkbox"]:not(:checked)::after,
+        .settings-section-content .checkbox-label input[type="checkbox"]:not(:checked)::after {
+            display: none !important;
+        }
+
+        /* Универсальные стили для всех чекбоксов на странице настроек */
+        #main-settings-tab input[type="checkbox"],
+        .settings-tab-content input[type="checkbox"] {
+            appearance: none !important;
+            -webkit-appearance: none !important;
+            -moz-appearance: none !important;
+            width: 22px !important;
+            height: 22px !important;
+            min-width: 22px !important;
+            max-width: 22px !important;
+            border: 2px solid #cbd5e1 !important;
+            border-radius: 6px !important;
+            background: #ffffff !important;
+            cursor: pointer !important;
+            position: relative !important;
+            transition: all 0.2s ease !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            box-sizing: border-box !important;
+            transform: none !important;
+            flex-shrink: 0 !important;
+        }
+
+        #main-settings-tab input[type="checkbox"]:hover,
+        .settings-tab-content input[type="checkbox"]:hover {
+            border-color: #667eea !important;
+            background: #f8faff !important;
+        }
+
+        #main-settings-tab input[type="checkbox"]:checked,
+        .settings-tab-content input[type="checkbox"]:checked {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+            border-color: #667eea !important;
+        }
+
+        #main-settings-tab input[type="checkbox"]:checked::after,
+        .settings-tab-content input[type="checkbox"]:checked::after {
+            content: '✓' !important;
+            position: absolute !important;
+            top: 50% !important;
+            left: 50% !important;
+            transform: translate(-50%, -50%) !important;
+            color: white !important;
+            font-size: 14px !important;
+            font-weight: bold !important;
+            line-height: 1 !important;
+            display: block !important;
+        }
+
+        .checkbox-label span {
+            font-weight: 500;
+            font-size: 0.95rem;
+            color: var(--theme-text-primary);
+            line-height: 1.5;
+            user-select: none;
+        }
+
+        /* Стили для кнопки сохранения */
+        .btn-primary.btn-large {
+            width: 100%;
+            padding: 16px 24px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 16px rgba(102, 126, 234, 0.3);
+            margin-top: 8px;
+        }
+
+        .btn-primary.btn-large:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 24px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-primary.btn-large:active {
+            transform: translateY(0);
+        }
+
+        /* Стили для form-row */
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+        }
+
+
+        /* Заголовок карточки настроек */
+        .settings-card-header {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 28px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid var(--theme-border);
+            transition: border-color 0.3s ease;
+        }
+
+        .settings-card-icon {
+            font-size: 32px;
+            width: 56px;
+            height: 56px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 14px;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+
+        .settings-card-title {
+            margin: 0;
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--theme-text-primary);
+            transition: color 0.3s ease;
+        }
+
+        .settings-card-subtitle {
+            margin: 4px 0 0 0;
+            font-size: 14px;
+            color: var(--theme-text-tertiary);
+            font-weight: 400;
+            transition: color 0.3s ease;
+        }
+
+        .settings-form {
+            margin-top: 8px;
+        }
+
+        .form-input-modern {
+            background: var(--theme-input-bg) !important;
+            border: 2px solid var(--theme-input-border) !important;
+            color: var(--theme-text-primary) !important;
+        }
+
+        .expense-category-input {
+            position: relative;
+            padding: 14px 16px 14px 48px;
+            border-radius: 14px;
+            border-color: #94a3b8 !important;
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.06) 0%, rgba(118, 75, 162, 0.06) 100%);
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.12);
+        }
+
+        .expense-category-input:focus {
+            border-color: #7c3aed !important;
+            box-shadow: 0 12px 36px rgba(124, 58, 237, 0.22), 0 0 0 4px rgba(124, 58, 237, 0.15);
+            transform: translateY(-1px);
+        }
+
+        .expense-category-input::placeholder {
+            color: #94a3b8;
+        }
+
+        .form-input-modern:focus {
+            border-color: #667eea !important;
+            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1) !important;
+            outline: none !important;
+        }
+
+        .form-input-modern::placeholder {
+            color: var(--theme-text-tertiary) !important;
+        }
+
+        .settings-form-actions {
+            margin-top: 32px;
+            padding-top: 24px;
+            border-top: 1px solid var(--theme-border);
+        }
+
+        body.theme-light .settings-form-actions {
+            border-top: 1px solid #e2e8f0;
+        }
+
+        .form-input-modern {
+            transition: all 0.3s ease;
+        }
+
+        /* Стили для секций настроек */
+        .settings-section {
+            margin-bottom: 28px;
+            background: transparent;
+            border: none;
+            border-radius: 0;
+            overflow: visible;
+            transition: none;
+        }
+
+        .settings-section-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 0 0 16px 0;
+            margin-bottom: 20px;
+            background: transparent;
+            border-bottom: 1px solid var(--theme-border);
+        }
+
+        body.theme-light .settings-section-header {
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .settings-section-icon {
+            font-size: 20px;
+            width: auto;
+            height: auto;
+            display: inline-block;
+            background: transparent;
+            border-radius: 0;
+            box-shadow: none;
+        }
+
+        .settings-section-title {
+            margin: 0;
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--theme-text-primary);
+            letter-spacing: -0.01em;
+        }
+
+        .settings-section-content {
+            padding: 0;
+        }
+
+        .payment-method-list {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 16px;
+        }
+
+        .payment-method-item {
+            background: var(--theme-bg-secondary);
+            border: 1px solid var(--theme-border);
+            border-radius: 14px;
+            padding: 16px;
+        }
+
+        body.theme-light .payment-method-item {
+            background: #ffffff;
+            border-color: #e2e8f0;
+        }
+
+        .payment-method-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .payment-method-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .payment-method-icon {
+            width: 28px;
+            height: 28px;
+            object-fit: contain;
+            border-radius: 6px;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            padding: 4px;
+        }
+
+        .payment-method-name {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--theme-text-primary);
+        }
+
+        .switch-toggle {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .switch-toggle input {
+            display: none;
+        }
+
+        .switch-slider {
+            width: 44px;
+            height: 24px;
+            background: var(--theme-input-border);
+            border-radius: 999px;
+            position: relative;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+
+        .switch-slider::after {
+            content: '';
+            width: 18px;
+            height: 18px;
+            background: #ffffff;
+            border-radius: 50%;
+            position: absolute;
+            top: 3px;
+            left: 3px;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+        }
+
+        .switch-toggle input:checked + .switch-slider {
+            background: #667eea;
+        }
+
+        .switch-toggle input:checked + .switch-slider::after {
+            transform: translateX(20px);
+        }
+
+        .payment-method-input label {
+            font-size: 13px;
+            color: var(--theme-text-secondary);
+            margin-bottom: 6px;
+            display: block;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .payment-method-list {
+                grid-template-columns: 1fr;
+            }
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+
+            .main-content {
+                padding: 20px;
+            }
+
+            .page-header h1 {
+                font-size: 24px;
+            }
+
+            .card {
+                padding: 24px;
+            }
+
+            .settings-card-header {
+                flex-direction: column;
+                text-align: center;
+            }
+
+            .settings-card-icon {
+                margin: 0 auto;
+            }
+
+            .day-toggle-group {
+                grid-template-columns: repeat(4, 1fr);
+            }
+
+            .settings-section {
+                margin-bottom: 24px;
+            }
+
+            .settings-section-header {
+                padding: 16px 20px;
+            }
+
+            .settings-section-content {
+                padding: 20px;
+            }
+
+            .settings-section-icon {
+                width: 36px;
+                height: 36px;
+                font-size: 20px;
+            }
+
+            .settings-section-title {
+                font-size: 16px;
+            }
+        }
+
+        /* Стили для вкладок */
+        .settings-tabs {
+            display: flex;
+            gap: 0;
+            margin: 0;
+            border-bottom: none;
+            background: var(--theme-bg-secondary);
+            padding: 0 24px;
+            height: 100%;
+            align-items: stretch;
+            overflow-x: auto;
+            overflow-y: hidden;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+        }
+
+        .settings-tabs::-webkit-scrollbar {
+            display: none;
+        }
+
+        .settings-tab {
+            padding: 0 24px;
+            background: transparent;
+            border: none;
+            border-bottom: none;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 500;
+            color: var(--theme-text-tertiary);
+            transition: all 0.3s;
+            position: relative;
+            display: flex;
+            align-items: center;
+            height: 100%;
+            box-sizing: border-box;
+            flex: 0 0 auto;
+            white-space: nowrap;
+        }
+
+        .settings-tab:hover {
+            color: var(--theme-text-primary);
+            background: var(--theme-bg-tertiary);
+        }
+
+        .settings-tab.active {
+            color: #667eea;
+            background: var(--theme-bg-secondary);
+            font-weight: 600;
+        }
+
+        .settings-tab-content {
+            display: none;
+        }
+
+        .settings-tab-content.active {
+            display: block;
+            animation: fadeIn 0.3s;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+</head>
+
+<body class="settings-page">
+    {% include '_sidebar.html' %}
+
+    <div class="main-content game-main-content">
+        <!-- Игровой интерфейс -->
+        <div class="game-layout">
+            <!-- Верхняя панель с вкладками -->
+            <div class="game-top-bar">
+                <div class="settings-tabs">
+                    <button class="settings-tab active" data-tab="main-settings">⚙️ Основные настройки</button>
+                    <button class="settings-tab" data-tab="finances">💰 Финансы</button>
+                    <button class="settings-tab" data-tab="telegram">📱 Telegram</button>
+                    <button class="settings-tab" data-tab="groups">👨‍👩‍👦 Группы</button>
+                    <button class="settings-tab" data-tab="tariffs">💳 Тарифы</button>
+                    <button class="settings-tab" data-tab="rewards">🏆 Вознаграждения</button>
+                    <button class="settings-tab" data-tab="camera">🎥 Камера</button>
+                </div>
+            </div>
+
+            <!-- Контент вкладок -->
+            <div style="flex: 1; overflow-y: auto; padding: 24px;">
+                <!-- Кнопки действий для каждой вкладки -->
+                <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 20px;">
+                    <button class="btn-success" id="addGroupBtnHeader" onclick="showAddGroupModal()"
+                        style="display: none;">➕ Добавить группу</button>
+                    <button id="addTariffBtnHeader" class="btn-primary" style="display: none;">➕ Добавить тариф</button>
+                    <button id="addRewardBtnHeader" class="btn-primary" style="display: none;">➕ Добавить
+                        вознаграждение</button>
+                </div>
+
+                <!-- Вкладка: Основные настройки -->
+                <div id="main-settings-tab" class="settings-tab-content active">
+                    <div class="card settings-main-card" style="max-width: 900px; margin: 0 auto;">
+                        <div class="settings-card-header">
+                            <div class="settings-card-icon">⚙️</div>
+                            <div>
+                                <h2 class="settings-card-title">Основные настройки</h2>
+                                <p class="settings-card-subtitle">Настройте параметры работы клуба</p>
+                            </div>
+                        </div>
+                        <form id="settingsForm" class="settings-form">
+                            <!-- Секция: Основная информация -->
+                            <div class="settings-section">
+                                <div class="settings-section-header">
+                                    <span class="settings-section-icon">🏷️</span>
+                                    <h3 class="settings-section-title">Основная информация</h3>
+                                </div>
+                                <div class="settings-section-content">
+                                    <div class="form-group">
+                                        <label>
+                                            <span style="margin-right: 6px;">🏷️</span>
+                                            Название системы *
+                                        </label>
+                                        <input type="text" id="system_name" required placeholder="Например: FK QORASUV"
+                                            class="form-input-modern">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Секция: Рабочее время -->
+                            <div class="settings-section">
+                                <div class="settings-section-header">
+                                    <span class="settings-section-icon">🕐</span>
+                                    <h3 class="settings-section-title">Рабочее время</h3>
+                                </div>
+                                <div class="settings-section-content">
+                                    <div class="form-group">
+                                        <label>
+                                            <span style="margin-right: 6px;">📅</span>
+                                            Рабочие дни
+                                        </label>
+                                        <div id="working-days" class="day-toggle-group">
+                                            <button type="button" class="day-toggle" data-day="1">Пн</button>
+                                            <button type="button" class="day-toggle" data-day="2">Вт</button>
+                                            <button type="button" class="day-toggle" data-day="3">Ср</button>
+                                            <button type="button" class="day-toggle" data-day="4">Чт</button>
+                                            <button type="button" class="day-toggle" data-day="5">Пт</button>
+                                            <button type="button" class="day-toggle" data-day="6">Сб</button>
+                                            <button type="button" class="day-toggle" data-day="7">Вс</button>
+                                        </div>
+                                    </div>
+
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label>
+                                                <span style="margin-right: 6px;">🕐</span>
+                                                Время начала работы
+                                            </label>
+                                            <input type="time" id="work_start_time" required class="form-input-modern">
+                                        </div>
+                                        <div class="form-group">
+                                            <label>
+                                                <span style="margin-right: 6px;">🕐</span>
+                                                Время окончания работы
+                                            </label>
+                                            <input type="time" id="work_end_time" required class="form-input-modern">
+                                        </div>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label>
+                                            <span style="margin-right: 6px;">👥</span>
+                                            Одновременная вместимость стадиона
+                                        </label>
+                                        <input type="number" id="max_groups_per_slot" min="1" required
+                                            class="form-input-modern">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Секция: Платежи и финансы -->
+                            <div class="settings-section">
+                                <div class="settings-section-header">
+                                    <span class="settings-section-icon">💳</span>
+                                    <h3 class="settings-section-title">Платежи и финансы</h3>
+                                </div>
+                                <div class="settings-section-content">
+                                    <label class="checkbox-label">
+                                        <input type="checkbox" id="block_future_payments">
+                                        <span>Запретить оплаты за будущие месяцы</span>
+                                    </label>
+
+                                    <div style="margin-top: 20px;">
+                                        <h4 style="margin: 0 0 12px 0; font-size: 15px; color: var(--theme-text-primary);">
+                                            Способы оплаты
+                                        </h4>
+                                        <div class="payment-method-list">
+                                            <div class="payment-method-item">
+                                                <div class="payment-method-row">
+                                                    <div class="payment-method-title">
+                                                        <img src="{{ url_for('static', filename='uploads/click.png') }}" alt="Click" class="payment-method-icon">
+                                                        <div class="payment-method-name">Click</div>
+                                                    </div>
+                                                    <label class="switch-toggle">
+                                                        <input type="checkbox" id="payment_click_enabled">
+                                                        <span class="switch-slider"></span>
+                                                    </label>
+                                                </div>
+                                                <div class="payment-method-input">
+                                                    <label for="payment_click_qr_url">Ссылка на QR-код</label>
+                                                    <input type="text" id="payment_click_qr_url" class="form-input-modern"
+                                                        placeholder="https://...">
+                                                </div>
+                                            </div>
+
+                                            <div class="payment-method-item">
+                                                <div class="payment-method-row">
+                                                    <div class="payment-method-title">
+                                                        <img src="{{ url_for('static', filename='uploads/payme.png') }}" alt="Payme" class="payment-method-icon">
+                                                        <div class="payment-method-name">Payme</div>
+                                                    </div>
+                                                    <label class="switch-toggle">
+                                                        <input type="checkbox" id="payment_payme_enabled">
+                                                        <span class="switch-slider"></span>
+                                                    </label>
+                                                </div>
+                                                <div class="payment-method-input">
+                                                    <label for="payment_payme_qr_url">Ссылка на QR-код</label>
+                                                    <input type="text" id="payment_payme_qr_url" class="form-input-modern"
+                                                        placeholder="https://...">
+                                                </div>
+                                            </div>
+
+                                            <div class="payment-method-item">
+                                                <div class="payment-method-row">
+                                                    <div class="payment-method-title">
+                                                        <img src="{{ url_for('static', filename='uploads/uzum.png') }}" alt="Uzum" class="payment-method-icon">
+                                                        <div class="payment-method-name">Uzum</div>
+                                                    </div>
+                                                    <label class="switch-toggle">
+                                                        <input type="checkbox" id="payment_uzum_enabled">
+                                                        <span class="switch-slider"></span>
+                                                    </label>
+                                                </div>
+                                                <div class="payment-method-input">
+                                                    <label for="payment_uzum_qr_url">Ссылка на QR-код</label>
+                                                    <input type="text" id="payment_uzum_qr_url" class="form-input-modern"
+                                                        placeholder="https://...">
+                                                </div>
+                                            </div>
+
+                                            <div class="payment-method-item">
+                                                <div class="payment-method-row">
+                                                    <div class="payment-method-title">
+                                                        <img src="{{ url_for('static', filename='uploads/paynet.png') }}" alt="Paynet" class="payment-method-icon">
+                                                        <div class="payment-method-name">Paynet</div>
+                                                    </div>
+                                                    <label class="switch-toggle">
+                                                        <input type="checkbox" id="payment_paynet_enabled">
+                                                        <span class="switch-slider"></span>
+                                                    </label>
+                                                </div>
+                                                <div class="payment-method-input">
+                                                    <label for="payment_paynet_qr_url">Ссылка на QR-код</label>
+                                                    <input type="text" id="payment_paynet_qr_url" class="form-input-modern"
+                                                        placeholder="https://...">
+                                                </div>
+                                            </div>
+
+                                            <div class="payment-method-item">
+                                                <div class="payment-method-row">
+                                                    <div class="payment-method-title">
+                                                        <img src="{{ url_for('static', filename='uploads/xazna.png') }}" alt="Xazna" class="payment-method-icon">
+                                                        <div class="payment-method-name">Xazna</div>
+                                                    </div>
+                                                    <label class="switch-toggle">
+                                                        <input type="checkbox" id="payment_xazna_enabled">
+                                                        <span class="switch-slider"></span>
+                                                    </label>
+                                                </div>
+                                                <div class="payment-method-input">
+                                                    <label for="payment_xazna_qr_url">Ссылка на QR-код</label>
+                                                    <input type="text" id="payment_xazna_qr_url" class="form-input-modern"
+                                                        placeholder="https://...">
+                                                </div>
+                                            </div>
+
+                                            <div class="payment-method-item">
+                                                <div class="payment-method-row">
+                                                    <div class="payment-method-title">
+                                                        <img src="{{ url_for('static', filename='uploads/oson.jpeg') }}" alt="Oson" class="payment-method-icon">
+                                                        <div class="payment-method-name">Oson</div>
+                                                    </div>
+                                                    <label class="switch-toggle">
+                                                        <input type="checkbox" id="payment_oson_enabled">
+                                                        <span class="switch-slider"></span>
+                                                    </label>
+                                                </div>
+                                                <div class="payment-method-input">
+                                                    <label for="payment_oson_qr_url">Ссылка на QR-код</label>
+                                                    <input type="text" id="payment_oson_qr_url" class="form-input-modern"
+                                                        placeholder="https://...">
+                                                </div>
+                                            </div>
+
+                                            <div class="payment-method-item">
+                                                <div class="payment-method-row">
+                                                    <div class="payment-method-title">
+                                                        <img src="{{ url_for('static', filename='uploads/card.png') }}" alt="UZCARD" class="payment-method-icon">
+                                                        <div class="payment-method-name">UZCARD</div>
+                                                    </div>
+                                                    <label class="switch-toggle">
+                                                        <input type="checkbox" id="payment_uzcard_enabled">
+                                                        <span class="switch-slider"></span>
+                                                    </label>
+                                                </div>
+                                            </div>
+
+                                            <div class="payment-method-item">
+                                                <div class="payment-method-row">
+                                                    <div class="payment-method-title">
+                                                        <img src="{{ url_for('static', filename='uploads/humo.png') }}" alt="HUMO" class="payment-method-icon">
+                                                        <div class="payment-method-name">HUMO</div>
+                                                    </div>
+                                                    <label class="switch-toggle">
+                                                        <input type="checkbox" id="payment_humo_enabled">
+                                                        <span class="switch-slider"></span>
+                                                    </label>
+                                                </div>
+                                            </div>
+
+                                            <div class="payment-method-item">
+                                                <div class="payment-method-row">
+                                                    <div class="payment-method-title">
+                                                        <div class="payment-method-icon" style="display:flex;align-items:center;justify-content:center;">
+                                                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                                                                <path d="M10 18v-7" />
+                                                                <path d="M11.12 2.198a2 2 0 0 1 1.76.006l7.866 3.847c.476.233.31.949-.22.949H3.474c-.53 0-.695-.716-.22-.949z" />
+                                                                <path d="M14 18v-7" />
+                                                                <path d="M18 18v-7" />
+                                                                <path d="M3 22h18" />
+                                                                <path d="M6 18v-7" />
+                                                            </svg>
+                                                        </div>
+                                                        <div class="payment-method-name">Перечисление</div>
+                                                    </div>
+                                                    <label class="switch-toggle">
+                                                        <input type="checkbox" id="payment_transfer_enabled">
+                                                        <span class="switch-slider"></span>
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                </div>
+                            </div>
+
+                            <!-- Секция: Вознаграждения -->
+                            <div class="settings-section">
+                                <div class="settings-section-header">
+                                    <span class="settings-section-icon">🏆</span>
+                                    <h3 class="settings-section-title">Вознаграждения и рейтинг</h3>
+                                </div>
+                                <div class="settings-section-content">
+                                    <div class="form-group">
+                                        <label>
+                                            <span style="margin-right: 6px;">🔄</span>
+                                            Период сброса вознаграждений
+                                        </label>
+                                        <select id="rewards_reset_period_months" required class="form-input-modern">
+                                            <option value="1">1 месяц</option>
+                                            <option value="2">2 месяца</option>
+                                            <option value="3">3 месяца</option>
+                                            <option value="4">4 месяца</option>
+                                            <option value="5">5 месяцев</option>
+                                            <option value="6">6 месяцев</option>
+                                            <option value="7">7 месяцев</option>
+                                            <option value="8">8 месяцев</option>
+                                            <option value="9">9 месяцев</option>
+                                            <option value="10">10 месяцев</option>
+                                            <option value="11">11 месяцев</option>
+                                            <option value="12">12 месяцев</option>
+                                        </select>
+                                        <small
+                                            style="color: #7f8c8d; display: block; margin-top: 8px; line-height: 1.5;">Через
+                                            указанный период вознаграждения будут обнуляться</small>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label>
+                                            <span style="margin-right: 6px;">🏆</span>
+                                            Отображение пьедестала
+                                        </label>
+                                        <select id="podium_display_count" required class="form-input-modern">
+                                            <option value="5">5 учеников</option>
+                                            <option value="10">10 учеников</option>
+                                            <option value="15">15 учеников</option>
+                                            <option value="20">20 учеников</option>
+                                            <option value="25">25 учеников</option>
+                                            <option value="30">30 учеников</option>
+                                            <option value="35">35 учеников</option>
+                                            <option value="40">40 учеников</option>
+                                            <option value="45">45 учеников</option>
+                                            <option value="50">50 учеников</option>
+                                        </select>
+                                        <small
+                                            style="color: #7f8c8d; display: block; margin-top: 8px; line-height: 1.5;">Количество
+                                            учеников для отображения в пьедестале (от 5 до 50 с шагом 5)</small>
+                                    </div>
+                                </div>
+                            </div>
+
+
+                            <div class="settings-form-actions">
+                                <button type="submit" class="btn-primary btn-large">
+                                    <span style="margin-right: 8px;">💾</span>
+                                    Сохранить настройки
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Вкладка: Финансы -->
+                <div id="finances-tab" class="settings-tab-content">
+                    <div class="card settings-main-card" style="max-width: 900px; margin: 0 auto;">
+                        <div class="settings-card-header">
+                            <div class="settings-card-icon">💰</div>
+                            <div>
+                                <h2 class="settings-card-title">Статьи расхода</h2>
+                                <p class="settings-card-subtitle">Управляйте списком категорий расходов, которые будут доступны в финансах</p>
+                            </div>
+                        </div>
+                        <form id="expenseCategoriesForm" class="settings-form">
+                            <div class="settings-section">
+                                <div class="settings-section-header">
+                                    <span class="settings-section-icon">📂</span>
+                                    <h3 class="settings-section-title">Категории расходов</h3>
+                                </div>
+                                <div class="settings-section-content">
+                                    <div style="display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap;">
+                                        <input type="text" id="expense-category-input" class="form-input-modern expense-category-input" placeholder="Добавить статью (например, Дивиденты)" style="flex:1; min-width: 240px;">
+                                        <button type="button" class="btn-primary" style="white-space: nowrap;" onclick="window.addExpenseCategorySetting && window.addExpenseCategorySetting()">➕ Добавить</button>
+                                    </div>
+                                    <div id="expense-categories-list" style="display: flex; flex-wrap: wrap; gap: 8px;"></div>
+                                    <small style="color: #7f8c8d; display: block; margin-top: 8px; line-height: 1.5;">Изменения сохраняются по кнопке ниже и применяются в разделе Финансы.</small>
+                                </div>
+                            </div>
+
+                            <div class="settings-form-actions">
+                                <button type="submit" class="btn-primary btn-large">
+                                    <span style="margin-right: 8px;">💾</span>
+                                    Сохранить статьи расхода
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Вкладка: Telegram -->
+                <div id="telegram-tab" class="settings-tab-content">
+                    <div class="card settings-main-card" style="max-width: 900px; margin: 0 auto;">
+                        <div class="settings-card-header">
+                            <div class="settings-card-icon">📱</div>
+                            <div>
+                                <h2 class="settings-card-title">Настройки Telegram</h2>
+                                <p class="settings-card-subtitle">Настройте интеграцию с Telegram ботом и шаблоны
+                                    уведомлений</p>
+                            </div>
+                        </div>
+                        <form id="telegramSettingsForm" class="settings-form">
+                            <!-- Секция: Токен бота -->
+                            <div class="settings-section">
+                                <div class="settings-section-header">
+                                    <span class="settings-section-icon">🤖</span>
+                                    <h3 class="settings-section-title">Токен бота</h3>
+                                </div>
+                                <div class="settings-section-content">
+                                    <div class="form-group">
+                                        <label>
+                                            <span style="margin-right: 6px;">🔑</span>
+                                            Токен Telegram бота
+                                        </label>
+                                        <input type="text" id="telegram_bot_token" class="form-input-modern"
+                                            placeholder="Введите токен бота (например: 1234567890:ABCdefGHIjklMNOpqrsTUVwxyz)">
+                                        <small
+                                            style="color: #7f8c8d; display: block; margin-top: 8px; line-height: 1.5;">
+                                            Токен для интеграции с Telegram ботом. Получить можно у
+                                            <strong>@BotFather</strong> в Telegram
+                                        </small>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>
+                                            <span style="margin-right: 6px;">🔗</span>
+                                            Ссылка на бота (для портала)
+                                        </label>
+                                        <input type="text" id="telegram_bot_url" class="form-input-modern"
+                                            placeholder="https://t.me/your_bot">
+                                        <small style="color: #7f8c8d; display: block; margin-top: 8px; line-height: 1.5;">
+                                            Укажите ссылку или @username бота. Это значение используется в портале
+                                            для перехода к боту.
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Секция: Шаблоны уведомлений -->
+                            <div class="settings-section">
+                                <div class="settings-section-header">
+                                    <span class="settings-section-icon">📝</span>
+                                    <h3 class="settings-section-title">Шаблоны уведомлений</h3>
+                                </div>
+                                <div class="settings-section-content">
+                                    <div class="form-group">
+                                        <label>
+                                            <span style="margin-right: 6px;">📅</span>
+                                            Шаблон уведомления о занятии
+                                        </label>
+                                        <textarea id="telegram_notification_template" class="form-input-modern" rows="5"
+                                            placeholder="📅 Напоминание: занятие группы {group_name} через 3 часа в {time}.\n\n{additional_text}"></textarea>
+                                        <small
+                                            style="color: #7f8c8d; display: block; margin-top: 8px; line-height: 1.5;">
+                                            Шаблон для уведомлений о занятиях. Доступные переменные:<br>
+                                            <strong>{group_name}</strong> - название группы<br>
+                                            <strong>{time}</strong> - время занятия<br>
+                                            <strong>{days}</strong> - дни недели<br>
+                                            <strong>{additional_text}</strong> - дополнительный текст (опционально)
+                                        </small>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>
+                                            <span style="margin-right: 6px;">⭐</span>
+                                            Шаблон уведомления о вознаграждении
+                                        </label>
+                                        <textarea id="telegram_reward_template" class="form-input-modern" rows="5"
+                                            placeholder="⭐ Вам выдано вознаграждение!\n\nТип: {reward_name}\nБаллы: +{points}\nВсего баллов за месяц: {total_points}\n\n{reason}"></textarea>
+                                        <small
+                                            style="color: #7f8c8d; display: block; margin-top: 8px; line-height: 1.5;">
+                                            Шаблон для уведомлений о вознаграждениях. Доступные переменные:<br>
+                                            <strong>{reward_name}</strong> - название вознаграждения<br>
+                                            <strong>{points}</strong> - количество баллов<br>
+                                            <strong>{total_points}</strong> - всего баллов за месяц<br>
+                                            <strong>{reason}</strong> - примечание (опционально)
+                                        </small>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>
+                                            <span style="margin-right: 6px;">🟨</span>
+                                            Шаблон уведомления о карточке
+                                        </label>
+                                        <textarea id="telegram_card_template" class="form-input-modern" rows="5"
+                                            placeholder="🟨 Вам выдана карточка!\n\nТип: {card_name}\nПричина: {reason}"></textarea>
+                                        <small
+                                            style="color: #7f8c8d; display: block; margin-top: 8px; line-height: 1.5;">
+                                            Шаблон для уведомлений о карточках. Доступные переменные:<br>
+                                            <strong>{card_name}</strong> - название карточки<br>
+                                            <strong>{reason}</strong> - причина выдачи
+                                        </small>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>
+                                            <span style="margin-right: 6px;">💳</span>
+                                            Шаблон уведомления об оплате
+                                        </label>
+                                        <textarea id="telegram_payment_template" class="form-input-modern" rows="5"
+                                            placeholder="💳 Оплата получена!\n\nФИО: {full_name}\nДата оплаты: {payment_date}\nМесяц: {month}\nТип оплаты: {payment_type}\nСумма оплаты: {amount_paid} сум{debt_info}"></textarea>
+                                        <small
+                                            style="color: #7f8c8d; display: block; margin-top: 8px; line-height: 1.5;">
+                                            Шаблон для уведомлений об оплате. Доступные переменные:<br>
+                                            <strong>{full_name}</strong> - ФИО ученика<br>
+                                            <strong>{payment_date}</strong> - дата оплаты<br>
+                                            <strong>{month}</strong> - месяц оплаты<br>
+                                            <strong>{payment_type}</strong> - тип оплаты (Наличные, Карта, Click, Payme,
+                                            Uzum)<br>
+                                            <strong>{amount_paid}</strong> - сумма оплаты<br>
+                                            <strong>{debt_info}</strong> - информация о долге (отображается только если
+                                            есть долг)
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="settings-form-actions">
+                                <button type="submit" class="btn-primary btn-large">
+                                    <span style="margin-right: 8px;">💾</span>
+                                    Сохранить настройки Telegram
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Вкладка: Камера -->
+                <div id="camera-tab" class="settings-tab-content">
+                    <div class="card settings-main-card" style="max-width: 900px; margin: 0 auto;">
+                        <div class="settings-card-header">
+                            <div class="settings-card-icon">🎥</div>
+                            <div>
+                                <h2 class="settings-card-title">Настройки камеры</h2>
+                                <p class="settings-card-subtitle">Настройте RTSP поток для распознавания лиц</p>
+                            </div>
+                        </div>
+                        <form id="cameraSettingsForm" class="settings-form">
+                            <div class="settings-section">
+                                <div class="settings-section-header">
+                                    <span class="settings-section-icon">🔗</span>
+                                    <h3 class="settings-section-title">RTSP Поток</h3>
+                                </div>
+                                <div class="settings-section-content">
+                                    <div class="form-group">
+                                        <label>
+                                            <span style="margin-right: 6px;">🌐</span>
+                                            RTSP URL
+                                        </label>
+                                        <input type="text" id="rtsp_url_setting" class="form-input-modern"
+                                            placeholder="rtsp://admin:password@192.168.1.100:554/h264/ch1/main/av_stream">
+                                        <small
+                                            style="color: #7f8c8d; display: block; margin-top: 8px; line-height: 1.5;">
+                                            Ссылка на видео-поток вашей камеры. <br>
+                                            <strong>Важно:</strong> Если камера Ezviz спрашивает пароль в VLC отдельно,
+                                            попробуйте использовать <strong>Код подтверждения (Verification
+                                                Code)</strong> с
+                                            наклейки на камере в качестве пароля.
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="settings-form-actions">
+                                <button type="submit" class="btn-primary btn-large">
+                                    <span style="margin-right: 8px;">💾</span>
+                                    Сохранить настройки камеры
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Вкладка: Группы -->
+                <div id="groups-tab" class="settings-tab-content">
+                    <table class="data-table" id="groupsTable" style="margin-top: 20px;">
+                        <thead>
+                            <tr>
+                                <th>Название</th>
+                                <th>Дни</th>
+                                <th>Время занятия</th>
+                                <th>Опоздание (мин)</th>
+                                <th>Учеников</th>
+                                <th>Примечания</th>
+                                <th>Действия</th>
+                            </tr>
+                        </thead>
+                        <tbody id="groupsTableBody">
+                            <tr>
+                                <td colspan="7">Загрузка...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Вкладка: Тарифы -->
+                <div id="tariffs-tab" class="settings-tab-content">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Название</th>
+                                <th>Занятий</th>
+                                <th>Стоимость</th>
+                                <th>Цена за занятие</th>
+                                <th>Описание</th>
+                                <th>Действия</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tariffsTableBody">
+                            <!-- Заполнится через JS -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Вкладка: Вознаграждения -->
+                <div id="rewards-tab" class="settings-tab-content">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Название</th>
+                                <th>Баллы</th>
+                                <th>Описание</th>
+                                <th>Действия</th>
+                            </tr>
+                        </thead>
+                        <tbody id="rewardsTableBody">
+                            <!-- Заполнится через JS -->
+                        </tbody>
+                    </table>
+                </div>
+
+            </div>
+
+            <!-- Модальные окна для групп (из groups.html) -->
+            <div id="addGroupModal" class="modal">
+                <div class="modal-content modern-modal">
+                    <div class="modal-header-fixed">
+                        <h2>Добавить группу</h2>
+                        <div class="modal-header-actions">
+                            <button type="button" onclick="closeAddGroupModal()" class="btn-secondary">Отмена</button>
+                            <button type="submit" form="addGroupForm" class="btn-primary">Сохранить</button>
+                        </div>
+                    </div>
+                    <div class="modal-body-scrollable">
+                        <form id="addGroupForm" class="modal-form">
+                            <div class="form-card">
+                                <label class="field-label" for="groupName">Название группы</label>
+                                <input type="text" id="groupName" required placeholder="Группа 1, Младшая...">
+                            </div>
+
+                            <div class="form-card">
+                                <label class="field-label" for="durationMinutes">Длительность занятия</label>
+                                <div style="position: relative; width: 100%;">
+                                    <select id="durationMinutes" required
+                                        style="width: 100%; padding: 12px 40px 12px 16px; border: 1px solid #e2e8f0; border-radius: 12px; font-size: 0.95rem; background: #fff; appearance: none; -webkit-appearance: none; -moz-appearance: none; cursor: pointer; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+                                        <option value="30">30 минут</option>
+                                        <option value="60" selected>1 час</option>
+                                        <option value="90">1 час 30 минут</option>
+                                        <option value="120">2 часа</option>
+                                        <option value="150">2 часа 30 минут</option>
+                                        <option value="180">3 часа</option>
+                                        <option value="210">3 часа 30 минут</option>
+                                        <option value="240">4 часа</option>
+                                        <option value="270">4 часа 30 минут</option>
+                                    </select>
+                                    <div
+                                        style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); pointer-events: none; width: 20px; height: 20px;">
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                                            stroke="#475569" stroke-width="2" stroke-linecap="round"
+                                            stroke-linejoin="round">
+                                            <polyline points="6 9 12 15 18 9"></polyline>
+                                        </svg>
+                                    </div>
+                                </div>
+                                <small class="field-hint">Выберите сколько времени длится одно занятие</small>
+                            </div>
+
+                            <div class="form-card">
+                                <label class="field-label">📅 Выберите дни и время занятий</label>
+                                <small class="field-hint">Кликните на свободные или частично занятые ячейки. Можно
+                                    выбрать разное время для разных дней.</small>
+                                <div id="selectedSlotsDisplay" class="selected-slots-display"
+                                    style="margin-bottom: 12px;"></div>
+                                <div id="scheduleVisualization" class="schedule-visualization">
+                                    <div class="schedule-loading">Загрузка расписания...</div>
+                                </div>
+                                <input type="hidden" id="scheduleTime" required>
+                                <input type="hidden" id="scheduleDays" required>
+                            </div>
+
+                            <div class="form-card">
+                                <label class="field-label">🏟️ Размер группы на поле</label>
+                                <small class="field-hint">Выберите, сколько блоков стадиона будет занимать эта группа.
+                                    Кликайте на соседние блоки для выбора нескольких.</small>
+                                <div id="fieldBlocksVisualization" class="field-blocks-container">
+                                    <div class="field-loading">Загрузка схемы поля...</div>
+                                </div>
+                                <div id="fieldBlocksInfo" class="field-blocks-info"
+                                    style="margin-top: 12px; display: none;">
+                                    <span class="field-info-label">Выбрано блоков:</span>
+                                    <span id="selectedBlocksCount" class="field-info-value">0</span>
+                                    <span class="field-info-separator">/</span>
+                                    <span id="availableBlocksCount" class="field-info-value">0</span>
+                                </div>
+                                <input type="hidden" id="fieldBlocks" required>
+                            </div>
+
+                            <div class="form-card two-col">
+                                <div>
+                                    <label class="field-label" for="lateThreshold">Порог опоздания (минут)</label>
+                                    <input type="number" id="lateThreshold" value="15" min="0" required>
+                                </div>
+                                <div>
+                                    <label class="field-label" for="maxStudents">Макс. учеников</label>
+                                    <input type="number" id="maxStudents" placeholder="Без ограничений" min="1">
+                                </div>
+                            </div>
+
+                            <div class="form-card">
+                                <label class="field-label" for="notes">Примечания</label>
+                                <textarea id="notes" rows="3" placeholder="Дополнительная информация..."></textarea>
+                            </div>
+
+                            <div id="slotValidationMessage" class="form-alert" style="display:none;"></div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <div id="editGroupModal" class="modal">
+                <div class="modal-content modern-modal">
+                    <div class="modal-header-fixed">
+                        <h2>Обновить группу</h2>
+                        <div class="modal-header-actions">
+                            <button type="button" onclick="closeEditGroupModal()" class="btn-secondary">Отмена</button>
+                            <button type="submit" form="editGroupForm" class="btn-primary">Сохранить</button>
+                        </div>
+                    </div>
+                    <div class="modal-body-scrollable">
+                        <form id="editGroupForm" class="modal-form">
+                            <input type="hidden" id="editGroupId">
+
+                            <div class="form-card">
+                                <label class="field-label" for="editGroupName">Название группы</label>
+                                <input type="text" id="editGroupName" required>
+                            </div>
+
+                            <div class="form-card">
+                                <label class="field-label" for="editDurationMinutes">Длительность занятия</label>
+                                <div style="position: relative; width: 100%;">
+                                    <select id="editDurationMinutes" required
+                                        style="width: 100%; padding: 12px 40px 12px 16px; border: 1px solid #e2e8f0; border-radius: 12px; font-size: 0.95rem; background: #fff; appearance: none; -webkit-appearance: none; -moz-appearance: none; cursor: pointer; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+                                        <option value="30">30 минут</option>
+                                        <option value="60">1 час</option>
+                                        <option value="90">1 час 30 минут</option>
+                                        <option value="120">2 часа</option>
+                                        <option value="150">2 часа 30 минут</option>
+                                        <option value="180">3 часа</option>
+                                        <option value="210">3 часа 30 минут</option>
+                                        <option value="240">4 часа</option>
+                                        <option value="270">4 часа 30 минут</option>
+                                    </select>
+                                    <div
+                                        style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); pointer-events: none; width: 20px; height: 20px;">
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                                            stroke="#475569" stroke-width="2" stroke-linecap="round"
+                                            stroke-linejoin="round">
+                                            <polyline points="6 9 12 15 18 9"></polyline>
+                                        </svg>
+                                    </div>
+                                </div>
+                                <small class="field-hint">Выберите сколько времени длится одно занятие</small>
+                            </div>
+
+                            <div class="form-card">
+                                <label class="field-label">📅 Выберите дни и время занятий</label>
+                                <small class="field-hint">Кликните на свободные или частично занятые ячейки. Можно
+                                    выбрать разное время для разных дней.</small>
+                                <div id="editSelectedSlotsDisplay" class="selected-slots-display"
+                                    style="margin-bottom: 12px;"></div>
+                                <div id="editScheduleVisualization" class="schedule-visualization">
+                                    <div class="schedule-loading">Загрузка расписания...</div>
+                                </div>
+                                <input type="hidden" id="editScheduleTime" required>
+                                <input type="hidden" id="editScheduleDays" required>
+                            </div>
+
+                            <div class="form-card">
+                                <label class="field-label">🏟️ Размер группы на поле</label>
+                                <small class="field-hint">Выберите, сколько блоков стадиона будет занимать эта группа.
+                                    Кликайте на соседние блоки для выбора нескольких.</small>
+                                <div id="editFieldBlocksVisualization" class="field-blocks-container">
+                                    <div class="field-loading">Загрузка схемы поля...</div>
+                                </div>
+                                <div id="editFieldBlocksInfo" class="field-blocks-info"
+                                    style="margin-top: 12px; display: none;">
+                                    <span class="field-info-label">Выбрано блоков:</span>
+                                    <span id="editSelectedBlocksCount" class="field-info-value">0</span>
+                                    <span class="field-info-separator">/</span>
+                                    <span id="editAvailableBlocksCount" class="field-info-value">0</span>
+                                </div>
+                                <input type="hidden" id="editFieldBlocks" required>
+                            </div>
+
+                            <div class="form-card two-col">
+                                <div>
+                                    <label class="field-label" for="editLateThreshold">Порог опоздания (минут)</label>
+                                    <input type="number" id="editLateThreshold" min="0" required>
+                                </div>
+                                <div>
+                                    <label class="field-label" for="editMaxStudents">Макс. учеников</label>
+                                    <input type="number" id="editMaxStudents" placeholder="Без ограничений" min="1">
+                                </div>
+                            </div>
+
+                            <div class="form-card">
+                                <label class="field-label" for="editNotes">Примечания</label>
+                                <textarea id="editNotes" rows="3"></textarea>
+                            </div>
+
+                            <div id="editSlotValidationMessage" class="form-alert" style="display:none;"></div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Модальные окна для тарифов -->
+            <div id="addTariffModal" class="modal">
+                <div class="modal-content" style="max-width: 600px;">
+                    <div class="modal-header-fixed">
+                        <h2>Добавить тариф</h2>
+                        <div class="modal-header-actions">
+                            <button type="button" class="btn-secondary"
+                                onclick="document.getElementById('addTariffModal').style.display='none'">Отмена</button>
+                            <button type="submit" form="addTariffForm" class="btn-primary">Сохранить</button>
+                        </div>
+                    </div>
+                    <div class="modal-body-scrollable">
+                        <form id="addTariffForm">
+                            <div class="form-group">
+                                <label>Название тарифа *</label>
+                                <input type="text" name="name" required placeholder="Тариф 8 занятий">
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Количество занятий *</label>
+                                    <input type="number" name="lessons_count" required min="1" placeholder="8">
+                                </div>
+                                <div class="form-group">
+                                    <label>Стоимость (сум) *</label>
+                                    <input type="number" name="price" required min="0" step="1000" placeholder="360000">
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Описание</label>
+                                <textarea name="description" rows="3"
+                                    placeholder="Стандартный тариф на месяц"></textarea>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <div id="editTariffModal" class="modal">
+                <div class="modal-content" style="max-width: 600px;">
+                    <div class="modal-header-fixed">
+                        <h2>Редактировать тариф</h2>
+                        <div class="modal-header-actions">
+                            <button type="button" class="btn-secondary"
+                                onclick="document.getElementById('editTariffModal').style.display='none'">Отмена</button>
+                            <button type="submit" form="editTariffForm" class="btn-primary">Сохранить</button>
+                        </div>
+                    </div>
+                    <div class="modal-body-scrollable">
+                        <form id="editTariffForm">
+                            <input type="hidden" id="edit_tariff_id">
+
+                            <div class="form-group">
+                                <label>Название тарифа *</label>
+                                <input type="text" id="edit_name" name="name" required>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Количество занятий *</label>
+                                    <input type="number" id="edit_lessons_count" name="lessons_count" required min="1">
+                                </div>
+                                <div class="form-group">
+                                    <label>Стоимость (сум) *</label>
+                                    <input type="number" id="edit_price" name="price" required min="0" step="1000">
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Описание</label>
+                                <textarea id="edit_description" name="description" rows="3"></textarea>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Модальные окна для вознаграждений -->
+            <div id="addRewardModal" class="modal">
+                <div class="modal-content" style="max-width: 600px;">
+                    <div class="modal-header-fixed">
+                        <h2>Добавить вознаграждение</h2>
+                        <div class="modal-header-actions">
+                            <button type="button" class="btn-secondary"
+                                onclick="document.getElementById('addRewardModal').style.display='none'">Отмена</button>
+                            <button type="submit" form="addRewardForm" class="btn-primary">Сохранить</button>
+                        </div>
+                    </div>
+                    <div class="modal-body-scrollable">
+                        <form id="addRewardForm">
+                            <div class="form-group">
+                                <label>Название вознаграждения *</label>
+                                <input type="text" name="name" required placeholder="Дисциплина">
+                            </div>
+
+                            <div class="form-group">
+                                <label>Количество баллов *</label>
+                                <input type="number" name="points" required min="1" placeholder="1">
+                            </div>
+
+                            <div class="form-group">
+                                <label>Описание</label>
+                                <textarea name="description" rows="3"
+                                    placeholder="Описание вознаграждения (необязательно)"></textarea>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <div id="editRewardModal" class="modal">
+                <div class="modal-content" style="max-width: 600px;">
+                    <div class="modal-header-fixed">
+                        <h2>Редактировать вознаграждение</h2>
+                        <div class="modal-header-actions">
+                            <button type="button" class="btn-secondary"
+                                onclick="document.getElementById('editRewardModal').style.display='none'">Отмена</button>
+                            <button type="submit" form="editRewardForm" class="btn-primary">Сохранить</button>
+                        </div>
+                    </div>
+                    <div class="modal-body-scrollable">
+                        <form id="editRewardForm">
+                            <input type="hidden" id="edit_reward_id">
+
+                            <div class="form-group">
+                                <label>Название вознаграждения *</label>
+                                <input type="text" id="edit_name" name="name" required>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Количество баллов *</label>
+                                <input type="number" id="edit_points" name="points" required min="1">
+                            </div>
+
+                            <div class="form-group">
+                                <label>Описание</label>
+                                <textarea id="edit_description" name="description" rows="3"></textarea>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <script src="{{ url_for('static', filename='js/settings.js') }}"></script>
+            <script src="{{ url_for('static', filename='js/groups.js') }}"></script>
+            <script src="{{ url_for('static', filename='js/tariffs.js') }}"></script>
+            <script src="{{ url_for('static', filename='js/rewards.js') }}"></script>
+            <script src="{{ url_for('static', filename='js/sidebar.js') }}"></script>
+            <script>
+                // Переключение вкладок в настройках
+                document.addEventListener('DOMContentLoaded', function () {
+                    const tabs = document.querySelectorAll('.settings-tab');
+                    tabs.forEach(tab => {
+                        tab.addEventListener('click', function () {
+                            const tabName = this.getAttribute('data-tab');
+
+                            // Убрать активный класс со всех вкладок
+                            tabs.forEach(t => t.classList.remove('active'));
+                            document.querySelectorAll('.settings-tab-content').forEach(content => {
+                                content.classList.remove('active');
+                            });
+
+                            // Активировать выбранную вкладку
+                            this.classList.add('active');
+                            const content = document.getElementById(`${tabName}-tab`);
+                            if (content) {
+                                content.classList.add('active');
+
+                                // Показать/скрыть кнопки добавления
+                                const addGroupBtn = document.getElementById('addGroupBtnHeader');
+                                const addTariffBtn = document.getElementById('addTariffBtnHeader');
+                                const addRewardBtn = document.getElementById('addRewardBtnHeader');
+
+                                if (addGroupBtn) addGroupBtn.style.display = (tabName === 'groups') ? 'block' : 'none';
+                                if (addTariffBtn) addTariffBtn.style.display = (tabName === 'tariffs') ? 'block' : 'none';
+                                if (addRewardBtn) addRewardBtn.style.display = (tabName === 'rewards') ? 'block' : 'none';
+
+                                // Загрузить данные при переключении на вкладку
+                                if (tabName === 'groups') {
+                                    // Загрузить группы, если еще не загружены
+                                    if (typeof loadGroups === 'function') {
+                                        setTimeout(() => loadGroups(), 100);
+                                    }
+                                } else if (tabName === 'tariffs') {
+                                    // Загрузить тарифы, если еще не загружены
+                                    if (typeof loadTariffs === 'function') {
+                                        setTimeout(() => loadTariffs(), 100);
+                                    }
+                                } else if (tabName === 'rewards') {
+                                    // Загрузить вознаграждения и инициализировать обработчики
+                                    if (typeof loadRewards === 'function') {
+                                        setTimeout(() => {
+                                            initRewardsHandlers();
+                                            loadRewards();
+                                        }, 100);
+                                    }
+                                }
+                            }
+                        });
+                    });
+                });
+
+                // Инициализация обработчиков для вознаграждений
+                function initRewardsHandlers() {
+                    const addRewardBtn = document.getElementById('addRewardBtnHeader') || document.getElementById('addRewardBtn');
+                    const addRewardModal = document.getElementById('addRewardModal');
+                    const editRewardModal = document.getElementById('editRewardModal');
+                    const addRewardForm = document.getElementById('addRewardForm');
+                    const editRewardForm = document.getElementById('editRewardForm');
+
+                    if (!addRewardBtn || !addRewardModal || !editRewardModal || !addRewardForm || !editRewardForm) {
+                        console.warn('Элементы вознаграждений не найдены');
+                        return; // Элементы еще не доступны
+                    }
+
+                    // Переопределить attachRewardButtons для работы с нашими модальными окнами
+                    if (typeof attachRewardButtons === 'function') {
+                        const originalAttachRewardButtons = attachRewardButtons;
+                        window.attachRewardButtons = function () {
+                            originalAttachRewardButtons();
+                            // Дополнительная инициализация для кнопок редактирования/удаления
+                            attachRewardActionButtons();
+                        };
+                    } else {
+                        // Если функция не существует, создаем свою
+                        window.attachRewardButtons = function () {
+                            attachRewardActionButtons();
+                        };
+                    }
+
+                    // Функция для привязки обработчиков к кнопкам действий
+                    function attachRewardActionButtons() {
+                        // Редактировать
+                        document.querySelectorAll('.edit-reward-btn').forEach(btn => {
+                            // Удалить старые обработчики
+                            const newBtn = btn.cloneNode(true);
+                            btn.parentNode.replaceChild(newBtn, btn);
+
+                            newBtn.addEventListener('click', async () => {
+                                const rewardId = newBtn.getAttribute('data-reward-id');
+
+                                try {
+                                    const response = await fetch('/api/rewards');
+                                    if (!response.ok) throw new Error('Ошибка загрузки вознаграждений');
+
+                                    const rewards = await response.json();
+                                    const reward = rewards.find(r => r.id == rewardId);
+
+                                    if (reward) {
+                                        document.getElementById('edit_reward_id').value = reward.id;
+                                        document.getElementById('edit_name').value = reward.name;
+                                        document.getElementById('edit_points').value = reward.points;
+                                        document.getElementById('edit_description').value = reward.description || '';
+
+                                        editRewardModal.style.display = 'block';
+                                    }
+                                } catch (error) {
+                                    console.error('Ошибка загрузки вознаграждения:', error);
+                                    alert('Ошибка загрузки вознаграждения: ' + error.message);
+                                }
+                            });
+                        });
+
+                        // Удалить
+                        document.querySelectorAll('.delete-reward-btn').forEach(btn => {
+                            // Удалить старые обработчики
+                            const newBtn = btn.cloneNode(true);
+                            btn.parentNode.replaceChild(newBtn, btn);
+
+                            newBtn.addEventListener('click', async () => {
+                                const rewardId = newBtn.getAttribute('data-reward-id');
+                                const rewardName = newBtn.getAttribute('data-reward-name');
+
+                                if (!confirm(`Вы уверены, что хотите удалить вознаграждение "${rewardName}"?`)) {
+                                    return;
+                                }
+
+                                try {
+                                    const response = await fetch(`/api/rewards/${rewardId}`, {
+                                        method: 'DELETE'
+                                    });
+
+                                    const result = await response.json();
+
+                                    if (result.success) {
+                                        alert('✓ Вознаграждение удалено!');
+                                        if (typeof loadRewards === 'function') {
+                                            loadRewards();
+                                        }
+                                    } else {
+                                        alert('Ошибка: ' + (result.message || 'Не удалось удалить вознаграждение'));
+                                    }
+                                } catch (error) {
+                                    alert('Ошибка: ' + error.message);
+                                }
+                            });
+                        });
+                    }
+
+                    // Удалить старые обработчики, если они есть (клонируем элементы)
+                    const newAddBtn = addRewardBtn.cloneNode(true);
+                    addRewardBtn.parentNode.replaceChild(newAddBtn, addRewardBtn);
+
+                    // Привязать обработчик открытия модалки добавления
+                    newAddBtn.addEventListener('click', () => {
+                        addRewardModal.style.display = 'block';
+                    });
+
+                    // Закрытие модалок через кнопки закрытия
+                    const closeBtns = document.querySelectorAll('#addRewardModal .close, #editRewardModal .close');
+                    closeBtns.forEach(btn => {
+                        // Удалить старые обработчики
+                        const newBtn = btn.cloneNode(true);
+                        btn.parentNode.replaceChild(newBtn, btn);
+
+                        newBtn.addEventListener('click', () => {
+                            addRewardModal.style.display = 'none';
+                            editRewardModal.style.display = 'none';
+                        });
+                    });
+
+                    // Закрытие при клике вне модалки
+                    const modalClickHandler = (e) => {
+                        if (e.target === addRewardModal) addRewardModal.style.display = 'none';
+                        if (e.target === editRewardModal) editRewardModal.style.display = 'none';
+                    };
+                    window.removeEventListener('click', modalClickHandler);
+                    window.addEventListener('click', modalClickHandler);
+
+                    // Обработчик формы добавления
+                    const newForm = addRewardForm.cloneNode(true);
+                    addRewardForm.parentNode.replaceChild(newForm, addRewardForm);
+
+                    newForm.addEventListener('submit', async (e) => {
+                        e.preventDefault();
+
+                        const formData = new FormData(e.target);
+                        const data = {
+                            name: formData.get('name').trim(),
+                            points: parseInt(formData.get('points')),
+                            description: formData.get('description').trim()
+                        };
+
+                        if (!data.name) {
+                            alert('Название вознаграждения не может быть пустым');
+                            return;
+                        }
+
+                        if (data.points < 1) {
+                            alert('Количество баллов должно быть больше 0');
+                            return;
+                        }
+
+                        try {
+                            const response = await fetch('/api/rewards/add', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(data)
+                            });
+
+                            const result = await response.json();
+
+                            if (result.success) {
+                                alert('✓ Вознаграждение успешно добавлено!');
+                                addRewardModal.style.display = 'none';
+                                e.target.reset();
+                                if (typeof loadRewards === 'function') {
+                                    loadRewards();
+                                }
+                            } else {
+                                alert('Ошибка: ' + (result.message || 'Не удалось добавить вознаграждение'));
+                            }
+                        } catch (error) {
+                            alert('Ошибка: ' + error.message);
+                        }
+                    });
+
+                    // Обработчик формы редактирования
+                    const newEditForm = editRewardForm.cloneNode(true);
+                    editRewardForm.parentNode.replaceChild(newEditForm, editRewardForm);
+
+                    newEditForm.addEventListener('submit', async (e) => {
+                        e.preventDefault();
+
+                        const rewardId = document.getElementById('edit_reward_id').value;
+                        const formData = new FormData(e.target);
+                        const data = {
+                            name: formData.get('name').trim(),
+                            points: parseInt(formData.get('points')),
+                            description: formData.get('description').trim()
+                        };
+
+                        if (!data.name) {
+                            alert('Название вознаграждения не может быть пустым');
+                            return;
+                        }
+
+                        if (data.points < 1) {
+                            alert('Количество баллов должно быть больше 0');
+                            return;
+                        }
+
+                        try {
+                            const response = await fetch(`/api/rewards/${rewardId}`, {
+                                method: 'PUT',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(data)
+                            });
+
+                            const result = await response.json();
+
+                            if (result.success) {
+                                alert('✓ Вознаграждение обновлено!');
+                                editRewardModal.style.display = 'none';
+                                if (typeof loadRewards === 'function') {
+                                    loadRewards();
+                                }
+                            } else {
+                                alert('Ошибка: ' + (result.message || 'Не удалось обновить вознаграждение'));
+                            }
+                        } catch (error) {
+                            alert('Ошибка: ' + error.message);
+                        }
+                    });
+                }
+            </script>
+        </div>
+    </div>
+    </div>
+    <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
+</body>
+
+</html>

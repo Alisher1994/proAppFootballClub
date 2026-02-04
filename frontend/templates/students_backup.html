@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ученики</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="sidebar">
+        <h2>⚽ FK QORASUV</h2>
+        <nav>
+            <a href="{{ url_for('dashboard') }}">📊 Главная</a>
+            <a href="{{ url_for('students') }}" class="active">👥 Ученики</a>
+            <a href="{{ url_for('attendance_page') }}">📋 Посещаемость</a>
+            <a href="{{ url_for('camera_page') }}">📷 Камера</a>
+            <a href="{{ url_for('expenses_page') }}">💰 Расходы</a>
+            <a href="{{ url_for('logout') }}">🚪 Выход</a>
+        </nav>
+    </div>
+
+    <div class="main-content">
+        <div class="page-header">
+            <h1>👥 Ученики</h1>
+            <button id="addStudentBtn" class="btn-primary">➕ Добавить ученика</button>
+        </div>
+        
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Фото</th>
+                    <th>Имя</th>
+                    <th>Телефон</th>
+                    <th>Тел. родителя</th>
+                    <th>Баланс</th>
+                    <th>Действия</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for student in students %}
+                <tr class="{% if student.balance <= 2 %}low-balance{% endif %}">
+                    <td>
+                        {% if student.photo_path %}
+                        <img src="{{ url_for('static', filename=student.photo_path.replace('frontend/static/', '').replace('\\', '/')) }}" class="student-avatar">
+                        {% else %}
+                        <div class="avatar-placeholder">👤</div>
+                        {% endif %}
+                    </td>
+                    <td>{{ student.full_name }}</td>
+                    <td>{{ student.phone or '-' }}</td>
+                    <td>{{ student.parent_phone or '-' }}</td>
+                    <td>
+                        <span class="balance-badge {% if student.balance <= 2 %}low{% endif %}">
+                            {{ student.balance }}
+                        </span>
+                    </td>
+                    <td>
+                        <button class="btn-small btn-success add-payment-btn" data-student-id="{{ student.id }}">💳 Оплата</button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Модальное окно: Добавить ученика -->
+    <div id="addStudentModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Добавить ученика</h2>
+            
+            <form id="addStudentForm" enctype="multipart/form-data">
+                <div class="form-group">
+                    <label>ФИО *</label>
+                    <input type="text" name="full_name" required>
+                </div>
+                
+                <div class="form-group">
+                    <label>Телефон ученика</label>
+                    <input type="tel" name="phone">
+                </div>
+                
+                <div class="form-group">
+                    <label>Телефон родителя</label>
+                    <input type="tel" name="parent_phone">
+                </div>
+                
+                <div class="form-group">
+                    <label>Фото *</label>
+                    <input type="file" name="photo" accept="image/*" required>
+                    <small>Фото должно чётко показывать лицо</small>
+                </div>
+                
+                <button type="submit" class="btn-primary">Добавить</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Модальное окно: Оплата -->
+    <div id="paymentModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Добавить оплату</h2>
+            
+            <form id="paymentForm">
+                <input type="hidden" id="payment_student_id">
+                
+                <div class="form-group">
+                    <label>Сумма оплаты (сум) *</label>
+                    <input type="number" id="payment_amount" required>
+                </div>
+                
+                <div class="form-group">
+                    <label>Количество занятий *</label>
+                    <input type="number" id="lessons_added" required>
+                </div>
+                
+                <div class="form-group">
+                    <label>Тариф</label>
+                    <select id="tariff_name">
+                        <option value="Тариф 4">Тариф 4 занятия</option>
+                        <option value="Тариф 8" selected>Тариф 8 занятий</option>
+                        <option value="Тариф 12">Тариф 12 занятий</option>
+                        <option value="Разовое">Разовое занятие</option>
+                    </select>
+                </div>
+                
+                <button type="submit" class="btn-success">Оплатить</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/students.js') }}"></script>
+</body>
+</html>

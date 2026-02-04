@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Вход - PRO APP</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        .portal-login {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            position: relative;
+            z-index: 3;
+        }
+        .portal-login-card {
+            width: 100%;
+            max-width: 420px;
+            background: rgba(255,255,255,0.12);
+            border: 1px solid rgba(255,255,255,0.25);
+            border-radius: 24px;
+            padding: 32px;
+            color: #f8fafc;
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+        }
+        .portal-login-card h1 {
+            font-size: 1.4rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+            color: #f8fafc;
+        }
+        .portal-login-card p { color: rgba(248,250,252,0.7); margin-bottom: 24px; }
+        .portal-login-card label { display:block; margin-bottom:6px; font-weight:600; }
+        .portal-login-card input {
+            width:100%;
+            padding:12px 14px;
+            border-radius: 12px;
+            border:1px solid rgba(255,255,255,0.2);
+            background: rgba(255,255,255,0.08);
+            color:#fff;
+            margin-bottom:16px;
+        }
+        .portal-login-card button {
+            width:100%;
+            padding:12px 14px;
+            border-radius: 12px;
+            border:none;
+            background: linear-gradient(135deg,#7c3aed,#4f46e5);
+            color:#fff;
+            font-weight:700;
+            cursor:pointer;
+            box-shadow: 0 8px 20px rgba(79,70,229,0.35);
+        }
+        .portal-login-error { margin-top:12px; color:#fca5a5; }
+    </style>
+</head>
+<body class="login-page">
+    <video class="login-bg-video" autoplay muted loop playsinline>
+        <source src="{{ url_for('static', filename='uploads/background.mp4') }}" type="video/mp4">
+    </video>
+    <svg class="login-bg-filter" width="0" height="0" aria-hidden="true" focusable="false">
+        <filter id="login-waves">
+            <feTurbulence type="fractalNoise" baseFrequency="0.008" numOctaves="2" seed="2">
+                <animate attributeName="baseFrequency" dur="8s" values="0.006;0.012;0.006" repeatCount="indefinite" />
+            </feTurbulence>
+            <feDisplacementMap in="SourceGraphic" scale="18">
+                <animate attributeName="scale" dur="6s" values="12;24;12" repeatCount="indefinite" />
+            </feDisplacementMap>
+        </filter>
+    </svg>
+    <div class="portal-login">
+        <div class="portal-login-card">
+            <div class="login-brand" style="margin-bottom: 10px;">
+                <img class="login-logo" src="{{ url_for('static', filename='uploads/logo.png') }}" alt="Logo">
+                <span>PRO APP</span>
+            </div>
+            <h1>Вход для родителей/учеников</h1>
+            <p>Введите номер телефона и код из Telegram.</p>
+            <form id="portalLoginForm">
+                <label>Номер телефона</label>
+                <input type="text" id="portal-phone" placeholder="+998..." required>
+                <label>Код (Telegram)</label>
+                <input type="text" id="portal-code" placeholder="A001" required>
+                <button type="submit">Войти</button>
+                <div id="portal-login-error" class="portal-login-error"></div>
+            </form>
+        </div>
+    </div>
+    <script>
+        document.getElementById('portalLoginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const phone = document.getElementById('portal-phone').value.trim();
+            const code = document.getElementById('portal-code').value.trim();
+            const errorEl = document.getElementById('portal-login-error');
+            errorEl.textContent = '';
+            try {
+                const response = await fetch('/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ phone, code, portal: true })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    window.location.href = data.redirect || '/portal';
+                } else {
+                    errorEl.textContent = data.message || 'Ошибка входа';
+                }
+            } catch (err) {
+                errorEl.textContent = 'Ошибка соединения';
+            }
+        });
+    </script>
+</body>
+</html>

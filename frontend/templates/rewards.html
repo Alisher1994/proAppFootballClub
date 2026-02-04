@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Вознаграждения</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    {% include '_sidebar.html' %}
+
+    <div class="main-content">
+        <div class="page-header">
+            <h1>🏆 Типы вознаграждений</h1>
+            <button id="addRewardBtn" class="btn-primary">➕ Добавить вознаграждение</button>
+        </div>
+        
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Название</th>
+                    <th>Баллы</th>
+                    <th>Описание</th>
+                    <th>Действия</th>
+                </tr>
+            </thead>
+            <tbody id="rewardsTableBody">
+                <!-- Заполнится через JS -->
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Модальное окно: Добавить вознаграждение -->
+    <div id="addRewardModal" class="modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header-fixed">
+                <h2>Добавить вознаграждение</h2>
+                <div class="modal-header-actions">
+                    <button type="button" class="btn-secondary" onclick="document.getElementById('addRewardModal').style.display='none'">Отмена</button>
+                    <button type="submit" form="addRewardForm" class="btn-primary">Сохранить</button>
+                </div>
+            </div>
+            <div class="modal-body-scrollable">
+                <form id="addRewardForm">
+                    <div class="form-group">
+                        <label>Название вознаграждения *</label>
+                        <input type="text" name="name" required placeholder="Дисциплина">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Количество баллов *</label>
+                        <input type="number" name="points" required min="1" placeholder="1">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Описание</label>
+                        <textarea name="description" rows="3" placeholder="Описание вознаграждения (необязательно)"></textarea>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно: Редактировать вознаграждение -->
+    <div id="editRewardModal" class="modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header-fixed">
+                <h2>Редактировать вознаграждение</h2>
+                <div class="modal-header-actions">
+                    <button type="button" class="btn-secondary" onclick="document.getElementById('editRewardModal').style.display='none'">Отмена</button>
+                    <button type="submit" form="editRewardForm" class="btn-primary">Сохранить</button>
+                </div>
+            </div>
+            <div class="modal-body-scrollable">
+                <form id="editRewardForm">
+                    <input type="hidden" id="edit_reward_id">
+                    
+                    <div class="form-group">
+                        <label>Название вознаграждения *</label>
+                        <input type="text" id="edit_name" name="name" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Количество баллов *</label>
+                        <input type="number" id="edit_points" name="points" required min="1">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Описание</label>
+                        <textarea id="edit_description" name="description" rows="3"></textarea>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/rewards.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/sidebar.js') }}"></script>
+</body>
+</html>
+

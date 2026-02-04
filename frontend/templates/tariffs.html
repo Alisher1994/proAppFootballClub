@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Тарифы</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    {% include '_sidebar.html' %}
+
+    <div class="main-content">
+        <div class="page-header">
+            <h1>💳 Тарифные планы</h1>
+            <button id="addTariffBtn" class="btn-primary">➕ Добавить тариф</button>
+        </div>
+        
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Название</th>
+                    <th>Занятий</th>
+                    <th>Стоимость</th>
+                    <th>Цена за занятие</th>
+                    <th>Описание</th>
+                    <th>Действия</th>
+                </tr>
+            </thead>
+            <tbody id="tariffsTableBody">
+                <!-- Заполнится через JS -->
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Модальное окно: Добавить тариф -->
+    <div id="addTariffModal" class="modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header-fixed">
+                <h2>Добавить тариф</h2>
+                <div class="modal-header-actions">
+                    <button type="button" class="btn-secondary" onclick="document.getElementById('addTariffModal').style.display='none'">Отмена</button>
+                    <button type="submit" form="addTariffForm" class="btn-primary">Сохранить</button>
+                </div>
+            </div>
+            <div class="modal-body-scrollable">
+                <form id="addTariffForm">
+                    <div class="form-group">
+                        <label>Название тарифа *</label>
+                        <input type="text" name="name" required placeholder="Тариф 8 занятий">
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Количество занятий *</label>
+                            <input type="number" name="lessons_count" required min="1" placeholder="8">
+                        </div>
+                        <div class="form-group">
+                            <label>Стоимость (сум) *</label>
+                            <input type="number" name="price" required min="0" step="1000" placeholder="360000">
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Описание</label>
+                        <textarea name="description" rows="3" placeholder="Стандартный тариф на месяц"></textarea>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно: Редактировать тариф -->
+    <div id="editTariffModal" class="modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header-fixed">
+                <h2>Редактировать тариф</h2>
+                <div class="modal-header-actions">
+                    <button type="button" class="btn-secondary" onclick="document.getElementById('editTariffModal').style.display='none'">Отмена</button>
+                    <button type="submit" form="editTariffForm" class="btn-primary">Сохранить</button>
+                </div>
+            </div>
+            <div class="modal-body-scrollable">
+                <form id="editTariffForm">
+                    <input type="hidden" id="edit_tariff_id">
+                    
+                    <div class="form-group">
+                        <label>Название тарифа *</label>
+                        <input type="text" id="edit_name" name="name" required>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Количество занятий *</label>
+                            <input type="number" id="edit_lessons_count" name="lessons_count" required min="1">
+                        </div>
+                        <div class="form-group">
+                            <label>Стоимость (сум) *</label>
+                            <input type="number" id="edit_price" name="price" required min="0" step="1000">
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Описание</label>
+                        <textarea id="edit_description" name="description" rows="3"></textarea>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/tariffs.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/sidebar.js') }}"></script>
+</body>
+</html>

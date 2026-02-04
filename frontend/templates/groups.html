@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Группы</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    {% include '_sidebar.html' %}
+
+    <div class="main-content">
+        <div class="page-header" style="display: flex; align-items: center; gap: 10px;">
+            <h1 style="flex:1;">👨‍👩‍👦 Управление группами</h1>
+            <button class="btn-success" onclick="showAddGroupModal()">➕ Добавить группу</button>
+        </div>
+        
+        <table class="data-table" id="groupsTable" style="margin-top: 20px;">
+            <thead>
+                <tr>
+                    <th>Название</th>
+                    <th>Дни</th>
+                    <th>Время занятия</th>
+                    <th>Опоздание (мин)</th>
+                    <th>Учеников</th>
+                    <th>Примечания</th>
+                    <th>Действия</th>
+                </tr>
+            </thead>
+            <tbody id="groupsTableBody">
+                <tr><td colspan="6">Загрузка...</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Модальное окно добавления группы -->
+    <div id="addGroupModal" class="modal">
+        <div class="modal-content modern-modal">
+            <div class="modal-header-fixed">
+                <h2>Добавить группу</h2>
+                <div class="modal-header-actions">
+                    <button type="button" onclick="closeAddGroupModal()" class="btn-secondary">Отмена</button>
+                    <button type="submit" form="addGroupForm" class="btn-primary">Сохранить</button>
+                </div>
+            </div>
+            <div class="modal-body-scrollable">
+            <form id="addGroupForm" class="modal-form">
+                    <div class="form-card">
+                        <label class="field-label" for="groupName">Название группы</label>
+                        <input type="text" id="groupName" required placeholder="Группа 1, Младшая...">
+                    </div>
+
+                    <div class="form-card">
+                        <label class="field-label" for="durationMinutes">Длительность занятия</label>
+                        <div style="position: relative; width: 100%;">
+                            <select id="durationMinutes" required style="width: 100%; padding: 12px 40px 12px 16px; border: 1px solid #e2e8f0; border-radius: 12px; font-size: 0.95rem; background: #fff; appearance: none; -webkit-appearance: none; -moz-appearance: none; cursor: pointer; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+                                <option value="30">30 минут</option>
+                                <option value="60" selected>1 час</option>
+                                <option value="90">1 час 30 минут</option>
+                                <option value="120">2 часа</option>
+                                <option value="150">2 часа 30 минут</option>
+                                <option value="180">3 часа</option>
+                                <option value="210">3 часа 30 минут</option>
+                                <option value="240">4 часа</option>
+                                <option value="270">4 часа 30 минут</option>
+                            </select>
+                            <div style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); pointer-events: none; width: 20px; height: 20px;">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#475569" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <polyline points="6 9 12 15 18 9"></polyline>
+                                </svg>
+                            </div>
+                        </div>
+                        <small class="field-hint">Выберите сколько времени длится одно занятие</small>
+                    </div>
+
+                    <!-- Визуальное расписание для выбора дней и времени -->
+                    <div class="form-card">
+                        <label class="field-label">📅 Выберите дни и время занятий</label>
+                        <small class="field-hint">Кликните на свободные или частично занятые ячейки. Выберите одинаковое время для всех дней группы.</small>
+                        <div id="selectedSlotsDisplay" class="selected-slots-display" style="margin-bottom: 12px;"></div>
+                        <div id="scheduleVisualization" class="schedule-visualization">
+                            <div class="schedule-loading">Загрузка расписания...</div>
+                        </div>
+                        <input type="hidden" id="scheduleTime" required>
+                        <input type="hidden" id="scheduleDays" required>
+                    </div>
+
+                    <!-- Визуализация блоков стадиона -->
+                    <div class="form-card">
+                        <label class="field-label">🏟️ Размер группы на поле</label>
+                        <small class="field-hint">Выберите, сколько блоков стадиона будет занимать эта группа. Кликайте на соседние блоки для выбора нескольких.</small>
+                        <div id="fieldBlocksVisualization" class="field-blocks-container">
+                            <div class="field-loading">Загрузка схемы поля...</div>
+                        </div>
+                        <div id="fieldBlocksInfo" class="field-blocks-info" style="margin-top: 12px; display: none;">
+                            <span class="field-info-label">Выбрано блоков:</span>
+                            <span id="selectedBlocksCount" class="field-info-value">0</span>
+                            <span class="field-info-separator">/</span>
+                            <span id="availableBlocksCount" class="field-info-value">0</span>
+                        </div>
+                        <input type="hidden" id="fieldBlocks" required>
+                    </div>
+
+                    <div class="form-card two-col">
+                        <div>
+                            <label class="field-label" for="lateThreshold">Порог опоздания (минут)</label>
+                            <input type="number" id="lateThreshold" value="15" min="0" required>
+                        </div>
+                        <div>
+                            <label class="field-label" for="maxStudents">Макс. учеников</label>
+                            <input type="number" id="maxStudents" placeholder="Без ограничений" min="1">
+                        </div>
+                    </div>
+
+                    <div class="form-card">
+                        <label class="field-label" for="notes">Примечания</label>
+                        <textarea id="notes" rows="3" placeholder="Дополнительная информация..."></textarea>
+                    </div>
+
+                    <div id="slotValidationMessage" class="form-alert" style="display:none;"></div>
+            </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно редактирования группы -->
+    <div id="editGroupModal" class="modal">
+        <div class="modal-content modern-modal">
+            <div class="modal-header-fixed">
+                <h2>Обновить группу</h2>
+                <div class="modal-header-actions">
+                    <button type="button" onclick="closeEditGroupModal()" class="btn-secondary">Отмена</button>
+                    <button type="submit" form="editGroupForm" class="btn-primary">Сохранить</button>
+                </div>
+            </div>
+            <div class="modal-body-scrollable">
+            <form id="editGroupForm" class="modal-form">
+                    <input type="hidden" id="editGroupId">
+
+                    <div class="form-card">
+                        <label class="field-label" for="editGroupName">Название группы</label>
+                        <input type="text" id="editGroupName" required>
+                    </div>
+
+                    <div class="form-card">
+                        <label class="field-label" for="editDurationMinutes">Длительность занятия</label>
+                        <div style="position: relative; width: 100%;">
+                            <select id="editDurationMinutes" required style="width: 100%; padding: 12px 40px 12px 16px; border: 1px solid #e2e8f0; border-radius: 12px; font-size: 0.95rem; background: #fff; appearance: none; -webkit-appearance: none; -moz-appearance: none; cursor: pointer; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+                                <option value="30">30 минут</option>
+                                <option value="60">1 час</option>
+                                <option value="90">1 час 30 минут</option>
+                                <option value="120">2 часа</option>
+                                <option value="150">2 часа 30 минут</option>
+                                <option value="180">3 часа</option>
+                                <option value="210">3 часа 30 минут</option>
+                                <option value="240">4 часа</option>
+                                <option value="270">4 часа 30 минут</option>
+                            </select>
+                            <div style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); pointer-events: none; width: 20px; height: 20px;">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#475569" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <polyline points="6 9 12 15 18 9"></polyline>
+                                </svg>
+                            </div>
+                        </div>
+                        <small class="field-hint">Выберите сколько времени длится одно занятие</small>
+                    </div>
+
+                    <!-- Визуальное расписание для выбора дней и времени -->
+                    <div class="form-card">
+                        <label class="field-label">📅 Выберите дни и время занятий</label>
+                        <small class="field-hint">Кликните на свободные или частично занятые ячейки. Выберите одинаковое время для всех дней группы.</small>
+                        <div id="editSelectedSlotsDisplay" class="selected-slots-display" style="margin-bottom: 12px;"></div>
+                        <div id="editScheduleVisualization" class="schedule-visualization">
+                            <div class="schedule-loading">Загрузка расписания...</div>
+                        </div>
+                        <input type="hidden" id="editScheduleTime" required>
+                        <input type="hidden" id="editScheduleDays" required>
+                    </div>
+
+                    <!-- Визуализация блоков стадиона -->
+                    <div class="form-card">
+                        <label class="field-label">🏟️ Размер группы на поле</label>
+                        <small class="field-hint">Выберите, сколько блоков стадиона будет занимать эта группа. Кликайте на соседние блоки для выбора нескольких.</small>
+                        <div id="editFieldBlocksVisualization" class="field-blocks-container">
+                            <div class="field-loading">Загрузка схемы поля...</div>
+                        </div>
+                        <div id="editFieldBlocksInfo" class="field-blocks-info" style="margin-top: 12px; display: none;">
+                            <span class="field-info-label">Выбрано блоков:</span>
+                            <span id="editSelectedBlocksCount" class="field-info-value">0</span>
+                            <span class="field-info-separator">/</span>
+                            <span id="editAvailableBlocksCount" class="field-info-value">0</span>
+                        </div>
+                        <input type="hidden" id="editFieldBlocks" required>
+                    </div>
+
+                    <div class="form-card two-col">
+                        <div>
+                            <label class="field-label" for="editLateThreshold">Порог опоздания (минут)</label>
+                            <input type="number" id="editLateThreshold" min="0" required>
+                        </div>
+                        <div>
+                            <label class="field-label" for="editMaxStudents">Макс. учеников</label>
+                            <input type="number" id="editMaxStudents" placeholder="Без ограничений" min="1">
+                        </div>
+                    </div>
+
+                    <div class="form-card">
+                        <label class="field-label" for="editNotes">Примечания</label>
+                        <textarea id="editNotes" rows="3"></textarea>
+                    </div>
+
+                    <div id="editSlotValidationMessage" class="form-alert" style="display:none;"></div>
+            </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Настройки клуба -->
+    <div id="clubSettingsModal" class="modal">
+        <div class="modal-content modern-modal">
+            <div class="modal-header-fixed">
+                <h2>⚙️ Настройки клуба</h2>
+                <div class="modal-header-actions">
+                    <button type="button" onclick="closeSettingsModal()" class="btn-secondary">Отмена</button>
+                    <button type="submit" form="clubSettingsForm" class="btn-primary">Сохранить</button>
+                </div>
+            </div>
+            <div class="modal-body-scrollable">
+            <form id="clubSettingsForm" class="modal-form">
+                    <div class="form-card">
+                        <label class="field-label">Рабочие дни</label>
+                        <div class="weekdays-grid" id="settingsWeekdaySelector">
+                            {% for day,label in [(1,'Пн'),(2,'Вт'),(3,'Ср'),(4,'Чт'),(5,'Пт'),(6,'Сб'),(7,'Вс')] %}
+                            <label class="weekday-pill">
+                                <input type="checkbox" class="weekday-checkbox" data-target="settings" value="{{ day }}">
+                                <span>{{ label }}</span>
+                            </label>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="form-card three-field">
+                        <div>
+                            <label class="field-label" for="workStartTime">Начало работы</label>
+                            <input type="time" id="workStartTime" required>
+                        </div>
+                        <div>
+                            <label class="field-label" for="workEndTime">Окончание работы</label>
+                            <input type="time" id="workEndTime" required>
+                        </div>
+                        <div>
+                            <label class="field-label" for="maxGroupsPerSlot">Вместимость поля (групп)</label>
+                            <input type="number" id="maxGroupsPerSlot" min="1" required>
+                        </div>
+                    </div>
+
+                    <div class="form-card" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:16px;">
+                        <label style="display:flex;gap:12px;align-items:center;cursor:pointer;">
+                            <div style="position:relative;width:22px;height:22px;">
+                                <input type="checkbox" id="blockFuturePayments" style="position:absolute;opacity:0;width:22px;height:22px;cursor:pointer;z-index:2;">
+                                <div id="blockFuturePaymentsBox" style="width:22px;height:22px;border:2px solid #3b82f6;border-radius:4px;background:#fff;display:flex;align-items:center;justify-content:center;transition:all 0.2s;">
+                                    <svg id="blockFuturePaymentsCheck" style="display:none;width:14px;height:14px;fill:#fff;" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                                </div>
+                            </div>
+                            <span style="font-size:15px;font-weight:500;color:#1e293b;">Не принимать оплату за будущие месяцы</span>
+                        </label>
+                        <small style="color:#64748b;display:block;margin-top:8px;margin-left:34px;">Если включено, оплату можно вносить только за текущий и прошедшие месяцы.</small>
+                    </div>
+                    <script>
+                        (function() {
+                            const cb = document.getElementById('blockFuturePayments');
+                            const box = document.getElementById('blockFuturePaymentsBox');
+                            const check = document.getElementById('blockFuturePaymentsCheck');
+                            function update() {
+                                if (cb.checked) {
+                                    box.style.background = '#3b82f6';
+                                    box.style.borderColor = '#3b82f6';
+                                    check.style.display = 'block';
+                                } else {
+                                    box.style.background = '#fff';
+                                    box.style.borderColor = '#3b82f6';
+                                    check.style.display = 'none';
+                                }
+                            }
+                            cb.addEventListener('change', update);
+                            // Observe for programmatic changes
+                            new MutationObserver(update).observe(cb, {attributes: true, attributeFilter: ['checked']});
+                            // Initial state
+                            setTimeout(update, 100);
+                        })();
+                    </script>
+
+                    <div id="settingsStatus" class="form-alert" style="display:none;"></div>
+            </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/groups.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/sidebar.js') }}"></script>
+</body>
+</html>
