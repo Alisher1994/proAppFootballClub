@@ -939,7 +939,15 @@ def format_thousand(value):
         return value
 
 
-@app.jinja_env.filters['format_currency'] = format_currency
+def format_currency(value):
+    """Форматирование целых чисел с пробелом как разделителем тысяч"""
+    try:
+        if value is None: return "0"
+        return "{:,.0f}".format(float(value)).replace(",", " ")
+    except:
+        return str(value)
+
+app.jinja_env.filters['format_currency'] = format_currency
 
 def send_telegram_message(chat_id, text, token):
     """Отправка сообщения в Telegram"""
