@@ -5729,6 +5729,51 @@ def telegram_register():
         return jsonify({'success': False, 'message': str(e)}), 500
 
 
+@app.route('/api/telegram/attendance-report', methods=['GET'])
+def get_telegram_attendance_report():
+    """Отчет о посещаемости для Telegram бота"""
+    target_date_str = request.args.get('date') # '2023-11-20'
+    if not target_date_str:
+        return jsonify({'success': False, 'message': 'Дата не указана'}), 400
+        
+    try:
+        target_date = datetime.strptime(target_date_str, '%Y-%m-%d').date()
+    except ValueError:
+        return jsonify({'success': False, 'message': 'Неверный формат даты'}), 400
+        
+    all_groups = Group.query.order_by(Group.name).all()
+    if not all_groups:
+        return jsonify({'success': True, 'text': "Группы не найдены."})
+        
+    report_lines = [f"📊 <b>Посещаемость ({target_date.strftime('%d.%m.%Y')})</b>\n"]
+    
+    total_found = 0
+    for group in all_groups:
+        students = Student.query.filter_by(group_id=group.id, status='active').order_by(Student.full_name).all()
+        if not students:
+            continue
+            
+        total_found += 1
+        report_lines.append(f"<b>🏗 Группа: {group.name}</b>")
+        
+        # Получаем список ID присутствующих в этой группе за этот день
+        present_student_ids = set(
+            row[0] for row in db.session.query(Attendance.student_id).filter_by(date=target_date).all()
+        )
+        
+        for i, student in enumerate(students, 1):
+            status_icon = "✅" if student.id in present_student_ids else "❌"
+            report_lines.append(f"{i}. {student.full_name} — {status_icon}")
+        
+        report_lines.append("") # Пустая строка между группами
+        
+    if total_found == 0:
+        final_text = f"На {target_date.strftime('%d.%m.%Y')} активных групп не найдено."
+    else:
+        final_text = "\n".join(report_lines)
+        
+    return jsonify({'success': True, 'text': final_text})
+
 @app.route('/api/club-settings/public', methods=['GET'])
 def get_club_settings_public():
     """

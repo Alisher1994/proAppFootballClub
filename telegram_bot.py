@@ -12,8 +12,8 @@ import os
 import requests
 import time
 from datetime import datetime, timedelta
-from telegram import Update, ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
-from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
+from telegram import Update, ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes, CallbackQueryHandler
 
 # URL вашего приложения
 # Для локальной разработки или внутри контейнера:
@@ -98,12 +98,20 @@ async def handle_contact(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if result.get('success'):
             if result.get('is_staff'):
                 roles = result.get('roles', [])
+                
+                # Постоянное меню для сотрудников
+                staff_keyboard = ReplyKeyboardMarkup(
+                    [[KeyboardButton("📊 Отчет по посещаемости")]],
+                    resize_keyboard=True
+                )
+                
                 await update.message.reply_text(
                     f"✅ <b>Доступ разрешен: {', '.join(roles)}</b>\n\n"
                     f"Вы успешно авторизованы как сотрудник Командного центра школы.\n"
-                    f"Теперь сюда будут приходить уведомления об оплатах и ежедневные отчеты.",
+                    f"Теперь сюда будут приходить уведомления об оплатах и ежедневные отчеты.\n\n"
+                    f"Используйте кнопку ниже для получения отчетов.",
                     parse_mode='HTML',
-                    reply_markup=ReplyKeyboardRemove()
+                    reply_markup=staff_keyboard
                 )
                 return
 
@@ -187,9 +195,59 @@ async def handle_code(update: Update, context: ContextTypes.DEFAULT_TYPE):
         print(f"Ошибка запроса к API: {e}")
 
 
+# Обработчик кнопки отчета
+async def handle_staff_report(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Предложение выбрать дату для отчета"""
+    keyboard = [
+        [
+            InlineKeyboardButton("Сегодня", callback_data="report_today"),
+            InlineKeyboardButton("Вчера", callback_data="report_yesterday"),
+        ]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await update.message.reply_text("Выберите период для отчета:", reply_markup=reply_markup)
+
+# Обработчик инлайн-кнопок
+async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Обработка выбора даты"""
+    query = update.callback_query
+    await query.answer()
+    
+    data = query.data
+    target_date = datetime.now()
+    
+    if data == "report_yesterday":
+        target_date = target_date - timedelta(days=1)
+    
+    date_str = target_date.strftime('%Y-%m-%d')
+    
+    try:
+        response = requests.get(
+            f"{APP_URL}/api/telegram/attendance-report",
+            params={'date': date_str},
+            timeout=10
+        )
+        result = response.json()
+        
+        if result.get('success'):
+            await query.edit_message_text(
+                result.get('text', 'Ошибка формирования текста'),
+                parse_mode='HTML'
+            )
+        else:
+            await query.edit_message_text(f"❌ Ошибка: {result.get('message', 'Неизвестная ошибка')}")
+    except Exception as e:
+        print(f"Error getting report: {e}")
+        await query.edit_message_text("❌ Ошибка соединения с сервером.")
+
+
 # Обработчик неизвестных команд
 async def unknown(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработчик неизвестных команд"""
+    if update.message.text == "📊 Отчет по посещаемости":
+        await handle_staff_report(update, context)
+        return
+        
     await update.message.reply_text(
         "Не понимаю эту команду.\n\n"
         "Используй /start для начала работы."
@@ -215,8 +273,10 @@ def main():
     
     # Регистрация обработчиков
     application.add_handler(CommandHandler("start", start))
-    application.add_handler(MessageHandler(filters.CONTACT, handle_contact)) # Сначала контакт!
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_code)) # Потом текст
+    application.add_handler(MessageHandler(filters.CONTACT, handle_contact))
+    application.add_handler(MessageHandler(filters.Regex("^📊 Отчет по посещаемости$"), handle_staff_report))
+    application.add_handler(CallbackQueryHandler(callback_handler))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_code))
     application.add_handler(MessageHandler(filters.COMMAND, unknown))
     
     # Запустить бота с защитой от конфликтов (при обновлении контейнеров)
