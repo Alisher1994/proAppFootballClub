@@ -108,6 +108,15 @@ async function loadSettings() {
         if (telegramCardEl) telegramCardEl.value = data.telegram_card_template || '';
         if (telegramPaymentEl) telegramPaymentEl.value = data.telegram_payment_template || '';
 
+        // Телефоны руководства
+        const directorPhoneEl = document.getElementById('director_phone');
+        const founderPhoneEl = document.getElementById('founder_phone');
+        const cashierPhoneEl = document.getElementById('cashier_phone');
+
+        if (directorPhoneEl) directorPhoneEl.value = data.director_phone || '';
+        if (founderPhoneEl) founderPhoneEl.value = data.founder_phone || '';
+        if (cashierPhoneEl) cashierPhoneEl.value = data.cashier_phone || '';
+
         // Настройки камеры
         const rtspUrlEl = document.getElementById('rtsp_url_setting');
         if (rtspUrlEl) {
@@ -199,6 +208,9 @@ function gatherAllSettings() {
         telegram_reward_template: (document.getElementById('telegram_reward_template')?.value || '').trim(),
         telegram_card_template: (document.getElementById('telegram_card_template')?.value || '').trim(),
         telegram_payment_template: (document.getElementById('telegram_payment_template')?.value || '').trim(),
+        director_phone: (document.getElementById('director_phone')?.value || '').trim(),
+        founder_phone: (document.getElementById('founder_phone')?.value || '').trim(),
+        cashier_phone: (document.getElementById('cashier_phone')?.value || '').trim(),
         rtsp_url: (document.getElementById('rtsp_url_setting')?.value || '').trim(),
         payment_click_enabled: document.getElementById('payment_click_enabled')?.checked || false,
         payment_click_qr_url: (document.getElementById('payment_click_qr_url')?.value || '').trim(),

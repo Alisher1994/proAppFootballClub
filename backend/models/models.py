@@ -343,6 +343,16 @@ class ClubSettings(db.Model):
     podium_display_count = db.Column(db.Integer, default=20)  # Количество учеников для отображения в пьедестале (5-50 с шагом 5)
     telegram_bot_url = db.Column(db.String(300), nullable=True)  # Ссылка/username Telegram-бота для портала
     telegram_bot_token = db.Column(db.String(200), nullable=True)  # Токен Telegram бота
+    
+    # Контакты руководства для уведомлений
+    director_phone = db.Column(db.String(20))
+    founder_phone = db.Column(db.String(20))
+    cashier_phone = db.Column(db.String(20))
+    
+    # Telegram ID руководства (заполняются автоматически ботом)
+    director_chat_id = db.Column(db.String(50))
+    founder_chat_id = db.Column(db.String(50))
+    cashier_chat_id = db.Column(db.String(50), nullable=True)
     telegram_notification_template = db.Column(db.Text, nullable=True)  # Шаблон уведомления о занятии
     telegram_reward_template = db.Column(db.Text, nullable=True)  # Шаблон уведомления о вознаграждении
     telegram_card_template = db.Column(db.Text, nullable=True)  # Шаблон уведомления о карточке

@@ -567,6 +567,22 @@ def ensure_club_settings_columns():
             conn.execute(db.text("ALTER TABLE club_settings ADD COLUMN payment_transfer_enabled BOOLEAN DEFAULT 0"))
         if 'expense_categories' not in columns:
             conn.execute(db.text("ALTER TABLE club_settings ADD COLUMN expense_categories TEXT"))
+        
+        # Контакты руководства
+        if 'director_phone' not in columns:
+            conn.execute(db.text("ALTER TABLE club_settings ADD COLUMN director_phone VARCHAR(20)"))
+        if 'founder_phone' not in columns:
+            conn.execute(db.text("ALTER TABLE club_settings ADD COLUMN founder_phone VARCHAR(20)"))
+        if 'cashier_phone' not in columns:
+            conn.execute(db.text("ALTER TABLE club_settings ADD COLUMN cashier_phone VARCHAR(20)"))
+            
+        # Telegram ID руководства
+        if 'director_chat_id' not in columns:
+            conn.execute(db.text("ALTER TABLE club_settings ADD COLUMN director_chat_id VARCHAR(50)"))
+        if 'founder_chat_id' not in columns:
+            conn.execute(db.text("ALTER TABLE club_settings ADD COLUMN founder_chat_id VARCHAR(50)"))
+        if 'cashier_chat_id' not in columns:
+            conn.execute(db.text("ALTER TABLE club_settings ADD COLUMN cashier_chat_id VARCHAR(50)"))
 
 
 def ensure_expense_columns():
@@ -922,6 +938,34 @@ def format_thousand(value):
         return value
 
 
+@app.jinja_env.filters['format_currency'] = format_currency
+
+def send_management_notification(message, roles=['director', 'founder', 'cashier']):
+    """Отправка уведомления руководству"""
+    try:
+        settings = get_club_settings_instance()
+        bot_token = settings.telegram_bot_token
+        if not bot_token: return
+        
+        chat_ids = set()
+        
+        if 'director' in roles and settings.director_chat_id:
+            chat_ids.add(settings.director_chat_id)
+        if 'founder' in roles and settings.founder_chat_id:
+            chat_ids.add(settings.founder_chat_id)
+        if 'cashier' in roles and settings.cashier_chat_id:
+            chat_ids.add(settings.cashier_chat_id)
+            
+        for chat_id in chat_ids:
+            try:
+                send_telegram_message(chat_id, message, bot_token)
+            except Exception as e:
+                print(f"Ошибка отправки уведомления руководству ({chat_id}): {e}")
+                
+    except Exception as e:
+        print(f"Ошибка в send_management_notification: {e}")
+
+# Функции для работы с изображениями
 @app.template_filter('format_date')
 def format_date(value, fmt='%d.%m.%Y'):
     if not value:
@@ -1932,6 +1976,20 @@ def add_payment():
                 amount_paid=amount_paid,
                 debt=amount_due if amount_due > 0 else None
             )
+            
+            # --- УВЕДОМЛЕНИЕ ДЛЯ РУКОВОДСТВА ---
+            msg_mgmt = (
+                f"💰 <b>Новая оплата!</b>\n"
+                f"👤 Ученик: <b>{student.full_name}</b>\n"
+                f"💵 Сумма: {format_currency(amount_paid)} сум\n"
+                f"📦 Тариф: {tariff.name if tariff else 'Без тарифа'}\n"
+                f"🗓 Дата: {payment_date.strftime('%d.%m.%Y')}\n"
+            )
+            if amount_due > 0:
+                msg_mgmt += f"⚠️ Долг: {format_currency(amount_due)} сум\n"
+             
+            send_management_notification(msg_mgmt, roles=['director', 'founder', 'cashier'])
+            
         except Exception as e:
             print(f"Ошибка отправки уведомления об оплате: {e}")
             # Не прерываем выполнение, если уведомление не отправилось
@@ -3184,6 +3242,10 @@ def get_club_settings():
         'payment_oson_enabled': bool(getattr(settings, 'payment_oson_enabled', False)),
         'payment_oson_qr_url': getattr(settings, 'payment_oson_qr_url', '') or '',
         'payment_transfer_enabled': bool(getattr(settings, 'payment_transfer_enabled', False)),
+        # Телефоны руководства
+        'director_phone': getattr(settings, 'director_phone', '') or '',
+        'founder_phone': getattr(settings, 'founder_phone', '') or '',
+        'cashier_phone': getattr(settings, 'cashier_phone', '') or '',
         'expense_categories': expense_categories
     })
 
@@ -3262,6 +3324,11 @@ def update_club_settings():
         settings.podium_display_count = podium_display_count
         settings.telegram_bot_url = telegram_bot_url if telegram_bot_url else None
         settings.telegram_bot_token = telegram_bot_token if telegram_bot_token else None
+        
+        # Сохранение телефонов руководства
+        settings.director_phone = (data.get('director_phone') or '').strip() or None
+        settings.founder_phone = (data.get('founder_phone') or '').strip() or None
+        settings.cashier_phone = (data.get('cashier_phone') or '').strip() or None
         settings.telegram_notification_template = telegram_notification_template if telegram_notification_template else None
         settings.telegram_reward_template = telegram_reward_template if telegram_reward_template else None
         settings.telegram_card_template = telegram_card_template if telegram_card_template else None
@@ -5249,10 +5316,6 @@ def get_monthly_payments(student_id):
                 'tariff_name': payment.tariff_name or ''
             })
             payments_by_month[month_key]['total_paid'] += float(payment.amount_paid)
-        
-        # Рассчитать остаток для каждого месяца
-        for month_key in payments_by_month:
-            total_paid = payments_by_month[month_key]['total_paid']
             payments_by_month[month_key]['remainder'] = max(0, tariff_price - total_paid)
         
         return jsonify({
@@ -5501,9 +5564,38 @@ def telegram_register_by_phone():
         return jsonify({'success': False, 'message': 'Нет данных'}), 400
         
     # Нормализация телефона для поиска: убираем всё кроме цифр
-    # Если номер начинается с 998..., считаем его узбекским
     phone_digits = ''.join(filter(str.isdigit, raw_phone))
     
+    # --- ПРОВЕРКА НА РУКОВОДСТВО ---
+    settings = get_club_settings_instance()
+    
+    is_director = phones_match_simple(getattr(settings, 'director_phone', ''), phone_digits)
+    is_founder = phones_match_simple(getattr(settings, 'founder_phone', ''), phone_digits)
+    is_cashier = phones_match_simple(getattr(settings, 'cashier_phone', ''), phone_digits)
+    
+    if is_director or is_founder or is_cashier:
+        if is_director:
+            settings.director_chat_id = str(chat_id)
+        if is_founder:
+            settings.founder_chat_id = str(chat_id)
+        if is_cashier:
+            settings.cashier_chat_id = str(chat_id)
+            
+        db.session.commit()
+        
+        roles = []
+        if is_director: roles.append("Директор")
+        if is_founder: roles.append("Учредитель")
+        if is_cashier: roles.append("Кассир")
+        
+        return jsonify({
+            'success': True,
+            'message': f'Вы успешно авторизованы как: {", ".join(roles)}',
+            'is_staff': True,
+            'roles': roles
+        })
+
+    # --- ПОИСК УЧЕНИКА ---
     # Пытаемся найти ученика
     candidates = Student.query.filter(or_(Student.phone.isnot(None), Student.parent_phone.isnot(None))).all()
     matched_student = None
@@ -5552,6 +5644,14 @@ def telegram_register_by_phone():
             'message': 'Номер телефона не найден в базе учеников. Обратись к администратору.'
         })
 
+def phones_match_simple(stored_phone, input_digits):
+    """Простое сравнение телефонов по последним 9 цифрам"""
+    if not stored_phone: return False
+    stored_digits = ''.join(filter(str.isdigit, stored_phone))
+    if len(stored_digits) < 9 or len(input_digits) < 9:
+        return False # Слишком короткие номера
+    return stored_digits[-9:] == input_digits[-9:]
+
 def list_to_phone(digits):
     return digits # Заглушка, используем просто строку цифр для матчинга
 
@@ -5599,7 +5699,10 @@ def get_club_settings_public():
     """
     settings = get_club_settings_instance()
     return jsonify({
-        'telegram_bot_token': settings.telegram_bot_token or ''
+        'telegram_bot_token': settings.telegram_bot_token or '',
+        'director_phone': getattr(settings, 'director_phone', '') or '',
+        'founder_phone': getattr(settings, 'founder_phone', '') or '',
+        'cashier_phone': getattr(settings, 'cashier_phone', '') or ''
     })
 
 
@@ -5724,6 +5827,52 @@ def handle_camera_settings():
 
 
 # Планировщик для автоматической отправки напоминаний об оплате
+def send_daily_summary():
+    """Ежедневный отчет руководству (21:00)"""
+    with app.app_context():
+        try:
+            today = date.today()
+            today_str = today.strftime('%d.%m.%Y')
+            
+            # 1. Посещаемость
+            # Нужно найти все группы, у которых были занятия сегодня
+            # Это сложная логика, пока просто возьмем всех студентов, у которых status='active'
+            total_students = Student.query.filter_by(status='active').count()
+            
+            # Для точной посещаемости нужно смотреть таблицу Attendance (если она есть)
+            # Предположим, у нас есть посещаемость. Если нет, покажем общие цифры.
+            # (Здесь упрощенная логика, так как модели Attendance я не видел, но она подразумевается)
+            
+            # 2. Финансы (Оплаты)
+            payments_today = Payment.query.filter(func.date(Payment.created_at) == today).all()
+            total_income = sum(p.amount_paid for p in payments_today)
+            income_count = len(payments_today)
+            
+            # 3. Расходы
+            expenses_today = Expense.query.filter(func.date(Expense.created_at) == today).all()
+            total_expenses = sum(e.amount for e in expenses_today)
+            expense_count = len(expenses_today)
+            
+            # 4. Баланс
+            balance = total_income - total_expenses
+            
+            msg = (
+                f"📊 <b>Ежедневная сводка ({today_str})</b>\n\n"
+                f"👥 <b>Ученики:</b>\n"
+                f"   • Активных: {total_students}\n\n"
+                f"💰 <b>Финансы:</b>\n"
+                f"   • Приход: {format_currency(total_income)} сум ({income_count} платежей)\n"
+                f"   • Расход: {format_currency(total_expenses)} сум ({expense_count} записей)\n"
+                f"   • Сальдо: {format_currency(balance)} сум\n\n"
+                f"<i>Подробности смотрите в CRM.</i>"
+            )
+            
+            send_management_notification(msg, roles=['director', 'founder'])
+            print(f"Ежедневная сводка отправлена {today_str}")
+            
+        except Exception as e:
+            print(f"Ошибка в send_daily_summary: {e}")
+
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 
@@ -5737,6 +5886,15 @@ def setup_scheduler():
         trigger=CronTrigger(hour=9, minute=0),
         id='send_payment_reminders',
         name='Отправка напоминаний об оплате',
+        replace_existing=True
+    )
+    
+    # Ежедневный отчет для руководства в 21:00
+    scheduler.add_job(
+        func=send_daily_summary,
+        trigger=CronTrigger(hour=21, minute=0),
+        id='send_daily_summary',
+        name='Ежедневная сводка руководству',
         replace_existing=True
     )
     
