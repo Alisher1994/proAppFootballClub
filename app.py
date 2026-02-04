@@ -6014,11 +6014,20 @@ with app.app_context():
 
 # ---------------------------------------------
 
+# Запуск планировщика (для продакшена и локальной разработки)
+# Используем try-except, чтобы ошибка планировщика не валила всё приложение
+try:
+    if not app.debug or os.environ.get('WERKZEUG_RUN_MAIN') == 'true':
+        scheduler = setup_scheduler()
+except Exception as e:
+    print(f"⚠️ Не удалось запустить планировщик: {e}")
+
 if __name__ == '__main__':
     # init_db() # Удалено, инициализация выполняется выше
     
-    # Запустить планировщик
-    scheduler = setup_scheduler()
+    # scheduler уже запущен выше
+    
+    # Для Railway используется gunicorn, но для локальной разработки используем встроенный сервер
     
     # Для Railway используется gunicorn, но для локальной разработки используем встроенный сервер
     port = int(os.environ.get('PORT', 5000))
