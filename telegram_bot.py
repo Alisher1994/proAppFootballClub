@@ -16,10 +16,9 @@ from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 
 # URL вашего приложения
-# Для локальной разработки:
-APP_URL = os.environ.get('APP_URL', 'http://localhost:5000')
-# Для Railway (если используете):
-# APP_URL = os.environ.get('RAILWAY_PUBLIC_DOMAIN', 'https://ваш-проект.up.railway.app')
+# Для локальной разработки или внутри контейнера:
+port = os.environ.get('PORT', '5000')
+APP_URL = os.environ.get('APP_URL', f'http://127.0.0.1:{port}')
 
 # Получить токен бота из настроек через API
 def get_bot_token():
@@ -27,8 +26,14 @@ def get_bot_token():
     # Сначала пробуем получить из переменной окружения
     token = os.environ.get('TELEGRAM_BOT_TOKEN')
     
-    if not token:
-        # Если нет в переменной окружения, получаем из настроек через API
+    if token:
+        print("✓ Токен получен из переменной окружения")
+        return token
+
+    # Если нет в переменной окружения, пробуем получить из настроек через API с повторами
+    print(f"⏳ Ожидание запуска API по адресу {APP_URL}...")
+    max_retries = 30  # Пробовать 30 раз (около 2-3 минут)
+    for i in range(max_retries):
         try:
             response = requests.get(f'{APP_URL}/api/club-settings/public', timeout=5)
             if response.status_code == 200:
@@ -37,30 +42,94 @@ def get_bot_token():
                 if token:
                     print("✓ Токен получен из настроек приложения")
                     return token
+                else:
+                    print("⚠️ Токен не задан в настройках приложения. Повтор...")
+            else:
+                 print(f"⚠️ API вернул статус {response.status_code}. Повтор...")
+        except requests.exceptions.ConnectionError:
+            print("⚠️ Сервер еще не доступен. Повтор...")
         except Exception as e:
-            print(f"⚠️ Не удалось получить токен из API: {e}")
-            print("   Используйте переменную окружения TELEGRAM_BOT_TOKEN")
-    
-    if token:
-        print("✓ Токен получен из переменной окружения")
-    
-    return token
+            print(f"⚠️ Ошибка получения токена: {e}")
+        
+        time.sleep(5) # Ждем 5 секунд перед повтором
+
+    print("❌ Не удалось получить токен после всех попыток.")
+    return None
 
 
 # Обработчик команды /start
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработчик команды /start"""
+    
+    # Создаем клавиатуру с кнопкой "Поделиться контактом"
+    contact_keyboard = ReplyKeyboardMarkup(
+        [[KeyboardButton("📱 Отправить мой номер", request_contact=True)]],
+        resize_keyboard=True,
+        one_time_keyboard=True
+    )
+    
     await update.message.reply_text(
-        "👋 Привет! Я бот для уведомлений о занятиях.\n\n"
-        "Для регистрации отправь мне свой код привязки.\n"
-        "Код можно получить у администратора.\n\n"
-        "Введи код:"
+        "👋 Привет! Я бот для уведомлений футбольной школы.\n\n"
+        "Для входа нажми кнопку ниже, чтобы отправить свой номер телефона 👇",
+        reply_markup=contact_keyboard
     )
 
 
-# Обработчик текстовых сообщений (код привязки)
+# Обработчик контакта
+async def handle_contact(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Обработчик полученного контакта"""
+    contact = update.message.contact
+    chat_id = update.message.chat_id
+    phone_number = contact.phone_number
+    
+    # Отправляем на сервер для проверки
+    try:
+        response = requests.post(
+            f'{APP_URL}/api/telegram/register-by-phone',
+            json={
+                'chat_id': chat_id,
+                'phone': phone_number
+            },
+            timeout=10
+        )
+        
+        result = response.json()
+        
+        if result.get('success'):
+            student = result.get('student', {})
+            student_name = student.get('full_name', 'ученик')
+            code = student.get('code', '----')
+            
+            # Формируем сообщение с данными для входа
+            login = phone_number
+            if not login.startswith('+'):
+                login = '+' + login
+
+            await update.message.reply_text(
+                f"✅ Ура! Я нашел тебя, {student_name}!\n\n"
+                f"🔐 **Твой доступ к порталу:**\n"
+                f"🔗 Ссылка: https://proapp.up.railway.app/portal\n"
+                f"👤 Логин: `{login}`\n"
+                f"🔑 Пароль (код): `{code}`\n\n"
+                f"Теперь я буду присылать сюда уведомления о занятиях!",
+                parse_mode='Markdown',
+                reply_markup=ReplyKeyboardRemove()
+            )
+        else:
+            await update.message.reply_text(
+                f"❌ {result.get('message', 'Ошибка')}\n"
+                "Попробуй обратиться к администратору, если уверен, что твой номер есть в базе.",
+                reply_markup=ReplyKeyboardRemove()
+            )
+            
+    except Exception as e:
+        await update.message.reply_text("❌ Ошибка соединения с сервером. Попробуй позже.")
+        print(f"Error handling contact: {e}")
+
+
+# Обработчик текстовых сообщений (старый способ по коду, оставим на всякий случай)
 async def handle_code(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Обработчик кода привязки"""
+    """Обработчик кода привязки (резервный вариант)"""
     chat_id = update.message.chat_id
     code = update.message.text.strip().upper()
     
@@ -135,16 +204,29 @@ def main():
     
     # Регистрация обработчиков
     application.add_handler(CommandHandler("start", start))
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_code))
+    application.add_handler(MessageHandler(filters.CONTACT, handle_contact)) # Сначала контакт!
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_code)) # Потом текст
     application.add_handler(MessageHandler(filters.COMMAND, unknown))
     
-    # Запустить бота
+    # Запустить бота с защитой от конфликтов (при обновлении контейнеров)
     print("✅ Бот запущен и готов к работе!")
     print("Нажмите Ctrl+C для остановки")
-    
-    application.run_polling(allowed_updates=Update.ALL_TYPES)
+
+    while True:
+        try:
+            application.run_polling(allowed_updates=Update.ALL_TYPES)
+            # Если run_polling вернулся сам (например, при остановке), выходим
+            break
+        except Exception as e:
+            # Если словили Конфликт (Conflict), значит старый контейнер еще жив.
+            # Ждем и пробуем снова.
+            if "Conflict" in str(e):
+                print("⚠️ Обнаружен конфликт сессий (старый контейнер еще работает). Ждем 10 сек...")
+                time.sleep(10)
+            else:
+                print(f"⚠️ Критическая ошибка бота: {e}. Перезапуск через 5 сек...")
+                time.sleep(5)
 
 
 if __name__ == '__main__':
     main()
-

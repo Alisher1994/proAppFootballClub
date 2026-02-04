@@ -1,5 +1,6 @@
 import os
 import json
+import shutil
 import threading
 import time
 import queue
@@ -101,9 +102,11 @@ if database_url:
     if database_url.startswith('postgres://'):
         database_url = database_url.replace('postgres://', 'postgresql://', 1)
     app.config['SQLALCHEMY_DATABASE_URI'] = database_url
+    print(f"✅ ИСПОЛЬЗУЕТСЯ POSTGRESQL: {database_url.split('@')[-1]}") # Логируем (без пароля)
 else:
     # Локальная разработка - SQLite
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'database', 'football_school.db')
+    print("⚠️ ИСПОЛЬЗУЕТСЯ SQLITE (Локальный режим или нет DATABASE_URL)")
 
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['UPLOAD_FOLDER'] = os.path.join(basedir, 'frontend', 'static', 'uploads')
@@ -114,6 +117,10 @@ db.init_app(app)
 bcrypt = Bcrypt(app)
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
+
+# --- БЛОК АВТОМАТИЧЕСКОЙ ИНИЦИАЛИЗАЦИИ ПЕРЕНЕСЕН В КОНЕЦ ФАЙЛА ---
+# (чтобы все функции были объявлены до их вызова)
+# ---------------------------------------------
 
 face_service = FaceService()
 
@@ -884,7 +891,12 @@ def validate_group_schedule(schedule_time, schedule_days, exclude_group_id=None)
     
     if schedule_time < settings.work_start_time or schedule_time > settings.work_end_time:
         return False, 'Время занятия вне рабочего времени клуба'
-    groups_same_time = Group.query.filter_by(schedule_time=schedule_time).all()
+    # Исправление для PostgreSQL: преобразуем время в строку перед запросом
+    query_time = schedule_time
+    if isinstance(schedule_time, (dt_time, datetime)):
+        query_time = schedule_time.strftime('%H:%M')
+        
+    groups_same_time = Group.query.filter_by(schedule_time=query_time).all()
     for day in selected_days:
         count = 0
         for group in groups_same_time:
@@ -1578,7 +1590,8 @@ def add_student():
             if encoding is not None:
                 student.set_face_encoding(encoding)
             else:
-                return jsonify({'success': False, 'message': 'Лицо не обнаружено на фото'}), 400
+                # Если лицо не найдено, не блокируем создание, просто нет вектора
+                print(f"⚠️ Лицо не обнаружено для студента {student.id}, пропускаем создание вектора")
         
         db.session.commit()
         
@@ -5477,6 +5490,71 @@ def refund_payment(payment_id):
 
 # ===== TELEGRAM API =====
 
+@app.route('/api/telegram/register-by-phone', methods=['POST'])
+def telegram_register_by_phone():
+    """Регистрация Telegram по номеру телефона (контакту)"""
+    data = request.get_json()
+    chat_id = data.get('chat_id')
+    raw_phone = data.get('phone')  # Номер от Telegram (может быть с + или без)
+    
+    if not chat_id or not raw_phone:
+        return jsonify({'success': False, 'message': 'Нет данных'}), 400
+        
+    # Нормализация телефона для поиска: убираем всё кроме цифр
+    # Если номер начинается с 998..., считаем его узбекским
+    phone_digits = ''.join(filter(str.isdigit, raw_phone))
+    
+    # Пытаемся найти ученика
+    candidates = Student.query.filter(or_(Student.phone.isnot(None), Student.parent_phone.isnot(None))).all()
+    matched_student = None
+    
+    for student in candidates:
+        # Используем существующую умную проверку телефонов
+        if phones_match(student.phone, list_to_phone(phone_digits)) or \
+           phones_match(student.parent_phone, list_to_phone(phone_digits)) or \
+           phones_match(student.phone, raw_phone) or \
+           phones_match(student.parent_phone, raw_phone):
+            matched_student = student
+            break
+            
+    # Дополнительная попытка: если в базе номера без +, а пришел с + (или наоборот)
+    if not matched_student:
+         # Ищем по последним 9 цифрам (универсально)
+         short_phone = phone_digits[-9:] if len(phone_digits) >= 9 else phone_digits
+         for student in candidates:
+             s_ph = ''.join(filter(str.isdigit, student.phone or ''))
+             p_ph = ''.join(filter(str.isdigit, student.parent_phone or ''))
+             if s_ph.endswith(short_phone) or p_ph.endswith(short_phone):
+                 matched_student = student
+                 break
+
+    if matched_student:
+        # Сохраняем chat_id
+        matched_student.telegram_chat_id = str(chat_id)
+        ensure_student_has_telegram_code(matched_student)
+        db.session.commit()
+        
+        group_name = matched_student.group.name if matched_student.group else 'Без группы'
+        
+        return jsonify({
+            'success': True,
+            'message': f'Ты успешно привязан!',
+            'student': {
+                'id': matched_student.id,
+                'full_name': matched_student.full_name,
+                'group_name': group_name,
+                'code': matched_student.telegram_link_code
+            }
+        })
+    else:
+        return jsonify({
+            'success': False, 
+            'message': 'Номер телефона не найден в базе учеников. Обратись к администратору.'
+        })
+
+def list_to_phone(digits):
+    return digits # Заглушка, используем просто строку цифр для матчинга
+
 @app.route('/api/telegram/register', methods=['POST'])
 def telegram_register():
     """
@@ -5677,8 +5755,94 @@ def send_monthly_payment_reminders_job():
 
 
 
+# --- АВТОМАТИЧЕСКАЯ ИНИЦИАЛИЗАЦИЯ БД ---
+# Выполняется при импорте модуля (работает и для Gunicorn на Railway, и локально)
+with app.app_context():
+    try:
+        print("🔄 Проверка и создание таблиц БД...")
+        db.create_all()
+        # Теперь функции определены, можно вызывать
+        ensure_users_table_columns()
+        ensure_roles_tables()
+        ensure_club_settings_columns()
+        ensure_students_columns()
+        ensure_expense_columns()
+        ensure_cash_transfers_table()
+        
+        # Создание администратора
+        print("👤 Проверка пользователя admin...")
+        admin = User.query.filter_by(username='admin').first()
+        if not admin:
+            print("🛠 Создание пользователя admin...")
+            # Ищем роль
+            admin_role = Role.query.filter_by(name='Администратор').first()
+            role_id = admin_role.id if admin_role else None
+            
+            hashed_pw = bcrypt.generate_password_hash('admin').decode('utf-8')
+            new_admin = User(
+                username='admin', 
+                password_hash=hashed_pw, 
+                role='admin',
+                role_id=role_id,
+                full_name='Super Admin'
+            )
+            db.session.add(new_admin)
+            db.session.commit()
+            print("✅ Пользователь admin успешно создан (пароль: admin)")
+        else:
+            print("✅ Пользователь admin уже существует")
+
+        print("✅ База данных успешно инициализирована")
+    except Exception as e:
+        print(f"❌ Ошибка инициализации БД: {e}")
+        import traceback
+        traceback.print_exc()
+# ---------------------------------------------
+    # Восстановление дефолтных ассетов (если Volume пустой)
+    try:
+        backup_root = 'defaults'
+        if os.path.exists(backup_root):
+            print(f"📦 Поиск ассетов в: {backup_root}")
+            files_in_backup = os.listdir(backup_root)
+            print(f"📄 Найдены файлы в бэкапе: {files_in_backup}")
+
+            upload_dir = app.config['UPLOAD_FOLDER']
+            if not os.path.exists(upload_dir):
+                os.makedirs(upload_dir)
+            
+            restored_count = 0
+            for filename in files_in_backup:
+                src = os.path.join(backup_root, filename)
+                
+                # Игнорируем вложенные папки, берем только файлы
+                if os.path.isdir(src):
+                    continue
+                    
+                dst = os.path.join(upload_dir, filename)
+                
+                # Принудительно копируем (перезаписываем), чтобы исправить возможные битые файлы
+                try:
+                    shutil.copy2(src, dst)
+                    restored_count += 1
+                except Exception as copy_err:
+                    print(f"⚠️ Не удалось скопировать {filename}: {copy_err}")
+            
+            if restored_count > 0:
+                print(f"✅ Восстановлено {restored_count} файлов ассетов из {backup_root}")
+            else:
+                print("✅ Все ассеты уже на месте")
+        else:
+            print("⚠️ Папка defaults не найдена (возможно, ошибка сборки Docker)")
+            
+    except Exception as e:
+        print(f"⚠️ Ошибка восстановления ассетов: {e}")
+        import traceback
+        traceback.print_exc()
+
+# ---------------------------------------------
+
 if __name__ == '__main__':
-    init_db()
+    # init_db() # Удалено, инициализация выполняется выше
     
     # Запустить планировщик
     scheduler = setup_scheduler()

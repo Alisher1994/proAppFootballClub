@@ -57,22 +57,22 @@
 
 /* CSS Variables for Theme */
 :root {
-    /* Dark theme (default) */
-    --theme-bg-primary: #0f172a;
-    --theme-bg-secondary: #1e293b;
-    --theme-bg-tertiary: #334155;
-    --theme-text-primary: #ffffff;
-    --theme-text-secondary: #cbd5e1;
+    /* Light Theme (Forced Default) */
+    --theme-bg-primary: #f1f5f9;
+    --theme-bg-secondary: #ffffff;
+    --theme-bg-tertiary: #f8fafc;
+    --theme-text-primary: #1e293b;
+    --theme-text-secondary: #475569;
     --theme-text-tertiary: #94a3b8;
-    --theme-border: #334155;
-    --theme-card-bg: #1e293b;
-    --theme-input-bg: #1e293b;
-    --theme-input-border: #334155;
-    --theme-table-bg: #1e293b;
+    --theme-border: #e2e8f0;
+    --theme-card-bg: #ffffff;
+    --theme-input-bg: #ffffff;
+    --theme-input-border: #cbd5e1;
+    --theme-table-bg: #ffffff;
     --theme-table-header-bg: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    --theme-table-border: #475569;
-    --theme-sidebar-bg: #1e293b;
-    --theme-sidebar-hover: rgba(255, 255, 255, 0.05);
+    --theme-table-border: #f1f5f9;
+    --theme-sidebar-bg: #ffffff;
+    --theme-sidebar-hover: #f1f5f9;
 }
 
 body.theme-light {
@@ -619,7 +619,8 @@ body.theme-light .theme-icon-moon {
     padding: 40px;
     min-height: 100vh;
     transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.3s ease;
-    background: var(--theme-bg-primary);
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    /* Force gradient */
     color: var(--theme-text-primary);
 }
 
@@ -633,7 +634,8 @@ body.sidebar-collapsed .main-content {
 
 /* Game Layout - структура как в окне Ученики */
 .game-main-content {
-    background: var(--theme-bg-primary);
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    /* Force gradient */
     min-height: 100vh;
     padding: 0 !important;
     margin-left: 280px !important;
@@ -656,7 +658,8 @@ body:has(.sidebar.collapsed) .game-main-content,
     flex-direction: column;
     gap: 0;
     height: 100vh;
-    background: var(--theme-bg-primary);
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    /* Force gradient */
     overflow: hidden;
     transition: background-color 0.3s ease;
 }
@@ -2724,10 +2727,8 @@ body.theme-light .modal-body-scrollable::-webkit-scrollbar-thumb:hover {
         linear-gradient(rgba(255, 255, 255, 0.18) 1px, transparent 1px),
         linear-gradient(90deg, rgba(255, 255, 255, 0.18) 1px, transparent 1px);
     background-size: 100px 100px;
-    transform: translate(
-        calc(var(--grid-offset-x) * 1px),
-        calc(var(--grid-offset-y) * 1px)
-    ) skewX(calc(var(--grid-skew) * 1deg));
+    transform: translate(calc(var(--grid-offset-x) * 1px),
+            calc(var(--grid-offset-y) * 1px)) skewX(calc(var(--grid-skew) * 1deg));
     filter: url(#login-waves);
     opacity: 0.75;
     z-index: 1;
@@ -2751,9 +2752,11 @@ body.theme-light .modal-body-scrollable::-webkit-scrollbar-thumb:hover {
     0% {
         opacity: 0.25;
     }
+
     50% {
         opacity: 0.45;
     }
+
     100% {
         opacity: 0.25;
     }
@@ -2850,8 +2853,13 @@ body.theme-light .modal-body-scrollable::-webkit-scrollbar-thumb:hover {
 }
 
 @keyframes loginTicker {
-    0% { transform: translateX(0); }
-    100% { transform: translateX(-100%); }
+    0% {
+        transform: translateX(0);
+    }
+
+    100% {
+        transform: translateX(-100%);
+    }
 }
 
 .login-brand {

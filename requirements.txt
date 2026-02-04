@@ -15,3 +15,4 @@ python-telegram-bot==20.7
 requests==2.31.0
 APScheduler==3.10.4
 pytz==2024.1
+psutil==5.9.6

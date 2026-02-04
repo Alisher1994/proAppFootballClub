@@ -15,6 +15,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
+# Явное копирование ассетов в defaults (пробивает кеш Docker)
+COPY frontend/static/uploads/ /app/defaults/
+
 RUN mkdir -p database frontend/static/uploads
 
 ENV PYTHONUNBUFFERED=1
@@ -22,4 +25,8 @@ ENV FLASK_APP=app.py
 
 EXPOSE 5000
 
-CMD ["gunicorn", "app:app", "--bind", "0.0.0.0:5000", "--workers", "2", "--timeout", "120"]
+# Делаем скрипт запуска исполняемым
+RUN chmod +x start.sh
+
+CMD ["./start.sh"]
+# Force rebuild trigger 2

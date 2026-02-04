@@ -8,9 +8,8 @@ venv_win/
 .env
 .git/
 .gitignore
-.vscode/
+.vdscode/
 .idea/
 instance/
-# frontend/static/uploads/ (Removed to allow default assets)
 *.db
 *.sqlite3
