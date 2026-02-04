@@ -4,6 +4,7 @@ import shutil
 import threading
 import time
 import queue
+import requests
 import cv2
 import numpy as np
 from datetime import datetime, timedelta, date, timezone
@@ -939,6 +940,20 @@ def format_thousand(value):
 
 
 @app.jinja_env.filters['format_currency'] = format_currency
+
+def send_telegram_message(chat_id, text, token):
+    """Отправка сообщения в Telegram"""
+    if not token or not chat_id: return
+    try:
+        url = f"https://api.telegram.org/bot{token}/sendMessage"
+        payload = {
+            'chat_id': chat_id,
+            'text': text,
+            'parse_mode': 'HTML'
+        }
+        requests.post(url, json=payload, timeout=5)
+    except Exception as e:
+        print(f"Ошибка отправки сообщения в Telegram ({chat_id}): {e}")
 
 def send_management_notification(message, roles=['director', 'founder', 'cashier']):
     """Отправка уведомления руководству"""
