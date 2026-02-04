@@ -1,3 +1,4 @@
+// settings.js updated: FORCE REBUILD 2
 document.addEventListener('DOMContentLoaded', initSettings);
 let expenseCategories = [];
 
