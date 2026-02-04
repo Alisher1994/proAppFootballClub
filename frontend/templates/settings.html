@@ -724,11 +724,11 @@
             box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
         }
 
-        .switch-toggle input:checked + .switch-slider {
+        .switch-toggle input:checked+.switch-slider {
             background: #667eea;
         }
 
-        .switch-toggle input:checked + .switch-slider::after {
+        .switch-toggle input:checked+.switch-slider::after {
             transform: translateX(20px);
         }
 
@@ -749,6 +749,7 @@
             .payment-method-list {
                 grid-template-columns: 1fr;
             }
+
             .form-row {
                 grid-template-columns: 1fr;
             }
@@ -997,14 +998,16 @@
                                     </label>
 
                                     <div style="margin-top: 20px;">
-                                        <h4 style="margin: 0 0 12px 0; font-size: 15px; color: var(--theme-text-primary);">
+                                        <h4
+                                            style="margin: 0 0 12px 0; font-size: 15px; color: var(--theme-text-primary);">
                                             Способы оплаты
                                         </h4>
                                         <div class="payment-method-list">
                                             <div class="payment-method-item">
                                                 <div class="payment-method-row">
                                                     <div class="payment-method-title">
-                                                        <img src="{{ url_for('static', filename='uploads/click.png') }}" alt="Click" class="payment-method-icon">
+                                                        <img src="{{ url_for('static', filename='uploads/click.png') }}"
+                                                            alt="Click" class="payment-method-icon">
                                                         <div class="payment-method-name">Click</div>
                                                     </div>
                                                     <label class="switch-toggle">
@@ -1014,15 +1017,16 @@
                                                 </div>
                                                 <div class="payment-method-input">
                                                     <label for="payment_click_qr_url">Ссылка на QR-код</label>
-                                                    <input type="text" id="payment_click_qr_url" class="form-input-modern"
-                                                        placeholder="https://...">
+                                                    <input type="text" id="payment_click_qr_url"
+                                                        class="form-input-modern" placeholder="https://...">
                                                 </div>
                                             </div>
 
                                             <div class="payment-method-item">
                                                 <div class="payment-method-row">
                                                     <div class="payment-method-title">
-                                                        <img src="{{ url_for('static', filename='uploads/payme.png') }}" alt="Payme" class="payment-method-icon">
+                                                        <img src="{{ url_for('static', filename='uploads/payme.png') }}"
+                                                            alt="Payme" class="payment-method-icon">
                                                         <div class="payment-method-name">Payme</div>
                                                     </div>
                                                     <label class="switch-toggle">
@@ -1032,15 +1036,16 @@
                                                 </div>
                                                 <div class="payment-method-input">
                                                     <label for="payment_payme_qr_url">Ссылка на QR-код</label>
-                                                    <input type="text" id="payment_payme_qr_url" class="form-input-modern"
-                                                        placeholder="https://...">
+                                                    <input type="text" id="payment_payme_qr_url"
+                                                        class="form-input-modern" placeholder="https://...">
                                                 </div>
                                             </div>
 
                                             <div class="payment-method-item">
                                                 <div class="payment-method-row">
                                                     <div class="payment-method-title">
-                                                        <img src="{{ url_for('static', filename='uploads/uzum.png') }}" alt="Uzum" class="payment-method-icon">
+                                                        <img src="{{ url_for('static', filename='uploads/uzum.png') }}"
+                                                            alt="Uzum" class="payment-method-icon">
                                                         <div class="payment-method-name">Uzum</div>
                                                     </div>
                                                     <label class="switch-toggle">
@@ -1050,15 +1055,16 @@
                                                 </div>
                                                 <div class="payment-method-input">
                                                     <label for="payment_uzum_qr_url">Ссылка на QR-код</label>
-                                                    <input type="text" id="payment_uzum_qr_url" class="form-input-modern"
-                                                        placeholder="https://...">
+                                                    <input type="text" id="payment_uzum_qr_url"
+                                                        class="form-input-modern" placeholder="https://...">
                                                 </div>
                                             </div>
 
                                             <div class="payment-method-item">
                                                 <div class="payment-method-row">
                                                     <div class="payment-method-title">
-                                                        <img src="{{ url_for('static', filename='uploads/paynet.png') }}" alt="Paynet" class="payment-method-icon">
+                                                        <img src="{{ url_for('static', filename='uploads/paynet.png') }}"
+                                                            alt="Paynet" class="payment-method-icon">
                                                         <div class="payment-method-name">Paynet</div>
                                                     </div>
                                                     <label class="switch-toggle">
@@ -1068,15 +1074,16 @@
                                                 </div>
                                                 <div class="payment-method-input">
                                                     <label for="payment_paynet_qr_url">Ссылка на QR-код</label>
-                                                    <input type="text" id="payment_paynet_qr_url" class="form-input-modern"
-                                                        placeholder="https://...">
+                                                    <input type="text" id="payment_paynet_qr_url"
+                                                        class="form-input-modern" placeholder="https://...">
                                                 </div>
                                             </div>
 
                                             <div class="payment-method-item">
                                                 <div class="payment-method-row">
                                                     <div class="payment-method-title">
-                                                        <img src="{{ url_for('static', filename='uploads/xazna.png') }}" alt="Xazna" class="payment-method-icon">
+                                                        <img src="{{ url_for('static', filename='uploads/xazna.png') }}"
+                                                            alt="Xazna" class="payment-method-icon">
                                                         <div class="payment-method-name">Xazna</div>
                                                     </div>
                                                     <label class="switch-toggle">
@@ -1086,15 +1093,16 @@
                                                 </div>
                                                 <div class="payment-method-input">
                                                     <label for="payment_xazna_qr_url">Ссылка на QR-код</label>
-                                                    <input type="text" id="payment_xazna_qr_url" class="form-input-modern"
-                                                        placeholder="https://...">
+                                                    <input type="text" id="payment_xazna_qr_url"
+                                                        class="form-input-modern" placeholder="https://...">
                                                 </div>
                                             </div>
 
                                             <div class="payment-method-item">
                                                 <div class="payment-method-row">
                                                     <div class="payment-method-title">
-                                                        <img src="{{ url_for('static', filename='uploads/oson.jpeg') }}" alt="Oson" class="payment-method-icon">
+                                                        <img src="{{ url_for('static', filename='uploads/oson.jpeg') }}"
+                                                            alt="Oson" class="payment-method-icon">
                                                         <div class="payment-method-name">Oson</div>
                                                     </div>
                                                     <label class="switch-toggle">
@@ -1104,15 +1112,16 @@
                                                 </div>
                                                 <div class="payment-method-input">
                                                     <label for="payment_oson_qr_url">Ссылка на QR-код</label>
-                                                    <input type="text" id="payment_oson_qr_url" class="form-input-modern"
-                                                        placeholder="https://...">
+                                                    <input type="text" id="payment_oson_qr_url"
+                                                        class="form-input-modern" placeholder="https://...">
                                                 </div>
                                             </div>
 
                                             <div class="payment-method-item">
                                                 <div class="payment-method-row">
                                                     <div class="payment-method-title">
-                                                        <img src="{{ url_for('static', filename='uploads/card.png') }}" alt="UZCARD" class="payment-method-icon">
+                                                        <img src="{{ url_for('static', filename='uploads/card.png') }}"
+                                                            alt="UZCARD" class="payment-method-icon">
                                                         <div class="payment-method-name">UZCARD</div>
                                                     </div>
                                                     <label class="switch-toggle">
@@ -1125,7 +1134,8 @@
                                             <div class="payment-method-item">
                                                 <div class="payment-method-row">
                                                     <div class="payment-method-title">
-                                                        <img src="{{ url_for('static', filename='uploads/humo.png') }}" alt="HUMO" class="payment-method-icon">
+                                                        <img src="{{ url_for('static', filename='uploads/humo.png') }}"
+                                                            alt="HUMO" class="payment-method-icon">
                                                         <div class="payment-method-name">HUMO</div>
                                                     </div>
                                                     <label class="switch-toggle">
@@ -1138,10 +1148,15 @@
                                             <div class="payment-method-item">
                                                 <div class="payment-method-row">
                                                     <div class="payment-method-title">
-                                                        <div class="payment-method-icon" style="display:flex;align-items:center;justify-content:center;">
-                                                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                                                        <div class="payment-method-icon"
+                                                            style="display:flex;align-items:center;justify-content:center;">
+                                                            <svg xmlns="http://www.w3.org/2000/svg" width="24"
+                                                                height="24" viewBox="0 0 24 24" fill="none"
+                                                                stroke="currentColor" stroke-width="1.5"
+                                                                stroke-linecap="round" stroke-linejoin="round">
                                                                 <path d="M10 18v-7" />
-                                                                <path d="M11.12 2.198a2 2 0 0 1 1.76.006l7.866 3.847c.476.233.31.949-.22.949H3.474c-.53 0-.695-.716-.22-.949z" />
+                                                                <path
+                                                                    d="M11.12 2.198a2 2 0 0 1 1.76.006l7.866 3.847c.476.233.31.949-.22.949H3.474c-.53 0-.695-.716-.22-.949z" />
                                                                 <path d="M14 18v-7" />
                                                                 <path d="M18 18v-7" />
                                                                 <path d="M3 22h18" />
@@ -1235,7 +1250,8 @@
                             <div class="settings-card-icon">💰</div>
                             <div>
                                 <h2 class="settings-card-title">Статьи расхода</h2>
-                                <p class="settings-card-subtitle">Управляйте списком категорий расходов, которые будут доступны в финансах</p>
+                                <p class="settings-card-subtitle">Управляйте списком категорий расходов, которые будут
+                                    доступны в финансах</p>
                             </div>
                         </div>
                         <form id="expenseCategoriesForm" class="settings-form">
@@ -1246,11 +1262,19 @@
                                 </div>
                                 <div class="settings-section-content">
                                     <div style="display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap;">
-                                        <input type="text" id="expense-category-input" class="form-input-modern expense-category-input" placeholder="Добавить статью (например, Дивиденты)" style="flex:1; min-width: 240px;">
-                                        <button type="button" class="btn-primary" style="white-space: nowrap;" onclick="window.addExpenseCategorySetting && window.addExpenseCategorySetting()">➕ Добавить</button>
+                                        <input type="text" id="expense-category-input"
+                                            class="form-input-modern expense-category-input"
+                                            placeholder="Добавить статью (например, Дивиденты)"
+                                            style="flex:1; min-width: 240px;">
+                                        <button type="button" class="btn-primary" style="white-space: nowrap;"
+                                            onclick="window.addExpenseCategorySetting && window.addExpenseCategorySetting()">➕
+                                            Добавить</button>
                                     </div>
-                                    <div id="expense-categories-list" style="display: flex; flex-wrap: wrap; gap: 8px;"></div>
-                                    <small style="color: #7f8c8d; display: block; margin-top: 8px; line-height: 1.5;">Изменения сохраняются по кнопке ниже и применяются в разделе Финансы.</small>
+                                    <div id="expense-categories-list" style="display: flex; flex-wrap: wrap; gap: 8px;">
+                                    </div>
+                                    <small
+                                        style="color: #7f8c8d; display: block; margin-top: 8px; line-height: 1.5;">Изменения
+                                        сохраняются по кнопке ниже и применяются в разделе Финансы.</small>
                                 </div>
                             </div>
 
@@ -1303,7 +1327,8 @@
                                         </label>
                                         <input type="text" id="telegram_bot_url" class="form-input-modern"
                                             placeholder="https://t.me/your_bot">
-                                        <small style="color: #7f8c8d; display: block; margin-top: 8px; line-height: 1.5;">
+                                        <small
+                                            style="color: #7f8c8d; display: block; margin-top: 8px; line-height: 1.5;">
                                             Укажите ссылку или @username бота. Это значение используется в портале
                                             для перехода к боту.
                                         </small>
@@ -1311,7 +1336,7 @@
                                 </div>
                             </div>
 
-                            <!-- Секция: Командный центр (Телефоны руководства) -->
+                            <!-- Секция: Командный центр (Телефоны руководства) - Updated -->
                             <div class="settings-section">
                                 <div class="settings-section-header">
                                     <span class="settings-section-icon">👔</span>
@@ -1326,7 +1351,8 @@
                                             </label>
                                             <input type="text" id="director_phone" class="form-input-modern"
                                                 placeholder="+998901234567">
-                                            <small style="color: #7f8c8d; display: block; margin-top: 8px; line-height: 1.5;">
+                                            <small
+                                                style="color: #7f8c8d; display: block; margin-top: 8px; line-height: 1.5;">
                                                 Для получения сводок (введите номер и зарегистрируйтесь в боте)
                                             </small>
                                         </div>
@@ -1337,7 +1363,8 @@
                                             </label>
                                             <input type="text" id="founder_phone" class="form-input-modern"
                                                 placeholder="+998901234567">
-                                            <small style="color: #7f8c8d; display: block; margin-top: 8px; line-height: 1.5;">
+                                            <small
+                                                style="color: #7f8c8d; display: block; margin-top: 8px; line-height: 1.5;">
                                                 Для получения финансовых отчетов
                                             </small>
                                         </div>
@@ -1349,13 +1376,14 @@
                                         </label>
                                         <input type="text" id="cashier_phone" class="form-input-modern"
                                             placeholder="+998901234567">
-                                        <small style="color: #7f8c8d; display: block; margin-top: 8px; line-height: 1.5;">
+                                        <small
+                                            style="color: #7f8c8d; display: block; margin-top: 8px; line-height: 1.5;">
                                             Для уведомлений о новых оплатах
                                         </small>
                                     </div>
                                 </div>
                             </div>
-                            
+
                             <!-- Секция: Шаблоны уведомлений -->
                             <div class="settings-section">
                                 <div class="settings-section-header">
