@@ -96,6 +96,17 @@ async def handle_contact(update: Update, context: ContextTypes.DEFAULT_TYPE):
         result = response.json()
         
         if result.get('success'):
+            if result.get('is_staff'):
+                roles = result.get('roles', [])
+                await update.message.reply_text(
+                    f"✅ <b>Доступ разрешен: {', '.join(roles)}</b>\n\n"
+                    f"Вы успешно авторизованы как сотрудник Командного центра школы.\n"
+                    f"Теперь сюда будут приходить уведомления об оплатах и ежедневные отчеты.",
+                    parse_mode='HTML',
+                    reply_markup=ReplyKeyboardRemove()
+                )
+                return
+
             student = result.get('student', {})
             student_name = student.get('full_name', 'ученик')
             code = student.get('code', '----')
@@ -107,12 +118,12 @@ async def handle_contact(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             await update.message.reply_text(
                 f"✅ Ура! Я нашел тебя, {student_name}!\n\n"
-                f"🔐 **Твой доступ к порталу:**\n"
+                f"🔐 <b>Твой доступ к порталу:</b>\n"
                 f"🔗 Ссылка: https://proapp.up.railway.app/portal\n"
-                f"👤 Логин: `{login}`\n"
-                f"🔑 Пароль (код): `{code}`\n\n"
+                f"👤 Логин: <code>{login}</code>\n"
+                f"🔑 Пароль (код): <code>{code}</code>\n\n"
                 f"Теперь я буду присылать сюда уведомления о занятиях!",
-                parse_mode='Markdown',
+                parse_mode='HTML',
                 reply_markup=ReplyKeyboardRemove()
             )
         else:
