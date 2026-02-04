@@ -25,8 +25,8 @@ ENV FLASK_APP=app.py
 
 EXPOSE 5000
 
-# Делаем скрипт запуска исполняемым
-RUN chmod +x start.sh
+# Исправляем окончания строк (CRLF -> LF) для Windows-файлов и делаем скрипт исполняемым
+RUN sed -i 's/\r$//' start.sh && chmod +x start.sh
 
 CMD ["./start.sh"]
 # Force rebuild trigger 2
