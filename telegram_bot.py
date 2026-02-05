@@ -273,6 +273,7 @@ def main():
     
     # Регистрация обработчиков
     application.add_handler(CommandHandler("start", start))
+    application.add_handler(CommandHandler("report", handle_staff_report))
     application.add_handler(MessageHandler(filters.CONTACT, handle_contact))
     application.add_handler(MessageHandler(filters.Regex("^📊 Отчет по посещаемости$"), handle_staff_report))
     application.add_handler(CallbackQueryHandler(callback_handler))
