@@ -937,30 +937,30 @@
             z-index: 10;
         }
 
-            .students-header-filters {
-                display: flex;
-                gap: 8px;
-                align-items: center;
-                min-width: 0;
-                flex-shrink: 0;
-                margin-left: auto;
-            }
+        .students-header-filters {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            min-width: 0;
+            flex-shrink: 0;
+            margin-left: auto;
+        }
 
-            .students-header-filters .student-group-filter,
-            .students-header-filters .student-list-search {
-                width: 150px;
-                flex-shrink: 0;
-            }
+        .students-header-filters .student-group-filter,
+        .students-header-filters .student-list-search {
+            width: 150px;
+            flex-shrink: 0;
+        }
 
-            .mobile-search-bar {
-                display: none;
-            }
+        .mobile-search-bar {
+            display: none;
+        }
 
-            @media (min-width: 769px) {
-                .game-top-bar.mobile-search-active .mobile-search-bar {
-                    display: none !important;
-                }
+        @media (min-width: 769px) {
+            .game-top-bar.mobile-search-active .mobile-search-bar {
+                display: none !important;
             }
+        }
 
         .student-list-search input {
             width: 100%;
@@ -2616,6 +2616,66 @@
             font-weight: 600 !important;
             background: transparent !important;
         }
+
+        /* Responsive rows for specific sections */
+        @media (max-width: 1200px) {
+
+            #tab-parameters .form-row,
+            #edit-tab-parameters .form-row,
+            #tab-basic .form-row,
+            #edit-tab-basic .form-row {
+                grid-template-columns: repeat(2, 1fr) !important;
+                gap: 10px !important;
+            }
+
+            .form-group label {
+                font-size: 12px !important;
+            }
+
+            .form-group input,
+            .form-group select {
+                padding: 8px !important;
+                font-size: 13px !important;
+            }
+        }
+
+        .loading-spinner {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 200px;
+            color: #4f46e5;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        /* Force 5 columns in one row for parameters on mobile if needed */
+        @media (max-width: 768px) {
+            .params-mobile-row-container {
+                display: grid !important;
+                grid-template-columns: repeat(5, 1fr) !important;
+                gap: 5px !important;
+                width: 100% !important;
+            }
+
+            .params-mobile-row-container .form-group {
+                margin-bottom: 0 !important;
+            }
+
+            .params-mobile-row-container label {
+                font-size: 9px !important;
+                white-space: nowrap !important;
+                overflow: hidden !important;
+                text-overflow: ellipsis !important;
+            }
+
+            .params-mobile-row-container input,
+            .params-mobile-row-container select {
+                padding: 4px !important;
+                font-size: 11px !important;
+                height: 32px !important;
+            }
+        }
     </style>
     <style>
         /* Minimal Students UI */
@@ -3721,56 +3781,49 @@
 
                     <!-- Вкладка: Параметры ученика -->
                     <div class="form-tab-content" id="tab-parameters">
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
-                            <div>
-                                <div class="form-row">
-                                    <div class="form-group">
-                                        <label>Рост (см)</label>
-                                        <input type="number" name="height" min="50" max="250" placeholder="170">
-                                    </div>
-                                    <div class="form-group">
-                                        <label>Вес (кг)</label>
-                                        <input type="number" name="weight" min="10" max="200" step="0.1"
-                                            placeholder="65.5">
-                                    </div>
-                                </div>
-                                <div class="form-row">
-                                    <div class="form-group">
-                                        <label>Размер футболки</label>
-                                        <select name="jersey_size">
-                                            <option value="">Не указан</option>
-                                            <option value="XS">XS</option>
-                                            <option value="S">S</option>
-                                            <option value="M">M</option>
-                                            <option value="L">L</option>
-                                            <option value="XL">XL</option>
-                                            <option value="XXL">XXL</option>
-                                        </select>
-                                    </div>
-                                    <div class="form-group">
-                                        <label>Размер шорт</label>
-                                        <select name="shorts_size">
-                                            <option value="">Не указан</option>
-                                            <option value="XS">XS</option>
-                                            <option value="S">S</option>
-                                            <option value="M">M</option>
-                                            <option value="L">L</option>
-                                            <option value="XL">XL</option>
-                                            <option value="XXL">XXL</option>
-                                        </select>
-                                    </div>
-                                </div>
+                        <div class="params-mobile-row-container">
+                            <div class="form-group">
+                                <label>Рост (см)</label>
+                                <input type="number" name="height" min="50" max="250" placeholder="170">
                             </div>
-                            <div>
-                                <div class="form-group">
-                                    <label>Размер бутс</label>
-                                    <select name="boots_size">
-                                        <option value="">Не указан</option>
-                                        {% for size in range(30, 50) %}
-                                        <option value="{{ size }}">{{ size }}</option>
-                                        {% endfor %}
-                                    </select>
-                                </div>
+                            <div class="form-group">
+                                <label>Вес (кг)</label>
+                                <input type="number" name="weight" min="10" max="200" step="0.1" placeholder="65.5">
+                            </div>
+                            <div class="form-group">
+                                <label>Футболка</label>
+                                <select name="jersey_size">
+                                    <option value="">-</option>
+                                    <option value="XS">XS</option>
+                                    <option value="S">S</option>
+                                    <option value="M">M</option>
+                                    <option value="L">L</option>
+                                    <option value="XL">XL</option>
+                                    <option value="XXL">XXL</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Шорты</label>
+                                <select name="shorts_size">
+                                    <option value="">-</option>
+                                    <option value="XS">XS</option>
+                                    <option value="S">S</option>
+                                    <option value="M">M</option>
+                                    <option value="L">L</option>
+                                    <option value="XL">XL</option>
+                                    <option value="XXL">XXL</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Обувь</label>
+                                <input type="text" name="boots_size" placeholder="38">
+                            </div>
+                        </div>
+
+                        <div style="margin-top: 15px;">
+                            <div class="form-group">
+                                <label>Заметки об экипировке</label>
+                                <textarea name="equipment_notes" rows="2" placeholder="Особенности..."></textarea>
                             </div>
                         </div>
                     </div>
@@ -3991,57 +4044,44 @@
 
                     <!-- Вкладка: Параметры ученика -->
                     <div class="form-tab-content" id="edit-tab-parameters">
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
-                            <div>
-                                <div class="form-row">
-                                    <div class="form-group">
-                                        <label>Рост (см)</label>
-                                        <input type="number" id="edit_height" name="height" min="50" max="250"
-                                            placeholder="170">
-                                    </div>
-                                    <div class="form-group">
-                                        <label>Вес (кг)</label>
-                                        <input type="number" id="edit_weight" name="weight" min="10" max="200"
-                                            step="0.1" placeholder="65.5">
-                                    </div>
-                                </div>
-                                <div class="form-row">
-                                    <div class="form-group">
-                                        <label>Размер футболки</label>
-                                        <select id="edit_jersey_size" name="jersey_size">
-                                            <option value="">Не указан</option>
-                                            <option value="XS">XS</option>
-                                            <option value="S">S</option>
-                                            <option value="M">M</option>
-                                            <option value="L">L</option>
-                                            <option value="XL">XL</option>
-                                            <option value="XXL">XXL</option>
-                                        </select>
-                                    </div>
-                                    <div class="form-group">
-                                        <label>Размер шорт</label>
-                                        <select id="edit_shorts_size" name="shorts_size">
-                                            <option value="">Не указан</option>
-                                            <option value="XS">XS</option>
-                                            <option value="S">S</option>
-                                            <option value="M">M</option>
-                                            <option value="L">L</option>
-                                            <option value="XL">XL</option>
-                                            <option value="XXL">XXL</option>
-                                        </select>
-                                    </div>
-                                </div>
+                        <div class="params-mobile-row-container">
+                            <div class="form-group">
+                                <label>Рост (см)</label>
+                                <input type="number" id="edit_height" name="height" min="50" max="250"
+                                    placeholder="170">
                             </div>
-                            <div>
-                                <div class="form-group">
-                                    <label>Размер бутс</label>
-                                    <select id="edit_boots_size" name="boots_size">
-                                        <option value="">Не указан</option>
-                                        {% for size in range(30, 50) %}
-                                        <option value="{{ size }}">{{ size }}</option>
-                                        {% endfor %}
-                                    </select>
-                                </div>
+                            <div class="form-group">
+                                <label>Вес (кг)</label>
+                                <input type="number" id="edit_weight" name="weight" min="10" max="200" step="0.1"
+                                    placeholder="65.5">
+                            </div>
+                            <div class="form-group">
+                                <label>Футболка</label>
+                                <select id="edit_jersey_size" name="jersey_size">
+                                    <option value="">-</option>
+                                    <option value="XS">XS</option>
+                                    <option value="S">S</option>
+                                    <option value="M">M</option>
+                                    <option value="L">L</option>
+                                    <option value="XL">XL</option>
+                                    <option value="XXL">XXL</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Шорты</label>
+                                <select id="edit_shorts_size" name="shorts_size">
+                                    <option value="">-</option>
+                                    <option value="XS">XS</option>
+                                    <option value="S">S</option>
+                                    <option value="M">M</option>
+                                    <option value="L">L</option>
+                                    <option value="XL">XL</option>
+                                    <option value="XXL">XXL</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Обувь</label>
+                                <input type="text" id="edit_boots_size" name="boots_size" placeholder="38">
                             </div>
                         </div>
                     </div>
@@ -6452,7 +6492,7 @@
             // Синхронизация кликов для мобильной и десктопной кнопок добавления
             const mobileAddBtn = document.getElementById('mobileAddStudentBtn');
             const desktopAddBtn = document.getElementById('addStudentBtn');
-            
+
             if (mobileAddBtn && desktopAddBtn) {
                 mobileAddBtn.addEventListener('click', () => {
                     desktopAddBtn.click();

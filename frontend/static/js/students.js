@@ -1255,31 +1255,92 @@ function initPhotoUpload(containerId, inputId, previewId, areaId, selectBtnId) {
 
     if (!container || !input || !preview || !area || !selectBtn) return;
 
+    // Функция для сжатия изображения
+    async function compressImage(file, maxWidth = 800, maxHeight = 800, quality = 0.8) {
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.src = URL.createObjectURL(file);
+            img.onload = () => {
+                URL.revokeObjectURL(img.src); // Освобождаем память
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+
+                if (width > height) {
+                    if (width > maxWidth) {
+                        height *= maxWidth / width;
+                        width = maxWidth;
+                    }
+                } else {
+                    if (height > maxHeight) {
+                        width *= maxHeight / height;
+                        height = maxHeight;
+                    }
+                }
+
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+
+                canvas.toBlob((blob) => {
+                    const compressedFile = new File([blob], file.name.replace(/\.[^/.]+$/, "") + ".jpg", {
+                        type: 'image/jpeg',
+                        lastModified: Date.now()
+                    });
+                    resolve(compressedFile);
+                }, 'image/jpeg', quality);
+            };
+            img.onerror = (e) => {
+                URL.revokeObjectURL(img.src);
+                reject(e);
+            };
+        });
+    }
+
     // Функция для отображения превью
-    function showPreview(file) {
+    async function showPreview(file) {
         if (!file || !file.type.startsWith('image/')) {
             alert('Пожалуйста, выберите изображение');
             return;
         }
 
-        const reader = new FileReader();
-        reader.onload = function (e) {
+        // Показываем индикатор загрузки (опционально, но полезно)
+        preview.innerHTML = '<div class="loading-spinner">⌛ Сжатие...</div>';
+
+        try {
+            // Сжимаем изображение (это решит проблему с долгим "зависанием" на мобильных)
+            const compressedFile = await compressImage(file);
+
+            // Используем createObjectURL для быстрого отображения превью
+            const objectUrl = URL.createObjectURL(compressedFile);
+
             preview.innerHTML = `
-                <img src="${e.target.result}" alt="Preview">
+                <img src="${objectUrl}" alt="Preview" onload="URL.revokeObjectURL('${objectUrl}')">
                 <button type="button" class="photo-delete-btn" onclick="deletePhoto('${containerId}', '${inputId}', '${previewId}', '${areaId}', '${selectBtnId}')">🗑️ Удалить фото</button>
             `;
-        };
-        reader.readAsDataURL(file);
 
-        // Создаем DataTransfer для установки файла в input
-        const dataTransfer = new DataTransfer();
-        dataTransfer.items.add(file);
-        input.files = dataTransfer.files;
+            // Обновляем input.files
+            const dataTransfer = new DataTransfer();
+            dataTransfer.items.add(compressedFile);
+            input.files = dataTransfer.files;
+        } catch (error) {
+            console.error('Error in showPreview:', error);
+            // Fallback: пробуем показать оригинал
+            const objectUrl = URL.createObjectURL(file);
+            preview.innerHTML = `
+                <img src="${objectUrl}" alt="Preview" onload="URL.revokeObjectURL('${objectUrl}')">
+                <button type="button" class="photo-delete-btn" onclick="deletePhoto('${containerId}', '${inputId}', '${previewId}', '${areaId}', '${selectBtnId}')">🗑️ Удалить фото</button>
+            `;
+            const dataTransfer = new DataTransfer();
+            dataTransfer.items.add(file);
+            input.files = dataTransfer.files;
+        }
     }
 
     // Кнопка "Выбрать" - открыть проводник
     selectBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
+        // Убираем stopPropagation, иногда он мешает на мобильных
         input.click();
     });
 
@@ -1294,28 +1355,57 @@ function initPhotoUpload(containerId, inputId, previewId, areaId, selectBtnId) {
     });
 
     // Обработка вставки через Ctrl+V
-    container.addEventListener('paste', (e) => {
+    container.addEventListener('paste', async (e) => {
         e.preventDefault();
         const items = e.clipboardData.items;
 
         for (let i = 0; i < items.length; i++) {
             if (items[i].type.indexOf('image') !== -1) {
                 const blob = items[i].getAsFile();
-                const file = new File([blob], 'pasted-image.png', { type: blob.type });
-                showPreview(file);
+                const file = new File([blob], 'pasted-image.jpg', { type: 'image/jpeg' });
+                await showPreview(file);
                 break;
             }
         }
     });
 
     // Обработка выбора файла через проводник
-    input.addEventListener('change', (e) => {
+    input.addEventListener('change', async (e) => {
         const file = e.target.files[0];
         if (file) {
-            showPreview(file);
+            await showPreview(file);
         }
     });
 }
+
+// Функция для удаления фото из превью
+window.deletePhoto = function (containerId, inputId, previewId, areaId, selectBtnId) {
+    const input = document.getElementById(inputId);
+    const preview = document.getElementById(previewId);
+
+    if (input) input.value = '';
+    if (preview) {
+        preview.innerHTML = `
+            <div class="photo-placeholder">
+                <button type="button" class="photo-select-btn" id="${selectBtnId}">
+                    <span class="photo-select-icon">+</span>
+                    <span class="photo-select-text">Выбрать</span>
+                </button>
+                <small class="photo-hint">Или нажмите в любом месте и вставьте фото (Ctrl+V)</small>
+            </div>
+        `;
+
+        // Переинициализируем обработчик клика для новой кнопки
+        const newSelectBtn = document.getElementById(selectBtnId);
+        if (newSelectBtn) {
+            newSelectBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const targetInput = document.getElementById(inputId);
+                if (targetInput) targetInput.click();
+            });
+        }
+    }
+};
 
 // ==================== FILTER FUNCTIONALITY ====================
 
