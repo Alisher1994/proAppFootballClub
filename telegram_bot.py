@@ -12,7 +12,7 @@ import os
 import requests
 import time
 from datetime import datetime, timedelta
-from telegram import Update, ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update, ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes, CallbackQueryHandler
 
 # URL вашего приложения
@@ -61,16 +61,18 @@ def get_bot_token():
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработчик команды /start"""
     
-    # Создаем клавиатуру с кнопкой "Поделиться контактом"
+    # Клавиатура: Отправить номер + Кнопка Web App
     contact_keyboard = ReplyKeyboardMarkup(
-        [[KeyboardButton("📱 Отправить мой номер", request_contact=True)]],
-        resize_keyboard=True,
-        one_time_keyboard=True
+        [
+            [KeyboardButton("📱 Отправить мой номер", request_contact=True)],
+            [KeyboardButton("🌐 Открыть приложение", web_app=WebAppInfo(url="https://proapp.up.railway.app/portal/login"))]
+        ],
+        resize_keyboard=True
     )
     
     await update.message.reply_text(
         "👋 Привет! Я бот для уведомлений футбольной школы.\n\n"
-        "Для входа нажми кнопку ниже, чтобы отправить свой номер телефона 👇",
+        "Для регистрации нажми «Отправить номер», или нажми «Открыть приложение» для входа в кабинет 👇",
         reply_markup=contact_keyboard
     )
 
@@ -101,7 +103,10 @@ async def handle_contact(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 
                 # Постоянное меню для сотрудников
                 staff_keyboard = ReplyKeyboardMarkup(
-                    [[KeyboardButton("📊 Отчет по посещаемости")]],
+                    [
+                        [KeyboardButton("📊 Отчет по посещаемости")],
+                        [KeyboardButton("🌐 Открыть приложение", web_app=WebAppInfo(url="https://proapp.up.railway.app/portal/login"))]
+                    ],
                     resize_keyboard=True
                 )
                 
@@ -109,7 +114,7 @@ async def handle_contact(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     f"✅ <b>Доступ разрешен: {', '.join(roles)}</b>\n\n"
                     f"Вы успешно авторизованы как сотрудник Командного центра школы.\n"
                     f"Теперь сюда будут приходить уведомления об оплатах и ежедневные отчеты.\n\n"
-                    f"Используйте кнопку ниже для получения отчетов.",
+                    f"Используйте кнопки меню для управления.",
                     parse_mode='HTML',
                     reply_markup=staff_keyboard
                 )
@@ -195,6 +200,13 @@ async def handle_code(update: Update, context: ContextTypes.DEFAULT_TYPE):
         print(f"Ошибка запроса к API: {e}")
 
 
+# Обработчик команды /app
+async def handle_app(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Отправка кнопки для открытия Web App"""
+    keyboard = [[InlineKeyboardButton("🚀 Открыть приложение", web_app=WebAppInfo(url="https://proapp.up.railway.app/portal/login"))]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await update.message.reply_text("Нажмите кнопку ниже, чтобы открыть приложение школы:", reply_markup=reply_markup)
+
 # Обработчик кнопки отчета
 async def handle_staff_report(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Предложение выбрать дату для отчета"""
@@ -274,6 +286,7 @@ def main():
     # Регистрация обработчиков
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("report", handle_staff_report))
+    application.add_handler(CommandHandler("app", handle_app))
     application.add_handler(MessageHandler(filters.CONTACT, handle_contact))
     application.add_handler(MessageHandler(filters.Regex("^📊 Отчет по посещаемости$"), handle_staff_report))
     application.add_handler(CallbackQueryHandler(callback_handler))
