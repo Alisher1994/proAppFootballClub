@@ -1468,7 +1468,7 @@ def dashboard():
 @login_required
 def students():
     from datetime import date
-    all_students = Student.query.order_by(Student.full_name.asc()).all()
+    all_students = Student.query.outerjoin(Group).order_by(Group.name.asc(), Student.full_name.asc()).all()
     balances = {s.id: calculate_student_balance(s) for s in all_students}
 
     latest_payment_subquery = db.session.query(

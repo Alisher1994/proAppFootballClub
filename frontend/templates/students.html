@@ -2841,6 +2841,26 @@
             transform: none !important;
             box-shadow: none !important;
         }
+
+        .student-group-header {
+            padding: 8px 12px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: #94a3b8;
+            background: #1e293b;
+            border-radius: 6px;
+            margin: 12px 0 8px 0;
+            letter-spacing: 0.5px;
+            position: sticky;
+            top: 0;
+            z-index: 5;
+        }
+
+        body.theme-light .student-group-header {
+            background: #f1f5f9;
+            color: #64748b;
+        }
     </style>
 </head>
 
@@ -2980,7 +3000,15 @@
                 <!-- Секция 1: Список учеников -->
                 <div class="student-list-panel">
                     <div class="student-list-content" id="studentListContent">
+                        {% set ns = namespace(last_group=None) %}
                         {% for student in students %}
+                        {% set current_group = student.group.name if student.group else 'Без группы' %}
+                        {% if ns.last_group != current_group %}
+                        {% if ns.last_group is not none %}</div>{% endif %}
+                    <div class="student-group-section">
+                        <div class="student-group-header">{{ current_group }}</div>
+                        {% set ns.last_group = current_group %}
+                        {% endif %}
                         {% set balance_value = balances.get(student.id) if balances else 0 %}
                         {% set payment = payment_info.get(student.id) if payment_info else None %}
                         {% set points = student_points.get(student.id) if student_points else 0 %}
@@ -3016,583 +3044,579 @@
                             </div>
                         </div>
                         {% endfor %}
-                    </div>
-                </div>
-
-                <!-- Секция 2: Параметры ученика -->
-                <div class="student-details-panel" id="studentDetailsPanel">
-                    <div class="student-details-placeholder {% if students %}hidden{% endif %}">
-                        <div class="placeholder-icon">👆</div>
-                        <p>Выберите ученика из списка</p>
-                    </div>
-
-                    {% for student in students %}
-                    {% set balance_value = balances.get(student.id) if balances else 0 %}
-                    {% set payment = payment_info.get(student.id) if payment_info else None %}
-                    {% set points = student_points.get(student.id) if student_points else 0 %}
-                    <div class="student-details-content {% if not loop.first %}hidden{% endif %}"
-                        id="studentDetails_{{ student.id }}">
-                        <div class="student-details-header">
-                            <div class="student-details-header-top">
-                                <div class="student-main-info">
-                                    <!-- Группа -->
-                                    <div class="student-info-item">
-                                        <div class="info-item-label">Группа</div>
-                                        <div class="info-item-value">{{ student.group.name if student.group else 'Без
-                                            группы' }}</div>
-                                    </div>
-                                    <!-- Тариф -->
-                                    <div class="student-info-item">
-                                        <div class="info-item-label">Тариф</div>
-                                        <div class="info-item-value">{{ student.tariff.name if student.tariff else 'Не
-                                            указан' }}</div>
-                                    </div>
-                                    <!-- Баланс -->
-                                    <div class="student-info-item">
-                                        <div class="info-item-label">Баланс</div>
-                                        <div
-                                            class="info-item-value {% if not student.club_funded %}{% if balance_value > 0 %}balance-positive{% elif balance_value <= 0 %}balance-negative{% endif %}{% endif %}">
-                                            {% if student.club_funded %}♾️{% else %}{{ balance_value }}{% endif %}</div>
-                                    </div>
-                                    <!-- Статус -->
-                                    <div class="student-info-item">
-                                        <div class="info-item-label">Статус</div>
-                                        <div class="info-item-value">
-                                            {% if student.status == 'active' %}✓ Активен
-                                            {% elif student.status == 'inactive' %}○ Неактивен
-                                            {% elif student.status == 'blacklist' %}⚠️ ЧС
-                                            {% else %}-{% endif %}
-                                        </div>
-                                    </div>
-                                    <!-- Баллы -->
-                                    <div class="student-info-item">
-                                        <div class="info-item-label">Баллы</div>
-                                        <div class="info-item-value">
-                                            <span class="points-icon">⭐</span>{{ points }}
-                                        </div>
-                                    </div>
-                                    <!-- Telegram код -->
-                                    <div class="student-info-item">
-                                        <div class="info-item-label">Telegram</div>
-                                        <div class="info-item-value"
-                                            style="display: flex; align-items: center; justify-content: center; gap: 4px; flex-wrap: wrap;">
-                                            <button type="button" class="btn-copy-code"
-                                                data-code="{{ student.telegram_link_code or '' }}"
-                                                data-student-id="{{ student.id }}"
-                                                style="width: 20px; height: 20px; padding: 0; background: #f3f4f6; border: none; border-radius: 3px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
-                                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
-                                                    xmlns="http://www.w3.org/2000/svg">
-                                                    <path
-                                                        d="M16 1H4C2.9 1 2 1.9 2 3V17H4V3H16V1ZM19 5H8C6.9 5 6 5.9 6 7V21C6 22.1 6.9 23 8 23H19C20.1 23 21 22.1 21 21V7C21 5.9 20.1 5 19 5ZM19 21H8V7H19V21Z"
-                                                        fill="#9ca3af" />
-                                                </svg>
-                                            </button>
-                                            <span id="telegram_code_main_{{ student.id }}"
-                                                style="font-family: monospace; font-size: 10px; font-weight: 700; color: var(--theme-text-primary);">
-                                                {{ student.telegram_link_code or 'Генерируется...' }}
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="student-actions-top">
-                                    <button class="action-btn btn-info edit-student-btn"
-                                        data-student-id="{{ student.id }}">
-                                        <svg class="action-icon" viewBox="0 0 24 24" fill="none"
-                                            xmlns="http://www.w3.org/2000/svg">
-                                            <path
-                                                d="M11 4H4C3.46957 4 2.96086 4.21071 2.58579 4.58579C2.21071 4.96086 2 5.46957 2 6V20C2 20.5304 2.21071 21.0391 2.58579 21.4142C2.96086 21.7893 3.46957 22 4 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V13"
-                                                stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                                stroke-linejoin="round" />
-                                            <path
-                                                d="M18.5 2.50023C18.8978 2.10243 19.4374 1.87891 20 1.87891C20.5626 1.87891 21.1022 2.10243 21.5 2.50023C21.8978 2.89804 22.1213 3.43762 22.1213 4.00023C22.1213 4.56284 21.8978 5.10243 21.5 5.50023L12 15.0002L8 16.0002L9 12.0002L18.5 2.50023Z"
-                                                stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                                stroke-linejoin="round" />
-                                        </svg>
-                                    </button>
-                                    <button class="action-btn btn-danger delete-student-btn"
-                                        data-student-id="{{ student.id }}" data-student-name="{{ student.full_name }}">
-                                        <svg class="action-icon" viewBox="0 0 24 24" fill="none"
-                                            xmlns="http://www.w3.org/2000/svg">
-                                            <path d="M3 6H5H21" stroke="currentColor" stroke-width="2"
-                                                stroke-linecap="round" stroke-linejoin="round" />
-                                            <path
-                                                d="M8 6V4C8 3.46957 8.21071 2.96086 8.58579 2.58579C8.96086 2.21071 9.46957 2 10 2H14C14.5304 2 15.0391 2.21071 15.4142 2.58579C15.7893 2.96086 16 3.46957 16 4V6M19 6V20C19 20.5304 18.7893 21.0391 18.4142 21.4142C18.0391 21.7893 17.5304 22 17 22H7C6.46957 22 5.96086 21.7893 5.58579 21.4142C5.21071 21.0391 5 20.5304 5 20V6H19Z"
-                                                stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                                stroke-linejoin="round" />
-                                        </svg>
-                                    </button>
-                                </div>
-                            </div>
-                            <!-- Вкладки: Информация, Оплаты, Финансы, Вознаграждения и Посещения -->
-                            <div class="student-tabs">
-                                <button class="student-tab active" data-tab="info"
-                                    data-student-id="{{ student.id }}">Информация</button>
-                                <button class="student-tab" data-tab="payments"
-                                    data-student-id="{{ student.id }}">Оплаты</button>
-                                <button class="student-tab" data-tab="finances"
-                                    data-student-id="{{ student.id }}">Финансы</button>
-                                <button class="student-tab" data-tab="history"
-                                    data-student-id="{{ student.id }}">Вознаграждения</button>
-                                <button class="student-tab" data-tab="attendance"
-                                    data-student-id="{{ student.id }}">Посещения</button>
-                            </div>
-                        </div>
-
-                        <div class="student-details-body">
-                            <!-- Вкладки: Информация, Оплаты, Финансы, Вознаграждения и Посещения -->
-                            <div class="student-tabs-section">
-                                <!-- Вкладка: Информация -->
-                                <div class="student-tab-content active" id="tab-info-{{ student.id }}">
-                                    <div class="student-name-section">
-                                        <h2 class="student-full-name">■ {{ student.full_name }}</h2>
-                                    </div>
-
-                                    <!-- Паспортные данные, телефоны и адрес -->
-                                    <div class="student-info-section">
-                                        <!-- Первая строка: Паспортные данные | Телефоны -->
-                                        <div class="info-row">
-                                            <div class="info-group">
-                                                <h4 class="info-group-title">Паспортные данные</h4>
-                                                <div class="info-group-content">
-                                                    <div class="info-item">
-                                                        <span class="info-item-label">Серия и номер:</span>
-                                                        <span class="info-item-text">{{ (student.passport_series or '')
-                                                            + ' ' + (student.passport_number or '') if
-                                                            student.passport_series or student.passport_number else '-'
-                                                            }}</span>
-                                                    </div>
-                                                    <div class="info-item">
-                                                        <span class="info-item-label">Кем выдан:</span>
-                                                        <span class="info-item-text">{{ student.passport_issued_by or
-                                                            '-' }}</span>
-                                                    </div>
-                                                    <div class="info-item">
-                                                        <span class="info-item-label">Дата выдачи:</span>
-                                                        <span class="info-item-text">{{
-                                                            student.passport_issue_date|format_date if
-                                                            student.passport_issue_date else '-' }}</span>
-                                                    </div>
-                                                    <div class="info-item">
-                                                        <span class="info-item-label">Срок действия:</span>
-                                                        <span class="info-item-text">{{
-                                                            student.passport_expiry_date|format_date if
-                                                            student.passport_expiry_date else '-' }}</span>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            <div class="info-group">
-                                                <h4 class="info-group-title">Телефоны</h4>
-                                                <div class="info-group-content">
-                                                    <div class="info-item">
-                                                        <span class="info-item-label">Телефон ученика:</span>
-                                                        <div style="display: flex; align-items: center; gap: 8px;">
-                                                            <span class="info-item-text">{{ student.phone or '-'
-                                                                }}</span>
-                                                            {% if student.phone and student.phone != '-' %}
-                                                            <button type="button" class="btn-copy-text"
-                                                                data-text="{{ student.phone }}"
-                                                                style="width: 24px; height: 24px; padding: 0; background: #f3f4f6; border: none; border-radius: 3px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
-                                                                <svg width="14" height="14" viewBox="0 0 24 24"
-                                                                    fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                                    <path
-                                                                        d="M16 1H4C2.9 1 2 1.9 2 3V17H4V3H16V1ZM19 5H8C6.9 5 6 5.9 6 7V21C6 22.1 6.9 23 8 23H19C20.1 23 21 22.1 21 21V7C21 5.9 20.1 5 19 5ZM19 21H8V7H19V21Z"
-                                                                        fill="#9ca3af" />
-                                                                </svg>
-                                                            </button>
-                                                            {% endif %}
-                                                        </div>
-                                                    </div>
-                                                    <div class="info-item">
-                                                        <span class="info-item-label">Телефон родителя:</span>
-                                                        <div style="display: flex; align-items: center; gap: 8px;">
-                                                            <span class="info-item-text">{{ student.parent_phone or '-'
-                                                                }}</span>
-                                                            {% if student.parent_phone and student.parent_phone != '-'
-                                                            %}
-                                                            <button type="button" class="btn-copy-text"
-                                                                data-text="{{ student.parent_phone }}"
-                                                                style="width: 24px; height: 24px; padding: 0; background: #f3f4f6; border: none; border-radius: 3px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
-                                                                <svg width="14" height="14" viewBox="0 0 24 24"
-                                                                    fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                                    <path
-                                                                        d="M16 1H4C2.9 1 2 1.9 2 3V17H4V3H16V1ZM19 5H8C6.9 5 6 5.9 6 7V21C6 22.1 6.9 23 8 23H19C20.1 23 21 22.1 21 21V7C21 5.9 20.1 5 19 5ZM19 21H8V7H19V21Z"
-                                                                        fill="#9ca3af" />
-                                                                </svg>
-                                                            </button>
-                                                            {% endif %}
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <!-- Вторая строка: Адресные данные | 📱 Telegram -->
-                                        <div class="info-row">
-                                            <div class="info-group">
-                                                <h4 class="info-group-title">Адресные данные</h4>
-                                                <div class="info-group-content">
-                                                    <div class="info-item">
-                                                        <span class="info-item-label">Город:</span>
-                                                        <span class="info-item-text">{{ student.city or '-' }}</span>
-                                                    </div>
-                                                    <div class="info-item">
-                                                        <span class="info-item-label">Район:</span>
-                                                        <span class="info-item-text">{{ student.district or '-'
-                                                            }}</span>
-                                                    </div>
-                                                    <div class="info-item">
-                                                        <span class="info-item-label">Улица:</span>
-                                                        <span class="info-item-text">{{ student.street or '-' }}</span>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            <div class="info-group">
-                                                <h4 class="info-group-title">📱 Telegram</h4>
-                                                <div class="info-group-content">
-                                                    <div class="info-item">
-                                                        <span class="info-item-label">Telegram:</span>
-                                                        <div style="display: flex; align-items: center; gap: 8px;">
-                                                            <span class="info-item-text"
-                                                                id="telegram_code_{{ student.id }}"
-                                                                style="font-family: monospace; font-size: 16px; font-weight: 600; color: #667eea;">
-                                                                {{ student.telegram_link_code or 'Генерируется...' }}
-                                                            </span>
-                                                            <button type="button" class="btn-copy-code"
-                                                                data-code="{{ student.telegram_link_code or '' }}"
-                                                                data-student-id="{{ student.id }}"
-                                                                style="width: 28px; height: 28px; padding: 0; background: #f3f4f6; border: none; border-radius: 3px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
-                                                                <svg width="16" height="16" viewBox="0 0 24 24"
-                                                                    fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                                    <path
-                                                                        d="M16 1H4C2.9 1 2 1.9 2 3V17H4V3H16V1ZM19 5H8C6.9 5 6 5.9 6 7V21C6 22.1 6.9 23 8 23H19C20.1 23 21 22.1 21 21V7C21 5.9 20.1 5 19 5ZM19 21H8V7H19V21Z"
-                                                                        fill="#9ca3af" />
-                                                                </svg>
-                                                            </button>
-                                                        </div>
-                                                    </div>
-                                                    <div class="info-item">
-                                                        <span class="info-item-label">Код для привязки:</span>
-                                                        <span class="info-item-text" style="color: #94a3b8;">Отправьте
-                                                            этот код ученику</span>
-                                                    </div>
-                                                    <div class="info-item">
-                                                        <span class="info-item-label">Статус:</span>
-                                                        <span class="info-item-text"
-                                                            id="telegram_status_{{ student.id }}">
-                                                            {% if student.telegram_chat_id %}
-                                                            <span style="color: #10b981;">✅ Привязан</span>
-                                                            {% else %}
-                                                            <span style="color: #94a3b8;">⏳ Не привязан</span>
-                                                            {% endif %}
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- Вкладка: Оплаты -->
-                                <div class="student-tab-content" id="tab-payments-{{ student.id }}">
-                                    <div class="payments-content">
-                                        <div class="history-section">
-                                            <div
-                                                style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-                                                <h4 class="history-section-title" style="margin: 0;">💳 История оплат
-                                                </h4>
-                                                <button class="game-btn game-btn-primary add-payment-btn"
-                                                    data-student-id="{{ student.id }}">
-                                                    <span>➕</span>
-                                                    <span>Добавить оплату</span>
-                                                </button>
-                                            </div>
-                                            <div id="payments-history-{{ student.id }}" class="history-list">
-                                                <p style="color: #94a3b8; text-align: center; padding: 20px;">
-                                                    Загрузка...</p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div class="student-tab-content" id="tab-finances-{{ student.id }}">
-                                    <div class="financial-info">
-                                        <div class="financial-row">
-                                            <span class="financial-label">Долг:</span>
-                                            <span class="financial-value" id="student-debt-{{ student.id }}">
-                                                <span style="color: #94a3b8;">Загрузка...</span>
-                                            </span>
-                                        </div>
-                                        <div class="financial-row">
-                                            <span class="financial-label">Тариф:</span>
-                                            <span class="financial-value" id="student-tariff-{{ student.id }}">
-                                                {{ student.tariff.name if student.tariff else 'Не указан' }}
-                                            </span>
-                                        </div>
-                                        <div class="financial-row">
-                                            <span class="financial-label">Дата принятия:</span>
-                                            <span class="financial-value">{{ student.admission_date|format_date if
-                                                student.admission_date else '-' }}</span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div class="student-tab-content" id="tab-history-{{ student.id }}">
-                                    <div class="history-content">
-                                        <!-- История вознаграждений -->
-                                        <div class="history-section">
-                                            <div
-                                                style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-                                                <h4 class="history-section-title" style="margin: 0;">⭐ История
-                                                    вознаграждений</h4>
-                                                <button class="game-btn game-btn-primary give-reward-btn"
-                                                    data-student-id="{{ student.id }}"
-                                                    style="padding: 8px 16px; font-size: 14px;">
-                                                    <span>⭐</span>
-                                                    <span>Выдать вознаграждение</span>
-                                                </button>
-                                            </div>
-                                            <div id="rewards-history-{{ student.id }}" class="history-list">
-                                                <p style="color: #94a3b8; text-align: center; padding: 20px;">
-                                                    Загрузка...</p>
-                                            </div>
-                                        </div>
-
-                                        <!-- История карточек -->
-                                        <div class="history-section">
-                                            <h4 class="history-section-title">🟨 История карточек</h4>
-                                            <div id="cards-history-{{ student.id }}" class="history-list">
-                                                <p style="color: #94a3b8; text-align: center; padding: 20px;">
-                                                    Загрузка...</p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div class="student-tab-content" id="tab-attendance-{{ student.id }}">
-                                    <div class="attendance-content">
-                                        <div class="attendance-calendar-container">
-                                            <div class="attendance-year-controls"
-                                                style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; padding: 16px; background: var(--theme-bg-secondary); border-radius: 12px;">
-                                                <button class="game-btn game-btn-secondary"
-                                                    id="prev-year-btn-{{ student.id }}" style="padding: 8px 16px;">
-                                                    <span>←</span>
-                                                    <span id="prev-year-label-{{ student.id }}"></span>
-                                                </button>
-                                                <h3 style="margin: 0; font-size: 20px; font-weight: 700; color: var(--theme-text-primary);"
-                                                    id="current-year-label-{{ student.id }}"></h3>
-                                                <button class="game-btn game-btn-secondary"
-                                                    id="next-year-btn-{{ student.id }}" style="padding: 8px 16px;">
-                                                    <span id="next-year-label-{{ student.id }}"></span>
-                                                    <span>→</span>
-                                                </button>
-                                            </div>
-                                            <div id="attendance-calendar-{{ student.id }}"
-                                                class="attendance-calendar-grid">
-                                                <p style="color: #94a3b8; text-align: center; padding: 20px;">
-                                                    Загрузка...</p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
-
-                <!-- Секция 3: Фото ученика (фиксированное) -->
-                <div class="student-photo-panel">
-                    <div class="student-photo-placeholder-main {% if students %}hidden{% endif %}">
-                        <div class="placeholder-icon">👆</div>
-                        <p>Выберите ученика</p>
-                    </div>
-
-                    {% for student in students %}
-                    <div class="student-photo-content {% if not loop.first %}hidden{% endif %}"
-                        id="studentPhoto_{{ student.id }}">
-                        <div class="student-photo-container-fixed">
-                            <!-- Фото сверху -->
-                            <div class="student-photo-wrapper">
-                                <div class="student-photo-card">
-                                    <!-- Передняя сторона - фото -->
-                                    <div class="student-photo-front">
-                                        {% if student.photo_path %}
-                                        <img src="{{ url_for('static', filename='uploads/' + student.photo_path.replace('\\', '/').split('/')[-1]) }}"
-                                            alt="{{ student.full_name }}" class="student-large-photo">
-                                        {% else %}
-                                        <div class="student-photo-placeholder">
-                                            <div class="placeholder-large">👤</div>
-                                            <p>Фото отсутствует</p>
-                                        </div>
-                                        {% endif %}
-                                    </div>
-
-                                    <!-- Задняя сторона - номер игрока -->
-                                    <div class="student-photo-back">
-                                        <div class="student-photo-number">
-                                            {{ student.student_number.replace('ST', '') if student.student_number and
-                                            student.student_number.startswith('ST') else (student.student_number if
-                                            student.student_number else '?') }}
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Карточки снизу -->
-                            <div class="student-cards-container" id="studentCards_{{ student.id }}">
-                                <div class="student-cards-title">Карточки</div>
-                                <div class="student-cards-grid">
-                                    <!-- 6 слотов для карточек будут заполнены через JavaScript -->
-                                    {% for i in range(6) %}
-                                    <div class="student-card-slot empty" data-student-id="{{ student.id }}"
-                                        data-slot-index="{{ i }}" onclick="handleCardClick({{ student.id }}, {{ i }})">
-                                        <div class="card-plus-icon">+</div>
-                                    </div>
-                                    {% endfor %}
-                                </div>
-                            </div>
-
-                            <!-- Параметры ученика -->
-                            <div class="student-params-container" id="studentParams_{{ student.id }}">
-                                <div class="student-params-title">Параметры</div>
-                                <div class="student-params-list">
-                                    <!-- Возраст -->
-                                    <div class="student-param-item">
-                                        <span class="param-icon">🎂</span>
-                                        <span class="param-name">Возраст:</span>
-                                        <span class="param-value">{{ 2024 - (student.birth_year or 2024) if
-                                            student.birth_year else '-' }} {% if student.birth_year %}лет{% endif
-                                            %}</span>
-                                    </div>
-                                    <!-- Вес -->
-                                    <div class="student-param-item">
-                                        <span class="param-icon">⚖️</span>
-                                        <span class="param-name">Вес:</span>
-                                        <span class="param-value">{% if student.weight %}{{ student.weight }} кг{% else
-                                            %}-{% endif %}</span>
-                                    </div>
-                                    <!-- Рост -->
-                                    <div class="student-param-item">
-                                        <span class="param-icon">📏</span>
-                                        <span class="param-name">Рост:</span>
-                                        <span class="param-value">{% if student.height %}{{ student.height }} см{% else
-                                            %}-{% endif %}</span>
-                                    </div>
-                                    <!-- Размер футболки -->
-                                    <div class="student-param-item">
-                                        <span class="param-icon">👕</span>
-                                        <span class="param-name">Размер футболки:</span>
-                                        <span class="param-value">{{ student.jersey_size if student.jersey_size else '-'
-                                            }}</span>
-                                    </div>
-                                    <!-- Размер шорт -->
-                                    <div class="student-param-item">
-                                        <span class="param-icon">🩳</span>
-                                        <span class="param-name">Размер шорт:</span>
-                                        <span class="param-value">{{ student.shorts_size if student.shorts_size else '-'
-                                            }}</span>
-                                    </div>
-                                    <!-- Размер бутс -->
-                                    <div class="student-param-item">
-                                        <span class="param-icon">👟</span>
-                                        <span class="param-name">Размер бутс:</span>
-                                        <span class="param-value">{{ student.boots_size if student.boots_size else '-'
-                                            }}</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    {% endfor %}
+                        {% if ns.last_group is not none %}
+                    </div>{% endif %}
                 </div>
             </div>
-        </div>
 
-        <!-- Скрытая таблица для совместимости с существующим JS -->
-        <table class="data-table" id="studentsTable" style="display: none;">
-            <thead>
-                <tr>
-                    <th>Фото</th>
-                    <th>Номер</th>
-                    <th>Имя</th>
-                    <th>Группа</th>
-                    <th>Год рождения</th>
-                    <th>Дата принятия</th>
-                    <th>Телефон</th>
-                    <th>Долг</th>
-                    <th>Баланс</th>
-                    <th>Баллы</th>
-                    <th>Статус</th>
-                    <th>Действия</th>
-                </tr>
-            </thead>
-            <tbody>
+            <!-- Секция 2: Параметры ученика -->
+            <div class="student-details-panel" id="studentDetailsPanel">
+                <div class="student-details-placeholder {% if students %}hidden{% endif %}">
+                    <div class="placeholder-icon">👆</div>
+                    <p>Выберите ученика из списка</p>
+                </div>
+
                 {% for student in students %}
                 {% set balance_value = balances.get(student.id) if balances else 0 %}
-                <tr class="{% if balance_value <= 2 %}low-balance{% endif %} {% if student.status == 'blacklist' %}blacklisted{% endif %}"
-                    data-student-id="{{ student.id }}" data-group-id="{{ student.group_id or '' }}"
-                    data-status="{{ student.status }}">
-                    <td>
-                        {% if student.photo_path %}
-                        <img src="{{ url_for('static', filename=student.photo_path.replace('frontend/static/', '').replace('\\', '/')) }}"
-                            class="student-avatar">
-                        {% else %}
-                        <div class="avatar-placeholder">👤</div>
-                        {% endif %}
-                    </td>
-                    <td><strong>{{ student.student_number }}</strong></td>
-                    {% set payment = payment_info.get(student.id) if payment_info else None %}
-                    <td>{{ student.full_name }}</td>
-                    <td>{{ student.group.name if student.group else 'Без группы' }}</td>
-                    <td>{{ student.birth_year or '-' }}</td>
-                    <td>{{ student.admission_date|format_date if student.admission_date else '-' }}</td>
-                    <td>{{ student.phone or '-' }}</td>
-                    <td>
-                        {% if payment is not none and payment.debt is not none %}
-                        {{ payment.debt|format_thousand }}
-                        {% else %}-{% endif %}
-                    </td>
-                    <td>
-                        {% if student.club_funded %}
-                        <span class="balance-badge" style="background: #9b59b6;">♾️ Клуб</span>
-                        {% else %}
-                        <span class="balance-badge {% if balance_value <= 2 %}low{% endif %}">
-                            {{ balance_value|format_thousand }}
-                        </span>
-                        {% endif %}
-                    </td>
-                    <td>
-                        {% set points = student_points.get(student.id) if student_points else 0 %}
-                        <span class="points-badge" style="cursor: pointer; color: #f39c12; font-weight: bold;"
-                            data-student-id="{{ student.id }}" onclick="showRewardsHistory({{ student.id }})">
-                            ⭐ {{ points }}
-                        </span>
-                    </td>
-                    <td>
-                        {% if student.status == 'active' %}
-                        <span style="color: #27ae60;">✓ Активен</span>
-                        {% elif student.status == 'inactive' %}
-                        <span style="color: #95a5a6;">○ Неактивен</span>
-                        {% elif student.status == 'blacklist' %}
-                        <span style="color: #e74c3c;">⚠️ ЧС</span>
-                        {% endif %}
-                    </td>
-                    <td class="action-buttons">
-                        <button class="btn-small btn-warning give-reward-btn" data-student-id="{{ student.id }}"
-                            title="Выдать вознаграждение">⭐</button>
-                        <button class="btn-small btn-success add-payment-btn"
-                            data-student-id="{{ student.id }}">💳</button>
-                        <button class="btn-small btn-info edit-student-btn"
-                            data-student-id="{{ student.id }}">✏️</button>
-                        <button class="btn-small btn-danger delete-student-btn" data-student-id="{{ student.id }}"
-                            data-student-name="{{ student.full_name }}">🗑️</button>
-                    </td>
-                </tr>
+                {% set payment = payment_info.get(student.id) if payment_info else None %}
+                {% set points = student_points.get(student.id) if student_points else 0 %}
+                <div class="student-details-content {% if not loop.first %}hidden{% endif %}"
+                    id="studentDetails_{{ student.id }}">
+                    <div class="student-details-header">
+                        <div class="student-details-header-top">
+                            <div class="student-main-info">
+                                <!-- Группа -->
+                                <div class="student-info-item">
+                                    <div class="info-item-label">Группа</div>
+                                    <div class="info-item-value">{{ student.group.name if student.group else 'Без
+                                        группы' }}</div>
+                                </div>
+                                <!-- Тариф -->
+                                <div class="student-info-item">
+                                    <div class="info-item-label">Тариф</div>
+                                    <div class="info-item-value">{{ student.tariff.name if student.tariff else 'Не
+                                        указан' }}</div>
+                                </div>
+                                <!-- Баланс -->
+                                <div class="student-info-item">
+                                    <div class="info-item-label">Баланс</div>
+                                    <div
+                                        class="info-item-value {% if not student.club_funded %}{% if balance_value > 0 %}balance-positive{% elif balance_value <= 0 %}balance-negative{% endif %}{% endif %}">
+                                        {% if student.club_funded %}♾️{% else %}{{ balance_value }}{% endif %}</div>
+                                </div>
+                                <!-- Статус -->
+                                <div class="student-info-item">
+                                    <div class="info-item-label">Статус</div>
+                                    <div class="info-item-value">
+                                        {% if student.status == 'active' %}✓ Активен
+                                        {% elif student.status == 'inactive' %}○ Неактивен
+                                        {% elif student.status == 'blacklist' %}⚠️ ЧС
+                                        {% else %}-{% endif %}
+                                    </div>
+                                </div>
+                                <!-- Баллы -->
+                                <div class="student-info-item">
+                                    <div class="info-item-label">Баллы</div>
+                                    <div class="info-item-value">
+                                        <span class="points-icon">⭐</span>{{ points }}
+                                    </div>
+                                </div>
+                                <!-- Telegram код -->
+                                <div class="student-info-item">
+                                    <div class="info-item-label">Telegram</div>
+                                    <div class="info-item-value"
+                                        style="display: flex; align-items: center; justify-content: center; gap: 4px; flex-wrap: wrap;">
+                                        <button type="button" class="btn-copy-code"
+                                            data-code="{{ student.telegram_link_code or '' }}"
+                                            data-student-id="{{ student.id }}"
+                                            style="width: 20px; height: 20px; padding: 0; background: #f3f4f6; border: none; border-radius: 3px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                                                xmlns="http://www.w3.org/2000/svg">
+                                                <path
+                                                    d="M16 1H4C2.9 1 2 1.9 2 3V17H4V3H16V1ZM19 5H8C6.9 5 6 5.9 6 7V21C6 22.1 6.9 23 8 23H19C20.1 23 21 22.1 21 21V7C21 5.9 20.1 5 19 5ZM19 21H8V7H19V21Z"
+                                                    fill="#9ca3af" />
+                                            </svg>
+                                        </button>
+                                        <span id="telegram_code_main_{{ student.id }}"
+                                            style="font-family: monospace; font-size: 10px; font-weight: 700; color: var(--theme-text-primary);">
+                                            {{ student.telegram_link_code or 'Генерируется...' }}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="student-actions-top">
+                                <button class="action-btn btn-info edit-student-btn" data-student-id="{{ student.id }}">
+                                    <svg class="action-icon" viewBox="0 0 24 24" fill="none"
+                                        xmlns="http://www.w3.org/2000/svg">
+                                        <path
+                                            d="M11 4H4C3.46957 4 2.96086 4.21071 2.58579 4.58579C2.21071 4.96086 2 5.46957 2 6V20C2 20.5304 2.21071 21.0391 2.58579 21.4142C2.96086 21.7893 3.46957 22 4 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V13"
+                                            stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                            stroke-linejoin="round" />
+                                        <path
+                                            d="M18.5 2.50023C18.8978 2.10243 19.4374 1.87891 20 1.87891C20.5626 1.87891 21.1022 2.10243 21.5 2.50023C21.8978 2.89804 22.1213 3.43762 22.1213 4.00023C22.1213 4.56284 21.8978 5.10243 21.5 5.50023L12 15.0002L8 16.0002L9 12.0002L18.5 2.50023Z"
+                                            stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                            stroke-linejoin="round" />
+                                    </svg>
+                                </button>
+                                <button class="action-btn btn-danger delete-student-btn"
+                                    data-student-id="{{ student.id }}" data-student-name="{{ student.full_name }}">
+                                    <svg class="action-icon" viewBox="0 0 24 24" fill="none"
+                                        xmlns="http://www.w3.org/2000/svg">
+                                        <path d="M3 6H5H21" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round" />
+                                        <path
+                                            d="M8 6V4C8 3.46957 8.21071 2.96086 8.58579 2.58579C8.96086 2.21071 9.46957 2 10 2H14C14.5304 2 15.0391 2.21071 15.4142 2.58579C15.7893 2.96086 16 3.46957 16 4V6M19 6V20C19 20.5304 18.7893 21.0391 18.4142 21.4142C18.0391 21.7893 17.5304 22 17 22H7C6.46957 22 5.96086 21.7893 5.58579 21.4142C5.21071 21.0391 5 20.5304 5 20V6H19Z"
+                                            stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                            stroke-linejoin="round" />
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                        <!-- Вкладки: Информация, Оплаты, Финансы, Вознаграждения и Посещения -->
+                        <div class="student-tabs">
+                            <button class="student-tab active" data-tab="info"
+                                data-student-id="{{ student.id }}">Информация</button>
+                            <button class="student-tab" data-tab="payments"
+                                data-student-id="{{ student.id }}">Оплаты</button>
+                            <button class="student-tab" data-tab="finances"
+                                data-student-id="{{ student.id }}">Финансы</button>
+                            <button class="student-tab" data-tab="history"
+                                data-student-id="{{ student.id }}">Вознаграждения</button>
+                            <button class="student-tab" data-tab="attendance"
+                                data-student-id="{{ student.id }}">Посещения</button>
+                        </div>
+                    </div>
+
+                    <div class="student-details-body">
+                        <!-- Вкладки: Информация, Оплаты, Финансы, Вознаграждения и Посещения -->
+                        <div class="student-tabs-section">
+                            <!-- Вкладка: Информация -->
+                            <div class="student-tab-content active" id="tab-info-{{ student.id }}">
+                                <div class="student-name-section">
+                                    <h2 class="student-full-name">■ {{ student.full_name }}</h2>
+                                </div>
+
+                                <!-- Паспортные данные, телефоны и адрес -->
+                                <div class="student-info-section">
+                                    <!-- Первая строка: Паспортные данные | Телефоны -->
+                                    <div class="info-row">
+                                        <div class="info-group">
+                                            <h4 class="info-group-title">Паспортные данные</h4>
+                                            <div class="info-group-content">
+                                                <div class="info-item">
+                                                    <span class="info-item-label">Серия и номер:</span>
+                                                    <span class="info-item-text">{{ (student.passport_series or '')
+                                                        + ' ' + (student.passport_number or '') if
+                                                        student.passport_series or student.passport_number else '-'
+                                                        }}</span>
+                                                </div>
+                                                <div class="info-item">
+                                                    <span class="info-item-label">Кем выдан:</span>
+                                                    <span class="info-item-text">{{ student.passport_issued_by or
+                                                        '-' }}</span>
+                                                </div>
+                                                <div class="info-item">
+                                                    <span class="info-item-label">Дата выдачи:</span>
+                                                    <span class="info-item-text">{{
+                                                        student.passport_issue_date|format_date if
+                                                        student.passport_issue_date else '-' }}</span>
+                                                </div>
+                                                <div class="info-item">
+                                                    <span class="info-item-label">Срок действия:</span>
+                                                    <span class="info-item-text">{{
+                                                        student.passport_expiry_date|format_date if
+                                                        student.passport_expiry_date else '-' }}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="info-group">
+                                            <h4 class="info-group-title">Телефоны</h4>
+                                            <div class="info-group-content">
+                                                <div class="info-item">
+                                                    <span class="info-item-label">Телефон ученика:</span>
+                                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                                        <span class="info-item-text">{{ student.phone or '-'
+                                                            }}</span>
+                                                        {% if student.phone and student.phone != '-' %}
+                                                        <button type="button" class="btn-copy-text"
+                                                            data-text="{{ student.phone }}"
+                                                            style="width: 24px; height: 24px; padding: 0; background: #f3f4f6; border: none; border-radius: 3px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                                                                xmlns="http://www.w3.org/2000/svg">
+                                                                <path
+                                                                    d="M16 1H4C2.9 1 2 1.9 2 3V17H4V3H16V1ZM19 5H8C6.9 5 6 5.9 6 7V21C6 22.1 6.9 23 8 23H19C20.1 23 21 22.1 21 21V7C21 5.9 20.1 5 19 5ZM19 21H8V7H19V21Z"
+                                                                    fill="#9ca3af" />
+                                                            </svg>
+                                                        </button>
+                                                        {% endif %}
+                                                    </div>
+                                                </div>
+                                                <div class="info-item">
+                                                    <span class="info-item-label">Телефон родителя:</span>
+                                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                                        <span class="info-item-text">{{ student.parent_phone or '-'
+                                                            }}</span>
+                                                        {% if student.parent_phone and student.parent_phone != '-'
+                                                        %}
+                                                        <button type="button" class="btn-copy-text"
+                                                            data-text="{{ student.parent_phone }}"
+                                                            style="width: 24px; height: 24px; padding: 0; background: #f3f4f6; border: none; border-radius: 3px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                                                                xmlns="http://www.w3.org/2000/svg">
+                                                                <path
+                                                                    d="M16 1H4C2.9 1 2 1.9 2 3V17H4V3H16V1ZM19 5H8C6.9 5 6 5.9 6 7V21C6 22.1 6.9 23 8 23H19C20.1 23 21 22.1 21 21V7C21 5.9 20.1 5 19 5ZM19 21H8V7H19V21Z"
+                                                                    fill="#9ca3af" />
+                                                            </svg>
+                                                        </button>
+                                                        {% endif %}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Вторая строка: Адресные данные | 📱 Telegram -->
+                                    <div class="info-row">
+                                        <div class="info-group">
+                                            <h4 class="info-group-title">Адресные данные</h4>
+                                            <div class="info-group-content">
+                                                <div class="info-item">
+                                                    <span class="info-item-label">Город:</span>
+                                                    <span class="info-item-text">{{ student.city or '-' }}</span>
+                                                </div>
+                                                <div class="info-item">
+                                                    <span class="info-item-label">Район:</span>
+                                                    <span class="info-item-text">{{ student.district or '-'
+                                                        }}</span>
+                                                </div>
+                                                <div class="info-item">
+                                                    <span class="info-item-label">Улица:</span>
+                                                    <span class="info-item-text">{{ student.street or '-' }}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="info-group">
+                                            <h4 class="info-group-title">📱 Telegram</h4>
+                                            <div class="info-group-content">
+                                                <div class="info-item">
+                                                    <span class="info-item-label">Telegram:</span>
+                                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                                        <span class="info-item-text" id="telegram_code_{{ student.id }}"
+                                                            style="font-family: monospace; font-size: 16px; font-weight: 600; color: #667eea;">
+                                                            {{ student.telegram_link_code or 'Генерируется...' }}
+                                                        </span>
+                                                        <button type="button" class="btn-copy-code"
+                                                            data-code="{{ student.telegram_link_code or '' }}"
+                                                            data-student-id="{{ student.id }}"
+                                                            style="width: 28px; height: 28px; padding: 0; background: #f3f4f6; border: none; border-radius: 3px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                                                                xmlns="http://www.w3.org/2000/svg">
+                                                                <path
+                                                                    d="M16 1H4C2.9 1 2 1.9 2 3V17H4V3H16V1ZM19 5H8C6.9 5 6 5.9 6 7V21C6 22.1 6.9 23 8 23H19C20.1 23 21 22.1 21 21V7C21 5.9 20.1 5 19 5ZM19 21H8V7H19V21Z"
+                                                                    fill="#9ca3af" />
+                                                            </svg>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                                <div class="info-item">
+                                                    <span class="info-item-label">Код для привязки:</span>
+                                                    <span class="info-item-text" style="color: #94a3b8;">Отправьте
+                                                        этот код ученику</span>
+                                                </div>
+                                                <div class="info-item">
+                                                    <span class="info-item-label">Статус:</span>
+                                                    <span class="info-item-text" id="telegram_status_{{ student.id }}">
+                                                        {% if student.telegram_chat_id %}
+                                                        <span style="color: #10b981;">✅ Привязан</span>
+                                                        {% else %}
+                                                        <span style="color: #94a3b8;">⏳ Не привязан</span>
+                                                        {% endif %}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Вкладка: Оплаты -->
+                            <div class="student-tab-content" id="tab-payments-{{ student.id }}">
+                                <div class="payments-content">
+                                    <div class="history-section">
+                                        <div
+                                            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                                            <h4 class="history-section-title" style="margin: 0;">💳 История оплат
+                                            </h4>
+                                            <button class="game-btn game-btn-primary add-payment-btn"
+                                                data-student-id="{{ student.id }}">
+                                                <span>➕</span>
+                                                <span>Добавить оплату</span>
+                                            </button>
+                                        </div>
+                                        <div id="payments-history-{{ student.id }}" class="history-list">
+                                            <p style="color: #94a3b8; text-align: center; padding: 20px;">
+                                                Загрузка...</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="student-tab-content" id="tab-finances-{{ student.id }}">
+                                <div class="financial-info">
+                                    <div class="financial-row">
+                                        <span class="financial-label">Долг:</span>
+                                        <span class="financial-value" id="student-debt-{{ student.id }}">
+                                            <span style="color: #94a3b8;">Загрузка...</span>
+                                        </span>
+                                    </div>
+                                    <div class="financial-row">
+                                        <span class="financial-label">Тариф:</span>
+                                        <span class="financial-value" id="student-tariff-{{ student.id }}">
+                                            {{ student.tariff.name if student.tariff else 'Не указан' }}
+                                        </span>
+                                    </div>
+                                    <div class="financial-row">
+                                        <span class="financial-label">Дата принятия:</span>
+                                        <span class="financial-value">{{ student.admission_date|format_date if
+                                            student.admission_date else '-' }}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="student-tab-content" id="tab-history-{{ student.id }}">
+                                <div class="history-content">
+                                    <!-- История вознаграждений -->
+                                    <div class="history-section">
+                                        <div
+                                            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                                            <h4 class="history-section-title" style="margin: 0;">⭐ История
+                                                вознаграждений</h4>
+                                            <button class="game-btn game-btn-primary give-reward-btn"
+                                                data-student-id="{{ student.id }}"
+                                                style="padding: 8px 16px; font-size: 14px;">
+                                                <span>⭐</span>
+                                                <span>Выдать вознаграждение</span>
+                                            </button>
+                                        </div>
+                                        <div id="rewards-history-{{ student.id }}" class="history-list">
+                                            <p style="color: #94a3b8; text-align: center; padding: 20px;">
+                                                Загрузка...</p>
+                                        </div>
+                                    </div>
+
+                                    <!-- История карточек -->
+                                    <div class="history-section">
+                                        <h4 class="history-section-title">🟨 История карточек</h4>
+                                        <div id="cards-history-{{ student.id }}" class="history-list">
+                                            <p style="color: #94a3b8; text-align: center; padding: 20px;">
+                                                Загрузка...</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="student-tab-content" id="tab-attendance-{{ student.id }}">
+                                <div class="attendance-content">
+                                    <div class="attendance-calendar-container">
+                                        <div class="attendance-year-controls"
+                                            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; padding: 16px; background: var(--theme-bg-secondary); border-radius: 12px;">
+                                            <button class="game-btn game-btn-secondary"
+                                                id="prev-year-btn-{{ student.id }}" style="padding: 8px 16px;">
+                                                <span>←</span>
+                                                <span id="prev-year-label-{{ student.id }}"></span>
+                                            </button>
+                                            <h3 style="margin: 0; font-size: 20px; font-weight: 700; color: var(--theme-text-primary);"
+                                                id="current-year-label-{{ student.id }}"></h3>
+                                            <button class="game-btn game-btn-secondary"
+                                                id="next-year-btn-{{ student.id }}" style="padding: 8px 16px;">
+                                                <span id="next-year-label-{{ student.id }}"></span>
+                                                <span>→</span>
+                                            </button>
+                                        </div>
+                                        <div id="attendance-calendar-{{ student.id }}" class="attendance-calendar-grid">
+                                            <p style="color: #94a3b8; text-align: center; padding: 20px;">
+                                                Загрузка...</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
                 {% endfor %}
-            </tbody>
-        </table>
+            </div>
+
+            <!-- Секция 3: Фото ученика (фиксированное) -->
+            <div class="student-photo-panel">
+                <div class="student-photo-placeholder-main {% if students %}hidden{% endif %}">
+                    <div class="placeholder-icon">👆</div>
+                    <p>Выберите ученика</p>
+                </div>
+
+                {% for student in students %}
+                <div class="student-photo-content {% if not loop.first %}hidden{% endif %}"
+                    id="studentPhoto_{{ student.id }}">
+                    <div class="student-photo-container-fixed">
+                        <!-- Фото сверху -->
+                        <div class="student-photo-wrapper">
+                            <div class="student-photo-card">
+                                <!-- Передняя сторона - фото -->
+                                <div class="student-photo-front">
+                                    {% if student.photo_path %}
+                                    <img src="{{ url_for('static', filename='uploads/' + student.photo_path.replace('\\', '/').split('/')[-1]) }}"
+                                        alt="{{ student.full_name }}" class="student-large-photo">
+                                    {% else %}
+                                    <div class="student-photo-placeholder">
+                                        <div class="placeholder-large">👤</div>
+                                        <p>Фото отсутствует</p>
+                                    </div>
+                                    {% endif %}
+                                </div>
+
+                                <!-- Задняя сторона - номер игрока -->
+                                <div class="student-photo-back">
+                                    <div class="student-photo-number">
+                                        {{ student.student_number.replace('ST', '') if student.student_number and
+                                        student.student_number.startswith('ST') else (student.student_number if
+                                        student.student_number else '?') }}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Карточки снизу -->
+                        <div class="student-cards-container" id="studentCards_{{ student.id }}">
+                            <div class="student-cards-title">Карточки</div>
+                            <div class="student-cards-grid">
+                                <!-- 6 слотов для карточек будут заполнены через JavaScript -->
+                                {% for i in range(6) %}
+                                <div class="student-card-slot empty" data-student-id="{{ student.id }}"
+                                    data-slot-index="{{ i }}" onclick="handleCardClick({{ student.id }}, {{ i }})">
+                                    <div class="card-plus-icon">+</div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <!-- Параметры ученика -->
+                        <div class="student-params-container" id="studentParams_{{ student.id }}">
+                            <div class="student-params-title">Параметры</div>
+                            <div class="student-params-list">
+                                <!-- Возраст -->
+                                <div class="student-param-item">
+                                    <span class="param-icon">🎂</span>
+                                    <span class="param-name">Возраст:</span>
+                                    <span class="param-value">{{ 2024 - (student.birth_year or 2024) if
+                                        student.birth_year else '-' }} {% if student.birth_year %}лет{% endif
+                                        %}</span>
+                                </div>
+                                <!-- Вес -->
+                                <div class="student-param-item">
+                                    <span class="param-icon">⚖️</span>
+                                    <span class="param-name">Вес:</span>
+                                    <span class="param-value">{% if student.weight %}{{ student.weight }} кг{% else
+                                        %}-{% endif %}</span>
+                                </div>
+                                <!-- Рост -->
+                                <div class="student-param-item">
+                                    <span class="param-icon">📏</span>
+                                    <span class="param-name">Рост:</span>
+                                    <span class="param-value">{% if student.height %}{{ student.height }} см{% else
+                                        %}-{% endif %}</span>
+                                </div>
+                                <!-- Размер футболки -->
+                                <div class="student-param-item">
+                                    <span class="param-icon">👕</span>
+                                    <span class="param-name">Размер футболки:</span>
+                                    <span class="param-value">{{ student.jersey_size if student.jersey_size else '-'
+                                        }}</span>
+                                </div>
+                                <!-- Размер шорт -->
+                                <div class="student-param-item">
+                                    <span class="param-icon">🩳</span>
+                                    <span class="param-name">Размер шорт:</span>
+                                    <span class="param-value">{{ student.shorts_size if student.shorts_size else '-'
+                                        }}</span>
+                                </div>
+                                <!-- Размер бутс -->
+                                <div class="student-param-item">
+                                    <span class="param-icon">👟</span>
+                                    <span class="param-name">Размер бутс:</span>
+                                    <span class="param-value">{{ student.boots_size if student.boots_size else '-'
+                                        }}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Скрытая таблица для совместимости с существующим JS -->
+    <table class="data-table" id="studentsTable" style="display: none;">
+        <thead>
+            <tr>
+                <th>Фото</th>
+                <th>Номер</th>
+                <th>Имя</th>
+                <th>Группа</th>
+                <th>Год рождения</th>
+                <th>Дата принятия</th>
+                <th>Телефон</th>
+                <th>Долг</th>
+                <th>Баланс</th>
+                <th>Баллы</th>
+                <th>Статус</th>
+                <th>Действия</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for student in students %}
+            {% set balance_value = balances.get(student.id) if balances else 0 %}
+            <tr class="{% if balance_value <= 2 %}low-balance{% endif %} {% if student.status == 'blacklist' %}blacklisted{% endif %}"
+                data-student-id="{{ student.id }}" data-group-id="{{ student.group_id or '' }}"
+                data-status="{{ student.status }}">
+                <td>
+                    {% if student.photo_path %}
+                    <img src="{{ url_for('static', filename=student.photo_path.replace('frontend/static/', '').replace('\\', '/')) }}"
+                        class="student-avatar">
+                    {% else %}
+                    <div class="avatar-placeholder">👤</div>
+                    {% endif %}
+                </td>
+                <td><strong>{{ student.student_number }}</strong></td>
+                {% set payment = payment_info.get(student.id) if payment_info else None %}
+                <td>{{ student.full_name }}</td>
+                <td>{{ student.group.name if student.group else 'Без группы' }}</td>
+                <td>{{ student.birth_year or '-' }}</td>
+                <td>{{ student.admission_date|format_date if student.admission_date else '-' }}</td>
+                <td>{{ student.phone or '-' }}</td>
+                <td>
+                    {% if payment is not none and payment.debt is not none %}
+                    {{ payment.debt|format_thousand }}
+                    {% else %}-{% endif %}
+                </td>
+                <td>
+                    {% if student.club_funded %}
+                    <span class="balance-badge" style="background: #9b59b6;">♾️ Клуб</span>
+                    {% else %}
+                    <span class="balance-badge {% if balance_value <= 2 %}low{% endif %}">
+                        {{ balance_value|format_thousand }}
+                    </span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% set points = student_points.get(student.id) if student_points else 0 %}
+                    <span class="points-badge" style="cursor: pointer; color: #f39c12; font-weight: bold;"
+                        data-student-id="{{ student.id }}" onclick="showRewardsHistory({{ student.id }})">
+                        ⭐ {{ points }}
+                    </span>
+                </td>
+                <td>
+                    {% if student.status == 'active' %}
+                    <span style="color: #27ae60;">✓ Активен</span>
+                    {% elif student.status == 'inactive' %}
+                    <span style="color: #95a5a6;">○ Неактивен</span>
+                    {% elif student.status == 'blacklist' %}
+                    <span style="color: #e74c3c;">⚠️ ЧС</span>
+                    {% endif %}
+                </td>
+                <td class="action-buttons">
+                    <button class="btn-small btn-warning give-reward-btn" data-student-id="{{ student.id }}"
+                        title="Выдать вознаграждение">⭐</button>
+                    <button class="btn-small btn-success add-payment-btn" data-student-id="{{ student.id }}">💳</button>
+                    <button class="btn-small btn-info edit-student-btn" data-student-id="{{ student.id }}">✏️</button>
+                    <button class="btn-small btn-danger delete-student-btn" data-student-id="{{ student.id }}"
+                        data-student-name="{{ student.full_name }}">🗑️</button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
     </div>
 
     <!-- Модальное окно: Добавить ученика -->
@@ -4687,6 +4711,12 @@
                     clearBtn.style.pointerEvents = 'none';
                 }
             }
+
+            // Update group visibility
+            document.querySelectorAll('.student-group-section').forEach(section => {
+                const hasVisibleItems = Array.from(section.querySelectorAll('.student-list-item')).some(item => item.style.display !== 'none');
+                section.style.display = hasVisibleItems ? 'block' : 'none';
+            });
         }
 
         // Поиск по списку учеников
@@ -4783,6 +4813,12 @@
                             } else {
                                 item.style.display = 'none';
                             }
+                        });
+
+                        // Update group visibility
+                        document.querySelectorAll('.student-group-section').forEach(section => {
+                            const hasVisibleItems = Array.from(section.querySelectorAll('.student-list-item')).some(item => item.style.display !== 'none');
+                            section.style.display = hasVisibleItems ? 'block' : 'none';
                         });
                     }
                 });
