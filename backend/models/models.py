@@ -374,6 +374,7 @@ class ClubSettings(db.Model):
     payment_oson_qr_url = db.Column(db.String(500), nullable=True)  # QR для Oson
     payment_transfer_enabled = db.Column(db.Boolean, default=False)  # Включен Перечисление
     expense_categories = db.Column(db.Text, nullable=True)  # JSON-массив статей расхода
+    service_controls = db.Column(db.Text, nullable=True)  # JSON-конфиг включения/выключения сервисов
 
     def get_working_days_list(self):
         if self.working_days:

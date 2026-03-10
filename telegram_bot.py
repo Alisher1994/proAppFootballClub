@@ -227,7 +227,7 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     data = query.data
     target_date = datetime.now()
-    
+
     if data == "report_yesterday":
         target_date = target_date - timedelta(days=1)
     

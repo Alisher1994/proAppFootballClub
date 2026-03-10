@@ -380,6 +380,26 @@ DAY_LABELS = {
     1: 'Пн', 2: 'Вт', 3: 'Ср', 4: 'Чт', 5: 'Пт', 6: 'Сб', 7: 'Вс'
 }
 
+SERVICE_PRIMARY_KEY = os.environ.get('SERVICE_PRIMARY_KEY', 'football_club')
+SERVICE_SUPPORT_PHONE_DEFAULT = os.environ.get('SERVICE_SUPPORT_PHONE', '+998994067406')
+SERVICE_LABELS = {
+    'football_club': 'Футбольный клуб'
+}
+RU_MONTHS = {
+    1: 'январь',
+    2: 'февраль',
+    3: 'март',
+    4: 'апрель',
+    5: 'май',
+    6: 'июнь',
+    7: 'июль',
+    8: 'август',
+    9: 'сентябрь',
+    10: 'октябрь',
+    11: 'ноябрь',
+    12: 'декабрь'
+}
+
 
 def ensure_payment_type_column():
     """Проверяет и добавляет колонку payment_type в таблицу payments"""
@@ -416,6 +436,132 @@ def get_club_settings_instance():
         db.session.add(settings)
         db.session.commit()
     return settings
+
+
+def get_default_service_controls():
+    return {
+        'football_club': {
+            'name': SERVICE_LABELS['football_club'],
+            'enabled': True,
+            'support_phone': SERVICE_SUPPORT_PHONE_DEFAULT,
+            'disabled_reason': 'За {month} из-за неоплаты система автоматически отключена.',
+            'updated_at': None,
+            'updated_by': None
+        }
+    }
+
+
+def load_service_controls(settings):
+    controls = {}
+    raw_controls = getattr(settings, 'service_controls', None)
+    if raw_controls:
+        try:
+            parsed = json.loads(raw_controls)
+            if isinstance(parsed, dict):
+                controls = parsed
+        except Exception:
+            controls = {}
+
+    defaults = get_default_service_controls()
+    merged_controls = {}
+    for service_key, default_cfg in defaults.items():
+        current_cfg = controls.get(service_key, {})
+        if not isinstance(current_cfg, dict):
+            current_cfg = {}
+
+        merged = dict(default_cfg)
+        merged.update(current_cfg)
+        merged['name'] = default_cfg['name']
+        merged['enabled'] = bool(merged.get('enabled', True))
+        merged['support_phone'] = (merged.get('support_phone') or SERVICE_SUPPORT_PHONE_DEFAULT).strip()
+        merged['disabled_reason'] = (merged.get('disabled_reason') or default_cfg['disabled_reason']).strip()
+        merged_controls[service_key] = merged
+
+    return merged_controls
+
+
+def save_service_controls(settings, controls):
+    settings.service_controls = json.dumps(controls, ensure_ascii=False)
+
+
+def get_current_month_label():
+    now = get_local_time()
+    month_name = RU_MONTHS.get(now.month, str(now.month))
+    return f"{month_name} {now.year}"
+
+
+def build_service_state_payload(service_key=None):
+    selected_key = service_key or SERVICE_PRIMARY_KEY
+    settings = get_club_settings_instance()
+    controls = load_service_controls(settings)
+    service_cfg = controls.get(selected_key)
+    if not service_cfg:
+        return {
+            'success': False,
+            'service': selected_key,
+            'message': 'Сервис не найден'
+        }
+
+    month_label = get_current_month_label()
+    reason_template = service_cfg.get('disabled_reason') or 'За {month} из-за неоплаты система автоматически отключена.'
+    try:
+        lock_message = reason_template.format(month=month_label)
+    except Exception:
+        lock_message = reason_template
+
+    enabled = bool(service_cfg.get('enabled', True))
+    return {
+        'success': True,
+        'service': selected_key,
+        'service_name': service_cfg.get('name') or SERVICE_LABELS.get(selected_key, selected_key),
+        'enabled': enabled,
+        'lock_active': not enabled,
+        'month_label': month_label,
+        'title': 'Система временно отключена',
+        'message': lock_message,
+        'support_phone': service_cfg.get('support_phone') or SERVICE_SUPPORT_PHONE_DEFAULT,
+        'updated_at': service_cfg.get('updated_at'),
+        'updated_by': service_cfg.get('updated_by')
+    }
+
+
+def is_management_chat_id(chat_id, settings=None):
+    chat_id_str = str(chat_id or '').strip()
+    if not chat_id_str:
+        return False
+
+    st = settings or get_club_settings_instance()
+    allowed_chat_ids = {
+        str(getattr(st, 'director_chat_id', '') or '').strip(),
+        str(getattr(st, 'founder_chat_id', '') or '').strip(),
+        str(getattr(st, 'cashier_chat_id', '') or '').strip()
+    }
+    allowed_chat_ids.discard('')
+    return chat_id_str in allowed_chat_ids
+
+
+def get_owner_allowed_chat_ids():
+    raw_value = (os.environ.get('OWNER_BOT_ALLOWED_CHAT_IDS') or '').strip()
+    if not raw_value:
+        return set()
+
+    values = set()
+    for part in raw_value.split(','):
+        candidate = part.strip()
+        if candidate:
+            values.add(candidate)
+    return values
+
+
+def is_owner_chat_id(chat_id):
+    chat_id_str = str(chat_id or '').strip()
+    if not chat_id_str:
+        return False
+    return chat_id_str in get_owner_allowed_chat_ids()
+
+
+def can_manage_service_from_telegram(chat_id, settings=None):
+    return is_management_chat_id(chat_id, settings) or is_owner_chat_id(chat_id)
 
 
 def ensure_users_table_columns():
@@ -568,6 +714,8 @@ def ensure_club_settings_columns():
             conn.execute(db.text("ALTER TABLE club_settings ADD COLUMN payment_transfer_enabled BOOLEAN DEFAULT 0"))
         if 'expense_categories' not in columns:
             conn.execute(db.text("ALTER TABLE club_settings ADD COLUMN expense_categories TEXT"))
+        if 'service_controls' not in columns:
+            conn.execute(db.text("ALTER TABLE club_settings ADD COLUMN service_controls TEXT"))
         
         # Контакты руководства
         if 'director_phone' not in columns:
@@ -1023,6 +1171,68 @@ def inject_system_name():
     except Exception:
         SYSTEM_NAME_CACHE = 'FK QORASUV'
     return {'system_name': SYSTEM_NAME_CACHE}
+
+
+SERVICE_LOCK_BYPASS_PATH_PREFIXES = (
+    '/static/',
+    '/favicon.ico',
+    '/api/service-control/state',
+    '/api/telegram/service-control/status',
+    '/api/telegram/service-control/toggle',
+    '/api/telegram/register-by-phone',
+    '/api/telegram/register',
+    '/api/telegram/attendance-report',
+    '/api/club-settings/public'
+)
+SERVICE_LOCK_BLOCKED_GET_PATHS = {
+    '/video_feed'
+}
+
+
+@app.before_request
+def enforce_service_lock():
+    if request.method == 'OPTIONS':
+        return None
+
+    path = request.path or ''
+    for allowed_prefix in SERVICE_LOCK_BYPASS_PATH_PREFIXES:
+        if path.startswith(allowed_prefix):
+            return None
+
+    try:
+        lock_payload = build_service_state_payload(SERVICE_PRIMARY_KEY)
+    except Exception:
+        # Если не удалось прочитать настройки, не блокируем систему жестко.
+        return None
+
+    if not lock_payload.get('success') or lock_payload.get('enabled', True):
+        return None
+
+    if path in SERVICE_LOCK_BLOCKED_GET_PATHS:
+        return jsonify({
+            'success': False,
+            'service_locked': True,
+            'message': lock_payload.get('message'),
+            'phone': lock_payload.get('support_phone')
+        }), 423
+
+    if path.startswith('/api/'):
+        return jsonify({
+            'success': False,
+            'service_locked': True,
+            'message': lock_payload.get('message'),
+            'phone': lock_payload.get('support_phone')
+        }), 423
+
+    if request.method in ('GET', 'HEAD'):
+        return None
+
+    return jsonify({
+        'success': False,
+        'service_locked': True,
+        'message': lock_payload.get('message'),
+        'phone': lock_payload.get('support_phone')
+    }), 423
 
 
 # ===== МАРШРУТЫ АВТОРИЗАЦИИ =====
@@ -5787,6 +5997,87 @@ def get_club_settings_public():
         'founder_phone': getattr(settings, 'founder_phone', '') or '',
         'cashier_phone': getattr(settings, 'cashier_phone', '') or ''
     })
+
+
+@app.route('/api/service-control/state', methods=['GET'])
+def get_service_control_state():
+    """Публичный статус блокировки сервиса для frontend-overlay."""
+    service_key = (request.args.get('service') or SERVICE_PRIMARY_KEY).strip()
+    payload = build_service_state_payload(service_key)
+    if not payload.get('success'):
+        return jsonify(payload), 404
+    return jsonify(payload)
+
+
+@app.route('/api/telegram/service-control/status', methods=['GET'])
+def telegram_service_control_status():
+    """Статус сервиса для Telegram меню управления (staff + owner bot)."""
+    service_key = (request.args.get('service') or SERVICE_PRIMARY_KEY).strip()
+    chat_id = (request.args.get('chat_id') or '').strip()
+
+    if not chat_id:
+        return jsonify({'success': False, 'message': 'chat_id не указан'}), 400
+
+    settings = get_club_settings_instance()
+    if not can_manage_service_from_telegram(chat_id, settings):
+        return jsonify({'success': False, 'message': 'Доступ запрещен для этого chat_id'}), 403
+
+    payload = build_service_state_payload(service_key)
+    if not payload.get('success'):
+        return jsonify(payload), 404
+
+    return jsonify(payload)
+
+
+@app.route('/api/telegram/service-control/toggle', methods=['POST'])
+def telegram_service_control_toggle():
+    """Переключение сервиса из Telegram меню управления (staff + owner bot)."""
+    data = request.get_json() or {}
+    service_key = (data.get('service') or SERVICE_PRIMARY_KEY).strip()
+    chat_id = str(data.get('chat_id') or '').strip()
+
+    if not chat_id:
+        return jsonify({'success': False, 'message': 'chat_id не указан'}), 400
+
+    settings = get_club_settings_instance()
+    if not can_manage_service_from_telegram(chat_id, settings):
+        return jsonify({'success': False, 'message': 'Доступ запрещен для этого chat_id'}), 403
+
+    try:
+        controls = load_service_controls(settings)
+        if service_key not in controls:
+            return jsonify({'success': False, 'message': 'Сервис не найден'}), 404
+
+        controls[service_key]['enabled'] = not bool(controls[service_key].get('enabled', True))
+        controls[service_key]['updated_at'] = get_local_time().strftime('%Y-%m-%d %H:%M:%S')
+        controls[service_key]['updated_by'] = f"chat:{chat_id}"
+        controls[service_key]['support_phone'] = (
+            controls[service_key].get('support_phone') or SERVICE_SUPPORT_PHONE_DEFAULT
+        )
+
+        save_service_controls(settings, controls)
+        db.session.commit()
+
+        payload = build_service_state_payload(service_key)
+        status_text = 'включен' if payload.get('enabled') else 'выключен'
+        try:
+            send_management_notification(
+                (
+                    f"🛠 <b>Управление сервисом</b>\n"
+                    f"Сервис: <b>{payload.get('service_name')}</b>\n"
+                    f"Статус: <b>{status_text}</b>\n"
+                    f"Кем: <code>{chat_id}</code>\n"
+                    f"Время: {payload.get('updated_at') or '-'}"
+                ),
+                roles=['director', 'founder', 'cashier']
+            )
+        except Exception as notify_err:
+            print(f"Ошибка уведомления о переключении сервиса: {notify_err}")
+
+        return jsonify(payload)
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
 
 
 @app.route('/api/telegram/send-payment-reminders', methods=['POST'])
