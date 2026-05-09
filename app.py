@@ -6059,21 +6059,6 @@ def telegram_service_control_toggle():
         db.session.commit()
 
         payload = build_service_state_payload(service_key)
-        status_text = 'включен' if payload.get('enabled') else 'выключен'
-        try:
-            send_management_notification(
-                (
-                    f"🛠 <b>Управление сервисом</b>\n"
-                    f"Сервис: <b>{payload.get('service_name')}</b>\n"
-                    f"Статус: <b>{status_text}</b>\n"
-                    f"Кем: <code>{chat_id}</code>\n"
-                    f"Время: {payload.get('updated_at') or '-'}"
-                ),
-                roles=['director', 'founder', 'cashier']
-            )
-        except Exception as notify_err:
-            print(f"Ошибка уведомления о переключении сервиса: {notify_err}")
-
         return jsonify(payload)
     except Exception as e:
         db.session.rollback()

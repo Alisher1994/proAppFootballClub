@@ -3,6 +3,7 @@ Owner Telegram bot for platform-level service control.
 Does not depend on client/student bot flows.
 """
 import os
+import json
 import time
 import requests
 from telegram import Update, ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardButton, InlineKeyboardMarkup
@@ -11,9 +12,58 @@ from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQu
 port = os.environ.get('PORT', '5000')
 APP_URL = os.environ.get('APP_URL', f'http://127.0.0.1:{port}')
 
-SERVICE_OPTIONS = {
-    'football_club': 'Футбольный клуб'
-}
+def normalize_base_url(value):
+    return (value or '').strip().rstrip('/')
+
+
+def get_service_configs():
+    default_configs = {
+        'football_club': {
+            'name': 'Футбольный клуб',
+            'url': normalize_base_url(APP_URL),
+            'endpoint_prefix': '/api/telegram/service-control'
+        },
+        'oka_delivery': {
+            'name': "OKA Go'sht do'koni",
+            'url': normalize_base_url(os.environ.get('OKA_SERVICE_URL')),
+            'endpoint_prefix': '/api/service-control/telegram'
+        },
+        'talablar': {
+            'name': 'Talablar',
+            'url': normalize_base_url(os.environ.get('TALABLAR_SERVICE_URL')),
+            'endpoint_prefix': '/api/service-control/telegram'
+        }
+    }
+
+    raw_json = (os.environ.get('OWNER_SERVICE_CONTROL_SERVICES') or '').strip()
+    if raw_json:
+        try:
+            parsed = json.loads(raw_json)
+            if isinstance(parsed, list):
+                for item in parsed:
+                    if not isinstance(item, dict):
+                        continue
+                    key = (item.get('key') or '').strip()
+                    url = normalize_base_url(item.get('url'))
+                    if not key or not url:
+                        continue
+                    default_configs[key] = {
+                        'name': (item.get('name') or key).strip(),
+                        'url': url,
+                        'endpoint_prefix': (item.get('endpoint_prefix') or '/api/service-control/telegram').strip()
+                    }
+        except Exception as e:
+            print(f"[owner-bot] OWNER_SERVICE_CONTROL_SERVICES parse error: {e}")
+
+    return {
+        key: cfg
+        for key, cfg in default_configs.items()
+        if cfg.get('url')
+    }
+
+
+def get_service_config(service_key):
+    return get_service_configs().get(service_key)
 
 
 def get_owner_bot_token():
@@ -31,9 +81,10 @@ def build_main_keyboard():
 
 
 def build_service_select_keyboard():
+    service_options = get_service_configs()
     keyboard = [
-        [InlineKeyboardButton(service_name, callback_data=f"svc_select:{service_key}")]
-        for service_key, service_name in SERVICE_OPTIONS.items()
+        [InlineKeyboardButton(cfg.get('name') or service_key, callback_data=f"svc_select:{service_key}")]
+        for service_key, cfg in service_options.items()
     ]
     return InlineKeyboardMarkup(keyboard)
 
@@ -47,10 +98,20 @@ def build_service_action_keyboard(service_key, enabled):
 
 
 def fetch_service_status(chat_id, service_key):
+    service_cfg = get_service_config(service_key)
+    if not service_cfg:
+        return {'success': False, 'message': 'Сервис не настроен в owner bot'}
+
+    headers = {}
+    service_token = (os.environ.get('SERVICE_CONTROL_API_TOKEN') or '').strip()
+    if service_token:
+        headers['x-service-control-token'] = service_token
+
     try:
         response = requests.get(
-            f"{APP_URL}/api/telegram/service-control/status",
+            f"{service_cfg['url']}{service_cfg['endpoint_prefix']}/status",
             params={'chat_id': str(chat_id), 'service': service_key},
+            headers=headers,
             timeout=10
         )
         data = response.json()
@@ -63,10 +124,20 @@ def fetch_service_status(chat_id, service_key):
 
 
 def toggle_service_status(chat_id, service_key):
+    service_cfg = get_service_config(service_key)
+    if not service_cfg:
+        return {'success': False, 'message': 'Сервис не настроен в owner bot'}
+
+    headers = {}
+    service_token = (os.environ.get('SERVICE_CONTROL_API_TOKEN') or '').strip()
+    if service_token:
+        headers['x-service-control-token'] = service_token
+
     try:
         response = requests.post(
-            f"{APP_URL}/api/telegram/service-control/toggle",
+            f"{service_cfg['url']}{service_cfg['endpoint_prefix']}/toggle",
             json={'chat_id': str(chat_id), 'service': service_key},
+            headers=headers,
             timeout=10
         )
         data = response.json()
