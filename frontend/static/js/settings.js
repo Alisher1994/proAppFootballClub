@@ -88,6 +88,14 @@ async function loadSettings() {
         document.getElementById('work_end_time').value = data.work_end_time || '21:00';
         document.getElementById('max_groups_per_slot').value = data.max_groups_per_slot || 1;
         document.getElementById('block_future_payments').checked = !!data.block_future_payments;
+        const accessBlockDayEl = document.getElementById('access_block_day');
+        const accessDebtStartMonthEl = document.getElementById('access_debt_start_month');
+        const accessDebtStartYearEl = document.getElementById('access_debt_start_year');
+        const hikvisionDeviceKeyEl = document.getElementById('hikvision_device_key');
+        if (accessBlockDayEl) accessBlockDayEl.value = data.access_block_day || 10;
+        if (accessDebtStartMonthEl) accessDebtStartMonthEl.value = data.access_debt_start_month || '';
+        if (accessDebtStartYearEl) accessDebtStartYearEl.value = data.access_debt_start_year || '';
+        if (hikvisionDeviceKeyEl) hikvisionDeviceKeyEl.value = data.hikvision_device_key || '';
         document.getElementById('rewards_reset_period_months').value = data.rewards_reset_period_months || 1;
         // Убедимся, что значение кратно 5 и в диапазоне 5-50
         const podiumValue = data.podium_display_count || 20;
@@ -201,6 +209,10 @@ function gatherAllSettings() {
         work_end_time: document.getElementById('work_end_time').value,
         max_groups_per_slot: parseInt(document.getElementById('max_groups_per_slot').value, 10),
         block_future_payments: document.getElementById('block_future_payments').checked,
+        access_block_day: parseInt(document.getElementById('access_block_day')?.value || '10', 10),
+        access_debt_start_month: document.getElementById('access_debt_start_month')?.value || null,
+        access_debt_start_year: document.getElementById('access_debt_start_year')?.value || null,
+        hikvision_device_key: (document.getElementById('hikvision_device_key')?.value || '').trim(),
         rewards_reset_period_months: parseInt(document.getElementById('rewards_reset_period_months').value, 10),
         podium_display_count: parseInt(document.getElementById('podium_display_count').value, 10),
         telegram_bot_url: (document.getElementById('telegram_bot_url')?.value || '').trim(),

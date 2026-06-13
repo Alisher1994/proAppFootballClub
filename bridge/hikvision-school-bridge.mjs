@@ -1,0 +1,298 @@
+/**
+ * Local Hikvision bridge for the football school.
+ *
+ * Runs near the terminals, pulls allowed students from the cloud, and writes
+ * them into one or more Hikvision Face ID terminals.
+ */
+
+import http from 'node:http';
+import https from 'node:https';
+
+const CONFIG = {
+  serverUrl: process.env.SERVER_URL || 'https://proapp.up.railway.app',
+  deviceKey: process.env.DEVICE_INGEST_KEY || '',
+  username: process.env.HIK_USER || 'admin',
+  password: process.env.HIK_PASS || '',
+  syncIntervalMs: Number(process.env.HIK_SYNC_INTERVAL_MS || 60000),
+  commandPollIntervalMs: Number(process.env.COMMAND_POLL_INTERVAL_MS || 2000),
+  defaultDoorRight: process.env.HIK_DOOR_RIGHT || '1',
+  defaultPlanTemplateNo: process.env.HIK_PLAN_TEMPLATE_NO || '1',
+  recreateUsersOnSync: (process.env.HIK_SYNC_RECREATE_USERS || 'false') === 'true',
+  devices: JSON.parse(process.env.HIK_DEVICES_JSON || '[]'),
+};
+
+if (!CONFIG.devices.length && process.env.HIK_IP) {
+  CONFIG.devices.push({
+    name: 'terminal',
+    ip: process.env.HIK_IP,
+    port: Number(process.env.HIK_HTTP_PORT || 443),
+    protocol: process.env.HIK_PROTOCOL || 'https',
+    doorNo: Number(process.env.HIK_DOOR_NO || 1),
+  });
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function md5(s) {
+  const c = await import('node:crypto');
+  return c.createHash('md5').update(s).digest('hex');
+}
+
+async function digestHeader(device, method, uri, wwwAuth) {
+  const realm = /realm="([^"]+)"/.exec(wwwAuth)?.[1] || '';
+  const nonce = /nonce="([^"]+)"/.exec(wwwAuth)?.[1] || '';
+  const qopRaw = /qop="?([^"]+)"?/.exec(wwwAuth)?.[1] || '';
+  const qop = qopRaw.split(',').map((s) => s.trim()).find((s) => s === 'auth') || qopRaw.split(',')[0]?.trim();
+  const opaque = /opaque="([^"]+)"/.exec(wwwAuth)?.[1] || '';
+  const username = device.username || CONFIG.username;
+  const password = device.password || CONFIG.password;
+  const ha1 = await md5(`${username}:${realm}:${password}`);
+  const ha2 = await md5(`${method}:${uri}`);
+  const nc = '00000001';
+  const cnonce = Math.random().toString(16).slice(2, 10);
+  const response = qop
+    ? await md5(`${ha1}:${nonce}:${nc}:${cnonce}:${qop}:${ha2}`)
+    : await md5(`${ha1}:${nonce}:${ha2}`);
+  let h = `Digest username="${username}", realm="${realm}", nonce="${nonce}", uri="${uri}", response="${response}"`;
+  if (qop) h += `, qop="${qop}", nc=${nc}, cnonce="${cnonce}"`;
+  if (opaque) h += `, opaque="${opaque}"`;
+  return h;
+}
+
+function collectResponse(res) {
+  return new Promise((resolve) => {
+    const chunks = [];
+    res.on('data', (c) => chunks.push(Buffer.isBuffer(c) ? c : Buffer.from(c)));
+    res.on('end', () => {
+      const buffer = Buffer.concat(chunks);
+      resolve({ statusCode: res.statusCode, headers: res.headers, buffer, body: buffer.toString('utf8') });
+    });
+  });
+}
+
+function requestDigest(device, method, uri, body = null, headers = {}) {
+  return new Promise((resolve, reject) => {
+    const protocol = (device.protocol || 'https').toLowerCase();
+    const client = protocol === 'https' ? https : http;
+    const bodyHeaders = body
+      ? { 'Content-Type': headers['Content-Type'] || 'application/json', 'Content-Length': Buffer.byteLength(body) }
+      : {};
+    const options = {
+      host: device.ip,
+      port: Number(device.port || (protocol === 'https' ? 443 : 80)),
+      path: uri,
+      method,
+      rejectUnauthorized: false,
+      headers: { ...headers, ...bodyHeaders },
+    };
+    const first = client.request(options, (res) => {
+      if (res.statusCode !== 401) {
+        collectResponse(res).then(resolve, reject);
+        return;
+      }
+      const wwwAuth = res.headers['www-authenticate'] || '';
+      collectResponse(res).then(() => digestHeader(device, method, uri, wwwAuth))
+        .then((auth) => {
+          const second = client.request({ ...options, headers: { ...options.headers, Authorization: auth } }, (res2) => {
+            collectResponse(res2).then(resolve, reject);
+          });
+          second.on('error', reject);
+          if (body) second.write(body);
+          second.end();
+        }).catch(reject);
+    });
+    first.on('error', reject);
+    if (body) first.write(body);
+    first.end();
+  });
+}
+
+function assertOk(label, res) {
+  if (!res.statusCode || res.statusCode < 200 || res.statusCode >= 300) {
+    const lockStatus = /<lockStatus>([^<]+)<\/lockStatus>/i.exec(res.body || '')?.[1];
+    const unlockTime = Number(/<unlockTime>([^<]+)<\/unlockTime>/i.exec(res.body || '')?.[1] || 0);
+    if (res.statusCode === 401 && lockStatus === 'lock') {
+      const err = new Error(`${label} locked, wait ${unlockTime || 'unknown'}s`);
+      err.code = 'HIKVISION_LOCKED';
+      err.unlockTime = unlockTime;
+      throw err;
+    }
+    throw new Error(`${label} ISAPI ${res.statusCode}: ${(res.body || '').slice(0, 220)}`);
+  }
+  return res;
+}
+
+function parseJsonSafe(text) {
+  try { return JSON.parse(text || '{}'); } catch { return null; }
+}
+
+async function requestJson(device, method, uri, data) {
+  const res = await requestDigest(device, method, uri, JSON.stringify(data), { 'Content-Type': 'application/json' });
+  return assertOk(uri, res);
+}
+
+async function downloadPhoto(url) {
+  if (!url) return null;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`photo ${res.status}`);
+  return {
+    buffer: Buffer.from(await res.arrayBuffer()),
+    contentType: res.headers.get('content-type') || 'image/jpeg',
+  };
+}
+
+async function deleteUser(device, employeeNo) {
+  const body = { UserInfoDelCond: { EmployeeNoList: [{ employeeNo }] } };
+  const res = await requestDigest(device, 'PUT', '/ISAPI/AccessControl/UserInfo/Delete?format=json', JSON.stringify(body), { 'Content-Type': 'application/json' });
+  if (res.statusCode === 404) return;
+  assertOk('delete-user', res);
+}
+
+async function upsertUser(device, student) {
+  const now = new Date();
+  const beginTime = new Date(now.getTime() - 24 * 3600 * 1000).toISOString().slice(0, 19);
+  const body = {
+    UserInfo: {
+      employeeNo: student.employeeNo,
+      name: student.fullName,
+      userType: 'normal',
+      Valid: { enable: true, beginTime, endTime: '2037-12-31T23:59:59', timeType: 'local' },
+      doorRight: device.doorRight || CONFIG.defaultDoorRight,
+      RightPlan: [{ doorNo: Number(device.doorNo || 1), planTemplateNo: device.planTemplateNo || CONFIG.defaultPlanTemplateNo }],
+    },
+  };
+  await requestJson(device, 'PUT', '/ISAPI/AccessControl/UserInfo/SetUp?format=json', body);
+}
+
+async function uploadFace(device, student) {
+  if (!student.photoUrl) return 'no-photo';
+  const photo = await downloadPhoto(student.photoUrl);
+  const boundary = '----karasu' + Math.random().toString(16).slice(2);
+  const record = JSON.stringify({ faceLibType: 'blackFD', FDID: '1', FPID: student.employeeNo });
+  const head =
+    `--${boundary}\r\n` +
+    'Content-Disposition: form-data; name="FaceDataRecord"\r\n' +
+    'Content-Type: application/json\r\n\r\n' +
+    `${record}\r\n` +
+    `--${boundary}\r\n` +
+    `Content-Disposition: form-data; name="FaceImage"; filename="${student.employeeNo}.jpg"\r\n` +
+    `Content-Type: ${photo.contentType}\r\n\r\n`;
+  const tail = `\r\n--${boundary}--\r\n`;
+  const body = Buffer.concat([Buffer.from(head, 'utf8'), photo.buffer, Buffer.from(tail, 'utf8')]);
+  const res = await requestDigest(device, 'POST', '/ISAPI/Intelligent/FDLib/FaceDataRecord?format=json', body, {
+    'Content-Type': `multipart/form-data; boundary=${boundary}`,
+  });
+  const data = parseJsonSafe(res.body);
+  if (res.statusCode === 400 && data?.subStatusCode === 'deviceUserAlreadyExistFace') return 'already-exists';
+  assertOk('face-upload', res);
+  return 'uploaded';
+}
+
+async function fetchStudents() {
+  const res = await fetch(`${CONFIG.serverUrl}/api/hikvision/students`, {
+    headers: { 'x-device-key': CONFIG.deviceKey },
+  });
+  if (!res.ok) throw new Error(`server students ${res.status}: ${await res.text()}`);
+  const data = await res.json();
+  return data.students || [];
+}
+
+async function syncDevice(device, students) {
+  let changed = 0;
+  for (const student of students) {
+    try {
+      if (!student.enabled) {
+        await deleteUser(device, student.employeeNo);
+        changed += 1;
+        console.log(`[${device.name}] deleted/disabled ${student.employeeNo} ${student.fullName} (${student.access_reason})`);
+        continue;
+      }
+      if (CONFIG.recreateUsersOnSync) {
+        try { await deleteUser(device, student.employeeNo); } catch (e) { console.warn(`[${device.name}] delete-before-upsert ${student.employeeNo}: ${e.message}`); }
+        await sleep(500);
+      }
+      await upsertUser(device, student);
+      await sleep(500);
+      const face = await uploadFace(device, student);
+      changed += 1;
+      console.log(`[${device.name}] upserted face=${face} ${student.employeeNo} ${student.fullName}`);
+    } catch (e) {
+      console.error(`[${device.name}] ${student.employeeNo} ${student.fullName}: ${e.message}`);
+      if (e.code === 'HIKVISION_LOCKED') break;
+    }
+    await sleep(300);
+  }
+  return changed;
+}
+
+let syncInProgress = false;
+async function runSync(reason = 'interval') {
+  if (syncInProgress) return;
+  syncInProgress = true;
+  try {
+    const students = await fetchStudents();
+    console.log(`[sync] ${students.length} student(s), reason=${reason}`);
+    for (const device of CONFIG.devices) {
+      const changed = await syncDevice(device, students);
+      console.log(`[sync] ${device.name || device.ip}: applied ${changed} change(s)`);
+    }
+  } catch (e) {
+    console.error('[sync] failed:', e.message);
+  } finally {
+    syncInProgress = false;
+  }
+}
+
+async function reportCommand(id, ok, result) {
+  try {
+    await fetch(`${CONFIG.serverUrl}/api/hikvision/commands/${encodeURIComponent(id)}/result`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-device-key': CONFIG.deviceKey },
+      body: JSON.stringify({ ok, result: String(result || '').slice(0, 1000) }),
+    });
+  } catch (e) {
+    console.error('[command] report failed:', e.message);
+  }
+}
+
+async function pollCommands() {
+  try {
+    const res = await fetch(`${CONFIG.serverUrl}/api/hikvision/commands/next`, {
+      headers: { 'x-device-key': CONFIG.deviceKey },
+    });
+    if (!res.ok) throw new Error(`server command ${res.status}`);
+    const data = await res.json();
+    const command = data.command;
+    if (!command) return;
+    if (command.type === 'HIKVISION_SYNC') {
+      await runSync(command.payload?.reason || 'command');
+      await reportCommand(command.id, true, 'synced');
+    } else {
+      await reportCommand(command.id, false, `unknown command ${command.type}`);
+    }
+  } catch (e) {
+    console.error('[command] failed:', e.message);
+  }
+}
+
+async function main() {
+  if (!CONFIG.deviceKey) {
+    console.error('DEVICE_INGEST_KEY is required');
+    process.exit(1);
+  }
+  if (!CONFIG.devices.length) {
+    console.error('Set HIK_DEVICES_JSON or HIK_IP');
+    process.exit(1);
+  }
+  console.log(`[bridge] ${CONFIG.devices.length} Hikvision terminal(s) -> ${CONFIG.serverUrl}`);
+  await runSync('startup');
+  setInterval(() => runSync('interval'), CONFIG.syncIntervalMs);
+  setInterval(pollCommands, CONFIG.commandPollIntervalMs);
+}
+
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});

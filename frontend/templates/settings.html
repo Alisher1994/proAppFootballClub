@@ -997,6 +997,44 @@
                                         <span>Запретить оплаты за будущие месяцы</span>
                                     </label>
 
+                                    <div class="form-row" style="margin-top: 20px;">
+                                        <div class="form-group">
+                                            <label>
+                                                <span style="margin-right: 6px;">🚧</span>
+                                                День блокировки доступа
+                                            </label>
+                                            <input type="number" id="access_block_day" min="1" max="31"
+                                                class="form-input-modern" placeholder="10">
+                                            <small style="display:block; margin-top:6px; color: var(--theme-text-secondary);">
+                                                С этого дня текущего месяца должники не попадут в терминал.
+                                            </small>
+                                        </div>
+                                        <div class="form-group">
+                                            <label>
+                                                <span style="margin-right: 6px;">📆</span>
+                                                Начать контроль с месяца
+                                            </label>
+                                            <div class="form-row" style="gap: 8px; margin: 0;">
+                                                <input type="number" id="access_debt_start_month" min="1" max="12"
+                                                    class="form-input-modern" placeholder="Месяц">
+                                                <input type="number" id="access_debt_start_year" min="2020" max="2100"
+                                                    class="form-input-modern" placeholder="Год">
+                                            </div>
+                                            <small style="display:block; margin-top:6px; color: var(--theme-text-secondary);">
+                                                Старые спорные долги до этой даты не блокируют вход.
+                                            </small>
+                                        </div>
+                                    </div>
+
+                                    <div class="form-group" style="margin-top: 20px;">
+                                        <label>
+                                            <span style="margin-right: 6px;">🔑</span>
+                                            Ключ Hikvision bridge
+                                        </label>
+                                        <input type="text" id="hikvision_device_key" class="form-input-modern"
+                                            placeholder="Секретный ключ для Wyse/Raspberry">
+                                    </div>
+
                                     <div style="margin-top: 20px;">
                                         <h4
                                             style="margin: 0 0 12px 0; font-size: 15px; color: var(--theme-text-primary);">

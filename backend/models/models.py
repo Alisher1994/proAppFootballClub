@@ -312,6 +312,31 @@ class Attendance(db.Model):
         return f'<Attendance Student {self.student_id} on {self.date}>'
 
 
+class DeviceCommand(db.Model):
+    """Команды для локального bridge Hikvision."""
+    __tablename__ = 'device_commands'
+
+    id = db.Column(db.Integer, primary_key=True)
+    command = db.Column(db.String(50), nullable=False)
+    payload = db.Column(db.Text, nullable=True)
+    status = db.Column(db.String(20), default='pending', index=True)
+    result = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=get_local_datetime, index=True)
+    picked_at = db.Column(db.DateTime, nullable=True)
+    finished_at = db.Column(db.DateTime, nullable=True)
+
+    def get_payload(self):
+        if not self.payload:
+            return {}
+        try:
+            return json.loads(self.payload)
+        except Exception:
+            return {}
+
+    def set_payload(self, payload):
+        self.payload = json.dumps(payload or {}, ensure_ascii=False)
+
+
 class Expense(db.Model):
     """Расходы школы"""
     __tablename__ = 'expenses'
@@ -375,6 +400,10 @@ class ClubSettings(db.Model):
     payment_transfer_enabled = db.Column(db.Boolean, default=False)  # Включен Перечисление
     expense_categories = db.Column(db.Text, nullable=True)  # JSON-массив статей расхода
     service_controls = db.Column(db.Text, nullable=True)  # JSON-конфиг включения/выключения сервисов
+    access_block_day = db.Column(db.Integer, default=10)  # День месяца, с которого долг блокирует доступ
+    access_debt_start_year = db.Column(db.Integer, nullable=True)  # С какого года учитывать долг для доступа
+    access_debt_start_month = db.Column(db.Integer, nullable=True)  # С какого месяца учитывать долг для доступа
+    hikvision_device_key = db.Column(db.String(120), nullable=True)  # Ключ локального bridge
 
     def get_working_days_list(self):
         if self.working_days:

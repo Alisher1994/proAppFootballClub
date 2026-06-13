@@ -16,6 +16,7 @@ from flask_bcrypt import Bcrypt
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from sqlalchemy import func, or_
+from sqlalchemy.orm import joinedload
 import pytz
 from PIL import Image, ImageDraw, ImageFont
 import psutil
@@ -51,7 +52,7 @@ os.environ['FFMPEG_LOG_LEVEL'] = 'quiet'
 # Форсируем использование CUDA/TensorRT в ONNX
 os.environ['ORT_TENSORRT_FP16_ENABLE'] = '1'
 
-from backend.models.models import db, User, Student, Payment, Attendance, Expense, Group, Tariff, ClubSettings, RewardType, StudentReward, CashTransfer, Role, RolePermission, CardType, StudentCard
+from backend.models.models import db, User, Student, Payment, Attendance, Expense, Group, Tariff, ClubSettings, RewardType, StudentReward, CashTransfer, Role, RolePermission, CardType, StudentCard, DeviceCommand
 # Face recognition permanently disabled per client; keep dummy service only.
 USE_FACE = False
 from backend.services.face_stub import DummyFaceService as FaceService
@@ -438,6 +439,85 @@ def get_club_settings_instance():
     return settings
 
 
+def get_bridge_key(settings=None):
+    settings = settings or get_club_settings_instance()
+    configured = (getattr(settings, 'hikvision_device_key', '') or '').strip()
+    return configured or (os.environ.get('DEVICE_INGEST_KEY') or '').strip()
+
+
+def check_bridge_auth():
+    expected = get_bridge_key()
+    provided = (
+        request.headers.get('x-device-key')
+        or request.headers.get('X-Device-Key')
+        or request.args.get('key')
+        or ''
+    ).strip()
+    return bool(expected and provided and provided == expected)
+
+
+def queue_hikvision_sync(reason='change'):
+    """Попросить локальный bridge выполнить синхронизацию без ожидания интервала."""
+    try:
+        ensure_device_commands_table()
+        fresh_exists = DeviceCommand.query.filter(
+            DeviceCommand.command == 'HIKVISION_SYNC',
+            DeviceCommand.status == 'pending',
+            DeviceCommand.created_at >= get_local_datetime() - timedelta(seconds=30),
+        ).first()
+        if fresh_exists:
+            return
+        cmd = DeviceCommand(command='HIKVISION_SYNC')
+        cmd.set_payload({'reason': reason})
+        db.session.add(cmd)
+    except Exception as e:
+        print(f"Не удалось поставить команду синхронизации Hikvision: {e}")
+
+
+def get_month_paid_map(year, month):
+    rows = db.session.query(
+        Payment.student_id,
+        func.coalesce(func.sum(Payment.amount_paid), 0)
+    ).filter(
+        Payment.payment_year == year,
+        Payment.payment_month == month
+    ).group_by(Payment.student_id).all()
+    return {student_id: float(total or 0) for student_id, total in rows}
+
+
+def should_check_access_debt(settings, today=None):
+    today = today or get_local_date()
+    block_day = int(getattr(settings, 'access_block_day', 10) or 10)
+    block_day = max(1, min(31, block_day))
+    start_year = getattr(settings, 'access_debt_start_year', None)
+    start_month = getattr(settings, 'access_debt_start_month', None)
+    if start_year and start_month and (today.year, today.month) < (int(start_year), int(start_month)):
+        return False
+    return today.day >= block_day
+
+
+def student_access_state(student, settings=None, paid_map=None, today=None):
+    settings = settings or get_club_settings_instance()
+    today = today or get_local_date()
+    paid_map = paid_map or {}
+
+    if student.status != 'active':
+        return False, 'inactive', 0
+    if student.club_funded:
+        return True, 'club_funded', 0
+    if not student.tariff:
+        return True, 'no_tariff', 0
+    if not should_check_access_debt(settings, today):
+        return True, 'grace_period', 0
+
+    tariff_price = float(student.tariff.price or 0)
+    paid = float(paid_map.get(student.id, 0) or 0)
+    debt = max(0, tariff_price - paid)
+    if debt > 0:
+        return False, 'current_month_debt', debt
+    return True, 'paid', 0
+
+
 def get_default_service_controls():
     return {
         'football_club': {
@@ -732,6 +812,44 @@ def ensure_club_settings_columns():
             conn.execute(db.text("ALTER TABLE club_settings ADD COLUMN founder_chat_id VARCHAR(50)"))
         if 'cashier_chat_id' not in columns:
             conn.execute(db.text("ALTER TABLE club_settings ADD COLUMN cashier_chat_id VARCHAR(50)"))
+        if 'access_block_day' not in columns:
+            conn.execute(db.text("ALTER TABLE club_settings ADD COLUMN access_block_day INTEGER DEFAULT 10"))
+        if 'access_debt_start_year' not in columns:
+            conn.execute(db.text("ALTER TABLE club_settings ADD COLUMN access_debt_start_year INTEGER"))
+        if 'access_debt_start_month' not in columns:
+            conn.execute(db.text("ALTER TABLE club_settings ADD COLUMN access_debt_start_month INTEGER"))
+        if 'hikvision_device_key' not in columns:
+            conn.execute(db.text("ALTER TABLE club_settings ADD COLUMN hikvision_device_key VARCHAR(120)"))
+
+
+def ensure_device_commands_table():
+    inspector = db.inspect(db.engine)
+    if 'device_commands' not in inspector.get_table_names():
+        db.create_all()
+        return
+
+    columns = {col['name'] for col in inspector.get_columns('device_commands')}
+    with db.engine.begin() as conn:
+        if 'payload' not in columns:
+            conn.execute(db.text("ALTER TABLE device_commands ADD COLUMN payload TEXT"))
+        if 'result' not in columns:
+            conn.execute(db.text("ALTER TABLE device_commands ADD COLUMN result TEXT"))
+        if 'picked_at' not in columns:
+            conn.execute(db.text("ALTER TABLE device_commands ADD COLUMN picked_at TIMESTAMP"))
+        if 'finished_at' not in columns:
+            conn.execute(db.text("ALTER TABLE device_commands ADD COLUMN finished_at TIMESTAMP"))
+
+
+def ensure_payment_indexes():
+    inspector = db.inspect(db.engine)
+    if 'payments' not in inspector.get_table_names():
+        return
+    existing = {idx['name'] for idx in inspector.get_indexes('payments')}
+    with db.engine.begin() as conn:
+        if 'idx_payments_student_month_year' not in existing:
+            conn.execute(db.text("CREATE INDEX IF NOT EXISTS idx_payments_student_month_year ON payments (student_id, payment_year, payment_month)"))
+        if 'idx_payments_month_year' not in existing:
+            conn.execute(db.text("CREATE INDEX IF NOT EXISTS idx_payments_month_year ON payments (payment_year, payment_month)"))
 
 
 def ensure_expense_columns():
@@ -1870,8 +1988,9 @@ def add_student():
                 # Если лицо не найдено, не блокируем создание, просто нет вектора
                 print(f"⚠️ Лицо не обнаружено для студента {student.id}, пропускаем создание вектора")
         
+        queue_hikvision_sync('student_created')
         db.session.commit()
-        
+
         # Перезагрузить encodings
         reload_face_encodings()
         
@@ -2104,6 +2223,7 @@ def update_student(student_id):
         # Убедиться, что у ученика есть код для Telegram
         ensure_student_has_telegram_code(student)
         
+        queue_hikvision_sync('student_updated')
         db.session.commit()
         return jsonify({'success': True})
     
@@ -2141,6 +2261,7 @@ def delete_student(student_id):
         
         # 6. Теперь можно безопасно удалить самого ученика
         db.session.delete(student)
+        queue_hikvision_sync('student_deleted')
         db.session.commit()
         
         # Перезагрузить encodings
@@ -2189,7 +2310,8 @@ def add_payment():
         # Обновить тип тарифа при полной оплате
         if is_full_payment:
             student.tariff_type = tariff.name if tariff else None
-        
+
+        queue_hikvision_sync('payment_added')
         db.session.commit()
         
         # Отправить уведомление в Telegram (для старого метода)
@@ -3198,17 +3320,34 @@ def get_balance_breakdown():
 @login_required
 def get_debtors():
     """Список должников с помесячной детализацией"""
-    from datetime import date, datetime
-    from sqlalchemy import func, extract
+    from datetime import date
     
     # Получить всех активных учеников с тарифами
     students = Student.query.filter(
         Student.status == 'active',
         Student.tariff_id.isnot(None)
-    ).all()
+    ).options(joinedload(Student.tariff)).all()
     
     current_year = date.today().year
     current_month = date.today().month
+
+    paid_rows = db.session.query(
+        Payment.student_id,
+        Payment.payment_year,
+        Payment.payment_month,
+        func.coalesce(func.sum(Payment.amount_paid), 0)
+    ).filter(
+        Payment.payment_year.isnot(None),
+        Payment.payment_month.isnot(None)
+    ).group_by(
+        Payment.student_id,
+        Payment.payment_year,
+        Payment.payment_month
+    ).all()
+    paid_by_month = {
+        (student_id, year, month): float(total or 0)
+        for student_id, year, month, total in paid_rows
+    }
     
     debtors_list = []
     total_debt = 0
@@ -3234,14 +3373,7 @@ def get_debtors():
         while (year < current_year) or (year == current_year and month <= current_month):
             month_key = f"{year}-{str(month).zfill(2)}"
             
-            # Получить платежи за этот месяц
-            month_payments = Payment.query.filter(
-                Payment.student_id == student.id,
-                Payment.payment_year == year,
-                Payment.payment_month == month
-            ).all()
-            
-            total_paid = sum(p.amount_paid for p in month_payments)
+            total_paid = paid_by_month.get((student.id, year, month), 0)
             debt = max(0, tariff_price - total_paid)
             
             if debt > 0:
@@ -3272,6 +3404,89 @@ def get_debtors():
         'count': unique_debtors,
         'debtors': debtors_list
     })
+
+
+@app.route('/api/hikvision/students', methods=['GET'])
+def hikvision_students():
+    """Список учеников для локального bridge Hikvision."""
+    if not check_bridge_auth():
+        return jsonify({'success': False, 'message': 'Unauthorized'}), 401
+
+    ensure_club_settings_columns()
+    settings = get_club_settings_instance()
+    today = get_local_date()
+    paid_map = get_month_paid_map(today.year, today.month)
+    students = Student.query.options(
+        joinedload(Student.tariff),
+        joinedload(Student.group)
+    ).order_by(Student.id.asc()).all()
+
+    base_url = request.host_url.rstrip('/')
+    payload = []
+    for student in students:
+        allowed, reason, debt = student_access_state(student, settings, paid_map, today)
+        photo_url = build_photo_url(student.photo_path)
+        if photo_url and photo_url.startswith('/'):
+            photo_url = f"{base_url}{photo_url}"
+        payload.append({
+            'student_id': student.id,
+            'employeeNo': str(student.id),
+            'fullName': student.full_name,
+            'group': student.group.name if student.group else None,
+            'photoUrl': photo_url,
+            'enabled': bool(allowed and photo_url),
+            'access_allowed': bool(allowed),
+            'access_reason': reason,
+            'current_month_debt': debt,
+            'status': student.status,
+            'student_number': student.student_number,
+        })
+
+    return jsonify({
+        'success': True,
+        'month': today.month,
+        'year': today.year,
+        'access_block_day': int(getattr(settings, 'access_block_day', 10) or 10),
+        'students': payload
+    })
+
+
+@app.route('/api/hikvision/commands/next', methods=['GET'])
+def hikvision_next_command():
+    if not check_bridge_auth():
+        return jsonify({'success': False, 'message': 'Unauthorized'}), 401
+
+    ensure_device_commands_table()
+    cmd = DeviceCommand.query.filter_by(status='pending').order_by(DeviceCommand.created_at.asc()).first()
+    if not cmd:
+        return jsonify({'command': None})
+    cmd.status = 'processing'
+    cmd.picked_at = get_local_datetime()
+    db.session.commit()
+    return jsonify({
+        'command': {
+            'id': cmd.id,
+            'type': cmd.command,
+            'payload': cmd.get_payload(),
+            'created_at': cmd.created_at.isoformat() if cmd.created_at else None
+        }
+    })
+
+
+@app.route('/api/hikvision/commands/<int:command_id>/result', methods=['POST'])
+def hikvision_command_result(command_id):
+    if not check_bridge_auth():
+        return jsonify({'success': False, 'message': 'Unauthorized'}), 401
+
+    cmd = db.session.get(DeviceCommand, command_id)
+    if not cmd:
+        return jsonify({'success': False, 'message': 'Command not found'}), 404
+    data = request.get_json(silent=True) or {}
+    cmd.status = 'done' if data.get('ok') else 'failed'
+    cmd.result = str(data.get('result') or '')[:2000]
+    cmd.finished_at = get_local_datetime()
+    db.session.commit()
+    return jsonify({'success': True})
 
 
 @app.route('/api/finances/expenses', methods=['GET'])
@@ -3475,6 +3690,10 @@ def get_club_settings():
         'payment_oson_enabled': bool(getattr(settings, 'payment_oson_enabled', False)),
         'payment_oson_qr_url': getattr(settings, 'payment_oson_qr_url', '') or '',
         'payment_transfer_enabled': bool(getattr(settings, 'payment_transfer_enabled', False)),
+        'access_block_day': int(getattr(settings, 'access_block_day', 10) or 10),
+        'access_debt_start_year': getattr(settings, 'access_debt_start_year', None),
+        'access_debt_start_month': getattr(settings, 'access_debt_start_month', None),
+        'hikvision_device_key': get_bridge_key(settings),
         # Телефоны руководства
         'director_phone': getattr(settings, 'director_phone', '') or '',
         'founder_phone': getattr(settings, 'founder_phone', '') or '',
@@ -3531,6 +3750,10 @@ def update_club_settings():
         payment_oson_enabled = get_bool_setting('payment_oson_enabled', getattr(settings, 'payment_oson_enabled', False))
         payment_oson_qr_url = get_str_setting('payment_oson_qr_url', getattr(settings, 'payment_oson_qr_url', '') or '')
         payment_transfer_enabled = get_bool_setting('payment_transfer_enabled', getattr(settings, 'payment_transfer_enabled', False))
+        access_block_day = int(data.get('access_block_day', getattr(settings, 'access_block_day', 10) or 10))
+        access_debt_start_year = data.get('access_debt_start_year', getattr(settings, 'access_debt_start_year', None))
+        access_debt_start_month = data.get('access_debt_start_month', getattr(settings, 'access_debt_start_month', None))
+        hikvision_device_key = get_str_setting('hikvision_device_key', getattr(settings, 'hikvision_device_key', '') or '')
         expense_categories = data.get('expense_categories') if isinstance(data.get('expense_categories'), list) else []
         expense_categories = [str(c).strip() for c in expense_categories if str(c).strip()]
         # Убираем техническую категорию "Encashment" и "Инкасация" - она не должна храниться в настройках
@@ -3546,6 +3769,18 @@ def update_club_settings():
             return jsonify({'success': False, 'message': 'Период сброса вознаграждений должен быть от 1 до 12 месяцев'}), 400
         if podium_display_count < 5 or podium_display_count > 50 or podium_display_count % 5 != 0:
             return jsonify({'success': False, 'message': 'Отображение пьедестала должно быть от 5 до 50 учеников с шагом 5'}), 400
+        if access_block_day < 1 or access_block_day > 31:
+            return jsonify({'success': False, 'message': 'День блокировки доступа должен быть от 1 до 31'}), 400
+        if access_debt_start_year in ('', None):
+            access_debt_start_year = None
+        else:
+            access_debt_start_year = int(access_debt_start_year)
+        if access_debt_start_month in ('', None):
+            access_debt_start_month = None
+        else:
+            access_debt_start_month = int(access_debt_start_month)
+        if access_debt_start_month and (access_debt_start_month < 1 or access_debt_start_month > 12):
+            return jsonify({'success': False, 'message': 'Месяц начала контроля доступа должен быть от 1 до 12'}), 400
 
         settings.system_name = system_name
         settings.set_working_days_list(working_days)
@@ -3582,7 +3817,12 @@ def update_club_settings():
         settings.payment_oson_enabled = payment_oson_enabled
         settings.payment_oson_qr_url = payment_oson_qr_url if payment_oson_qr_url else None
         settings.payment_transfer_enabled = payment_transfer_enabled
+        settings.access_block_day = access_block_day
+        settings.access_debt_start_year = access_debt_start_year
+        settings.access_debt_start_month = access_debt_start_month
+        settings.hikvision_device_key = hikvision_device_key if hikvision_device_key else None
         settings.expense_categories = json.dumps(expense_categories) if expense_categories else None
+        queue_hikvision_sync('settings_updated')
         db.session.commit()
         return jsonify({'success': True})
     except Exception as e:
@@ -5464,6 +5704,8 @@ def init_db():
         ensure_club_settings_columns()
         ensure_students_columns()
         ensure_cash_transfers_table()
+        ensure_device_commands_table()
+        ensure_payment_indexes()
         ensure_payment_type_column()
         
         # Проверить, есть ли админ
@@ -5622,6 +5864,7 @@ def add_monthly_payment():
         )
         
         db.session.add(payment)
+        queue_hikvision_sync('monthly_payment_added')
         db.session.commit()
         
         # Вычислить долг за этот месяц
@@ -5722,6 +5965,7 @@ def update_payment(payment_id):
         if 'notes' in data:
             payment.notes = data.get('notes')
 
+        queue_hikvision_sync('payment_updated')
         db.session.commit()
         return jsonify({'success': True})
     except Exception as e:
@@ -5743,6 +5987,7 @@ def delete_payment(payment_id):
 
         student = payment.student
         db.session.delete(payment)
+        queue_hikvision_sync('payment_deleted')
         db.session.commit()
 
         return jsonify({
@@ -5785,6 +6030,7 @@ def refund_payment(payment_id):
         )
         
         db.session.add(refund_payment)
+        queue_hikvision_sync('payment_refunded')
         db.session.commit()
 
         student = original_payment.student
@@ -6285,6 +6531,8 @@ with app.app_context():
         ensure_students_columns()
         ensure_expense_columns()
         ensure_cash_transfers_table()
+        ensure_device_commands_table()
+        ensure_payment_indexes()
         
         # Создание администратора
         print("👤 Проверка пользователя admin...")
