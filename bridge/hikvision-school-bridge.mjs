@@ -290,12 +290,33 @@ async function syncDevice(device, students, reports) {
 }
 
 let syncInProgress = false;
-async function runSync(reason = 'interval') {
+async function runSync(reason = 'interval', commandId = null) {
   if (syncInProgress) {
     return 'Sync skipped: another sync is already in progress.';
   }
   syncInProgress = true;
   let logOutput = `[${new Date().toISOString()}] Sync started, reason=${reason}\n`;
+
+  let localCommandId = commandId;
+  if (!localCommandId) {
+    try {
+      const res = await fetch(`${CONFIG.serverUrl}/api/hikvision/commands/local`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-device-key': CONFIG.deviceKey },
+        body: JSON.stringify({ reason }),
+        signal: AbortSignal.timeout(10000)
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success) {
+          localCommandId = data.command_id;
+        }
+      }
+    } catch (e) {
+      console.warn('[sync] failed to register local command in db:', e.message);
+    }
+  }
+
   try {
     const students = await fetchStudents();
     logOutput += `Loaded ${students.length} student(s) from server.\n`;
@@ -322,11 +343,19 @@ async function runSync(reason = 'interval') {
       logOutput += finishedMsg;
     }
     logOutput += `[${new Date().toISOString()}] Sync finished successfully.\n`;
+
+    if (localCommandId) {
+      await reportCommand(localCommandId, true, logOutput);
+    }
     return logOutput;
   } catch (e) {
     const errorMsg = `[sync] failed: ${e.message}\n`;
     console.error(errorMsg.trim());
     logOutput += errorMsg;
+
+    if (localCommandId) {
+      await reportCommand(localCommandId, false, logOutput);
+    }
     throw new Error(logOutput);
   } finally {
     syncInProgress = false;
@@ -358,10 +387,9 @@ async function pollCommands() {
     if (!command) return;
     if (command.type === 'HIKVISION_SYNC') {
       try {
-        const logResult = await runSync(command.payload?.reason || 'command');
-        await reportCommand(command.id, true, logResult);
+        await runSync(command.payload?.reason || 'command', command.id);
       } catch (err) {
-        await reportCommand(command.id, false, err.message);
+        // Ошибка уже отправлена внутри runSync
       }
     } else {
       await reportCommand(command.id, false, `unknown command ${command.type}`);

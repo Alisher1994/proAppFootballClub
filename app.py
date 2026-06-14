@@ -3617,6 +3617,36 @@ def get_hikvision_commands_history():
     })
 
 
+@app.route('/api/hikvision/commands/local', methods=['POST'])
+def hikvision_create_local_command():
+    """Создать запись о локальном запуске (startup/daily), чтобы записать ее лог в БД"""
+    if not check_bridge_auth():
+        return jsonify({'success': False, 'message': 'Unauthorized'}), 401
+
+    ensure_device_commands_table()
+    data = request.get_json(silent=True) or {}
+    reason = data.get('reason', 'local')
+
+    # Отменяем все предыдущие незавершенные команды, чтобы не засорять очередь
+    stuck_commands = DeviceCommand.query.filter(
+        DeviceCommand.command == 'HIKVISION_SYNC',
+        DeviceCommand.status.in_(['pending', 'processing'])
+    ).all()
+    for old_cmd in stuck_commands:
+        old_cmd.status = 'failed'
+        old_cmd.result = 'Отменено, так как запущена более новая синхронизация.'
+        old_cmd.finished_at = get_local_datetime()
+
+    # Создаем команду сразу в статусе 'processing'
+    cmd = DeviceCommand(command='HIKVISION_SYNC', status='processing')
+    cmd.set_payload({'reason': reason})
+    cmd.picked_at = get_local_datetime()
+    db.session.add(cmd)
+    db.session.commit()
+
+    return jsonify({'success': True, 'command_id': cmd.id})
+
+
 @app.route('/api/finances/expenses', methods=['GET'])
 @login_required
 def get_expense_stats():
