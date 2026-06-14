@@ -405,6 +405,7 @@ class ClubSettings(db.Model):
     access_debt_start_year = db.Column(db.Integer, nullable=True)  # С какого года учитывать долг для доступа
     access_debt_start_month = db.Column(db.Integer, nullable=True)  # С какого месяца учитывать долг для доступа
     access_payment_policy = db.Column(db.String(40), default='partial_current_month')  # Правило допуска по оплате
+    hikvision_daily_sync_time = db.Column(db.String(5), default='03:00')  # Время полной синхронизации HH:MM (Asia/Tashkent)
     hikvision_device_key = db.Column(db.String(120), nullable=True)  # Ключ локального bridge
     hikvision_devices = db.Column(db.Text, nullable=True)  # JSON-массив терминалов Hikvision
 

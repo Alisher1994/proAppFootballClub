@@ -13,7 +13,8 @@ const CONFIG = {
   deviceKey: process.env.DEVICE_INGEST_KEY || '',
   username: process.env.HIK_USER || 'admin',
   password: process.env.HIK_PASS || '',
-  syncIntervalMs: Number(process.env.HIK_SYNC_INTERVAL_MS || 60000),
+  dailySyncTime: process.env.HIK_DAILY_SYNC_TIME || '03:00',
+  scheduleCheckIntervalMs: Number(process.env.HIK_SCHEDULE_CHECK_INTERVAL_MS || 30000),
   commandPollIntervalMs: Number(process.env.COMMAND_POLL_INTERVAL_MS || 2000),
   defaultDoorRight: process.env.HIK_DOOR_RIGHT || '1',
   defaultPlanTemplateNo: process.env.HIK_PLAN_TEMPLATE_NO || '1',
@@ -224,17 +225,20 @@ function logStudentSummary(students) {
 }
 
 async function loadRemoteConfig() {
-  if (CONFIG.devices.length) return;
+  const hasLocalDevices = CONFIG.devices.length > 0;
   const res = await fetch(`${CONFIG.serverUrl}/api/hikvision/config`, {
     headers: { 'x-device-key': CONFIG.deviceKey },
   });
   if (!res.ok) throw new Error(`server config ${res.status}: ${await res.text()}`);
   const data = await res.json();
-  if (Array.isArray(data.devices)) {
+  if (!hasLocalDevices && Array.isArray(data.devices)) {
     CONFIG.devices = data.devices.filter((device) => device && device.ip);
   }
   if (Number(data.sync_interval_ms) > 0) {
-    CONFIG.syncIntervalMs = Number(data.sync_interval_ms);
+    CONFIG.scheduleCheckIntervalMs = Number(data.sync_interval_ms);
+  }
+  if (typeof data.daily_sync_time === 'string' && /^\d{2}:\d{2}$/.test(data.daily_sync_time)) {
+    CONFIG.dailySyncTime = data.daily_sync_time;
   }
 }
 
@@ -317,6 +321,21 @@ async function pollCommands() {
   }
 }
 
+function getTashkentNow() {
+  return new Date(Date.now() + 5 * 60 * 60 * 1000);
+}
+
+let lastDailySyncDate = '';
+async function checkDailySchedule() {
+  const now = getTashkentNow();
+  const hh = String(now.getUTCHours()).padStart(2, '0');
+  const mm = String(now.getUTCMinutes()).padStart(2, '0');
+  const today = now.toISOString().slice(0, 10);
+  if (`${hh}:${mm}` !== CONFIG.dailySyncTime || lastDailySyncDate === today) return;
+  lastDailySyncDate = today;
+  await runSync(`daily-${CONFIG.dailySyncTime}-Asia/Tashkent`);
+}
+
 async function main() {
   if (!CONFIG.deviceKey) {
     console.error('DEVICE_INGEST_KEY is required');
@@ -328,8 +347,9 @@ async function main() {
     process.exit(1);
   }
   console.log(`[bridge] ${CONFIG.devices.length} Hikvision terminal(s) -> ${CONFIG.serverUrl}`);
+  console.log(`[bridge] command polling ${CONFIG.commandPollIntervalMs}ms, daily full sync ${CONFIG.dailySyncTime} Asia/Tashkent`);
   await runSync('startup');
-  setInterval(() => runSync('interval'), CONFIG.syncIntervalMs);
+  setInterval(checkDailySchedule, CONFIG.scheduleCheckIntervalMs);
   setInterval(pollCommands, CONFIG.commandPollIntervalMs);
 }
 

@@ -57,6 +57,11 @@ async function initSettings() {
             await saveSettings();
         });
     }
+
+    const hikvisionManualSyncBtn = document.getElementById('hikvisionManualSyncBtn');
+    if (hikvisionManualSyncBtn) {
+        hikvisionManualSyncBtn.addEventListener('click', requestHikvisionSync);
+    }
 }
 
 function attachWorkingDayToggles() {
@@ -98,11 +103,13 @@ async function loadSettings() {
         document.getElementById('block_future_payments').checked = !!data.block_future_payments;
         const accessBlockDayEl = document.getElementById('access_block_day');
         const accessPaymentPolicyEl = document.getElementById('access_payment_policy');
+        const hikvisionDailySyncTimeEl = document.getElementById('hikvision_daily_sync_time');
         const accessDebtStartMonthEl = document.getElementById('access_debt_start_month');
         const accessDebtStartYearEl = document.getElementById('access_debt_start_year');
         const hikvisionDeviceKeyEl = document.getElementById('hikvision_device_key');
         if (accessBlockDayEl) accessBlockDayEl.value = data.access_block_day || 10;
         if (accessPaymentPolicyEl) accessPaymentPolicyEl.value = data.access_payment_policy || 'partial_current_month';
+        if (hikvisionDailySyncTimeEl) hikvisionDailySyncTimeEl.value = data.hikvision_daily_sync_time || '03:00';
         if (accessDebtStartMonthEl) accessDebtStartMonthEl.value = data.access_debt_start_month || '';
         if (accessDebtStartYearEl) accessDebtStartYearEl.value = data.access_debt_start_year || '';
         if (hikvisionDeviceKeyEl) hikvisionDeviceKeyEl.value = data.hikvision_device_key || '';
@@ -242,6 +249,31 @@ async function saveSettings() {
     }
 }
 
+async function requestHikvisionSync() {
+    const btn = document.getElementById('hikvisionManualSyncBtn');
+    if (btn) {
+        btn.disabled = true;
+        btn.textContent = '⏳ Команда отправляется...';
+    }
+    try {
+        const resp = await fetch('/api/hikvision/sync', { method: 'POST' });
+        const result = await resp.json();
+        if (result.success) {
+            alert('Команда синхронизации отправлена bridge');
+        } else {
+            alert('Ошибка: ' + (result.message || 'не удалось отправить команду'));
+        }
+    } catch (error) {
+        console.error('Ошибка запуска синхронизации Hikvision:', error);
+        alert('Не удалось отправить команду синхронизации');
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.textContent = '🔄 Синхронизировать сейчас';
+        }
+    }
+}
+
 function gatherAllSettings() {
     return {
         system_name: document.getElementById('system_name').value.trim(),
@@ -252,6 +284,7 @@ function gatherAllSettings() {
         block_future_payments: document.getElementById('block_future_payments').checked,
         access_block_day: parseInt(document.getElementById('access_block_day')?.value || '10', 10),
         access_payment_policy: document.getElementById('access_payment_policy')?.value || 'partial_current_month',
+        hikvision_daily_sync_time: document.getElementById('hikvision_daily_sync_time')?.value || '03:00',
         access_debt_start_month: document.getElementById('access_debt_start_month')?.value || null,
         access_debt_start_year: document.getElementById('access_debt_start_year')?.value || null,
         hikvision_device_key: (document.getElementById('hikvision_device_key')?.value || '').trim(),

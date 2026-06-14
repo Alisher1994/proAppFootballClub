@@ -4,6 +4,7 @@ import shutil
 import threading
 import time
 import queue
+import re
 import requests
 import cv2
 import numpy as np
@@ -511,6 +512,15 @@ def get_access_payment_policy(settings):
     return policy if policy in allowed else 'partial_current_month'
 
 
+def get_hikvision_daily_sync_time(settings):
+    value = (getattr(settings, 'hikvision_daily_sync_time', None) or '03:00').strip()
+    if re.match(r'^\d{2}:\d{2}$', value):
+        hour, minute = map(int, value.split(':'))
+        if 0 <= hour <= 23 and 0 <= minute <= 59:
+            return value
+    return '03:00'
+
+
 def should_check_access_debt(settings, today=None):
     today = today or get_local_date()
     block_day = int(getattr(settings, 'access_block_day', 10) or 10)
@@ -856,6 +866,8 @@ def ensure_club_settings_columns():
             conn.execute(db.text("ALTER TABLE club_settings ADD COLUMN access_block_day INTEGER DEFAULT 10"))
         if 'access_payment_policy' not in columns:
             conn.execute(db.text("ALTER TABLE club_settings ADD COLUMN access_payment_policy VARCHAR(40) DEFAULT 'partial_current_month'"))
+        if 'hikvision_daily_sync_time' not in columns:
+            conn.execute(db.text("ALTER TABLE club_settings ADD COLUMN hikvision_daily_sync_time VARCHAR(5) DEFAULT '03:00'"))
         if 'access_debt_start_year' not in columns:
             conn.execute(db.text("ALTER TABLE club_settings ADD COLUMN access_debt_start_year INTEGER"))
         if 'access_debt_start_month' not in columns:
@@ -894,6 +906,8 @@ def ensure_payment_indexes():
             conn.execute(db.text("CREATE INDEX IF NOT EXISTS idx_payments_student_month_year ON payments (student_id, payment_year, payment_month)"))
         if 'idx_payments_month_year' not in existing:
             conn.execute(db.text("CREATE INDEX IF NOT EXISTS idx_payments_month_year ON payments (payment_year, payment_month)"))
+        if 'idx_payments_payment_date' not in existing:
+            conn.execute(db.text("CREATE INDEX IF NOT EXISTS idx_payments_payment_date ON payments (payment_date)"))
 
 
 def ensure_expense_columns():
@@ -2021,6 +2035,7 @@ def add_student():
         db.session.flush()
         
         # Сохранить фото и извлечь face encoding
+        encoding_updated = False
         if photo:
             photo_path = face_service.save_student_photo(photo, student.id)
             student.photo_path = photo_path
@@ -2028,6 +2043,7 @@ def add_student():
             encoding = face_service.extract_embedding(photo_path)
             if encoding is not None:
                 student.set_face_encoding(encoding)
+                encoding_updated = True
             else:
                 # Если лицо не найдено, не блокируем создание, просто нет вектора
                 print(f"⚠️ Лицо не обнаружено для студента {student.id}, пропускаем создание вектора")
@@ -2035,8 +2051,8 @@ def add_student():
         queue_hikvision_sync('student_created')
         db.session.commit()
 
-        # Перезагрузить encodings
-        reload_face_encodings()
+        if encoding_updated:
+            reload_face_encodings()
         
         return jsonify({'success': True, 'student_id': student.id, 'student_number': student_number})
     
@@ -3513,8 +3529,18 @@ def hikvision_config():
     return jsonify({
         'success': True,
         'devices': devices,
-        'sync_interval_ms': 60000,
+        'daily_sync_time': get_hikvision_daily_sync_time(settings),
+        'timezone': 'Asia/Tashkent',
     })
+
+
+@app.route('/api/hikvision/sync', methods=['POST'])
+@login_required
+def request_hikvision_sync():
+    ensure_club_settings_columns()
+    queue_hikvision_sync('manual')
+    db.session.commit()
+    return jsonify({'success': True, 'message': 'Команда синхронизации отправлена'})
 
 
 @app.route('/api/hikvision/commands/next', methods=['GET'])
@@ -3764,6 +3790,7 @@ def get_club_settings():
         'payment_transfer_enabled': bool(getattr(settings, 'payment_transfer_enabled', False)),
         'access_block_day': int(getattr(settings, 'access_block_day', 10) or 10),
         'access_payment_policy': get_access_payment_policy(settings),
+        'hikvision_daily_sync_time': get_hikvision_daily_sync_time(settings),
         'access_debt_start_year': getattr(settings, 'access_debt_start_year', None),
         'access_debt_start_month': getattr(settings, 'access_debt_start_month', None),
         'hikvision_device_key': get_bridge_key(settings),
@@ -3826,6 +3853,7 @@ def update_club_settings():
         payment_transfer_enabled = get_bool_setting('payment_transfer_enabled', getattr(settings, 'payment_transfer_enabled', False))
         access_block_day = int(data.get('access_block_day', getattr(settings, 'access_block_day', 10) or 10))
         access_payment_policy = (data.get('access_payment_policy') or getattr(settings, 'access_payment_policy', '') or 'partial_current_month').strip()
+        hikvision_daily_sync_time = (data.get('hikvision_daily_sync_time') or getattr(settings, 'hikvision_daily_sync_time', '') or '03:00').strip()
         access_debt_start_year = data.get('access_debt_start_year', getattr(settings, 'access_debt_start_year', None))
         access_debt_start_month = data.get('access_debt_start_month', getattr(settings, 'access_debt_start_month', None))
         hikvision_device_key = get_str_setting('hikvision_device_key', getattr(settings, 'hikvision_device_key', '') or '')
@@ -3849,6 +3877,11 @@ def update_club_settings():
             return jsonify({'success': False, 'message': 'День блокировки доступа должен быть от 1 до 31'}), 400
         if access_payment_policy not in {'full_current_month', 'partial_current_month', 'any_payment_this_month'}:
             access_payment_policy = 'partial_current_month'
+        if not re.match(r'^\d{2}:\d{2}$', hikvision_daily_sync_time):
+            return jsonify({'success': False, 'message': 'Время синхронизации должно быть в формате HH:MM'}), 400
+        sync_hour, sync_minute = map(int, hikvision_daily_sync_time.split(':'))
+        if sync_hour < 0 or sync_hour > 23 or sync_minute < 0 or sync_minute > 59:
+            return jsonify({'success': False, 'message': 'Некорректное время синхронизации'}), 400
         if access_debt_start_year in ('', None):
             access_debt_start_year = None
         else:
@@ -3897,6 +3930,7 @@ def update_club_settings():
         settings.payment_transfer_enabled = payment_transfer_enabled
         settings.access_block_day = access_block_day
         settings.access_payment_policy = access_payment_policy
+        settings.hikvision_daily_sync_time = hikvision_daily_sync_time
         settings.access_debt_start_year = access_debt_start_year
         settings.access_debt_start_month = access_debt_start_month
         settings.hikvision_device_key = hikvision_device_key if hikvision_device_key else None
