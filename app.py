@@ -3575,10 +3575,42 @@ def hikvision_command_result(command_id):
         return jsonify({'success': False, 'message': 'Command not found'}), 404
     data = request.get_json(silent=True) or {}
     cmd.status = 'done' if data.get('ok') else 'failed'
-    cmd.result = str(data.get('result') or '')[:2000]
+    cmd.result = str(data.get('result') or '')[:10000]
     cmd.finished_at = get_local_datetime()
     db.session.commit()
     return jsonify({'success': True})
+
+
+@app.route('/api/hikvision/commands/history', methods=['GET'])
+@login_required
+def get_hikvision_commands_history():
+    """Получить историю команд синхронизации Hikvision"""
+    if current_user.role not in ['admin']:
+        return jsonify({'success': False, 'message': 'Доступ запрещен'}), 403
+
+    ensure_device_commands_table()
+    commands = DeviceCommand.query.filter_by(command='HIKVISION_SYNC')\
+        .order_by(DeviceCommand.created_at.desc())\
+        .limit(30)\
+        .all()
+
+    payload = []
+    for cmd in commands:
+        payload.append({
+            'id': cmd.id,
+            'command': cmd.command,
+            'payload': cmd.get_payload(),
+            'status': cmd.status,
+            'result': cmd.result,
+            'created_at': cmd.created_at.isoformat() if cmd.created_at else None,
+            'picked_at': cmd.picked_at.isoformat() if cmd.picked_at else None,
+            'finished_at': cmd.finished_at.isoformat() if cmd.finished_at else None,
+        })
+
+    return jsonify({
+        'success': True,
+        'commands': payload
+    })
 
 
 @app.route('/api/finances/expenses', methods=['GET'])

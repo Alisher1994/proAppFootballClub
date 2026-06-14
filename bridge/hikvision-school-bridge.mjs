@@ -242,28 +242,41 @@ async function loadRemoteConfig() {
   }
 }
 
-async function syncDevice(device, students) {
+async function syncDevice(device, students, reports) {
   let changed = 0;
   for (const student of students) {
     try {
       if (!student.enabled) {
         await deleteUser(device, student.employeeNo);
         changed += 1;
-        console.log(`[${device.name}] deleted/disabled ${student.employeeNo} ${student.fullName} (${student.access_reason})`);
+        const msg = `[${device.name}] deleted/disabled ${student.employeeNo} ${student.fullName} (${student.access_reason})`;
+        console.log(msg);
+        reports.push(msg);
         continue;
       }
       if (CONFIG.recreateUsersOnSync) {
-        try { await deleteUser(device, student.employeeNo); } catch (e) { console.warn(`[${device.name}] delete-before-upsert ${student.employeeNo}: ${e.message}`); }
+        try {
+          await deleteUser(device, student.employeeNo);
+        } catch (e) {
+          console.warn(`[${device.name}] delete-before-upsert ${student.employeeNo}: ${e.message}`);
+        }
         await sleep(500);
       }
       await upsertUser(device, student);
       await sleep(500);
       const face = await uploadFace(device, student);
       changed += 1;
-      console.log(`[${device.name}] upserted face=${face} ${student.employeeNo} ${student.fullName}`);
+      const msg = `[${device.name}] upserted face=${face} ${student.employeeNo} ${student.fullName}`;
+      console.log(msg);
+      reports.push(msg);
     } catch (e) {
-      console.error(`[${device.name}] ${student.employeeNo} ${student.fullName}: ${e.message}`);
-      if (e.code === 'HIKVISION_LOCKED') break;
+      const errMsg = `[${device.name}] ${student.employeeNo} ${student.fullName}: ${e.message}`;
+      console.error(errMsg);
+      reports.push(`ERROR: ${errMsg}`);
+      if (e.code === 'HIKVISION_LOCKED') {
+        reports.push(`ABORTED: Device ${device.name} is locked.`);
+        break;
+      }
     }
     await sleep(300);
   }
@@ -272,18 +285,43 @@ async function syncDevice(device, students) {
 
 let syncInProgress = false;
 async function runSync(reason = 'interval') {
-  if (syncInProgress) return;
+  if (syncInProgress) {
+    return 'Sync skipped: another sync is already in progress.';
+  }
   syncInProgress = true;
+  let logOutput = `[${new Date().toISOString()}] Sync started, reason=${reason}\n`;
   try {
     const students = await fetchStudents();
+    logOutput += `Loaded ${students.length} student(s) from server.\n`;
     console.log(`[sync] ${students.length} student(s), reason=${reason}`);
+
+    const summary = students.reduce((acc, student) => {
+      const key = student.enabled ? 'enabled' : (student.access_reason || 'disabled');
+      acc[key] = (acc[key] || 0) + 1;
+      if (!student.has_photo && !student.photoUrl) acc.no_photo = (acc.no_photo || 0) + 1;
+      return acc;
+    }, {});
+    logOutput += `Summary: ${JSON.stringify(summary)}\n`;
     logStudentSummary(students);
+
     for (const device of CONFIG.devices) {
-      const changed = await syncDevice(device, students);
-      console.log(`[sync] ${device.name || device.ip}: applied ${changed} change(s)`);
+      logOutput += `Syncing device: ${device.name || device.ip}...\n`;
+      const reports = [];
+      const changed = await syncDevice(device, students, reports);
+      if (reports.length > 0) {
+        logOutput += reports.map(line => `  ${line}`).join('\n') + '\n';
+      }
+      const finishedMsg = `Device ${device.name || device.ip}: applied ${changed} changes.\n`;
+      console.log(`[sync] ` + finishedMsg.trim());
+      logOutput += finishedMsg;
     }
+    logOutput += `[${new Date().toISOString()}] Sync finished successfully.\n`;
+    return logOutput;
   } catch (e) {
-    console.error('[sync] failed:', e.message);
+    const errorMsg = `[sync] failed: ${e.message}\n`;
+    console.error(errorMsg.trim());
+    logOutput += errorMsg;
+    throw new Error(logOutput);
   } finally {
     syncInProgress = false;
   }
@@ -294,7 +332,7 @@ async function reportCommand(id, ok, result) {
     await fetch(`${CONFIG.serverUrl}/api/hikvision/commands/${encodeURIComponent(id)}/result`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-device-key': CONFIG.deviceKey },
-      body: JSON.stringify({ ok, result: String(result || '').slice(0, 1000) }),
+      body: JSON.stringify({ ok, result: String(result || '').slice(0, 10000) }),
     });
   } catch (e) {
     console.error('[command] report failed:', e.message);
@@ -311,8 +349,12 @@ async function pollCommands() {
     const command = data.command;
     if (!command) return;
     if (command.type === 'HIKVISION_SYNC') {
-      await runSync(command.payload?.reason || 'command');
-      await reportCommand(command.id, true, 'synced');
+      try {
+        const logResult = await runSync(command.payload?.reason || 'command');
+        await reportCommand(command.id, true, logResult);
+      } catch (err) {
+        await reportCommand(command.id, false, err.message);
+      }
     } else {
       await reportCommand(command.id, false, `unknown command ${command.type}`);
     }
@@ -333,7 +375,11 @@ async function checkDailySchedule() {
   const today = now.toISOString().slice(0, 10);
   if (`${hh}:${mm}` !== CONFIG.dailySyncTime || lastDailySyncDate === today) return;
   lastDailySyncDate = today;
-  await runSync(`daily-${CONFIG.dailySyncTime}-Asia/Tashkent`);
+  try {
+    await runSync(`daily-${CONFIG.dailySyncTime}-Asia/Tashkent`);
+  } catch (e) {
+    console.error('Daily sync failed:', e.message);
+  }
 }
 
 async function main() {
@@ -348,7 +394,11 @@ async function main() {
   }
   console.log(`[bridge] ${CONFIG.devices.length} Hikvision terminal(s) -> ${CONFIG.serverUrl}`);
   console.log(`[bridge] command polling ${CONFIG.commandPollIntervalMs}ms, daily full sync ${CONFIG.dailySyncTime} Asia/Tashkent`);
-  await runSync('startup');
+  try {
+    await runSync('startup');
+  } catch (e) {
+    console.error('Startup sync failed:', e.message);
+  }
   setInterval(checkDailySchedule, CONFIG.scheduleCheckIntervalMs);
   setInterval(pollCommands, CONFIG.commandPollIntervalMs);
 }

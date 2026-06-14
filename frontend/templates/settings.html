@@ -1633,6 +1633,37 @@
                                 <button type="submit" class="btn-primary">💾 Сохранить Hikvision</button>
                             </div>
                         </form>
+
+                        <!-- Секция истории синхронизаций -->
+                        <div class="settings-section" style="margin-top: 32px; border-top: 1px solid var(--theme-border); padding-top: 24px;">
+                            <div class="settings-section-header">
+                                <span class="settings-section-icon">📜</span>
+                                <h3 class="settings-section-title">История синхронизаций</h3>
+                            </div>
+                            <div class="settings-section-content">
+                                <div style="overflow-x: auto;">
+                                    <table class="data-table" id="hikvisionSyncHistoryTable" style="width: 100%;">
+                                        <thead>
+                                            <tr>
+                                                <th>Дата запуска</th>
+                                                <th>Причина</th>
+                                                <th>Длительность</th>
+                                                <th>Статус</th>
+                                                <th>Логи</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="hikvisionSyncHistoryBody">
+                                            <tr>
+                                                <td colspan="5" style="text-align: center; color: var(--theme-text-secondary); padding: 20px;">
+                                                    Загрузка истории...
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+
                     </div>
                 </div>
 
@@ -2033,6 +2064,30 @@
                 </div>
             </div>
 
+            <!-- Модальное окно просмотра логов Hikvision -->
+            <div id="hikvisionLogModal" class="modal">
+                <div class="modal-content" style="max-width: 800px; display: flex; flex-direction: column; height: 80vh;">
+                    <div class="modal-header-fixed" style="border-bottom: 1px solid var(--theme-border);">
+                        <h2>Лог синхронизации</h2>
+                        <div class="modal-header-actions">
+                            <button type="button" class="btn-secondary"
+                                onclick="document.getElementById('hikvisionLogModal').style.display='none'">Закрыть</button>
+                        </div>
+                    </div>
+                    <div class="modal-body-scrollable" style="flex: 1; display: flex; flex-direction: column; padding: 20px; min-height: 0;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 12px; font-size: 14px; color: var(--theme-text-secondary); flex-wrap: wrap; gap: 8px;">
+                            <div>ID команды: <span id="hikLogModalId" style="font-weight: bold;"></span></div>
+                            <div>Время запуска: <span id="hikLogModalTime" style="font-weight: bold;"></span></div>
+                        </div>
+                        <div style="flex: 1; min-height: 0; display: flex; flex-direction: column;">
+                            <textarea id="hikLogModalText" readonly 
+                                style="width: 100%; flex: 1; min-height: 250px; font-family: monospace; font-size: 13px; line-height: 1.5; padding: 12px; border: 1px solid var(--theme-border); border-radius: 8px; background: var(--theme-bg-primary); color: var(--theme-text-primary); resize: none; overflow-y: auto; box-sizing: border-box; outline: none;">
+                            </textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <script src="{{ url_for('static', filename='js/settings.js') }}"></script>
             <script src="{{ url_for('static', filename='js/groups.js') }}"></script>
             <script src="{{ url_for('static', filename='js/tariffs.js') }}"></script>
@@ -2085,6 +2140,10 @@
                                             initRewardsHandlers();
                                             loadRewards();
                                         }, 100);
+                                    }
+                                } else if (tabName === 'hikvision') {
+                                    if (typeof loadSyncHistory === 'function') {
+                                        setTimeout(() => loadSyncHistory(), 100);
                                     }
                                 }
                             }

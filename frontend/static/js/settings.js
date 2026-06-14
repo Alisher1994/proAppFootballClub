@@ -260,6 +260,9 @@ async function requestHikvisionSync() {
         const result = await resp.json();
         if (result.success) {
             alert('Команда синхронизации отправлена bridge');
+            setTimeout(() => {
+                loadSyncHistory();
+            }, 500);
         } else {
             alert('Ошибка: ' + (result.message || 'не удалось отправить команду'));
         }
@@ -435,3 +438,179 @@ function removeExpenseCategorySetting(index) {
 
 window.addExpenseCategorySetting = addExpenseCategorySetting;
 window.removeExpenseCategorySetting = removeExpenseCategorySetting;
+
+// --- ИСТОРИЯ СИНХРОНИЗАЦИЙ HIKVISION ---
+
+async function loadSyncHistory() {
+    const body = document.getElementById('hikvisionSyncHistoryBody');
+    if (!body) return;
+
+    try {
+        const resp = await fetch('/api/hikvision/commands/history');
+        if (!resp.ok) throw new Error('Ошибка сети при загрузке истории');
+        const data = await resp.json();
+        
+        if (!data.success) {
+            body.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #ef4444;">${data.message || 'Ошибка загрузки'}</td></tr>`;
+            return;
+        }
+
+        const commands = data.commands || [];
+        if (commands.length === 0) {
+            body.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--theme-text-secondary); padding: 20px;">История синхронизаций пуста</td></tr>';
+            return;
+        }
+
+        body.innerHTML = '';
+        commands.forEach(cmd => {
+            const tr = document.createElement('tr');
+
+            // 1. Дата запуска
+            const tdDate = document.createElement('td');
+            tdDate.textContent = formatDateTime(cmd.created_at);
+            tr.appendChild(tdDate);
+
+            // 2. Причина запуска
+            const tdReason = document.createElement('td');
+            const reason = cmd.payload?.reason || 'change';
+            tdReason.textContent = translateReason(reason);
+            tr.appendChild(tdReason);
+
+            // 3. Длительность
+            const tdDuration = document.createElement('td');
+            tdDuration.textContent = calculateDuration(cmd.picked_at, cmd.finished_at, cmd.created_at, cmd.status);
+            tr.appendChild(tdDuration);
+
+            // 4. Статус
+            const tdStatus = document.createElement('td');
+            let statusText = 'В очереди';
+            let statusColor = '#e2e8f0';
+            let textColor = '#475569';
+
+            if (cmd.status === 'processing') {
+                statusText = 'В процессе';
+                statusColor = '#dbeafe';
+                textColor = '#1e40af';
+            } else if (cmd.status === 'done') {
+                statusText = 'Выполнено';
+                statusColor = '#dcfce7';
+                textColor = '#15803d';
+            } else if (cmd.status === 'failed') {
+                statusText = 'Ошибка';
+                statusColor = '#fee2e2';
+                textColor = '#b91c1c';
+            }
+
+            const badge = document.createElement('span');
+            badge.textContent = statusText;
+            badge.style.background = statusColor;
+            badge.style.color = textColor;
+            badge.style.padding = '4px 10px';
+            badge.style.borderRadius = '20px';
+            badge.style.fontSize = '12px';
+            badge.style.fontWeight = '600';
+            badge.style.display = 'inline-block';
+            tdStatus.appendChild(badge);
+            tr.appendChild(tdStatus);
+
+            // 5. Логи
+            const tdLogs = document.createElement('td');
+            if (cmd.result) {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'btn-secondary';
+                btn.style.padding = '4px 10px';
+                btn.style.fontSize = '12px';
+                btn.textContent = '📄 Показать лог';
+                btn.addEventListener('click', () => {
+                    showHikvisionLog(cmd.id, cmd.created_at, cmd.result);
+                });
+                tdLogs.appendChild(btn);
+            } else {
+                tdLogs.textContent = '—';
+                tdLogs.style.color = 'var(--theme-text-tertiary)';
+            }
+            tr.appendChild(tdLogs);
+
+            body.appendChild(tr);
+        });
+
+    } catch (error) {
+        console.error('Ошибка при загрузке истории:', error);
+        body.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #ef4444; padding: 20px;">Ошибка при загрузке данных: ${error.message}</td></tr>`;
+    }
+}
+
+function formatDateTime(isoStr) {
+    if (!isoStr) return '—';
+    try {
+        const date = new Date(isoStr);
+        if (isNaN(date.getTime())) return isoStr;
+        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const year = date.getFullYear();
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        const seconds = String(date.getSeconds()).padStart(2, '0');
+        return `${day}.${month}.${year} ${hours}:${minutes}:${seconds}`;
+    } catch {
+        return isoStr;
+    }
+}
+
+function translateReason(reason) {
+    if (!reason) return 'Автоматически';
+    if (reason === 'manual') return 'Вручную (UI)';
+    if (reason === 'settings_updated') return 'Обновление настроек';
+    if (reason === 'startup') return 'Запуск моста';
+    if (reason.startsWith('daily-')) return 'По расписанию (03:00)';
+    if (reason === 'student_created') return 'Новый ученик';
+    if (reason === 'student_updated') return 'Ученик обновлен';
+    if (reason === 'student_deleted') return 'Ученик удален';
+    if (reason === 'payment_added') return 'Оплата добавлена';
+    if (reason === 'payment_updated') return 'Оплата обновлена';
+    if (reason === 'payment_deleted') return 'Оплата удалена';
+    if (reason === 'payment_refunded') return 'Возврат оплаты';
+    if (reason === 'monthly_payment_added') return 'Месячная оплата';
+    if (reason === 'change') return 'Изменение данных';
+    return reason;
+}
+
+function calculateDuration(pickedStr, finishedStr, createdStr, status) {
+    if (status === 'pending') return 'В очереди...';
+    if (status === 'processing') return 'Выполняется...';
+    if (!finishedStr) return '—';
+
+    const end = new Date(finishedStr);
+    const start = new Date(pickedStr || createdStr);
+    if (isNaN(end.getTime()) || isNaN(start.getTime())) return '—';
+
+    const diffMs = end - start;
+    if (diffMs < 0) return '—';
+
+    const diffSeconds = Math.round(diffMs / 1000);
+    if (diffSeconds < 60) {
+        return `${diffSeconds} сек`;
+    }
+    const minutes = Math.floor(diffSeconds / 60);
+    const seconds = diffSeconds % 60;
+    return `${minutes} мин ${seconds} сек`;
+}
+
+function showHikvisionLog(id, createdTime, logText) {
+    const modal = document.getElementById('hikvisionLogModal');
+    const idSpan = document.getElementById('hikLogModalId');
+    const timeSpan = document.getElementById('hikLogModalTime');
+    const textEl = document.getElementById('hikLogModalText');
+
+    if (modal && idSpan && timeSpan && textEl) {
+        idSpan.textContent = `#${id}`;
+        timeSpan.textContent = formatDateTime(createdTime);
+        textEl.textContent = logText || 'Нет записей в логе.';
+        modal.style.display = 'block';
+    }
+}
+
+// Экспортируем функцию глобально
+window.loadSyncHistory = loadSyncHistory;
+window.showHikvisionLog = showHikvisionLog;
