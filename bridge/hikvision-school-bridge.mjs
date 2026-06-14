@@ -199,6 +199,30 @@ async function fetchStudents() {
   return data.students || [];
 }
 
+function logStudentSummary(students) {
+  const summary = students.reduce((acc, student) => {
+    const key = student.enabled ? 'enabled' : (student.access_reason || 'disabled');
+    acc[key] = (acc[key] || 0) + 1;
+    if (!student.has_photo && !student.photoUrl) acc.no_photo = (acc.no_photo || 0) + 1;
+    return acc;
+  }, {});
+  console.log(`[sync] summary ${JSON.stringify(summary)}`);
+
+  students
+    .filter((student) => !student.enabled)
+    .slice(0, 30)
+    .forEach((student) => {
+      console.log(
+        `[sync] skip ${student.employeeNo} ${student.fullName}: ` +
+        `reason=${student.access_reason || 'disabled'}, ` +
+        `paid=${student.current_month_paid || 0}, ` +
+        `paidThisMonth=${student.paid_this_calendar_month || 0}, ` +
+        `debt=${student.current_month_debt || 0}, ` +
+        `photo=${student.has_photo || student.photoUrl ? 'yes' : 'no'}`
+      );
+    });
+}
+
 async function loadRemoteConfig() {
   if (CONFIG.devices.length) return;
   const res = await fetch(`${CONFIG.serverUrl}/api/hikvision/config`, {
@@ -249,6 +273,7 @@ async function runSync(reason = 'interval') {
   try {
     const students = await fetchStudents();
     console.log(`[sync] ${students.length} student(s), reason=${reason}`);
+    logStudentSummary(students);
     for (const device of CONFIG.devices) {
       const changed = await syncDevice(device, students);
       console.log(`[sync] ${device.name || device.ip}: applied ${changed} change(s)`);

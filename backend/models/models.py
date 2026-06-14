@@ -404,6 +404,7 @@ class ClubSettings(db.Model):
     access_block_day = db.Column(db.Integer, default=10)  # День месяца, с которого долг блокирует доступ
     access_debt_start_year = db.Column(db.Integer, nullable=True)  # С какого года учитывать долг для доступа
     access_debt_start_month = db.Column(db.Integer, nullable=True)  # С какого месяца учитывать долг для доступа
+    access_payment_policy = db.Column(db.String(40), default='partial_current_month')  # Правило допуска по оплате
     hikvision_device_key = db.Column(db.String(120), nullable=True)  # Ключ локального bridge
     hikvision_devices = db.Column(db.Text, nullable=True)  # JSON-массив терминалов Hikvision
 

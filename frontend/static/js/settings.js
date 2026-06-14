@@ -97,10 +97,12 @@ async function loadSettings() {
         document.getElementById('max_groups_per_slot').value = data.max_groups_per_slot || 1;
         document.getElementById('block_future_payments').checked = !!data.block_future_payments;
         const accessBlockDayEl = document.getElementById('access_block_day');
+        const accessPaymentPolicyEl = document.getElementById('access_payment_policy');
         const accessDebtStartMonthEl = document.getElementById('access_debt_start_month');
         const accessDebtStartYearEl = document.getElementById('access_debt_start_year');
         const hikvisionDeviceKeyEl = document.getElementById('hikvision_device_key');
         if (accessBlockDayEl) accessBlockDayEl.value = data.access_block_day || 10;
+        if (accessPaymentPolicyEl) accessPaymentPolicyEl.value = data.access_payment_policy || 'partial_current_month';
         if (accessDebtStartMonthEl) accessDebtStartMonthEl.value = data.access_debt_start_month || '';
         if (accessDebtStartYearEl) accessDebtStartYearEl.value = data.access_debt_start_year || '';
         if (hikvisionDeviceKeyEl) hikvisionDeviceKeyEl.value = data.hikvision_device_key || '';
@@ -249,6 +251,7 @@ function gatherAllSettings() {
         max_groups_per_slot: parseInt(document.getElementById('max_groups_per_slot').value, 10),
         block_future_payments: document.getElementById('block_future_payments').checked,
         access_block_day: parseInt(document.getElementById('access_block_day')?.value || '10', 10),
+        access_payment_policy: document.getElementById('access_payment_policy')?.value || 'partial_current_month',
         access_debt_start_month: document.getElementById('access_debt_start_month')?.value || null,
         access_debt_start_year: document.getElementById('access_debt_start_year')?.value || null,
         hikvision_device_key: (document.getElementById('hikvision_device_key')?.value || '').trim(),

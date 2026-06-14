@@ -492,6 +492,25 @@ def get_month_paid_map(year, month):
     return {student_id: float(total or 0) for student_id, total in rows}
 
 
+def get_payment_date_paid_map(year, month):
+    start_dt = datetime(year, month, 1)
+    end_dt = datetime(year + 1, 1, 1) if month == 12 else datetime(year, month + 1, 1)
+    rows = db.session.query(
+        Payment.student_id,
+        func.coalesce(func.sum(Payment.amount_paid), 0)
+    ).filter(
+        Payment.payment_date >= start_dt,
+        Payment.payment_date < end_dt
+    ).group_by(Payment.student_id).all()
+    return {student_id: float(total or 0) for student_id, total in rows}
+
+
+def get_access_payment_policy(settings):
+    policy = (getattr(settings, 'access_payment_policy', None) or 'partial_current_month').strip()
+    allowed = {'full_current_month', 'partial_current_month', 'any_payment_this_month'}
+    return policy if policy in allowed else 'partial_current_month'
+
+
 def should_check_access_debt(settings, today=None):
     today = today or get_local_date()
     block_day = int(getattr(settings, 'access_block_day', 10) or 10)
@@ -503,10 +522,11 @@ def should_check_access_debt(settings, today=None):
     return today.day >= block_day
 
 
-def student_access_state(student, settings=None, paid_map=None, today=None):
+def student_access_state(student, settings=None, paid_map=None, payment_date_paid_map=None, today=None):
     settings = settings or get_club_settings_instance()
     today = today or get_local_date()
     paid_map = paid_map or {}
+    payment_date_paid_map = payment_date_paid_map or {}
 
     if student.status != 'active':
         return False, 'inactive', 0
@@ -519,10 +539,23 @@ def student_access_state(student, settings=None, paid_map=None, today=None):
 
     tariff_price = float(student.tariff.price or 0)
     paid = float(paid_map.get(student.id, 0) or 0)
+    paid_by_date = float(payment_date_paid_map.get(student.id, 0) or 0)
     debt = max(0, tariff_price - paid)
-    if debt > 0:
-        return False, 'current_month_debt', debt
-    return True, 'paid', 0
+    policy = get_access_payment_policy(settings)
+
+    if policy == 'full_current_month':
+        if debt > 0:
+            return False, 'current_month_debt', debt
+        return True, 'paid_full_current_month', 0
+
+    if policy == 'any_payment_this_month':
+        if paid > 0 or paid_by_date > 0:
+            return True, 'any_payment_this_month', debt
+        return False, 'no_payment_this_month', debt
+
+    if paid > 0:
+        return True, 'partial_current_month', debt
+    return False, 'no_current_month_payment', debt
 
 
 def get_default_service_controls():
@@ -821,6 +854,8 @@ def ensure_club_settings_columns():
             conn.execute(db.text("ALTER TABLE club_settings ADD COLUMN cashier_chat_id VARCHAR(50)"))
         if 'access_block_day' not in columns:
             conn.execute(db.text("ALTER TABLE club_settings ADD COLUMN access_block_day INTEGER DEFAULT 10"))
+        if 'access_payment_policy' not in columns:
+            conn.execute(db.text("ALTER TABLE club_settings ADD COLUMN access_payment_policy VARCHAR(40) DEFAULT 'partial_current_month'"))
         if 'access_debt_start_year' not in columns:
             conn.execute(db.text("ALTER TABLE club_settings ADD COLUMN access_debt_start_year INTEGER"))
         if 'access_debt_start_month' not in columns:
@@ -3425,6 +3460,7 @@ def hikvision_students():
     settings = get_club_settings_instance()
     today = get_local_date()
     paid_map = get_month_paid_map(today.year, today.month)
+    payment_date_paid_map = get_payment_date_paid_map(today.year, today.month)
     students = Student.query.options(
         joinedload(Student.tariff),
         joinedload(Student.group)
@@ -3433,10 +3469,12 @@ def hikvision_students():
     base_url = request.host_url.rstrip('/')
     payload = []
     for student in students:
-        allowed, reason, debt = student_access_state(student, settings, paid_map, today)
+        allowed, reason, debt = student_access_state(student, settings, paid_map, payment_date_paid_map, today)
         photo_url = build_photo_url(student.photo_path)
         if photo_url and photo_url.startswith('/'):
             photo_url = f"{base_url}{photo_url}"
+        current_month_paid = float(paid_map.get(student.id, 0) or 0)
+        paid_this_calendar_month = float(payment_date_paid_map.get(student.id, 0) or 0)
         payload.append({
             'student_id': student.id,
             'employeeNo': str(student.id),
@@ -3447,6 +3485,9 @@ def hikvision_students():
             'access_allowed': bool(allowed),
             'access_reason': reason,
             'current_month_debt': debt,
+            'current_month_paid': current_month_paid,
+            'paid_this_calendar_month': paid_this_calendar_month,
+            'has_photo': bool(photo_url),
             'status': student.status,
             'student_number': student.student_number,
         })
@@ -3456,6 +3497,7 @@ def hikvision_students():
         'month': today.month,
         'year': today.year,
         'access_block_day': int(getattr(settings, 'access_block_day', 10) or 10),
+        'access_payment_policy': get_access_payment_policy(settings),
         'students': payload
     })
 
@@ -3721,6 +3763,7 @@ def get_club_settings():
         'payment_oson_qr_url': getattr(settings, 'payment_oson_qr_url', '') or '',
         'payment_transfer_enabled': bool(getattr(settings, 'payment_transfer_enabled', False)),
         'access_block_day': int(getattr(settings, 'access_block_day', 10) or 10),
+        'access_payment_policy': get_access_payment_policy(settings),
         'access_debt_start_year': getattr(settings, 'access_debt_start_year', None),
         'access_debt_start_month': getattr(settings, 'access_debt_start_month', None),
         'hikvision_device_key': get_bridge_key(settings),
@@ -3782,6 +3825,7 @@ def update_club_settings():
         payment_oson_qr_url = get_str_setting('payment_oson_qr_url', getattr(settings, 'payment_oson_qr_url', '') or '')
         payment_transfer_enabled = get_bool_setting('payment_transfer_enabled', getattr(settings, 'payment_transfer_enabled', False))
         access_block_day = int(data.get('access_block_day', getattr(settings, 'access_block_day', 10) or 10))
+        access_payment_policy = (data.get('access_payment_policy') or getattr(settings, 'access_payment_policy', '') or 'partial_current_month').strip()
         access_debt_start_year = data.get('access_debt_start_year', getattr(settings, 'access_debt_start_year', None))
         access_debt_start_month = data.get('access_debt_start_month', getattr(settings, 'access_debt_start_month', None))
         hikvision_device_key = get_str_setting('hikvision_device_key', getattr(settings, 'hikvision_device_key', '') or '')
@@ -3803,6 +3847,8 @@ def update_club_settings():
             return jsonify({'success': False, 'message': 'Отображение пьедестала должно быть от 5 до 50 учеников с шагом 5'}), 400
         if access_block_day < 1 or access_block_day > 31:
             return jsonify({'success': False, 'message': 'День блокировки доступа должен быть от 1 до 31'}), 400
+        if access_payment_policy not in {'full_current_month', 'partial_current_month', 'any_payment_this_month'}:
+            access_payment_policy = 'partial_current_month'
         if access_debt_start_year in ('', None):
             access_debt_start_year = None
         else:
@@ -3850,6 +3896,7 @@ def update_club_settings():
         settings.payment_oson_qr_url = payment_oson_qr_url if payment_oson_qr_url else None
         settings.payment_transfer_enabled = payment_transfer_enabled
         settings.access_block_day = access_block_day
+        settings.access_payment_policy = access_payment_policy
         settings.access_debt_start_year = access_debt_start_year
         settings.access_debt_start_month = access_debt_start_month
         settings.hikvision_device_key = hikvision_device_key if hikvision_device_key else None
