@@ -8,8 +8,8 @@ set HIK_PASS=PASTE_HIKVISION_PASSWORD
 set HIK_SYNC_INTERVAL_MS=60000
 set HIK_SYNC_RECREATE_USERS=false
 
-REM Two terminals on the same object: entry and exit.
-set HIK_DEVICES_JSON=[{"name":"entry","ip":"192.168.68.104","protocol":"https","port":443,"doorNo":1},{"name":"exit","ip":"192.168.68.105","protocol":"https","port":443,"doorNo":1}]
+REM Optional. If empty, bridge downloads terminal list from website Hikvision settings.
+REM set HIK_DEVICES_JSON=[{"name":"entry","ip":"192.168.68.107","protocol":"https","port":443,"doorNo":1},{"name":"exit","ip":"192.168.68.104","protocol":"https","port":443,"doorNo":1}]
 
 cd /d "%~dp0.."
 node bridge\hikvision-school-bridge.mjs

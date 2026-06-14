@@ -445,6 +445,13 @@ def get_bridge_key(settings=None):
     return configured or (os.environ.get('DEVICE_INGEST_KEY') or '').strip()
 
 
+def default_hikvision_devices():
+    return [
+        {'name': 'entry', 'ip': '192.168.68.107', 'protocol': 'https', 'port': 443, 'doorNo': 1},
+        {'name': 'exit', 'ip': '192.168.68.104', 'protocol': 'https', 'port': 443, 'doorNo': 1},
+    ]
+
+
 def check_bridge_auth():
     expected = get_bridge_key()
     provided = (
@@ -820,6 +827,8 @@ def ensure_club_settings_columns():
             conn.execute(db.text("ALTER TABLE club_settings ADD COLUMN access_debt_start_month INTEGER"))
         if 'hikvision_device_key' not in columns:
             conn.execute(db.text("ALTER TABLE club_settings ADD COLUMN hikvision_device_key VARCHAR(120)"))
+        if 'hikvision_devices' not in columns:
+            conn.execute(db.text("ALTER TABLE club_settings ADD COLUMN hikvision_devices TEXT"))
 
 
 def ensure_device_commands_table():
@@ -3451,6 +3460,21 @@ def hikvision_students():
     })
 
 
+@app.route('/api/hikvision/config', methods=['GET'])
+def hikvision_config():
+    if not check_bridge_auth():
+        return jsonify({'success': False, 'message': 'Unauthorized'}), 401
+
+    ensure_club_settings_columns()
+    settings = get_club_settings_instance()
+    devices = settings.get_hikvision_devices() or default_hikvision_devices()
+    return jsonify({
+        'success': True,
+        'devices': devices,
+        'sync_interval_ms': 60000,
+    })
+
+
 @app.route('/api/hikvision/commands/next', methods=['GET'])
 def hikvision_next_command():
     if not check_bridge_auth():
@@ -3641,6 +3665,10 @@ def get_groups():
 def get_club_settings():
     ensure_club_settings_columns()
     settings = get_club_settings_instance()
+    generated_key = False
+    if not getattr(settings, 'hikvision_device_key', None):
+        settings.ensure_hikvision_device_key()
+        generated_key = True
     try:
         expense_categories_raw = getattr(settings, 'expense_categories', '') or ''
         expense_categories = json.loads(expense_categories_raw) if expense_categories_raw else []
@@ -3658,6 +3686,8 @@ def get_club_settings():
     # Фильтруем техническую категорию "Encashment" - она не должна показываться пользователю
     # В интерфейсе "Инкасация" добавляется автоматически
     expense_categories = [cat for cat in expense_categories if cat != 'Encashment']
+    if generated_key:
+        db.session.commit()
     
     return jsonify({
         'system_name': settings.system_name or 'FK QORASUV',
@@ -3694,6 +3724,7 @@ def get_club_settings():
         'access_debt_start_year': getattr(settings, 'access_debt_start_year', None),
         'access_debt_start_month': getattr(settings, 'access_debt_start_month', None),
         'hikvision_device_key': get_bridge_key(settings),
+        'hikvision_devices': settings.get_hikvision_devices() or default_hikvision_devices(),
         # Телефоны руководства
         'director_phone': getattr(settings, 'director_phone', '') or '',
         'founder_phone': getattr(settings, 'founder_phone', '') or '',
@@ -3754,6 +3785,7 @@ def update_club_settings():
         access_debt_start_year = data.get('access_debt_start_year', getattr(settings, 'access_debt_start_year', None))
         access_debt_start_month = data.get('access_debt_start_month', getattr(settings, 'access_debt_start_month', None))
         hikvision_device_key = get_str_setting('hikvision_device_key', getattr(settings, 'hikvision_device_key', '') or '')
+        hikvision_devices = data.get('hikvision_devices') if isinstance(data.get('hikvision_devices'), list) else None
         expense_categories = data.get('expense_categories') if isinstance(data.get('expense_categories'), list) else []
         expense_categories = [str(c).strip() for c in expense_categories if str(c).strip()]
         # Убираем техническую категорию "Encashment" и "Инкасация" - она не должна храниться в настройках
@@ -3821,6 +3853,8 @@ def update_club_settings():
         settings.access_debt_start_year = access_debt_start_year
         settings.access_debt_start_month = access_debt_start_month
         settings.hikvision_device_key = hikvision_device_key if hikvision_device_key else None
+        if hikvision_devices is not None:
+            settings.set_hikvision_devices(hikvision_devices)
         settings.expense_categories = json.dumps(expense_categories) if expense_categories else None
         queue_hikvision_sync('settings_updated')
         db.session.commit()

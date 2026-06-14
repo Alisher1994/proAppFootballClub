@@ -3,6 +3,7 @@ from flask_login import UserMixin
 from datetime import datetime, time
 import json
 import pytz
+import secrets
 
 # Часовой пояс Ташкента (UTC+5)
 TASHKENT_TZ = pytz.timezone('Asia/Tashkent')
@@ -404,6 +405,7 @@ class ClubSettings(db.Model):
     access_debt_start_year = db.Column(db.Integer, nullable=True)  # С какого года учитывать долг для доступа
     access_debt_start_month = db.Column(db.Integer, nullable=True)  # С какого месяца учитывать долг для доступа
     hikvision_device_key = db.Column(db.String(120), nullable=True)  # Ключ локального bridge
+    hikvision_devices = db.Column(db.Text, nullable=True)  # JSON-массив терминалов Hikvision
 
     def get_working_days_list(self):
         if self.working_days:
@@ -412,6 +414,37 @@ class ClubSettings(db.Model):
 
     def set_working_days_list(self, days_list):
         self.working_days = ','.join(map(str, sorted(days_list)))
+
+    def ensure_hikvision_device_key(self):
+        if not self.hikvision_device_key:
+            self.hikvision_device_key = secrets.token_hex(24)
+        return self.hikvision_device_key
+
+    def get_hikvision_devices(self):
+        if not self.hikvision_devices:
+            return []
+        try:
+            data = json.loads(self.hikvision_devices)
+            return data if isinstance(data, list) else []
+        except Exception:
+            return []
+
+    def set_hikvision_devices(self, devices):
+        clean = []
+        for item in devices or []:
+            if not isinstance(item, dict):
+                continue
+            ip = str(item.get('ip') or '').strip()
+            if not ip:
+                continue
+            clean.append({
+                'name': str(item.get('name') or '').strip() or f'terminal{len(clean) + 1}',
+                'ip': ip,
+                'protocol': str(item.get('protocol') or 'https').strip().lower(),
+                'port': int(item.get('port') or 443),
+                'doorNo': int(item.get('doorNo') or 1),
+            })
+        self.hikvision_devices = json.dumps(clean, ensure_ascii=False) if clean else None
 
 
 class RewardType(db.Model):

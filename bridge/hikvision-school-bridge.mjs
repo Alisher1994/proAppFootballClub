@@ -199,6 +199,21 @@ async function fetchStudents() {
   return data.students || [];
 }
 
+async function loadRemoteConfig() {
+  if (CONFIG.devices.length) return;
+  const res = await fetch(`${CONFIG.serverUrl}/api/hikvision/config`, {
+    headers: { 'x-device-key': CONFIG.deviceKey },
+  });
+  if (!res.ok) throw new Error(`server config ${res.status}: ${await res.text()}`);
+  const data = await res.json();
+  if (Array.isArray(data.devices)) {
+    CONFIG.devices = data.devices.filter((device) => device && device.ip);
+  }
+  if (Number(data.sync_interval_ms) > 0) {
+    CONFIG.syncIntervalMs = Number(data.sync_interval_ms);
+  }
+}
+
 async function syncDevice(device, students) {
   let changed = 0;
   for (const student of students) {
@@ -282,8 +297,9 @@ async function main() {
     console.error('DEVICE_INGEST_KEY is required');
     process.exit(1);
   }
+  await loadRemoteConfig();
   if (!CONFIG.devices.length) {
-    console.error('Set HIK_DEVICES_JSON or HIK_IP');
+    console.error('Set terminals in website Hikvision settings, HIK_DEVICES_JSON, or HIK_IP');
     process.exit(1);
   }
   console.log(`[bridge] ${CONFIG.devices.length} Hikvision terminal(s) -> ${CONFIG.serverUrl}`);

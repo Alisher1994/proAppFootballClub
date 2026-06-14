@@ -49,6 +49,14 @@ async function initSettings() {
             await saveCameraSettings();
         });
     }
+
+    const hikvisionForm = document.getElementById('hikvisionSettingsForm');
+    if (hikvisionForm) {
+        hikvisionForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            await saveSettings();
+        });
+    }
 }
 
 function attachWorkingDayToggles() {
@@ -96,6 +104,7 @@ async function loadSettings() {
         if (accessDebtStartMonthEl) accessDebtStartMonthEl.value = data.access_debt_start_month || '';
         if (accessDebtStartYearEl) accessDebtStartYearEl.value = data.access_debt_start_year || '';
         if (hikvisionDeviceKeyEl) hikvisionDeviceKeyEl.value = data.hikvision_device_key || '';
+        setHikvisionDevices(data.hikvision_devices || []);
         document.getElementById('rewards_reset_period_months').value = data.rewards_reset_period_months || 1;
         // Убедимся, что значение кратно 5 и в диапазоне 5-50
         const podiumValue = data.podium_display_count || 20;
@@ -176,6 +185,36 @@ async function loadSettings() {
     }
 }
 
+function setHikvisionDevices(devices) {
+    const list = Array.isArray(devices) ? devices : [];
+    const entry = list.find((d) => d.name === 'entry') || list[0] || {};
+    const exit = list.find((d) => d.name === 'exit') || list[1] || {};
+    const protocol = entry.protocol || exit.protocol || 'https';
+    const port = entry.port || exit.port || (protocol === 'http' ? 80 : 443);
+
+    const entryIpEl = document.getElementById('hikvision_entry_ip');
+    const exitIpEl = document.getElementById('hikvision_exit_ip');
+    const protocolEl = document.getElementById('hikvision_protocol');
+    const portEl = document.getElementById('hikvision_port');
+
+    if (entryIpEl) entryIpEl.value = entry.ip || '192.168.68.107';
+    if (exitIpEl) exitIpEl.value = exit.ip || '192.168.68.104';
+    if (protocolEl) protocolEl.value = protocol;
+    if (portEl) portEl.value = port;
+}
+
+function collectHikvisionDevices() {
+    const protocol = document.getElementById('hikvision_protocol')?.value || 'https';
+    const port = parseInt(document.getElementById('hikvision_port')?.value || (protocol === 'http' ? '80' : '443'), 10);
+    const entryIp = (document.getElementById('hikvision_entry_ip')?.value || '').trim();
+    const exitIp = (document.getElementById('hikvision_exit_ip')?.value || '').trim();
+
+    return [
+        { name: 'entry', ip: entryIp, protocol, port, doorNo: 1 },
+        { name: 'exit', ip: exitIp, protocol, port, doorNo: 1 }
+    ].filter((device) => device.ip);
+}
+
 async function saveSettings() {
     const data = gatherAllSettings();
     if (!data.system_name) {
@@ -213,6 +252,7 @@ function gatherAllSettings() {
         access_debt_start_month: document.getElementById('access_debt_start_month')?.value || null,
         access_debt_start_year: document.getElementById('access_debt_start_year')?.value || null,
         hikvision_device_key: (document.getElementById('hikvision_device_key')?.value || '').trim(),
+        hikvision_devices: collectHikvisionDevices(),
         rewards_reset_period_months: parseInt(document.getElementById('rewards_reset_period_months').value, 10),
         podium_display_count: parseInt(document.getElementById('podium_display_count').value, 10),
         telegram_bot_url: (document.getElementById('telegram_bot_url')?.value || '').trim(),
