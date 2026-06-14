@@ -468,13 +468,17 @@ def queue_hikvision_sync(reason='change'):
     """Попросить локальный bridge выполнить синхронизацию без ожидания интервала."""
     try:
         ensure_device_commands_table()
-        fresh_exists = DeviceCommand.query.filter(
+        
+        # Отменяем все предыдущие незавершенные команды, чтобы избежать зависаний и накопления очереди
+        stuck_commands = DeviceCommand.query.filter(
             DeviceCommand.command == 'HIKVISION_SYNC',
-            DeviceCommand.status == 'pending',
-            DeviceCommand.created_at >= get_local_datetime() - timedelta(seconds=30),
-        ).first()
-        if fresh_exists:
-            return
+            DeviceCommand.status.in_(['pending', 'processing'])
+        ).all()
+        for old_cmd in stuck_commands:
+            old_cmd.status = 'failed'
+            old_cmd.result = 'Отменено, так как запущена более новая синхронизация.'
+            old_cmd.finished_at = get_local_datetime()
+
         cmd = DeviceCommand(command='HIKVISION_SYNC')
         cmd.set_payload({'reason': reason})
         db.session.add(cmd)

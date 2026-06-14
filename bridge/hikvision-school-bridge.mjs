@@ -99,11 +99,15 @@ function requestDigest(device, method, uri, body = null, headers = {}) {
           const second = client.request({ ...options, headers: { ...options.headers, Authorization: auth } }, (res2) => {
             collectResponse(res2).then(resolve, reject);
           });
+          second.setTimeout(10000);
+          second.on('timeout', () => { second.destroy(); reject(new Error('Connection timeout (10s)')); });
           second.on('error', reject);
           if (body) second.write(body);
           second.end();
         }).catch(reject);
     });
+    first.setTimeout(10000);
+    first.on('timeout', () => { first.destroy(); reject(new Error('Connection timeout (10s)')); });
     first.on('error', reject);
     if (body) first.write(body);
     first.end();
@@ -136,7 +140,7 @@ async function requestJson(device, method, uri, data) {
 
 async function downloadPhoto(url) {
   if (!url) return null;
-  const res = await fetch(url);
+  const res = await fetch(url, { signal: AbortSignal.timeout(15000) });
   if (!res.ok) throw new Error(`photo ${res.status}`);
   return {
     buffer: Buffer.from(await res.arrayBuffer()),
@@ -194,6 +198,7 @@ async function uploadFace(device, student) {
 async function fetchStudents() {
   const res = await fetch(`${CONFIG.serverUrl}/api/hikvision/students`, {
     headers: { 'x-device-key': CONFIG.deviceKey },
+    signal: AbortSignal.timeout(10000)
   });
   if (!res.ok) throw new Error(`server students ${res.status}: ${await res.text()}`);
   const data = await res.json();
@@ -228,6 +233,7 @@ async function loadRemoteConfig() {
   const hasLocalDevices = CONFIG.devices.length > 0;
   const res = await fetch(`${CONFIG.serverUrl}/api/hikvision/config`, {
     headers: { 'x-device-key': CONFIG.deviceKey },
+    signal: AbortSignal.timeout(10000)
   });
   if (!res.ok) throw new Error(`server config ${res.status}: ${await res.text()}`);
   const data = await res.json();
@@ -333,6 +339,7 @@ async function reportCommand(id, ok, result) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-device-key': CONFIG.deviceKey },
       body: JSON.stringify({ ok, result: String(result || '').slice(0, 10000) }),
+      signal: AbortSignal.timeout(10000)
     });
   } catch (e) {
     console.error('[command] report failed:', e.message);
@@ -343,6 +350,7 @@ async function pollCommands() {
   try {
     const res = await fetch(`${CONFIG.serverUrl}/api/hikvision/commands/next`, {
       headers: { 'x-device-key': CONFIG.deviceKey },
+      signal: AbortSignal.timeout(10000)
     });
     if (!res.ok) throw new Error(`server command ${res.status}`);
     const data = await res.json();
@@ -394,11 +402,10 @@ async function main() {
   }
   console.log(`[bridge] ${CONFIG.devices.length} Hikvision terminal(s) -> ${CONFIG.serverUrl}`);
   console.log(`[bridge] command polling ${CONFIG.commandPollIntervalMs}ms, daily full sync ${CONFIG.dailySyncTime} Asia/Tashkent`);
-  try {
-    await runSync('startup');
-  } catch (e) {
+  // Запускаем стартовую синхронизацию в фоновом режиме (без await), чтобы не блокировать опрос команд
+  runSync('startup').catch((e) => {
     console.error('Startup sync failed:', e.message);
-  }
+  });
   setInterval(checkDailySchedule, CONFIG.scheduleCheckIntervalMs);
   setInterval(pollCommands, CONFIG.commandPollIntervalMs);
 }
