@@ -579,6 +579,26 @@ def queue_hikvision_door_open(device_name):
         raise
 
 
+def queue_hikvision_clear_device(device_name):
+    """Поставить команду bridge на полную очистку памяти выбранного терминала."""
+    try:
+        ensure_device_commands_table()
+        device_name = (device_name or '').strip()
+        if device_name not in {'entry', 'exit'}:
+            raise ValueError('Unknown Hikvision device')
+
+        cmd = DeviceCommand(command='HIKVISION_CLEAR_DEVICE')
+        cmd.set_payload({
+            'device_name': device_name,
+            'reason': 'manual_device_clear',
+            'requested_at': get_local_datetime().isoformat(),
+        })
+        db.session.add(cmd)
+    except Exception as e:
+        print(f"Не удалось поставить команду очистки терминала Hikvision: {e}")
+        raise
+
+
 def queue_hikvision_control(action):
     """Поставить срочную команду управления текущей работой bridge."""
     try:
@@ -4007,6 +4027,23 @@ def request_hikvision_open_door():
     return jsonify({'success': True, 'message': f'Команда открыть {label} отправлена bridge'})
 
 
+@app.route('/api/hikvision/clear-device', methods=['POST'])
+@login_required
+def request_hikvision_clear_device():
+    if current_user.role not in ['admin']:
+        return jsonify({'success': False, 'message': 'Доступ запрещен'}), 403
+
+    data = request.get_json(silent=True) or {}
+    device_name = (data.get('device_name') or data.get('device') or '').strip()
+    if device_name not in {'entry', 'exit'}:
+        return jsonify({'success': False, 'message': 'Выберите терминал входа или выхода'}), 400
+
+    queue_hikvision_clear_device(device_name)
+    db.session.commit()
+    label = 'вход' if device_name == 'entry' else 'выход'
+    return jsonify({'success': True, 'message': f'Команда очистить терминал {label} отправлена bridge'})
+
+
 @app.route('/api/hikvision/bridge/control', methods=['POST'])
 @login_required
 def request_hikvision_bridge_control():
@@ -4165,7 +4202,7 @@ def get_hikvision_commands_history():
         return jsonify({'success': False, 'message': 'Доступ запрещен'}), 403
 
     ensure_device_commands_table()
-    commands = DeviceCommand.query.filter(DeviceCommand.command.in_(['HIKVISION_SYNC', 'HIKVISION_PERSON', 'HIKVISION_DOOR_OPEN', 'HIKVISION_CONTROL']))\
+    commands = DeviceCommand.query.filter(DeviceCommand.command.in_(['HIKVISION_SYNC', 'HIKVISION_PERSON', 'HIKVISION_DOOR_OPEN', 'HIKVISION_CONTROL', 'HIKVISION_CLEAR_DEVICE']))\
         .order_by(DeviceCommand.created_at.desc())\
         .limit(30)\
         .all()

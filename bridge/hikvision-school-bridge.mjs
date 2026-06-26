@@ -190,6 +190,7 @@ function reasonLabel(reason) {
     monthly_payment_added: 'Месячная оплата',
     settings_updated: 'Обновлены настройки',
     manual_door_open: 'Открытие турникета из админки',
+    manual_device_clear: 'Полная очистка памяти терминала',
     bridge_pause: 'Пауза записи',
     bridge_resume: 'Продолжить запись',
     bridge_stop: 'Остановить запись',
@@ -472,6 +473,26 @@ async function openDoor(device) {
     CONFIG.deviceRequestTimeoutMs
   );
   assertOk('open-door', res);
+}
+
+async function clearDeviceMemory(device, onProgress = null) {
+  const users = await fetchDeviceUsers(device);
+  let deleted = 0;
+  const errors = [];
+
+  for (const user of users) {
+    try {
+      await deletePersonFromDevice(device, user.employeeNo);
+      deleted += 1;
+      if (onProgress) onProgress({ deleted, total: users.length, user });
+      await sleep(120);
+    } catch (error) {
+      errors.push({ user, reason: humanError(error) });
+      console.error(`[clear] Не удалось удалить ${user.employeeNo} ${user.fullName || ''}: ${humanError(error)}`);
+    }
+  }
+
+  return { total: users.length, deleted, errors };
 }
 
 function isManagedEmployeeNo(employeeNo) {
@@ -1033,6 +1054,59 @@ async function runDoorOpenCommand(payload = {}, commandId = null) {
   }
 }
 
+async function runClearDeviceCommand(payload = {}, commandId = null) {
+  if (syncInProgress) {
+    throw new Error('Сначала остановите текущую запись, затем повторите очистку терминала');
+  }
+
+  currentCommandId = commandId;
+  const deviceName = payload.device_name || payload.device || '';
+  let logOutput = `[${new Date().toISOString()}] Очистка памяти терминала начата. Причина: ${reasonLabel(payload.reason || 'manual_device_clear')}\n`;
+
+  try {
+    await loadRemoteConfig();
+    const device = CONFIG.devices.find((item) => item.name === deviceName);
+    if (!device) throw new Error(`терминал "${deviceName}" не найден в настройках`);
+
+    const label = deviceLabel(device);
+    setAction(`Очищаем память терминала: ${label}`);
+    setProgress({ stage: 'clear_device', total: 0, processed: 0, status_text: `Проверяем терминал ${label} перед очисткой` });
+    const probe = await probeDevice(device);
+    if (!probe.ok) {
+      throw new Error(`терминал недоступен: ${humanError(probe.message)}`);
+    }
+
+    const result = await clearDeviceMemory(device, ({ deleted, total, user }) => {
+      setProgress({
+        stage: 'clear_device',
+        total,
+        processed: deleted,
+        status_text: `${label}: удаляем ${deleted} из ${total} - ${user.employeeNo} ${user.fullName || ''}`.trim(),
+      });
+    });
+
+    const msg = `Память терминала очищена: ${label}. Удалено ${result.deleted} из ${result.total}. Ошибок ${result.errors.length}.`;
+    console.log(`[clear] ${msg}`);
+    logOutput += `${msg}\n`;
+    result.errors.slice(0, 100).forEach((item) => {
+      logOutput += `ОШИБКА: ${item.user.employeeNo} ${item.user.fullName || ''}: ${item.reason}\n`;
+    });
+    setProgress({ stage: result.errors.length ? 'done_with_errors' : 'done', total: result.total, processed: result.deleted, status_text: msg });
+    if (commandId) await reportCommand(commandId, result.errors.length === 0, logOutput);
+    return logOutput;
+  } catch (error) {
+    const message = `Не удалось очистить память терминала: ${humanError(error)}`;
+    console.error(`[clear] ${message}`);
+    logOutput += `${message}\n`;
+    setProgress({ stage: 'error', status_text: message });
+    if (commandId) await reportCommand(commandId, false, logOutput);
+    throw error;
+  } finally {
+    currentCommandId = null;
+    setAction('idle');
+  }
+}
+
 async function runControlCommand(payload = {}, commandId = null) {
   const previousCommandId = currentCommandId;
   const previousAction = currentAction;
@@ -1264,6 +1338,14 @@ async function pollCommands() {
         await runControlCommand(command.payload || {}, command.id);
       } catch (err) {
         await reportCommand(command.id, false, `Ошибка управления bridge: ${humanError(err)}`);
+      }
+    } else if (command.type === 'HIKVISION_CLEAR_DEVICE') {
+      if (syncInProgress) return;
+      try {
+        setAction(`Очистка памяти терминала #${command.id}`);
+        await runClearDeviceCommand(command.payload || {}, command.id);
+      } catch (err) {
+        // Ошибка уже отправлена внутри runClearDeviceCommand
       }
     } else {
       await reportCommand(command.id, false, `unknown command ${command.type}`);

@@ -69,6 +69,9 @@ async function initSettings() {
     document.querySelectorAll('[data-open-hikvision-door]').forEach((button) => {
         button.addEventListener('click', () => requestHikvisionDoorOpen(button.dataset.openHikvisionDoor, button));
     });
+    document.querySelectorAll('[data-clear-hikvision-device]').forEach((button) => {
+        button.addEventListener('click', () => requestHikvisionClearDevice(button.dataset.clearHikvisionDevice, button));
+    });
 
     const bridgeStatusRefreshBtn = document.getElementById('bridgeStatusRefreshBtn');
     if (bridgeStatusRefreshBtn) {
@@ -337,6 +340,41 @@ async function requestHikvisionDoorOpen(deviceName, btn) {
     } catch (error) {
         console.error('Ошибка открытия турникета Hikvision:', error);
         alert('Не удалось отправить команду открытия турникета');
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.textContent = originalText;
+        }
+    }
+}
+
+async function requestHikvisionClearDevice(deviceName, btn) {
+    const label = deviceName === 'entry' ? 'вход' : 'выход';
+    const typed = prompt(`Это удалит ВСЕХ людей из памяти терминала "${label}". Напишите ОЧИСТИТЬ для подтверждения.`);
+    if (typed !== 'ОЧИСТИТЬ') return;
+
+    const originalText = btn ? btn.textContent : '';
+    if (btn) {
+        btn.disabled = true;
+        btn.textContent = '⏳ Очищаем...';
+    }
+    try {
+        const resp = await fetch('/api/hikvision/clear-device', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ device_name: deviceName })
+        });
+        const result = await resp.json();
+        if (result.success) {
+            alert(result.message || `Команда очистить ${label} отправлена bridge`);
+            setTimeout(loadSyncHistory, 500);
+            setTimeout(loadBridgeStatus, 500);
+        } else {
+            alert('Ошибка: ' + (result.message || 'не удалось отправить очистку терминала'));
+        }
+    } catch (error) {
+        console.error('Ошибка очистки терминала Hikvision:', error);
+        alert('Не удалось отправить команду очистки терминала');
     } finally {
         if (btn) {
             btn.disabled = false;
