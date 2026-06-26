@@ -3085,7 +3085,7 @@
                             <div class="student-item-photo">
                                 {% if student.photo_path %}
                                 <img src="{{ url_for('static', filename='uploads/' + student.photo_path.replace('\\', '/').split('/')[-1]) }}"
-                                    alt="{{ student.full_name }}">
+                                    alt="{{ student.full_name }}" loading="lazy" decoding="async">
                                 {% else %}
                                 <div class="photo-placeholder-small">👤</div>
                                 {% endif %}
@@ -3122,7 +3122,7 @@
                 <p>Выберите ученика из списка</p>
             </div>
 
-            {% for student in students %}
+            {% for student in students[:1] %}
             {% set balance_value = balances.get(student.id) if balances else 0 %}
             {% set payment = payment_info.get(student.id) if payment_info else None %}
             {% set points = student_points.get(student.id) if student_points else 0 %}
@@ -3514,7 +3514,7 @@
                 <p>Выберите ученика</p>
             </div>
 
-            {% for student in students %}
+            {% for student in students[:1] %}
             <div class="student-photo-content {% if not loop.first %}hidden{% endif %}"
                 id="studentPhoto_{{ student.id }}">
                 <div class="student-photo-container-fixed">
@@ -3525,7 +3525,7 @@
                             <div class="student-photo-front">
                                 {% if student.photo_path %}
                                 <img src="{{ url_for('static', filename='uploads/' + student.photo_path.replace('\\', '/').split('/')[-1]) }}"
-                                    alt="{{ student.full_name }}" class="student-large-photo">
+                                    alt="{{ student.full_name }}" class="student-large-photo" loading="lazy" decoding="async">
                                 {% else %}
                                 <div class="student-photo-placeholder">
                                     <div class="placeholder-large">👤</div>
@@ -3634,7 +3634,7 @@
             </tr>
         </thead>
         <tbody>
-            {% for student in students %}
+            {% for student in students[:1] %}
             {% set balance_value = balances.get(student.id) if balances else 0 %}
             <tr class="{% if balance_value <= 2 %}low-balance{% endif %} {% if student.status == 'blacklist' %}blacklisted{% endif %}"
                 data-student-id="{{ student.id }}" data-group-id="{{ student.group_id or '' }}"
@@ -3642,7 +3642,7 @@
                 <td>
                     {% if student.photo_path %}
                     <img src="{{ url_for('static', filename=student.photo_path.replace('frontend/static/', '').replace('\\', '/')) }}"
-                        class="student-avatar">
+                        class="student-avatar" loading="lazy" decoding="async">
                     {% else %}
                     <div class="avatar-placeholder">👤</div>
                     {% endif %}
@@ -4672,8 +4672,268 @@
             }
         }
 
+        const lazyStudentCache = new Map();
+
+        function escapeHtml(value) {
+            return String(value ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function formatDateRu(value) {
+            if (!value) return '-';
+            const date = new Date(value);
+            if (Number.isNaN(date.getTime())) return '-';
+            return date.toLocaleDateString('ru-RU');
+        }
+
+        function formatMoney(value) {
+            const number = Number(value || 0);
+            return number.toLocaleString('ru-RU', { maximumFractionDigits: 0 });
+        }
+
+        function getStudentStatusText(status) {
+            if (status === 'active') return '✓ Активен';
+            if (status === 'inactive') return '○ Неактивен';
+            if (status === 'blacklist') return '⚠️ ЧС';
+            return '-';
+        }
+
+        function buildTurnstileHtml(access) {
+            const willPass = Boolean(access && access.will_pass);
+            const debt = Number(access?.debt || 0);
+            return `
+                <div class="turnstile-status-card ${willPass ? 'pass' : 'block'}">
+                    <div class="turnstile-status-title">Турникет</div>
+                    <div class="turnstile-status-value">${willPass ? 'Пройдет' : 'Не пройдет'}</div>
+                    <div class="turnstile-status-reason">
+                        ${escapeHtml(access?.reason_label || 'Нет данных')}
+                        ${debt > 0 ? ` · долг ${formatMoney(debt)} сум` : ''}
+                    </div>
+                </div>
+            `;
+        }
+
+        function buildStudentDetailsHtml(student) {
+            const id = student.id;
+            const access = student.turnstile_access || {};
+            const linkedTelegram = Boolean(student.telegram_chat_id);
+            const balanceClass = !student.club_funded
+                ? (Number(student.balance || 0) > 0 ? 'balance-positive' : 'balance-negative')
+                : '';
+
+            return `
+                <div class="student-details-content hidden" id="studentDetails_${id}">
+                    <div class="student-details-header">
+                        <div class="student-details-header-top">
+                            <div class="student-main-info">
+                                <div class="student-info-item">
+                                    <div class="info-item-label">Группа</div>
+                                    <div class="info-item-value">${escapeHtml(student.group_name || 'Без группы')}</div>
+                                </div>
+                                <div class="student-info-item">
+                                    <div class="info-item-label">Тариф</div>
+                                    <div class="info-item-value">${escapeHtml(student.tariff_name || 'Не указан')}</div>
+                                </div>
+                                <div class="student-info-item">
+                                    <div class="info-item-label">Баланс</div>
+                                    <div class="info-item-value ${balanceClass}">${student.club_funded ? '♾️' : escapeHtml(student.balance ?? 0)}</div>
+                                </div>
+                                <div class="student-info-item">
+                                    <div class="info-item-label">Статус</div>
+                                    <div class="info-item-value">${getStudentStatusText(student.status)}</div>
+                                </div>
+                                <div class="student-info-item">
+                                    <div class="info-item-label">Баллы</div>
+                                    <div class="info-item-value"><span class="points-icon">⭐</span>${escapeHtml(student.points || 0)}</div>
+                                </div>
+                                ${buildTurnstileHtml(access)}
+                                <div class="student-info-item">
+                                    <div class="info-item-label">Telegram</div>
+                                    <div class="info-item-value" style="display:flex;align-items:center;justify-content:center;gap:4px;flex-wrap:wrap;">
+                                        <button type="button" class="btn-copy-code" data-code="${escapeHtml(student.telegram_link_code || '')}" data-student-id="${id}" style="width:20px;height:20px;padding:0;background:#f3f4f6;border:none;border-radius:3px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M16 1H4C2.9 1 2 1.9 2 3V17H4V3H16V1ZM19 5H8C6.9 5 6 5.9 6 7V21C6 22.1 6.9 23 8 23H19C20.1 23 21 22.1 21 21V7C21 5.9 20.1 5 19 5ZM19 21H8V7H19V21Z" fill="#9ca3af"/></svg>
+                                        </button>
+                                        <span id="telegram_code_main_${id}" style="font-family:monospace;font-size:10px;font-weight:700;color:var(--theme-text-primary);">${escapeHtml(student.telegram_link_code || 'Генерируется...')}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="student-actions-top">
+                                <button class="action-btn btn-info edit-student-btn" data-student-id="${id}">
+                                    <svg class="action-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M11 4H4C3.46957 4 2.96086 4.21071 2.58579 4.58579C2.21071 4.96086 2 5.46957 2 6V20C2 20.5304 2.21071 21.0391 2.58579 21.4142C2.96086 21.7893 3.46957 22 4 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20V13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M18.5 2.50023C18.8978 2.10243 19.4374 1.87891 20 1.87891C20.5626 1.87891 21.1022 2.10243 21.5 2.50023C21.8978 2.89804 22.1213 3.43762 22.1213 4.00023C22.1213 4.56284 21.8978 5.10243 21.5 5.50023L12 15.0002L8 16.0002L9 12.0002L18.5 2.50023Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                </button>
+                                <button class="action-btn btn-danger delete-student-btn" data-student-id="${id}" data-student-name="${escapeHtml(student.full_name)}">
+                                    <svg class="action-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 6H5H21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 6V4C8 3.46957 8.21071 2.96086 8.58579 2.58579C8.96086 2.21071 9.46957 2 10 2H14C14.5304 2 15.0391 2.21071 15.4142 2.58579C15.7893 2.96086 16 3.46957 16 4V6M19 6V20C19 20.5304 18.7893 21.0391 18.4142 21.4142C18.0391 21.7893 17.5304 22 17 22H7C6.46957 22 5.96086 21.7893 5.58579 21.4142C5.21071 21.0391 5 20.5304 5 20V6H19Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="student-tabs">
+                            <button class="student-tab active" data-tab="info" data-student-id="${id}">Информация</button>
+                            <button class="student-tab" data-tab="payments" data-student-id="${id}">Оплаты</button>
+                            <button class="student-tab" data-tab="finances" data-student-id="${id}">Финансы</button>
+                            <button class="student-tab" data-tab="history" data-student-id="${id}">Вознаграждения</button>
+                            <button class="student-tab" data-tab="attendance" data-student-id="${id}">Посещения</button>
+                        </div>
+                    </div>
+                    <div class="student-details-body">
+                        <div class="student-tabs-section">
+                            <div class="student-tab-content active" id="tab-info-${id}">
+                                <div class="student-name-section"><h2 class="student-full-name">■ ${escapeHtml(student.full_name)}</h2></div>
+                                <div class="student-info-section">
+                                    <div class="info-row">
+                                        <div class="info-group">
+                                            <h4 class="info-group-title">Паспортные данные</h4>
+                                            <div class="info-group-content">
+                                                <div class="info-item"><span class="info-item-label">Серия и номер:</span><span class="info-item-text">${escapeHtml([student.passport_series, student.passport_number].filter(Boolean).join(' ') || '-')}</span></div>
+                                                <div class="info-item"><span class="info-item-label">Кем выдан:</span><span class="info-item-text">${escapeHtml(student.passport_issued_by || '-')}</span></div>
+                                                <div class="info-item"><span class="info-item-label">Дата выдачи:</span><span class="info-item-text">${formatDateRu(student.passport_issue_date)}</span></div>
+                                                <div class="info-item"><span class="info-item-label">Срок действия:</span><span class="info-item-text">${formatDateRu(student.passport_expiry_date)}</span></div>
+                                            </div>
+                                        </div>
+                                        <div class="info-group">
+                                            <h4 class="info-group-title">Телефоны</h4>
+                                            <div class="info-group-content">
+                                                <div class="info-item"><span class="info-item-label">Телефон ученика:</span><span class="info-item-text">${escapeHtml(student.phone || '-')}</span></div>
+                                                <div class="info-item"><span class="info-item-label">Телефон родителя:</span><span class="info-item-text">${escapeHtml(student.parent_phone || '-')}</span></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="info-row">
+                                        <div class="info-group">
+                                            <h4 class="info-group-title">Адресные данные</h4>
+                                            <div class="info-group-content">
+                                                <div class="info-item"><span class="info-item-label">Город:</span><span class="info-item-text">${escapeHtml(student.city || '-')}</span></div>
+                                                <div class="info-item"><span class="info-item-label">Район:</span><span class="info-item-text">${escapeHtml(student.district || '-')}</span></div>
+                                                <div class="info-item"><span class="info-item-label">Улица:</span><span class="info-item-text">${escapeHtml(student.street || '-')}</span></div>
+                                            </div>
+                                        </div>
+                                        <div class="info-group">
+                                            <h4 class="info-group-title">📱 Telegram</h4>
+                                            <div class="info-group-content">
+                                                <div class="info-item"><span class="info-item-label">Telegram:</span><span class="info-item-text" id="telegram_code_${id}" style="font-family:monospace;font-size:16px;font-weight:600;color:#667eea;">${escapeHtml(student.telegram_link_code || 'Генерируется...')}</span></div>
+                                                <div class="info-item"><span class="info-item-label">Статус:</span><span class="info-item-text" id="telegram_status_${id}">${linkedTelegram ? '<span style="color:#10b981;">✅ Привязан</span>' : '<span style="color:#94a3b8;">⏳ Не привязан</span>'}</span></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="student-tab-content" id="tab-payments-${id}">
+                                <div class="payments-content"><div class="history-section">
+                                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+                                        <h4 class="history-section-title" style="margin:0;">💳 История оплат</h4>
+                                        <button class="game-btn game-btn-primary add-payment-btn" data-student-id="${id}"><span>➕</span><span>Добавить оплату</span></button>
+                                    </div>
+                                    <div id="payments-history-${id}" class="history-list"><p style="color:#94a3b8;text-align:center;padding:20px;">Загрузка...</p></div>
+                                </div></div>
+                            </div>
+                            <div class="student-tab-content" id="tab-finances-${id}">
+                                <div class="financial-info">
+                                    <div class="financial-row"><span class="financial-label">Долг:</span><span class="financial-value" id="student-debt-${id}"><span style="color:#94a3b8;">Загрузка...</span></span></div>
+                                    <div class="financial-row"><span class="financial-label">Тариф:</span><span class="financial-value" id="student-tariff-${id}">${escapeHtml(student.tariff_name || 'Не указан')}</span></div>
+                                    <div class="financial-row"><span class="financial-label">Дата принятия:</span><span class="financial-value">${formatDateRu(student.admission_date)}</span></div>
+                                </div>
+                            </div>
+                            <div class="student-tab-content" id="tab-history-${id}">
+                                <div class="history-content">
+                                    <div class="history-section">
+                                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+                                            <h4 class="history-section-title" style="margin:0;">⭐ История вознаграждений</h4>
+                                            <button class="game-btn game-btn-primary give-reward-btn" data-student-id="${id}" style="padding:8px 16px;font-size:14px;"><span>⭐</span><span>Выдать вознаграждение</span></button>
+                                        </div>
+                                        <div id="rewards-history-${id}" class="history-list"><p style="color:#94a3b8;text-align:center;padding:20px;">Загрузка...</p></div>
+                                    </div>
+                                    <div class="history-section"><h4 class="history-section-title">🟨 История карточек</h4><div id="cards-history-${id}" class="history-list"><p style="color:#94a3b8;text-align:center;padding:20px;">Загрузка...</p></div></div>
+                                </div>
+                            </div>
+                            <div class="student-tab-content" id="tab-attendance-${id}">
+                                <div class="attendance-content"><div class="attendance-calendar-container">
+                                    <div class="attendance-year-controls" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;padding:16px;background:var(--theme-bg-secondary);border-radius:12px;">
+                                        <button class="game-btn game-btn-secondary" id="prev-year-btn-${id}" style="padding:8px 16px;"><span>←</span><span id="prev-year-label-${id}"></span></button>
+                                        <h3 style="margin:0;font-size:20px;font-weight:700;color:var(--theme-text-primary);" id="current-year-label-${id}"></h3>
+                                        <button class="game-btn game-btn-secondary" id="next-year-btn-${id}" style="padding:8px 16px;"><span id="next-year-label-${id}"></span><span>→</span></button>
+                                    </div>
+                                    <div id="attendance-calendar-${id}" class="attendance-calendar-grid"><p style="color:#94a3b8;text-align:center;padding:20px;">Загрузка...</p></div>
+                                </div></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function buildStudentPhotoHtml(student) {
+            const id = student.id;
+            const currentYear = new Date().getFullYear();
+            const age = student.birth_year ? `${currentYear - Number(student.birth_year)} лет` : '-';
+            const number = student.student_number ? String(student.student_number).replace(/^ST/, '') : '?';
+            const photoHtml = student.photo_url
+                ? `<img src="${escapeHtml(student.photo_url)}" alt="${escapeHtml(student.full_name)}" class="student-large-photo" loading="lazy" decoding="async">`
+                : `<div class="student-photo-placeholder"><div class="placeholder-large">👤</div><p>Фото отсутствует</p></div>`;
+
+            return `
+                <div class="student-photo-content hidden" id="studentPhoto_${id}">
+                    <div class="student-photo-container-fixed">
+                        <div class="student-photo-wrapper">
+                            <div class="student-photo-card">
+                                <div class="student-photo-front">${photoHtml}</div>
+                                <div class="student-photo-back"><div class="student-photo-number">${escapeHtml(number)}</div></div>
+                            </div>
+                        </div>
+                        <div class="student-cards-container" id="studentCards_${id}">
+                            <div class="student-cards-title">Карточки</div>
+                            <div class="student-cards-grid">
+                                ${Array.from({ length: 6 }, (_, index) => `
+                                    <div class="student-card-slot empty" data-student-id="${id}" data-slot-index="${index}" onclick="handleCardClick(${id}, ${index})">
+                                        <div class="card-plus-icon">+</div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                        <div class="student-params-container" id="studentParams_${id}">
+                            <div class="student-params-title">Параметры</div>
+                            <div class="student-params-list">
+                                <div class="student-param-item"><span class="param-icon">🎂</span><span class="param-name">Возраст:</span><span class="param-value">${escapeHtml(age)}</span></div>
+                                <div class="student-param-item"><span class="param-icon">⚖️</span><span class="param-name">Вес:</span><span class="param-value">${student.weight ? `${escapeHtml(student.weight)} кг` : '-'}</span></div>
+                                <div class="student-param-item"><span class="param-icon">📏</span><span class="param-name">Рост:</span><span class="param-value">${student.height ? `${escapeHtml(student.height)} см` : '-'}</span></div>
+                                <div class="student-param-item"><span class="param-icon">👕</span><span class="param-name">Размер футболки:</span><span class="param-value">${escapeHtml(student.jersey_size || '-')}</span></div>
+                                <div class="student-param-item"><span class="param-icon">🩳</span><span class="param-name">Размер шорт:</span><span class="param-value">${escapeHtml(student.shorts_size || '-')}</span></div>
+                                <div class="student-param-item"><span class="param-icon">👟</span><span class="param-name">Размер бутс:</span><span class="param-value">${escapeHtml(student.boots_size || '-')}</span></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        async function ensureStudentPanels(studentId) {
+            if (document.getElementById(`studentDetails_${studentId}`) && document.getElementById(`studentPhoto_${studentId}`)) {
+                return;
+            }
+
+            if (!lazyStudentCache.has(studentId)) {
+                lazyStudentCache.set(studentId, fetch(`/api/students/${studentId}`).then(response => {
+                    if (!response.ok) throw new Error('Не удалось загрузить ученика');
+                    return response.json();
+                }));
+            }
+
+            const student = await lazyStudentCache.get(studentId);
+            const detailsPanel = document.getElementById('studentDetailsPanel');
+            const photoPanel = document.querySelector('.student-photo-panel');
+
+            if (!document.getElementById(`studentDetails_${studentId}`) && detailsPanel) {
+                detailsPanel.insertAdjacentHTML('beforeend', buildStudentDetailsHtml(student));
+            }
+            if (!document.getElementById(`studentPhoto_${studentId}`) && photoPanel) {
+                photoPanel.insertAdjacentHTML('beforeend', buildStudentPhotoHtml(student));
+            }
+        }
+
         // Функция выбора ученика
-        function selectStudent(studentId) {
+        async function selectStudent(studentId) {
             // Сохранить состояние перед изменением
             savePageState();
 
@@ -4688,6 +4948,14 @@
                 selectedItem.classList.add('selected');
                 // Прокрутить к выбранному элементу
                 selectedItem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+
+            try {
+                await ensureStudentPanels(studentId);
+            } catch (error) {
+                console.error('Ошибка загрузки карточки ученика:', error);
+                alert('Не удалось загрузить карточку ученика. Попробуйте обновить страницу.');
+                return;
             }
 
             // Скрыть все панели деталей
@@ -5142,38 +5410,34 @@
         }
         // Переключение вкладок в деталях студента
         document.addEventListener('DOMContentLoaded', function () {
-            const studentTabs = document.querySelectorAll('.student-tab');
+            document.addEventListener('click', function (event) {
+                const tab = event.target.closest('.student-tab');
+                if (!tab) return;
 
-            studentTabs.forEach(tab => {
-                tab.addEventListener('click', function () {
-                    const tabName = this.getAttribute('data-tab');
-                    const studentId = this.getAttribute('data-student-id');
-                    const studentDetails = this.closest('.student-details-content');
+                const tabName = tab.getAttribute('data-tab');
+                const studentId = tab.getAttribute('data-student-id');
+                const studentDetails = tab.closest('.student-details-content');
 
-                    if (!studentDetails || !studentId) return;
+                if (!studentDetails || !studentId) return;
 
-                    // Убрать активный класс со всех вкладок этого студента
-                    studentDetails.querySelectorAll('.student-tab').forEach(t => t.classList.remove('active'));
-                    studentDetails.querySelectorAll('.student-tab-content').forEach(content => content.classList.remove('active'));
+                studentDetails.querySelectorAll('.student-tab').forEach(t => t.classList.remove('active'));
+                studentDetails.querySelectorAll('.student-tab-content').forEach(content => content.classList.remove('active'));
 
-                    // Добавить активный класс к выбранной вкладке
-                    this.classList.add('active');
-                    const content = studentDetails.querySelector(`#tab-${tabName}-${studentId}`);
-                    if (content) {
-                        content.classList.add('active');
+                tab.classList.add('active');
+                const content = studentDetails.querySelector(`#tab-${tabName}-${studentId}`);
+                if (content) {
+                    content.classList.add('active');
 
-                        // Загрузить данные при открытии вкладки
-                        if (tabName === 'history') {
-                            loadStudentHistory(studentId);
-                        } else if (tabName === 'payments') {
-                            loadStudentPayments(studentId);
-                        } else if (tabName === 'finances') {
-                            loadStudentDebt(studentId);
-                        } else if (tabName === 'attendance') {
-                            loadStudentAttendance(studentId);
-                        }
+                    if (tabName === 'history') {
+                        loadStudentHistory(studentId);
+                    } else if (tabName === 'payments') {
+                        loadStudentPayments(studentId);
+                    } else if (tabName === 'finances') {
+                        loadStudentDebt(studentId);
+                    } else if (tabName === 'attendance') {
+                        loadStudentAttendance(studentId);
                     }
-                });
+                }
             });
 
             // Загрузить данные для активных вкладок при загрузке страницы

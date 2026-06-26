@@ -1257,6 +1257,62 @@ def calculate_student_balance(student):
     return paid_lessons - attendance_count
 
 
+def calculate_student_balances_bulk(students):
+    """Считать баланс учеников пачкой, без N+1 запросов."""
+    student_list = list(students or [])
+    if not student_list:
+        return {}
+
+    student_ids = [student.id for student in student_list]
+    paid_rows = db.session.query(
+        Payment.student_id,
+        func.coalesce(func.sum(Payment.amount_paid), 0)
+    ).filter(
+        Payment.student_id.in_(student_ids)
+    ).group_by(Payment.student_id).all()
+    paid_map = {student_id: float(total or 0) for student_id, total in paid_rows}
+
+    attendance_rows = db.session.query(
+        Attendance.student_id,
+        func.count(Attendance.id)
+    ).filter(
+        Attendance.student_id.in_(student_ids)
+    ).group_by(Attendance.student_id).all()
+    attendance_map = {student_id: int(count or 0) for student_id, count in attendance_rows}
+
+    balances = {}
+    for student in student_list:
+        if not student.tariff:
+            balances[student.id] = student.balance or 0
+            continue
+
+        lesson_count = student.tariff.lessons_count or 1
+        lesson_price = float(student.tariff.price or 0) / lesson_count
+        if lesson_price <= 0:
+            balances[student.id] = student.balance or 0
+            continue
+
+        paid_lessons = int(float(paid_map.get(student.id, 0) or 0) / lesson_price)
+        balances[student.id] = paid_lessons - int(attendance_map.get(student.id, 0) or 0)
+
+    return balances
+
+
+def get_student_points_bulk(student_ids, month, year):
+    if not student_ids:
+        return {}
+    rows = db.session.query(
+        StudentReward.student_id,
+        func.coalesce(func.sum(StudentReward.points), 0)
+    ).filter(
+        StudentReward.student_id.in_(student_ids),
+        StudentReward.month == month,
+        StudentReward.year == year,
+        ~StudentReward.reward_name.like('[УДАЛЕНО]%')
+    ).group_by(StudentReward.student_id).all()
+    return {student_id: int(total or 0) for student_id, total in rows}
+
+
 def parse_days_list(raw_days):
     if raw_days is None:
         return []
@@ -1914,7 +1970,7 @@ def students():
         joinedload(Student.group),
         joinedload(Student.tariff)
     ).outerjoin(Group).order_by(Group.name.asc(), Student.full_name.asc()).all()
-    balances = {s.id: calculate_student_balance(s) for s in all_students}
+    balances = calculate_student_balances_bulk(all_students)
 
     latest_payment_subquery = db.session.query(
         Payment.student_id,
@@ -1937,10 +1993,7 @@ def students():
     # Подсчет баллов для текущего месяца
     current_month = date.today().month
     current_year = date.today().year
-    student_points = {}
-    for student in all_students:
-        total_points = get_student_points_sum(student.id, current_month, current_year)
-        student_points[student.id] = total_points
+    student_points = get_student_points_bulk([student.id for student in all_students], current_month, current_year)
 
     # Убедиться, что у всех учеников есть код Telegram
     for student in all_students:
@@ -2154,6 +2207,7 @@ def get_student(student_id):
     paid_map = get_month_paid_map(today.year, today.month)
     payment_date_paid_map = get_payment_date_paid_map(today.year, today.month)
     access_payload = build_student_access_payload(student, settings, paid_map, payment_date_paid_map, today)
+    current_points = get_student_points_sum(student.id, today.month, today.year)
     
     # Явно загружаем тариф, если он есть
     tariff_name = None
@@ -2178,6 +2232,13 @@ def get_student(student_id):
             group_schedule_days = group.get_schedule_days_list()
             group_schedule_time = group.schedule_time if group.schedule_time else None
     
+    photo_url = None
+    if student.photo_path:
+        photo_url = url_for(
+            'static',
+            filename=student.photo_path.replace('frontend/static/', '').replace('\\', '/').lstrip('/')
+        )
+
     return jsonify({
         'id': student.id,
         'student_number': student.student_number,
@@ -2186,9 +2247,11 @@ def get_student(student_id):
         'phone': student.phone,
         'parent_phone': student.parent_phone,
         'balance': calculate_student_balance(student),
+        'points': current_points,
         'status': student.status,
         'blacklist_reason': student.blacklist_reason,
         'group_id': student.group_id,
+        'group_name': student.group.name if student.group else None,
         'tariff_id': student.tariff_id,
         'tariff_name': tariff_name,
         'tariff_price': tariff_price,
@@ -2211,6 +2274,7 @@ def get_student(student_id):
         'telegram_chat_id': student.telegram_chat_id,
         'telegram_notifications_enabled': student.telegram_notifications_enabled,
         'photo_path': student.photo_path,
+        'photo_url': photo_url,
         'height': student.height,
         'weight': student.weight,
         'jersey_size': student.jersey_size,
