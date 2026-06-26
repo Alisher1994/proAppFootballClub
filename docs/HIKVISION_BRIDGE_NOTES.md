@@ -190,19 +190,65 @@ sudo netplan apply
 
 Bridge обновил пользователя, но Hikvision ответил, что фото лица уже есть в терминале. Если доступ разрешен, человек должен проходить.
 
-## Доступ из дома
+## Удаленный доступ из дома через Tailscale
 
-Не рекомендуется открывать SSH mini PC наружу через роутер.
+SSH наружу через роутер не открываем. Для удаленного доступа используется Tailscale.
 
-Лучший вариант:
+Tailscale-устройство:
 
-- поставить Tailscale или ZeroTier на mini PC;
-- поставить тот же VPN на домашний компьютер;
-- заходить по VPN-IP mini PC.
+- Аккаунт: `Alisher1994`
+- Mini PC: `karasu-bridge`
+- Tailscale IP: `100.107.225.34`
 
-Так не важны:
+Подключение из дома или с любого ноутбука:
 
-- внешний IP офиса;
-- NAT провайдера;
-- смена IP после перезагрузки роутера.
+```bash
+ssh admina@100.107.225.34
+```
 
+На компьютере, с которого подключаемся, обязательно должен быть установлен и включен Tailscale, и вход должен быть выполнен в тот же аккаунт `Alisher1994`.
+
+Для Windows:
+
+1. Установить Tailscale: `https://tailscale.com/download/windows`
+2. Войти через тот же GitHub/Tailscale аккаунт.
+3. Проверить в PowerShell:
+
+```powershell
+tailscale status
+ssh admina@100.107.225.34
+```
+
+Проверка на mini PC:
+
+```bash
+tailscale status
+tailscale ip -4
+```
+
+Ожидаемый вывод:
+
+```text
+100.107.225.34  karasu-bridge  Alisher1994@  linux  -
+100.107.225.34
+```
+
+Если Tailscale разлогинился:
+
+```bash
+sudo tailscale up --hostname karasu-bridge
+```
+
+Открыть ссылку `https://login.tailscale.com/a/...`, нажать `Connect`, затем снова проверить:
+
+```bash
+tailscale status
+tailscale ip -4
+```
+
+Почему Tailscale:
+
+- не нужен пароль от роутера;
+- не нужен статический внешний IP;
+- не важна смена внешнего IP офиса;
+- SSH-порт mini PC не открыт в интернет.
