@@ -432,7 +432,13 @@ def ensure_payment_type_column():
 
 def get_club_settings_instance():
     """Получить настройки клуба (теперь без лишних проверок БД)"""
-    settings = ClubSettings.query.first()
+    try:
+        settings = ClubSettings.query.first()
+    except Exception:
+        db.session.rollback()
+        ensure_club_settings_columns()
+        db.session.rollback()
+        settings = ClubSettings.query.first()
     if not settings:
         settings = ClubSettings(system_name='FK QORASUV')
         db.session.add(settings)
@@ -1084,9 +1090,9 @@ def ensure_club_settings_columns():
         if 'hikvision_devices' not in columns:
             conn.execute(db.text("ALTER TABLE club_settings ADD COLUMN hikvision_devices TEXT"))
         if 'hikvision_parallel_devices' not in columns:
-            conn.execute(db.text("ALTER TABLE club_settings ADD COLUMN hikvision_parallel_devices BOOLEAN DEFAULT 0"))
+            conn.execute(db.text("ALTER TABLE club_settings ADD COLUMN hikvision_parallel_devices BOOLEAN DEFAULT false"))
         if 'hikvision_cleanup_stale_users' not in columns:
-            conn.execute(db.text("ALTER TABLE club_settings ADD COLUMN hikvision_cleanup_stale_users BOOLEAN DEFAULT 1"))
+            conn.execute(db.text("ALTER TABLE club_settings ADD COLUMN hikvision_cleanup_stale_users BOOLEAN DEFAULT true"))
 
 
 def ensure_device_commands_table():
@@ -3479,6 +3485,7 @@ def club_settings_page():
     """Страница настроек клуба"""
     if getattr(current_user, 'role', None) not in ['admin', 'financier']:
         return redirect(url_for('dashboard'))
+    ensure_club_settings_columns()
     return render_template('settings.html')
 
 
