@@ -1159,6 +1159,45 @@
             font-weight: 600;
         }
 
+        .turnstile-status-card {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            min-width: 190px;
+            padding: 10px 12px;
+            border-radius: 8px;
+            border: 1px solid var(--theme-border);
+            background: var(--theme-bg-secondary);
+        }
+
+        .turnstile-status-card.pass {
+            border-color: rgba(16, 185, 129, 0.45);
+        }
+
+        .turnstile-status-card.block {
+            border-color: rgba(239, 68, 68, 0.45);
+        }
+
+        .turnstile-status-title {
+            font-size: 11px;
+            color: var(--theme-text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0;
+            font-weight: 700;
+        }
+
+        .turnstile-status-value {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--theme-text-primary);
+        }
+
+        .turnstile-status-reason {
+            font-size: 12px;
+            line-height: 1.35;
+            color: var(--theme-text-secondary);
+        }
+
         .student-item-group {
             color: #64748b;
             font-size: 12px;
@@ -3035,9 +3074,12 @@
                         {% set balance_value = balances.get(student.id) if balances else 0 %}
                         {% set payment = payment_info.get(student.id) if payment_info else None %}
                         {% set points = student_points.get(student.id) if student_points else 0 %}
+                        {% set turnstile = access_info.get(student.id) if access_info else None %}
                         <div class="student-list-item {% if loop.first %}selected{% endif %} {% if balance_value <= 2 %}low-balance{% endif %} {% if student.status == 'blacklist' %}blacklisted{% endif %}"
                             data-student-id="{{ student.id }}" data-group-id="{{ student.group_id or '' }}"
-                            data-status="{{ student.status }}" onclick="selectStudent({{ student.id }})">
+                            data-status="{{ student.status }}"
+                            data-search="{{ (student.full_name ~ ' ' ~ (student.student_number or '') ~ ' ' ~ (student.phone or '') ~ ' ' ~ (student.parent_phone or '') ~ ' ' ~ (student.group.name if student.group else ''))|lower }}"
+                            onclick="selectStudent({{ student.id }})">
                             <div class="student-item-status">
                             </div>
                             <div class="student-item-photo">
@@ -3084,6 +3126,7 @@
             {% set balance_value = balances.get(student.id) if balances else 0 %}
             {% set payment = payment_info.get(student.id) if payment_info else None %}
             {% set points = student_points.get(student.id) if student_points else 0 %}
+            {% set turnstile = access_info.get(student.id) if access_info else None %}
             <div class="student-details-content {% if not loop.first %}hidden{% endif %}"
                 id="studentDetails_{{ student.id }}">
                 <div class="student-details-header">
@@ -3123,6 +3166,18 @@
                                 <div class="info-item-label">Баллы</div>
                                 <div class="info-item-value">
                                     <span class="points-icon">⭐</span>{{ points }}
+                                </div>
+                            </div>
+                            <div class="turnstile-status-card {{ 'pass' if turnstile and turnstile.will_pass else 'block' }}">
+                                <div class="turnstile-status-title">Турникет</div>
+                                <div class="turnstile-status-value">
+                                    {% if turnstile and turnstile.will_pass %}Пройдет{% else %}Не пройдет{% endif %}
+                                </div>
+                                <div class="turnstile-status-reason">
+                                    {{ turnstile.reason_label if turnstile else 'Нет данных' }}
+                                    {% if turnstile and turnstile.debt %}
+                                    · долг {{ "{:,.0f}".format(turnstile.debt).replace(",", " ") }} сум
+                                    {% endif %}
                                 </div>
                             </div>
                             <!-- Telegram код -->

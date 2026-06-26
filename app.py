@@ -572,6 +572,58 @@ def student_access_state(student, settings=None, paid_map=None, payment_date_pai
     return False, 'no_current_month_payment', debt
 
 
+ACCESS_REASON_LABELS = {
+    'allowed': 'Допуск разрешен',
+    'inactive': 'Ученик не активен',
+    'blacklist': 'Ученик в черном списке',
+    'club_funded': 'Клубное финансирование',
+    'no_tariff': 'Тариф не указан, блокировка по оплате не применяется',
+    'grace_period': 'Льготный период до дня блокировки',
+    'current_month_debt': 'Есть долг за текущий месяц',
+    'paid_full_current_month': 'Текущий месяц оплачен полностью',
+    'any_payment_this_month': 'Есть оплата в этом календарном месяце',
+    'no_payment_this_month': 'В этом календарном месяце нет оплаты',
+    'partial_current_month': 'Есть частичная оплата за текущий месяц',
+    'no_current_month_payment': 'Нет оплаты за текущий месяц',
+    'no_photo': 'Нет фото для Face ID',
+}
+
+
+def build_student_access_payload(student, settings=None, paid_map=None, payment_date_paid_map=None, today=None):
+    settings = settings or get_club_settings_instance()
+    today = today or get_local_date()
+    paid_map = paid_map or {}
+    payment_date_paid_map = payment_date_paid_map or {}
+    allowed, reason, debt = student_access_state(student, settings, paid_map, payment_date_paid_map, today)
+    photo_url = build_photo_url(student.photo_path)
+    can_sync_to_turnstile = bool(allowed and photo_url)
+    final_reason = reason if allowed else reason
+    if allowed and not photo_url:
+        final_reason = 'no_photo'
+
+    tariff_price = float(student.tariff.price or 0) if student.tariff else 0
+    current_month_paid = float(paid_map.get(student.id, 0) or 0)
+    paid_this_calendar_month = float(payment_date_paid_map.get(student.id, 0) or 0)
+
+    return {
+        'allowed': bool(allowed),
+        'can_sync_to_turnstile': can_sync_to_turnstile,
+        'will_pass': can_sync_to_turnstile,
+        'reason': final_reason,
+        'reason_label': ACCESS_REASON_LABELS.get(final_reason, final_reason),
+        'policy_reason': reason,
+        'debt': float(debt or 0),
+        'current_month_paid': current_month_paid,
+        'paid_this_calendar_month': paid_this_calendar_month,
+        'tariff_price': tariff_price,
+        'has_photo': bool(photo_url),
+        'block_day': int(getattr(settings, 'access_block_day', 10) or 10),
+        'payment_policy': get_access_payment_policy(settings),
+        'month': today.month,
+        'year': today.year,
+    }
+
+
 def get_default_service_controls():
     return {
         'football_club': {
@@ -1858,7 +1910,10 @@ def dashboard():
 @login_required
 def students():
     from datetime import date
-    all_students = Student.query.outerjoin(Group).order_by(Group.name.asc(), Student.full_name.asc()).all()
+    all_students = Student.query.options(
+        joinedload(Student.group),
+        joinedload(Student.tariff)
+    ).outerjoin(Group).order_by(Group.name.asc(), Student.full_name.asc()).all()
     balances = {s.id: calculate_student_balance(s) for s in all_students}
 
     latest_payment_subquery = db.session.query(
@@ -1890,12 +1945,23 @@ def students():
     # Убедиться, что у всех учеников есть код Telegram
     for student in all_students:
         ensure_student_has_telegram_code(student)
+
+    ensure_club_settings_columns()
+    settings = get_club_settings_instance()
+    today = get_local_date()
+    paid_map = get_month_paid_map(today.year, today.month)
+    payment_date_paid_map = get_payment_date_paid_map(today.year, today.month)
+    access_info = {
+        s.id: build_student_access_payload(s, settings, paid_map, payment_date_paid_map, today)
+        for s in all_students
+    }
     
     return render_template('students.html',
                            students=all_students,
                            payment_info=payment_info,
                            balances=balances,
-                           student_points=student_points)
+                           student_points=student_points,
+                           access_info=access_info)
 
 
 @app.route('/groups')
@@ -1908,9 +1974,18 @@ def groups_page():
 @login_required
 def get_students_list():
     """Возвращает всех учеников для фильтров"""
-    students = Student.query.order_by(Student.full_name.asc()).all()
+    ensure_club_settings_columns()
+    settings = get_club_settings_instance()
+    today = get_local_date()
+    paid_map = get_month_paid_map(today.year, today.month)
+    payment_date_paid_map = get_payment_date_paid_map(today.year, today.month)
+    students = Student.query.options(
+        joinedload(Student.group),
+        joinedload(Student.tariff)
+    ).order_by(Student.full_name.asc()).all()
     result = []
     for student in students:
+        access_payload = build_student_access_payload(student, settings, paid_map, payment_date_paid_map, today)
         result.append({
             'id': student.id,
             'full_name': student.full_name,
@@ -1919,7 +1994,8 @@ def get_students_list():
             'group_name': student.group.name if student.group else None,
             'status': student.status,
             'photo_path': student.photo_path,
-            'admission_date': student.admission_date.isoformat() if student.admission_date else None
+            'admission_date': student.admission_date.isoformat() if student.admission_date else None,
+            'turnstile_access': access_payload
         })
     return jsonify(result)
 
@@ -2068,7 +2144,16 @@ def add_student():
 @app.route('/api/students/<int:student_id>', methods=['GET'])
 @login_required
 def get_student(student_id):
-    student = Student.query.get_or_404(student_id)
+    student = Student.query.options(
+        joinedload(Student.group),
+        joinedload(Student.tariff)
+    ).filter(Student.id == student_id).first_or_404()
+    ensure_club_settings_columns()
+    settings = get_club_settings_instance()
+    today = get_local_date()
+    paid_map = get_month_paid_map(today.year, today.month)
+    payment_date_paid_map = get_payment_date_paid_map(today.year, today.month)
+    access_payload = build_student_access_payload(student, settings, paid_map, payment_date_paid_map, today)
     
     # Явно загружаем тариф, если он есть
     tariff_name = None
@@ -2133,7 +2218,8 @@ def get_student(student_id):
         'boots_size': student.boots_size,
         'equipment_notes': student.equipment_notes,
         'group_schedule_days': group_schedule_days,  # Дни недели занятий (1=Пн, 7=Вс)
-        'group_schedule_time': group_schedule_time  # Время начала занятия (HH:MM)
+        'group_schedule_time': group_schedule_time,  # Время начала занятия (HH:MM)
+        'turnstile_access': access_payload
     })
 
 
@@ -3489,25 +3575,24 @@ def hikvision_students():
     base_url = request.host_url.rstrip('/')
     payload = []
     for student in students:
-        allowed, reason, debt = student_access_state(student, settings, paid_map, payment_date_paid_map, today)
+        access_payload = build_student_access_payload(student, settings, paid_map, payment_date_paid_map, today)
         photo_url = build_photo_url(student.photo_path)
         if photo_url and photo_url.startswith('/'):
             photo_url = f"{base_url}{photo_url}"
-        current_month_paid = float(paid_map.get(student.id, 0) or 0)
-        paid_this_calendar_month = float(payment_date_paid_map.get(student.id, 0) or 0)
         payload.append({
             'student_id': student.id,
             'employeeNo': str(student.id),
             'fullName': student.full_name,
             'group': student.group.name if student.group else None,
             'photoUrl': photo_url,
-            'enabled': bool(allowed and photo_url),
-            'access_allowed': bool(allowed),
-            'access_reason': reason,
-            'current_month_debt': debt,
-            'current_month_paid': current_month_paid,
-            'paid_this_calendar_month': paid_this_calendar_month,
-            'has_photo': bool(photo_url),
+            'enabled': bool(access_payload['can_sync_to_turnstile']),
+            'access_allowed': bool(access_payload['allowed']),
+            'access_reason': access_payload['reason'],
+            'access_reason_label': access_payload['reason_label'],
+            'current_month_debt': access_payload['debt'],
+            'current_month_paid': access_payload['current_month_paid'],
+            'paid_this_calendar_month': access_payload['paid_this_calendar_month'],
+            'has_photo': bool(access_payload['has_photo']),
             'status': student.status,
             'student_number': student.student_number,
         })
@@ -3579,7 +3664,7 @@ def hikvision_command_result(command_id):
         return jsonify({'success': False, 'message': 'Command not found'}), 404
     data = request.get_json(silent=True) or {}
     cmd.status = 'done' if data.get('ok') else 'failed'
-    cmd.result = str(data.get('result') or '')[:10000]
+    cmd.result = str(data.get('result') or '')[:50000]
     cmd.finished_at = get_local_datetime()
     db.session.commit()
     return jsonify({'success': True})
@@ -6630,12 +6715,12 @@ def send_daily_summary():
             # (Здесь упрощенная логика, так как модели Attendance я не видел, но она подразумевается)
             
             # 2. Финансы (Оплаты)
-            payments_today = Payment.query.filter(func.date(Payment.created_at) == today).all()
+            payments_today = Payment.query.filter(func.date(Payment.payment_date) == today).all()
             total_income = sum(p.amount_paid for p in payments_today)
             income_count = len(payments_today)
             
             # 3. Расходы
-            expenses_today = Expense.query.filter(func.date(Expense.created_at) == today).all()
+            expenses_today = Expense.query.filter(func.date(Expense.expense_date) == today).all()
             total_expenses = sum(e.amount for e in expenses_today)
             expense_count = len(expenses_today)
             

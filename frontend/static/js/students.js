@@ -46,6 +46,49 @@ function splitFullName(fullName) {
 
 const DAY_LABELS = { 1: 'Пн', 2: 'Вт', 3: 'Ср', 4: 'Чт', 5: 'Пт', 6: 'Сб', 7: 'Вс' };
 
+function normalizeStudentSearch(value) {
+    return (value || '')
+        .toString()
+        .toLowerCase()
+        .replace(/ё/g, 'е')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+function updateStudentGroupVisibility(searchTerm = '') {
+    document.querySelectorAll('.student-group-section').forEach(section => {
+        const hasVisibleItems = Array.from(section.querySelectorAll('.student-list-item'))
+            .some(item => item.style.display !== 'none');
+        section.style.display = hasVisibleItems ? 'block' : 'none';
+        if (searchTerm && hasVisibleItems) {
+            section.classList.remove('collapsed');
+        }
+    });
+}
+
+function setStudentListEmptyState(visibleCount, emptyText = 'Попробуйте изменить параметры фильтра') {
+    const listContent = document.getElementById('studentListContent');
+    if (!listContent) return;
+
+    let noResultsMsgList = listContent.querySelector('.no-results-message-list');
+    if (visibleCount === 0 && document.querySelectorAll('.student-list-item').length > 0) {
+        if (!noResultsMsgList) {
+            noResultsMsgList = document.createElement('div');
+            noResultsMsgList.className = 'no-results-message-list';
+            noResultsMsgList.style.cssText = 'text-align: center; padding: 40px; color: #94a3b8;';
+            listContent.appendChild(noResultsMsgList);
+        }
+        noResultsMsgList.innerHTML = `
+            <div style="font-size: 48px; margin-bottom: 16px;">🔍</div>
+            <div style="font-size: 18px; font-weight: 600;">Ничего не найдено</div>
+            <div style="font-size: 14px; margin-top: 8px;">${emptyText}</div>
+        `;
+        noResultsMsgList.style.display = 'block';
+    } else if (noResultsMsgList) {
+        noResultsMsgList.style.display = 'none';
+    }
+}
+
 function formatScheduleTimeLabel(scheduleTime) {
     if (!scheduleTime) return '--:--';
 
@@ -1455,13 +1498,14 @@ async function loadFilterGroups() {
 
 // Применить фильтры
 function applyFilters() {
-    const nameFilter = document.getElementById('filterName').value.toLowerCase().trim();
-    const groupFilter = document.getElementById('filterGroup').value;
-    const statusFilter = document.getElementById('filterStatus').value;
-    const balanceFilter = document.getElementById('filterBalance').value;
+    const listSearchValue = document.getElementById('studentListSearch')?.value || document.getElementById('mobileSearchInput')?.value || '';
+    const nameFilter = normalizeStudentSearch(document.getElementById('filterName')?.value || listSearchValue);
+    const groupFilter = document.getElementById('filterGroup')?.value || document.getElementById('groupFilterSelect')?.value || '';
+    const statusFilter = document.getElementById('filterStatus')?.value || '';
+    const balanceFilter = document.getElementById('filterBalance')?.value || '';
 
     const table = document.getElementById('studentsTable');
-    const rows = table.querySelectorAll('tbody tr');
+    const rows = table ? table.querySelectorAll('tbody tr') : [];
 
     // Новый интерфейс: список учеников
     const listItems = document.querySelectorAll('.student-list-item');
@@ -1475,7 +1519,7 @@ function applyFilters() {
         // Фильтр по имени
         if (nameFilter) {
             const nameCell = row.cells[2]; // Колонка "Имя"
-            const nameText = nameCell ? nameCell.textContent.toLowerCase() : '';
+            const nameText = normalizeStudentSearch(nameCell ? nameCell.textContent : '');
             if (!nameText.includes(nameFilter)) {
                 show = false;
             }
@@ -1533,7 +1577,8 @@ function applyFilters() {
         // Фильтр по имени
         if (nameFilter) {
             const nameElement = item.querySelector('.student-item-name');
-            const nameText = nameElement ? nameElement.textContent.toLowerCase() : '';
+            const searchSource = item.dataset.search || item.textContent || (nameElement ? nameElement.textContent : '');
+            const nameText = normalizeStudentSearch(searchSource);
             if (!nameText.includes(nameFilter)) {
                 show = false;
             }
@@ -1584,53 +1629,31 @@ function applyFilters() {
     });
 
     // Показать сообщение, если ничего не найдено (для таблицы)
-    const tbody = table.querySelector('tbody');
-    let noResultsMsg = table.querySelector('.no-results-message');
+    if (table) {
+        const tbody = table.querySelector('tbody');
+        let noResultsMsg = table.querySelector('.no-results-message');
 
-    if (visibleCount === 0 && rows.length > 0) {
-        if (!noResultsMsg) {
-            noResultsMsg = document.createElement('tr');
-            noResultsMsg.className = 'no-results-message';
-            noResultsMsg.innerHTML = `
-                <td colspan="14" style="text-align: center; padding: 40px; color: #94a3b8;">
-                    <div style="font-size: 48px; margin-bottom: 16px;">🔍</div>
-                    <div style="font-size: 18px; font-weight: 600;">Ничего не найдено</div>
-                    <div style="font-size: 14px; margin-top: 8px;">Попробуйте изменить параметры фильтра</div>
-                </td>
-            `;
-            tbody.appendChild(noResultsMsg);
-        }
-        noResultsMsg.style.display = '';
-    } else {
-        if (noResultsMsg) {
+        if (visibleCount === 0 && rows.length > 0) {
+            if (!noResultsMsg) {
+                noResultsMsg = document.createElement('tr');
+                noResultsMsg.className = 'no-results-message';
+                noResultsMsg.innerHTML = `
+                    <td colspan="14" style="text-align: center; padding: 40px; color: #94a3b8;">
+                        <div style="font-size: 48px; margin-bottom: 16px;">🔍</div>
+                        <div style="font-size: 18px; font-weight: 600;">Ничего не найдено</div>
+                        <div style="font-size: 14px; margin-top: 8px;">Попробуйте изменить параметры фильтра</div>
+                    </td>
+                `;
+                tbody.appendChild(noResultsMsg);
+            }
+            noResultsMsg.style.display = '';
+        } else if (noResultsMsg) {
             noResultsMsg.style.display = 'none';
         }
     }
 
-    // Показать сообщение, если ничего не найдено (для нового интерфейса)
-    const listContent = document.getElementById('studentListContent');
-    if (listContent) {
-        let noResultsMsgList = listContent.querySelector('.no-results-message-list');
-
-        if (listVisibleCount === 0 && listItems.length > 0) {
-            if (!noResultsMsgList) {
-                noResultsMsgList = document.createElement('div');
-                noResultsMsgList.className = 'no-results-message-list';
-                noResultsMsgList.style.cssText = 'text-align: center; padding: 40px; color: #94a3b8;';
-                noResultsMsgList.innerHTML = `
-                    <div style="font-size: 48px; margin-bottom: 16px;">🔍</div>
-                    <div style="font-size: 18px; font-weight: 600;">Ничего не найдено</div>
-                    <div style="font-size: 14px; margin-top: 8px;">Попробуйте изменить параметры фильтра</div>
-                `;
-                listContent.appendChild(noResultsMsgList);
-            }
-            noResultsMsgList.style.display = 'block';
-        } else {
-            if (noResultsMsgList) {
-                noResultsMsgList.style.display = 'none';
-            }
-        }
-    }
+    setStudentListEmptyState(listVisibleCount);
+    updateStudentGroupVisibility(nameFilter);
 }
 
 // Сбросить фильтры
@@ -1642,7 +1665,7 @@ function clearFilters() {
 
     // Показать все строки таблицы
     const table = document.getElementById('studentsTable');
-    const rows = table.querySelectorAll('tbody tr');
+    const rows = table ? table.querySelectorAll('tbody tr') : [];
     rows.forEach(row => {
         row.style.display = '';
     });
@@ -1660,9 +1683,11 @@ function clearFilters() {
     }
 
     // Убрать сообщение "Ничего не найдено" из таблицы
-    const noResultsMsg = table.querySelector('.no-results-message');
-    if (noResultsMsg) {
-        noResultsMsg.style.display = 'none';
+    if (table) {
+        const noResultsMsg = table.querySelector('.no-results-message');
+        if (noResultsMsg) {
+            noResultsMsg.style.display = 'none';
+        }
     }
 
     // Убрать сообщение "Ничего не найдено" из списка
@@ -1780,51 +1805,15 @@ document.addEventListener('DOMContentLoaded', () => {
     // 2. Обработчик изменения фильтра
     if (groupFilterSelect) {
         groupFilterSelect.addEventListener('change', () => {
-            const selectedGroupId = groupFilterSelect.value;
-            const items = document.querySelectorAll('.student-list-item');
-            const listContent = document.getElementById('studentListContent');
             const clearBtn = document.getElementById('clearGroupFilter');
 
             // Показать/скрыть кнопку очистки
             if (clearBtn) {
-                clearBtn.style.opacity = selectedGroupId ? '1' : '0';
-                clearBtn.style.pointerEvents = selectedGroupId ? 'auto' : 'none';
+                clearBtn.style.opacity = groupFilterSelect.value ? '1' : '0';
+                clearBtn.style.pointerEvents = groupFilterSelect.value ? 'auto' : 'none';
             }
 
-            let visibleCount = 0;
-
-            items.forEach(item => {
-                const itemGroupId = item.getAttribute('data-group-id');
-                // Используем нестрогое сравнение, так как id могут быть строками или числами
-                if (!selectedGroupId || itemGroupId == selectedGroupId) {
-                    item.style.display = 'flex';
-                    visibleCount++;
-                } else {
-                    item.style.display = 'none';
-                }
-            });
-
-            // Обработка сообщения "Ничего не найдено"
-            let noResultsMsgList = listContent.querySelector('.no-results-message-list');
-
-            if (visibleCount === 0 && items.length > 0) {
-                if (!noResultsMsgList) {
-                    noResultsMsgList = document.createElement('div');
-                    noResultsMsgList.className = 'no-results-message-list';
-                    noResultsMsgList.style.cssText = 'text-align: center; padding: 40px; color: #94a3b8;';
-                    noResultsMsgList.innerHTML = `
-                        <div style="font-size: 48px; margin-bottom: 16px;">🔍</div>
-                        <div style="font-size: 18px; font-weight: 600;">Ничего не найдено</div>
-                        <div style="font-size: 14px; margin-top: 8px;">В этой группе нет учеников</div>
-                    `;
-                    listContent.appendChild(noResultsMsgList);
-                }
-                noResultsMsgList.style.display = 'block';
-            } else {
-                if (noResultsMsgList) {
-                    noResultsMsgList.style.display = 'none';
-                }
-            }
+            applyFilters();
         });
     }
 
@@ -1838,4 +1827,3 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
-

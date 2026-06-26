@@ -250,11 +250,20 @@ async function loadRemoteConfig() {
 
 async function syncDevice(device, students, reports) {
   let changed = 0;
+  const stats = {
+    upserted: 0,
+    deleted: 0,
+    skippedDisabled: 0,
+    errors: 0,
+    errorTypes: {},
+  };
   for (const student of students) {
     try {
       if (!student.enabled) {
+        stats.skippedDisabled += 1;
         await deleteUser(device, student.employeeNo);
         changed += 1;
+        stats.deleted += 1;
         const msg = `[${device.name}] deleted/disabled ${student.employeeNo} ${student.fullName} (${student.access_reason})`;
         console.log(msg);
         reports.push(msg);
@@ -272,13 +281,20 @@ async function syncDevice(device, students, reports) {
       await sleep(500);
       const face = await uploadFace(device, student);
       changed += 1;
+      stats.upserted += 1;
       const msg = `[${device.name}] upserted face=${face} ${student.employeeNo} ${student.fullName}`;
       console.log(msg);
       reports.push(msg);
     } catch (e) {
+      stats.errors += 1;
+      const errKey = e.code || e.cause?.code || e.message.split(':')[0] || 'error';
+      stats.errorTypes[errKey] = (stats.errorTypes[errKey] || 0) + 1;
       const errMsg = `[${device.name}] ${student.employeeNo} ${student.fullName}: ${e.message}`;
       console.error(errMsg);
       reports.push(`ERROR: ${errMsg}`);
+      if (e.message.includes('EHOSTUNREACH') || e.code === 'EHOSTUNREACH') {
+        reports.push(`NETWORK: ${device.name || device.ip} is unreachable from this bridge. Check that bridge runs inside the club LAN/VPN and that ${device.ip}:${device.port || 443} is reachable.`);
+      }
       if (e.code === 'HIKVISION_LOCKED') {
         reports.push(`ABORTED: Device ${device.name} is locked.`);
         break;
@@ -286,6 +302,7 @@ async function syncDevice(device, students, reports) {
     }
     await sleep(300);
   }
+  reports.unshift(`[${device.name || device.ip}] summary ${JSON.stringify(stats)}`);
   return changed;
 }
 
@@ -332,7 +349,7 @@ async function runSync(reason = 'interval', commandId = null) {
     logStudentSummary(students);
 
     for (const device of CONFIG.devices) {
-      logOutput += `Syncing device: ${device.name || device.ip}...\n`;
+      logOutput += `Syncing device: ${device.name || device.ip} (${device.protocol || 'https'}://${device.ip}:${device.port || 443})...\n`;
       const reports = [];
       const changed = await syncDevice(device, students, reports);
       if (reports.length > 0) {
@@ -367,7 +384,7 @@ async function reportCommand(id, ok, result) {
     await fetch(`${CONFIG.serverUrl}/api/hikvision/commands/${encodeURIComponent(id)}/result`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-device-key': CONFIG.deviceKey },
-      body: JSON.stringify({ ok, result: String(result || '').slice(0, 10000) }),
+      body: JSON.stringify({ ok, result: String(result || '').slice(0, 50000) }),
       signal: AbortSignal.timeout(10000)
     });
   } catch (e) {
