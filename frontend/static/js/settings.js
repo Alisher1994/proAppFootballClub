@@ -580,21 +580,23 @@ async function loadBridgeStatus() {
         }
 
         const online = data.online;
-        banner.style.borderColor = online ? '#bbf7d0' : '#fecaca';
-        banner.style.background = online ? '#f0fdf4' : '#fff1f2';
+        const legacy = bridge.version === 'legacy-no-heartbeat' || bridge.reported_status === 'legacy';
+        banner.style.borderColor = online ? (legacy ? '#fde68a' : '#bbf7d0') : '#fecaca';
+        banner.style.background = online ? (legacy ? '#fffbeb' : '#f0fdf4') : '#fff1f2';
         const dot = online ? '●' : '●';
-        const dotColor = online ? '#16a34a' : '#dc2626';
+        const dotColor = online ? (legacy ? '#d97706' : '#16a34a') : '#dc2626';
         const seenText = bridge.seconds_since_seen == null ? 'нет данных' : `${bridge.seconds_since_seen} сек назад`;
         const action = bridge.current_action && bridge.current_action !== 'idle' ? bridge.current_action : 'ожидает задачи';
         banner.innerHTML = `
             <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
                 <span style="color:${dotColor}; font-size:18px;">${dot}</span>
-                <strong>${online ? 'Локальный Bridge online' : 'Локальный Bridge offline'}</strong>
+                <strong>${online ? (legacy ? 'Bridge online, но старая версия' : 'Локальный Bridge online') : 'Локальный Bridge offline'}</strong>
                 <span style="color:var(--theme-text-secondary);">• ${escapeHtml(bridge.host || 'unknown')} • PID ${escapeHtml(bridge.pid || '—')}</span>
             </div>
             <div style="margin-top:6px; font-size:13px; color:var(--theme-text-secondary);">
                 Сейчас: ${escapeHtml(action)} · Последний heartbeat: ${escapeHtml(seenText)}
             </div>
+            ${legacy ? '<div style="margin-top:4px; font-size:13px; color:#92400e;">Обновите и перезапустите локальный bridge, чтобы появились live-логи и метрики.</div>' : ''}
             ${processing ? `<div style="margin-top:4px; font-size:13px;">Выполняется команда #${processing.id}</div>` : ''}
         `;
 

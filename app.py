@@ -991,6 +991,39 @@ def ensure_bridge_status_table():
             print(f"Ошибка при проверке bridge_status: {e}")
 
 
+def upsert_bridge_status(
+    bridge_id='hikvision-school-bridge',
+    status_value='online',
+    host='',
+    pid=None,
+    version='',
+    uptime_seconds=0,
+    current_command_id=None,
+    current_action='',
+    metrics=None,
+    logs=None,
+):
+    ensure_bridge_status_table()
+    now = get_local_datetime()
+    status = BridgeStatus.query.filter_by(bridge_id=bridge_id).first()
+    if not status:
+        status = BridgeStatus(bridge_id=bridge_id)
+        db.session.add(status)
+    status.status = (status_value or 'online')[:30]
+    status.host = (host or '')[:120]
+    status.pid = pid if isinstance(pid, int) else None
+    status.version = (version or '')[:50]
+    status.uptime_seconds = int(uptime_seconds or 0)
+    status.current_command_id = current_command_id if isinstance(current_command_id, int) else None
+    status.current_action = (current_action or '')[:200]
+    status.set_metrics(metrics or {})
+    if logs is not None:
+        status.set_logs(logs or [])
+    status.last_seen_at = now
+    status.updated_at = now
+    return status
+
+
 def ensure_payment_indexes():
     inspector = db.inspect(db.engine)
     if 'payments' not in inspector.get_table_names():
@@ -3770,23 +3803,18 @@ def update_hikvision_bridge_status():
     ensure_bridge_status_table()
     data = request.get_json(silent=True) or {}
     bridge_id = (data.get('bridge_id') or 'hikvision-school-bridge').strip()[:80]
-    now = get_local_datetime()
-    status = BridgeStatus.query.filter_by(bridge_id=bridge_id).first()
-    if not status:
-        status = BridgeStatus(bridge_id=bridge_id)
-        db.session.add(status)
-
-    status.status = (data.get('status') or 'online')[:30]
-    status.host = (data.get('host') or '')[:120]
-    status.pid = data.get('pid') if isinstance(data.get('pid'), int) else None
-    status.version = (data.get('version') or '')[:50]
-    status.uptime_seconds = int(data.get('uptime_seconds') or 0)
-    status.current_command_id = data.get('current_command_id') if isinstance(data.get('current_command_id'), int) else None
-    status.current_action = (data.get('current_action') or '')[:200]
-    status.set_metrics(data.get('metrics') or {})
-    status.set_logs(data.get('logs') or [])
-    status.last_seen_at = now
-    status.updated_at = now
+    upsert_bridge_status(
+        bridge_id=bridge_id,
+        status_value=data.get('status') or 'online',
+        host=data.get('host') or '',
+        pid=data.get('pid'),
+        version=data.get('version') or '',
+        uptime_seconds=data.get('uptime_seconds') or 0,
+        current_command_id=data.get('current_command_id'),
+        current_action=data.get('current_action') or '',
+        metrics=data.get('metrics') or {},
+        logs=data.get('logs') or [],
+    )
     db.session.commit()
     return jsonify({'success': True})
 
@@ -3849,11 +3877,22 @@ def hikvision_next_command():
         return jsonify({'success': False, 'message': 'Unauthorized'}), 401
 
     ensure_device_commands_table()
+    upsert_bridge_status(
+        status_value='legacy',
+        version='legacy-no-heartbeat',
+        current_action='Опрашивает очередь команд',
+        logs=None,
+    )
     cmd = DeviceCommand.query.filter_by(status='pending').order_by(DeviceCommand.created_at.asc()).first()
     if not cmd:
+        db.session.commit()
         return jsonify({'command': None})
     cmd.status = 'processing'
     cmd.picked_at = get_local_datetime()
+    status = BridgeStatus.query.filter_by(bridge_id='hikvision-school-bridge').first()
+    if status:
+        status.current_command_id = cmd.id
+        status.current_action = f"Взял команду #{cmd.id}"
     db.session.commit()
     return jsonify({
         'command': {
