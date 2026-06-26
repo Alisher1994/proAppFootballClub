@@ -1647,6 +1647,17 @@
                                 <div id="bridgeStatusBanner" style="margin-bottom: 14px; padding: 12px 14px; border-radius: 8px; border: 1px solid var(--theme-border); background: var(--theme-bg-secondary); color: var(--theme-text-primary);">
                                     Загрузка состояния bridge...
                                 </div>
+                                <div id="bridgeProgressPanel" style="display:none; margin-bottom:14px; padding:12px; border:1px solid var(--theme-border); border-radius:8px; background:var(--theme-bg-secondary);">
+                                    <div style="display:flex; justify-content:space-between; gap:12px; align-items:center; flex-wrap:wrap; margin-bottom:8px;">
+                                        <strong id="bridgeProgressTitle">Синхронизация</strong>
+                                        <span id="bridgeProgressPercent" style="font-weight:700;">0%</span>
+                                    </div>
+                                    <div style="height:10px; background:#e5e7eb; border-radius:999px; overflow:hidden; margin-bottom:8px;">
+                                        <div id="bridgeProgressBar" style="height:100%; width:0%; background:#16a34a; border-radius:999px; transition:width .2s ease;"></div>
+                                    </div>
+                                    <div id="bridgeProgressText" style="font-size:13px; color:var(--theme-text-secondary);">Ожидание задачи</div>
+                                    <div id="bridgeProgressStats" style="margin-top:6px; font-size:12px; color:var(--theme-text-secondary);"></div>
+                                </div>
                                 <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap:12px; margin-bottom:14px;">
                                     <div style="padding:12px; border:1px solid var(--theme-border); border-radius:8px; background:var(--theme-bg-secondary);">
                                         <div style="font-size:11px; color:var(--theme-text-secondary); text-transform:uppercase;">Очередь</div>

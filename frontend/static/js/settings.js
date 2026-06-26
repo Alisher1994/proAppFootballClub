@@ -575,6 +575,7 @@ async function loadBridgeStatus() {
             banner.innerHTML = '<strong>Bridge не найден</strong><br><span style="font-size:13px;">Локальный bridge еще не отправлял heartbeat.</span>';
             setBridgeText('bridgeRamMetric', '—');
             setBridgeText('bridgeUptimeMetric', '—');
+            updateBridgeProgress(null);
             setBridgeLogs([]);
             return;
         }
@@ -603,17 +604,53 @@ async function loadBridgeStatus() {
         const metrics = bridge.metrics || {};
         setBridgeText('bridgeRamMetric', metrics.memory_used_percent != null ? `${metrics.memory_used_percent}%` : '—');
         setBridgeText('bridgeUptimeMetric', formatUptime(bridge.uptime_seconds || 0));
+        updateBridgeProgress(metrics.progress || null);
         setBridgeLogs(bridge.logs || []);
     } catch (error) {
         banner.style.borderColor = '#fecaca';
         banner.style.background = '#fff1f2';
         banner.innerHTML = `<strong>Ошибка загрузки bridge</strong><br><span style="font-size:13px;">${escapeHtml(error.message)}</span>`;
+        updateBridgeProgress(null);
     }
 }
 
 function setBridgeText(id, value) {
     const el = document.getElementById(id);
     if (el) el.textContent = value;
+}
+
+function updateBridgeProgress(progress) {
+    const panel = document.getElementById('bridgeProgressPanel');
+    if (!panel) return;
+
+    if (!progress) {
+        panel.style.display = 'none';
+        return;
+    }
+
+    const percent = Math.max(0, Math.min(100, Number(progress.percent || 0)));
+    const processed = Number(progress.processed || 0);
+    const total = Number(progress.total || 0);
+    const stage = progress.stage || '';
+
+    panel.style.display = 'block';
+    setBridgeText('bridgeProgressTitle', stage === 'done' ? 'Синхронизация завершена' : 'Синхронизация Bridge');
+    setBridgeText('bridgeProgressPercent', `${percent}%`);
+    const bar = document.getElementById('bridgeProgressBar');
+    if (bar) {
+        bar.style.width = `${percent}%`;
+        bar.style.background = stage === 'error' ? '#dc2626' : (stage === 'done' ? '#16a34a' : '#2563eb');
+    }
+
+    const status = progress.status_text || progress.current || 'Выполняется задача';
+    const countText = total > 0 ? ` · ${processed} из ${total}` : '';
+    setBridgeText('bridgeProgressText', `${status}${countText}`);
+
+    const stats = [];
+    if (progress.success != null) stats.push(`успешно: ${progress.success}`);
+    if (progress.errors != null) stats.push(`ошибок: ${progress.errors}`);
+    if (progress.skipped != null) stats.push(`заблокировано/пропущено: ${progress.skipped}`);
+    setBridgeText('bridgeProgressStats', stats.join(' · '));
 }
 
 function escapeHtml(value) {
@@ -632,9 +669,36 @@ function setBridgeLogs(logs) {
     }
     el.textContent = logs.map(line => {
         const time = line.ts ? new Date(line.ts).toLocaleTimeString('ru-RU') : '';
-        return `${time} ${line.level || 'LOG'} ${line.message || ''}`;
+        return `${time} ${bridgeLogLevelLabel(line.level)} ${formatBridgeLogMessage(line.message || '')}`;
     }).join('\n');
     if (nearBottom) el.scrollTop = el.scrollHeight;
+}
+
+function bridgeLogLevelLabel(level) {
+    if (level === 'ERROR') return 'ОШИБКА';
+    if (level === 'WARN') return 'ВНИМАНИЕ';
+    return 'ИНФО';
+}
+
+function formatBridgeLogMessage(message) {
+    let text = String(message || '');
+    text = text.replace(/\[bridge\] command polling (\d+)ms, daily full sync ([^ ]+) Asia\/Tashkent/i,
+        'Bridge запущен. Проверка очереди каждые $1 мс, полная синхронизация в $2');
+    text = text.replace(/\[bridge\] (\d+) Hikvision terminal\(s\) -> (.+)/i,
+        'Bridge подключен к серверу $2. Терминалов: $1');
+    text = text.replace(/\[sync\] (\d+) student\(s\), reason=(.+)/i,
+        'Получено записей с сервера: $1. Причина: $2');
+    text = text.replace(/\[([^\]]+)\] upserted face=already-exists (.+)/i,
+        '[$1] Записан в терминал: $2 (фото уже было в терминале)');
+    text = text.replace(/\[([^\]]+)\] upserted face=uploaded (.+)/i,
+        '[$1] Записан в терминал: $2 (фото записано)');
+    text = text.replace(/\[([^\]]+)\] (.+): fetch failed/i,
+        '[$1] Ошибка записи: $2. Причина: соединение с терминалом оборвалось');
+    text = text.replace(/EHOSTUNREACH/g, 'терминал недоступен по сети');
+    text = text.replace(/ECONNREFUSED/g, 'терминал отклонил подключение');
+    text = text.replace(/ETIMEDOUT/g, 'терминал не ответил вовремя');
+    text = text.replace(/fetch failed/g, 'соединение с терминалом оборвалось');
+    return text;
 }
 
 function formatUptime(seconds) {

@@ -34,6 +34,7 @@ const liveLogs = [];
 let currentCommandId = null;
 let currentAction = 'idle';
 let lastHeartbeatAt = 0;
+let currentProgress = null;
 
 function rememberLog(level, args) {
   const line = {
@@ -81,6 +82,7 @@ function getMetrics() {
     memory_used_mb: Math.round((totalMem - freeMem) / 1024 / 1024),
     memory_total_mb: Math.round(totalMem / 1024 / 1024),
     node_memory_mb: Math.round(process.memoryUsage().rss / 1024 / 1024),
+    progress: currentProgress,
   };
 }
 
@@ -114,6 +116,71 @@ async function sendHeartbeat(force = false) {
 function setAction(action) {
   currentAction = action || 'idle';
   sendHeartbeat(true);
+}
+
+function setProgress(patch = null) {
+  if (!patch) {
+    currentProgress = null;
+  } else {
+    const next = { ...(currentProgress || {}), ...patch };
+    const total = Number(next.total || 0);
+    const processed = Number(next.processed || 0);
+    next.percent = total > 0 ? Math.min(100, Math.max(0, Math.round((processed / total) * 100))) : 0;
+    currentProgress = next;
+  }
+  sendHeartbeat(true);
+}
+
+function reasonLabel(reason) {
+  const labels = {
+    startup: 'Запуск bridge',
+    manual: 'Ручная синхронизация',
+    staff_created: 'Добавлен сотрудник',
+    staff_updated: 'Сотрудник обновлен',
+    staff_deleted: 'Сотрудник удален',
+    student_created: 'Новый ученик',
+    student_updated: 'Ученик обновлен',
+    student_deleted: 'Ученик удален',
+    payment_added: 'Добавлена оплата',
+    payment_updated: 'Оплата обновлена',
+    payment_deleted: 'Оплата удалена',
+    payment_refunded: 'Возврат оплаты',
+    monthly_payment_added: 'Месячная оплата',
+    settings_updated: 'Обновлены настройки',
+    command: 'Команда из очереди',
+    interval: 'Плановая проверка',
+  };
+  return labels[reason] || reason;
+}
+
+function deviceLabel(device) {
+  const name = device.name === 'entry' ? 'Вход' : device.name === 'exit' ? 'Выход' : (device.name || 'Терминал');
+  return `${name} (${device.ip}:${device.port || 443})`;
+}
+
+function accessReasonLabel(reason) {
+  const labels = {
+    no_photo: 'нет фото',
+    disabled: 'доступ закрыт',
+    inactive: 'ученик неактивен',
+    unpaid: 'нет оплаты',
+    blocked: 'заблокирован',
+  };
+  return labels[reason] || reason || 'доступ закрыт';
+}
+
+function humanError(error) {
+  const message = String(error?.message || error || '');
+  const code = error?.code || error?.cause?.code || '';
+  if (code === 'EHOSTUNREACH' || message.includes('EHOSTUNREACH')) return 'терминал недоступен по сети';
+  if (code === 'ECONNREFUSED' || message.includes('ECONNREFUSED')) return 'терминал отклонил подключение';
+  if (code === 'ETIMEDOUT' || message.includes('ETIMEDOUT') || message.includes('Connection timeout')) return 'терминал не ответил вовремя';
+  if (code === 'ECONNRESET' || message.includes('ECONNRESET') || message.includes('fetch failed')) return 'соединение с терминалом оборвалось';
+  if (code === 'HIKVISION_LOCKED') return `терминал временно заблокирован${error.unlockTime ? `, ждать ${error.unlockTime} сек` : ''}`;
+  if (message.includes('401')) return 'неверный логин или пароль Hikvision';
+  if (message.includes('403')) return 'терминал запретил операцию';
+  if (message.includes('404')) return 'терминал не нашел нужный ISAPI метод';
+  return message;
 }
 
 async function md5(s) {
@@ -376,6 +443,8 @@ async function loadRemoteConfig() {
 
 async function syncDevice(device, students, reports) {
   let changed = 0;
+  let processed = 0;
+  const deviceName = deviceLabel(device);
   const stats = {
     upserted: 0,
     deleted: 0,
@@ -384,28 +453,43 @@ async function syncDevice(device, students, reports) {
     errorTypes: {},
   };
 
-  setAction(`Проверка терминала ${device.name || device.ip}`);
+  setAction(`Проверка терминала ${deviceName}`);
+  setProgress({ stage: 'probe', device: deviceName, status_text: `Проверяем связь с терминалом ${deviceName}` });
   const probe = await probeDevice(device);
   if (!probe.ok) {
     stats.errors += 1;
     stats.errorTypes[probe.code || 'DEVICE_OFFLINE'] = 1;
-    const msg = `[${device.name || device.ip}] DEVICE-OFFLINE: terminal is not reachable, sync skipped before writing users (${probe.message})`;
+    const msg = `[${device.name || device.ip}] Терминал недоступен: запись пропущена. Причина: ${humanError(probe.message)}`;
     console.warn(msg);
     reports.push(msg);
-    reports.push(`NETWORK: Check power/network for ${device.ip}:${device.port || 443}. Bridge will retry after ${Math.round(CONFIG.offlineBackoffMs / 1000)}s.`);
+    reports.push(`Проверьте питание и сеть терминала ${device.ip}:${device.port || 443}. Bridge повторит попытку через ${Math.round(CONFIG.offlineBackoffMs / 1000)} сек.`);
     reports.unshift(`[${device.name || device.ip}] summary ${JSON.stringify(stats)}`);
     return changed;
   }
+  console.log(`[${device.name || device.ip}] Связь с терминалом есть. Начинаем запись ${students.length} записей.`);
 
   for (const student of students) {
+    processed += 1;
+    const studentTitle = `${student.employeeNo} ${student.fullName}`;
+    setProgress({
+      stage: 'sync',
+      device: deviceName,
+      total: students.length,
+      processed,
+      success: stats.upserted + stats.deleted,
+      errors: stats.errors,
+      skipped: stats.skippedDisabled,
+      current: studentTitle,
+      status_text: `${deviceName}: ${processed} из ${students.length} - ${studentTitle}`,
+    });
     try {
-      setAction(`${device.name || device.ip}: ${student.enabled ? 'запись' : 'блокировка'} ${student.employeeNo} ${student.fullName}`);
+      setAction(`${deviceName}: ${student.enabled ? 'записываем' : 'блокируем'} ${studentTitle}`);
       if (!student.enabled) {
         stats.skippedDisabled += 1;
         await deleteUser(device, student.employeeNo);
         changed += 1;
         stats.deleted += 1;
-        const msg = `[${device.name}] deleted/disabled ${student.employeeNo} ${student.fullName} (${student.access_reason})`;
+        const msg = `[${device.name}] Доступ закрыт: ${studentTitle}. Причина: ${accessReasonLabel(student.access_reason)}`;
         console.log(msg);
         reports.push(msg);
         continue;
@@ -414,7 +498,7 @@ async function syncDevice(device, students, reports) {
         try {
           await deleteUser(device, student.employeeNo);
         } catch (e) {
-          console.warn(`[${device.name}] delete-before-upsert ${student.employeeNo}: ${e.message}`);
+          console.warn(`[${device.name}] Не удалось удалить старую запись перед обновлением ${studentTitle}: ${humanError(e)}`);
         }
         await sleep(500);
       }
@@ -423,27 +507,38 @@ async function syncDevice(device, students, reports) {
       const face = await uploadFace(device, student);
       changed += 1;
       stats.upserted += 1;
-      const msg = `[${device.name}] upserted face=${face} ${student.employeeNo} ${student.fullName}`;
+      const faceText = face === 'already-exists' ? 'фото уже было в терминале' : 'фото записано';
+      const msg = `[${device.name}] Записан в терминал: ${studentTitle} (${faceText})`;
       console.log(msg);
       reports.push(msg);
     } catch (e) {
       stats.errors += 1;
       const errKey = e.code || e.cause?.code || e.message.split(':')[0] || 'error';
       stats.errorTypes[errKey] = (stats.errorTypes[errKey] || 0) + 1;
-      const errMsg = `[${device.name}] ${student.employeeNo} ${student.fullName}: ${e.message}`;
+      const errMsg = `[${device.name}] Ошибка записи: ${studentTitle}. Причина: ${humanError(e)}`;
       console.error(errMsg);
-      reports.push(`ERROR: ${errMsg}`);
+      reports.push(`ОШИБКА: ${errMsg}`);
       if (e.message.includes('EHOSTUNREACH') || e.code === 'EHOSTUNREACH') {
-        reports.push(`NETWORK: ${device.name || device.ip} is unreachable from this bridge. Check that bridge runs inside the club LAN/VPN and that ${device.ip}:${device.port || 443} is reachable.`);
+        reports.push(`СЕТЬ: ${deviceName} недоступен с mini PC. Проверьте питание, кабель и IP ${device.ip}:${device.port || 443}.`);
       }
       if (e.code === 'HIKVISION_LOCKED') {
-        reports.push(`ABORTED: Device ${device.name} is locked.`);
+        reports.push(`ОСТАНОВЛЕНО: терминал ${deviceName} временно заблокирован.`);
         break;
       }
     }
     await sleep(300);
   }
-  setAction(`Терминал ${device.name || device.ip}: готово`);
+  setProgress({
+    stage: 'device_done',
+    device: deviceName,
+    total: students.length,
+    processed: students.length,
+    success: stats.upserted + stats.deleted,
+    errors: stats.errors,
+    skipped: stats.skippedDisabled,
+    status_text: `${deviceName}: готово. Успешно ${stats.upserted + stats.deleted}, ошибок ${stats.errors}.`,
+  });
+  setAction(`Терминал ${deviceName}: готово`);
   reports.unshift(`[${device.name || device.ip}] summary ${JSON.stringify(stats)}`);
   return changed;
 }
@@ -455,8 +550,9 @@ async function runSync(reason = 'interval', commandId = null) {
   }
   syncInProgress = true;
   currentCommandId = commandId;
-  setAction(`Запуск синхронизации: ${reason}`);
-  let logOutput = `[${new Date().toISOString()}] Sync started, reason=${reason}\n`;
+  setProgress({ stage: 'start', reason: reasonLabel(reason), total: 0, processed: 0, status_text: `Начинаем синхронизацию: ${reasonLabel(reason)}` });
+  setAction(`Запуск синхронизации: ${reasonLabel(reason)}`);
+  let logOutput = `[${new Date().toISOString()}] Синхронизация начата. Причина: ${reasonLabel(reason)}\n`;
 
   let localCommandId = commandId;
   if (!localCommandId) {
@@ -482,9 +578,10 @@ async function runSync(reason = 'interval', commandId = null) {
 
   try {
     setAction('Загрузка списка учеников и сотрудников с сервера');
+    setProgress({ stage: 'loading', status_text: 'Загружаем список учеников и сотрудников с сервера' });
     const students = await fetchStudents();
-    logOutput += `Loaded ${students.length} student(s) from server.\n`;
-    console.log(`[sync] ${students.length} student(s), reason=${reason}`);
+    logOutput += `Получено записей с сервера: ${students.length}.\n`;
+    console.log(`[sync] Получено записей с сервера: ${students.length}. Причина: ${reasonLabel(reason)}.`);
 
     const summary = students.reduce((acc, student) => {
       const key = student.enabled ? 'enabled' : (student.access_reason || 'disabled');
@@ -496,25 +593,34 @@ async function runSync(reason = 'interval', commandId = null) {
     logStudentSummary(students);
 
     for (const device of CONFIG.devices) {
-      setAction(`Синхронизация терминала ${device.name || device.ip}`);
-      logOutput += `Syncing device: ${device.name || device.ip} (${device.protocol || 'https'}://${device.ip}:${device.port || 443})...\n`;
+      setAction(`Синхронизация терминала ${deviceLabel(device)}`);
+      setProgress({
+        stage: 'device_start',
+        device: deviceLabel(device),
+        total: students.length,
+        processed: 0,
+        status_text: `Начинаем запись в терминал ${deviceLabel(device)}`,
+      });
+      logOutput += `Терминал: ${deviceLabel(device)} (${device.protocol || 'https'}://${device.ip}:${device.port || 443}).\n`;
       const reports = [];
       const changed = await syncDevice(device, students, reports);
       if (reports.length > 0) {
         logOutput += reports.map(line => `  ${line}`).join('\n') + '\n';
       }
-      const finishedMsg = `Device ${device.name || device.ip}: applied ${changed} changes.\n`;
+      const finishedMsg = `Терминал ${deviceLabel(device)}: применено изменений ${changed}.\n`;
       console.log(`[sync] ` + finishedMsg.trim());
       logOutput += finishedMsg;
     }
-    logOutput += `[${new Date().toISOString()}] Sync finished successfully.\n`;
+    setProgress({ stage: 'done', total: students.length, processed: students.length, percent: 100, status_text: 'Синхронизация завершена успешно' });
+    logOutput += `[${new Date().toISOString()}] Синхронизация завершена успешно.\n`;
 
     if (localCommandId) {
       await reportCommand(localCommandId, true, logOutput);
     }
     return logOutput;
   } catch (e) {
-    const errorMsg = `[sync] failed: ${e.message}\n`;
+    setProgress({ stage: 'error', status_text: `Синхронизация завершилась с ошибкой: ${humanError(e)}` });
+    const errorMsg = `[sync] Ошибка синхронизации: ${humanError(e)}\n`;
     console.error(errorMsg.trim());
     logOutput += errorMsg;
 
