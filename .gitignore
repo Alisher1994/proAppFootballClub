@@ -5,6 +5,7 @@ env/
 venv_win/
 
 # База данных
+database/
 database/*.db
 *.db
 
