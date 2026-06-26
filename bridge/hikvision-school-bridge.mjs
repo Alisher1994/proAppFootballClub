@@ -274,6 +274,7 @@ function logStudentSummary(students) {
         `paid=${student.current_month_paid || 0}, ` +
         `paidThisMonth=${student.paid_this_calendar_month || 0}, ` +
         `debt=${student.current_month_debt || 0}, ` +
+        `paymentExempt=${student.access_exempt_from_payment ? 'yes' : 'no'}, ` +
         `photo=${student.has_photo || student.photoUrl ? 'yes' : 'no'}`
       );
     });
