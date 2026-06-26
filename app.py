@@ -4156,7 +4156,7 @@ def hikvision_next_command():
     urgent_only = request.args.get('urgent') in {'1', 'true', 'yes'}
     query = DeviceCommand.query.filter_by(status='pending')
     if urgent_only:
-        query = query.filter(DeviceCommand.command.in_(['HIKVISION_DOOR_OPEN', 'HIKVISION_CONTROL']))
+        query = query.filter(DeviceCommand.command.in_(['HIKVISION_DOOR_OPEN', 'HIKVISION_CONTROL', 'HIKVISION_CLEAR_DEVICE']))
     cmd = query.order_by(DeviceCommand.created_at.asc()).first()
     if not cmd:
         db.session.commit()

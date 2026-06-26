@@ -40,6 +40,16 @@ let currentProgress = null;
 let syncPaused = false;
 let stopRequested = false;
 
+async function waitForSyncIdle(timeoutMs = 60000) {
+  const startedAt = Date.now();
+  while (syncInProgress) {
+    if (Date.now() - startedAt > timeoutMs) {
+      throw new Error('текущая запись не остановилась за отведенное время');
+    }
+    await sleep(250);
+  }
+}
+
 function rememberLog(level, args) {
   const line = {
     ts: new Date().toISOString(),
@@ -1056,7 +1066,13 @@ async function runDoorOpenCommand(payload = {}, commandId = null) {
 
 async function runClearDeviceCommand(payload = {}, commandId = null) {
   if (syncInProgress) {
-    throw new Error('Сначала остановите текущую запись, затем повторите очистку терминала');
+    stopRequested = true;
+    syncPaused = false;
+    const waitMsg = 'Перед очисткой останавливаем текущую запись.';
+    console.warn(`[clear] ${waitMsg}`);
+    setAction(waitMsg);
+    setProgress({ status_text: waitMsg });
+    await waitForSyncIdle();
   }
 
   currentCommandId = commandId;
@@ -1225,9 +1241,18 @@ async function runSync(reason = 'interval', commandId = null) {
       return { device, reports, changed };
     };
 
-    const deviceResults = CONFIG.parallelDevices && CONFIG.devices.length > 1
-      ? await Promise.all(CONFIG.devices.map(runDevice))
-      : [];
+    const deviceResults = [];
+    if (CONFIG.parallelDevices && CONFIG.devices.length > 1) {
+      logOutput += `Параллельная запись включена: терминалы работают одновременно.\n`;
+      const settledResults = await Promise.allSettled(CONFIG.devices.map(runDevice));
+      const failedResults = settledResults.filter((item) => item.status === 'rejected');
+      settledResults.forEach((item) => {
+        if (item.status === 'fulfilled') deviceResults.push(item.value);
+      });
+      if (failedResults.length > 0) {
+        throw failedResults[0].reason;
+      }
+    }
     if (!CONFIG.parallelDevices || CONFIG.devices.length <= 1) {
       for (const device of CONFIG.devices) {
         setProgress({
@@ -1239,8 +1264,6 @@ async function runSync(reason = 'interval', commandId = null) {
         });
         deviceResults.push(await runDevice(device));
       }
-    } else {
-      logOutput += `Параллельная запись включена: терминалы работают одновременно.\n`;
     }
 
     for (const { device, reports, changed } of deviceResults) {
