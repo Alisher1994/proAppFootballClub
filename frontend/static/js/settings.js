@@ -768,7 +768,9 @@ async function loadBridgeStatus() {
         }
 
         const online = data.online;
-        const legacy = bridge.version === 'legacy-no-heartbeat' || bridge.reported_status === 'legacy';
+        const metrics = bridge.metrics || {};
+        const hasLiveHeartbeat = !!(bridge.pid || metrics.cpu_used_percent != null || metrics.memory_used_percent != null || (Array.isArray(bridge.logs) && bridge.logs.length));
+        const legacy = online && !hasLiveHeartbeat && (bridge.version === 'legacy-no-heartbeat' || bridge.reported_status === 'legacy');
         banner.style.borderColor = online ? (legacy ? '#fde68a' : '#bbf7d0') : '#fecaca';
         banner.style.background = online ? (legacy ? '#fffbeb' : '#f0fdf4') : '#fff1f2';
         const dot = online ? '●' : '●';
@@ -788,7 +790,6 @@ async function loadBridgeStatus() {
             ${processing ? `<div style="margin-top:4px; font-size:13px;">Выполняется команда #${processing.id}</div>` : ''}
         `;
 
-        const metrics = bridge.metrics || {};
         setBridgeText('bridgeCpuMetric', metrics.cpu_used_percent != null ? `${metrics.cpu_used_percent}%` : '—');
         setBridgeText('bridgeRamMetric', metrics.memory_used_percent != null ? `${metrics.memory_used_percent}%` : '—');
         setBridgeText('bridgeUptimeMetric', formatUptime(bridge.uptime_seconds || 0));

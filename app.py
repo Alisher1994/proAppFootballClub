@@ -4147,12 +4147,6 @@ def hikvision_next_command():
         return jsonify({'success': False, 'message': 'Unauthorized'}), 401
 
     ensure_device_commands_table()
-    upsert_bridge_status(
-        status_value='legacy',
-        version='legacy-no-heartbeat',
-        current_action='Опрашивает очередь команд',
-        logs=None,
-    )
     urgent_only = request.args.get('urgent') in {'1', 'true', 'yes'}
     query = DeviceCommand.query.filter_by(status='pending')
     if urgent_only:
