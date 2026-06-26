@@ -468,16 +468,29 @@ def queue_hikvision_sync(reason='change'):
     """Попросить локальный bridge выполнить синхронизацию без ожидания интервала."""
     try:
         ensure_device_commands_table()
-        
-        # Отменяем все предыдущие незавершенные команды, чтобы избежать зависаний и накопления очереди
-        stuck_commands = DeviceCommand.query.filter(
+
+        now = get_local_datetime()
+        stale_before = now - timedelta(minutes=30)
+
+        stale_processing = DeviceCommand.query.filter(
             DeviceCommand.command == 'HIKVISION_SYNC',
-            DeviceCommand.status.in_(['pending', 'processing'])
+            DeviceCommand.status == 'processing',
+            DeviceCommand.picked_at < stale_before
         ).all()
-        for old_cmd in stuck_commands:
+        for old_cmd in stale_processing:
             old_cmd.status = 'failed'
-            old_cmd.result = 'Отменено, так как запущена более новая синхронизация.'
-            old_cmd.finished_at = get_local_datetime()
+            old_cmd.result = 'Команда зависла и была закрыта перед постановкой новой синхронизации.'
+            old_cmd.finished_at = now
+
+        pending_cmd = DeviceCommand.query.filter(
+            DeviceCommand.command == 'HIKVISION_SYNC',
+            DeviceCommand.status == 'pending'
+        ).order_by(DeviceCommand.created_at.desc()).first()
+        if pending_cmd:
+            pending_cmd.set_payload({'reason': reason, 'merged': True})
+            pending_cmd.result = f'Объединено с более новой причиной: {reason}'
+            pending_cmd.created_at = now
+            return
 
         cmd = DeviceCommand(command='HIKVISION_SYNC')
         cmd.set_payload({'reason': reason})
@@ -3815,20 +3828,26 @@ def hikvision_create_local_command():
     data = request.get_json(silent=True) or {}
     reason = data.get('reason', 'local')
 
-    # Отменяем все предыдущие незавершенные команды, чтобы не засорять очередь
+    now = get_local_datetime()
+    stale_before = now - timedelta(minutes=30)
+
+    # Отменяем старые зависшие команды, чтобы не засорять историю
     stuck_commands = DeviceCommand.query.filter(
         DeviceCommand.command == 'HIKVISION_SYNC',
-        DeviceCommand.status.in_(['pending', 'processing'])
+        or_(
+            DeviceCommand.status == 'pending',
+            (DeviceCommand.status == 'processing') & (DeviceCommand.picked_at < stale_before)
+        )
     ).all()
     for old_cmd in stuck_commands:
         old_cmd.status = 'failed'
-        old_cmd.result = 'Отменено, так как запущена более новая синхронизация.'
-        old_cmd.finished_at = get_local_datetime()
+        old_cmd.result = 'Отменено, так как локальный bridge запустил новую синхронизацию.'
+        old_cmd.finished_at = now
 
     # Создаем команду сразу в статусе 'processing'
     cmd = DeviceCommand(command='HIKVISION_SYNC', status='processing')
     cmd.set_payload({'reason': reason})
-    cmd.picked_at = get_local_datetime()
+    cmd.picked_at = now
     db.session.add(cmd)
     db.session.commit()
 

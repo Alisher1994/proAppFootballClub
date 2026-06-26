@@ -16,11 +16,16 @@ const CONFIG = {
   dailySyncTime: process.env.HIK_DAILY_SYNC_TIME || '03:00',
   scheduleCheckIntervalMs: Number(process.env.HIK_SCHEDULE_CHECK_INTERVAL_MS || 30000),
   commandPollIntervalMs: Number(process.env.COMMAND_POLL_INTERVAL_MS || 2000),
+  deviceRequestTimeoutMs: Number(process.env.HIK_REQUEST_TIMEOUT_MS || 10000),
+  deviceProbeTimeoutMs: Number(process.env.HIK_PROBE_TIMEOUT_MS || 2500),
+  offlineBackoffMs: Number(process.env.HIK_OFFLINE_BACKOFF_MS || 60000),
   defaultDoorRight: process.env.HIK_DOOR_RIGHT || '1',
   defaultPlanTemplateNo: process.env.HIK_PLAN_TEMPLATE_NO || '1',
   recreateUsersOnSync: (process.env.HIK_SYNC_RECREATE_USERS || 'false') === 'true',
   devices: JSON.parse(process.env.HIK_DEVICES_JSON || '[]'),
 };
+
+const deviceOfflineUntil = new Map();
 
 if (!CONFIG.devices.length && process.env.HIK_IP) {
   CONFIG.devices.push({
@@ -73,7 +78,11 @@ function collectResponse(res) {
   });
 }
 
-function requestDigest(device, method, uri, body = null, headers = {}) {
+function getDeviceKey(device) {
+  return `${device.name || 'terminal'}@${device.ip}:${device.port || ((device.protocol || 'https') === 'https' ? 443 : 80)}`;
+}
+
+function requestDigest(device, method, uri, body = null, headers = {}, timeoutMs = CONFIG.deviceRequestTimeoutMs) {
   return new Promise((resolve, reject) => {
     const protocol = (device.protocol || 'https').toLowerCase();
     const client = protocol === 'https' ? https : http;
@@ -99,19 +108,60 @@ function requestDigest(device, method, uri, body = null, headers = {}) {
           const second = client.request({ ...options, headers: { ...options.headers, Authorization: auth } }, (res2) => {
             collectResponse(res2).then(resolve, reject);
           });
-          second.setTimeout(10000);
-          second.on('timeout', () => { second.destroy(); reject(new Error('Connection timeout (10s)')); });
+          second.setTimeout(timeoutMs);
+          second.on('timeout', () => { second.destroy(); reject(new Error(`Connection timeout (${Math.round(timeoutMs / 1000)}s)`)); });
           second.on('error', reject);
           if (body) second.write(body);
           second.end();
         }).catch(reject);
     });
-    first.setTimeout(10000);
-    first.on('timeout', () => { first.destroy(); reject(new Error('Connection timeout (10s)')); });
+    first.setTimeout(timeoutMs);
+    first.on('timeout', () => { first.destroy(); reject(new Error(`Connection timeout (${Math.round(timeoutMs / 1000)}s)`)); });
     first.on('error', reject);
     if (body) first.write(body);
     first.end();
   });
+}
+
+function isNetworkError(error) {
+  const message = String(error?.message || '');
+  return (
+    error?.code === 'EHOSTUNREACH' ||
+    error?.code === 'ECONNREFUSED' ||
+    error?.code === 'ETIMEDOUT' ||
+    error?.code === 'ENETUNREACH' ||
+    error?.code === 'ECONNRESET' ||
+    message.includes('EHOSTUNREACH') ||
+    message.includes('ECONNREFUSED') ||
+    message.includes('ETIMEDOUT') ||
+    message.includes('ENETUNREACH') ||
+    message.includes('Connection timeout')
+  );
+}
+
+async function probeDevice(device) {
+  const key = getDeviceKey(device);
+  const now = Date.now();
+  const offlineUntil = deviceOfflineUntil.get(key) || 0;
+  if (offlineUntil > now) {
+    return {
+      ok: false,
+      skipped: true,
+      message: `offline backoff active for ${Math.ceil((offlineUntil - now) / 1000)}s`,
+    };
+  }
+
+  try {
+    const res = await requestDigest(device, 'GET', '/ISAPI/System/deviceInfo', null, {}, CONFIG.deviceProbeTimeoutMs);
+    assertOk('device-probe', res);
+    deviceOfflineUntil.delete(key);
+    return { ok: true };
+  } catch (error) {
+    if (isNetworkError(error)) {
+      deviceOfflineUntil.set(key, now + CONFIG.offlineBackoffMs);
+    }
+    return { ok: false, message: error.message || String(error), code: error.code || error.cause?.code || 'probe_failed' };
+  }
 }
 
 function assertOk(label, res) {
@@ -257,6 +307,19 @@ async function syncDevice(device, students, reports) {
     errors: 0,
     errorTypes: {},
   };
+
+  const probe = await probeDevice(device);
+  if (!probe.ok) {
+    stats.errors += 1;
+    stats.errorTypes[probe.code || 'DEVICE_OFFLINE'] = 1;
+    const msg = `[${device.name || device.ip}] DEVICE-OFFLINE: terminal is not reachable, sync skipped before writing users (${probe.message})`;
+    console.warn(msg);
+    reports.push(msg);
+    reports.push(`NETWORK: Check power/network for ${device.ip}:${device.port || 443}. Bridge will retry after ${Math.round(CONFIG.offlineBackoffMs / 1000)}s.`);
+    reports.unshift(`[${device.name || device.ip}] summary ${JSON.stringify(stats)}`);
+    return changed;
+  }
+
   for (const student of students) {
     try {
       if (!student.enabled) {
