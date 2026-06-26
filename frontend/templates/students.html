@@ -1167,14 +1167,17 @@
             display: flex;
             flex-direction: column;
             justify-content: center;
-            gap: 4px;
-            flex: 1 1 132px;
-            min-width: 132px;
-            max-width: 180px;
-            height: 60px;
-            padding: 6px 10px;
+            align-items: center;
+            text-align: center;
+            gap: 2px;
+            flex: 0 0 112px;
+            width: 112px;
+            min-width: 112px;
+            max-width: 112px;
+            height: 56px;
+            padding: 5px 6px;
             box-sizing: border-box;
-            border-radius: 6px;
+            border-radius: 10px;
             border: 1px solid var(--theme-border);
             background: var(--theme-bg-secondary);
             overflow: hidden;
@@ -1189,28 +1192,36 @@
         }
 
         .turnstile-status-title {
-            font-size: 9px;
+            width: 100%;
+            font-size: 8px;
             color: var(--theme-text-secondary);
             text-transform: uppercase;
             letter-spacing: 0;
             font-weight: 700;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
 
         .turnstile-status-value {
-            font-size: 13px;
+            width: 100%;
+            font-size: 12px;
             line-height: 1.1;
             font-weight: 700;
             color: var(--theme-text-primary);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
 
         .turnstile-status-reason {
-            font-size: 10px;
-            line-height: 1.25;
+            width: 100%;
+            font-size: 9px;
+            line-height: 1.15;
             color: var(--theme-text-secondary);
-            display: -webkit-box;
-            -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical;
             overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
 
         .student-item-group {
@@ -3192,7 +3203,8 @@
                                 <div class="turnstile-status-value">
                                     {% if turnstile and turnstile.will_pass %}Пройдет{% else %}Не пройдет{% endif %}
                                 </div>
-                                <div class="turnstile-status-reason">
+                                <div class="turnstile-status-reason"
+                                    title="{{ turnstile.reason_label if turnstile else 'Нет данных' }}{% if turnstile and turnstile.debt %} · долг {{ '{:,.0f}'.format(turnstile.debt).replace(',', ' ') }} сум{% endif %}">
                                     {{ turnstile.reason_label if turnstile else 'Нет данных' }}
                                     {% if turnstile and turnstile.debt %}
                                     · долг {{ "{:,.0f}".format(turnstile.debt).replace(",", " ") }} сум
@@ -4724,14 +4736,12 @@
         function buildTurnstileHtml(access) {
             const willPass = Boolean(access && access.will_pass);
             const debt = Number(access?.debt || 0);
+            const reasonText = `${access?.reason_label || 'Нет данных'}${debt > 0 ? ` · долг ${formatMoney(debt)} сум` : ''}`;
             return `
                 <div class="turnstile-status-card ${willPass ? 'pass' : 'block'}">
                     <div class="turnstile-status-title">Турникет</div>
                     <div class="turnstile-status-value">${willPass ? 'Пройдет' : 'Не пройдет'}</div>
-                    <div class="turnstile-status-reason">
-                        ${escapeHtml(access?.reason_label || 'Нет данных')}
-                        ${debt > 0 ? ` · долг ${formatMoney(debt)} сум` : ''}
-                    </div>
+                    <div class="turnstile-status-reason" title="${escapeHtml(reasonText)}">${escapeHtml(reasonText)}</div>
                 </div>
             `;
         }
