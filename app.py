@@ -790,6 +790,34 @@ def build_hikvision_person_payload(person_type, person_id, settings=None, today=
     }
 
 
+def dedupe_hikvision_payload(items):
+    """Не отправлять в терминалы явные дубли одного лица с разными ID."""
+    seen = {}
+    clean = []
+    skipped = []
+    for item in items:
+        if not item.get('enabled') or not item.get('photoUrl'):
+            clean.append(item)
+            continue
+
+        key = (
+            item.get('person_type') or '',
+            (item.get('fullName') or '').strip().lower(),
+            item.get('photoUrl') or '',
+        )
+        if key[1] and key[2] and key in seen:
+            skipped.append({
+                'kept_employeeNo': seen[key].get('employeeNo'),
+                'skipped_employeeNo': item.get('employeeNo'),
+                'fullName': item.get('fullName'),
+            })
+            continue
+
+        seen[key] = item
+        clean.append(item)
+    return clean, skipped
+
+
 def get_default_service_controls():
     return {
         'football_club': {
@@ -3873,6 +3901,7 @@ def hikvision_students():
         item = build_hikvision_person_payload('staff', user.id, settings, today)
         if item:
             payload.append(item)
+    payload, duplicates_skipped = dedupe_hikvision_payload(payload)
 
     return jsonify({
         'success': True,
@@ -3880,6 +3909,7 @@ def hikvision_students():
         'year': today.year,
         'access_block_day': int(getattr(settings, 'access_block_day', 10) or 10),
         'access_payment_policy': get_access_payment_policy(settings),
+        'duplicates_skipped': duplicates_skipped,
         'students': payload
     })
 

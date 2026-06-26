@@ -399,6 +399,57 @@ async function deleteUser(device, employeeNo) {
   assertOk('delete-user', res);
 }
 
+async function deleteFaceRecord(device, employeeNo) {
+  const conds = [
+    {
+      FaceDataRecordDelCond: {
+        faceLibType: 'blackFD',
+        FDID: '1',
+        FPID: [{ value: String(employeeNo) }],
+      },
+    },
+    {
+      FaceDataRecordDelCond: {
+        faceLibType: 'blackFD',
+        FDID: '1',
+        FPID: [String(employeeNo)],
+      },
+    },
+  ];
+
+  let lastError = null;
+  for (const body of conds) {
+    const res = await requestDigest(
+      device,
+      'PUT',
+      '/ISAPI/Intelligent/FDLib/FaceDataRecord/Delete?format=json',
+      JSON.stringify(body),
+      { 'Content-Type': 'application/json' }
+    );
+    if (res.statusCode === 404) return;
+    if (res.statusCode >= 200 && res.statusCode < 300) return;
+    const text = String(res.body || '');
+    if (res.statusCode === 400 && /not.?exist|no.?match|not.?found/i.test(text)) return;
+    lastError = new Error(`delete-face ISAPI ${res.statusCode}: ${text.slice(0, 220)}`);
+  }
+  if (lastError) throw lastError;
+}
+
+async function deletePersonFromDevice(device, employeeNo) {
+  const errors = [];
+  try {
+    await deleteFaceRecord(device, employeeNo);
+  } catch (error) {
+    errors.push(error);
+  }
+  try {
+    await deleteUser(device, employeeNo);
+  } catch (error) {
+    errors.push(error);
+  }
+  if (errors.length === 2) throw errors[1];
+}
+
 async function openDoor(device) {
   const doorNo = Number(device.doorNo || 1);
   const xml =
@@ -470,7 +521,7 @@ async function cleanupStaleUsers(device, expectedPeople, reports, stats) {
     console.log(`${logPrefix} Найдено старых записей в терминале: ${staleUsers.length}. Удаляем лишние.`);
     for (const user of staleUsers) {
       try {
-        await deleteUser(device, user.employeeNo);
+        await deletePersonFromDevice(device, user.employeeNo);
         removed += 1;
         stats.deleted += 1;
         stats.rejected += 1;
@@ -546,6 +597,14 @@ async function fetchStudents() {
   });
   if (!res.ok) throw new Error(`server students ${res.status}: ${await res.text()}`);
   const data = await res.json();
+  if (Array.isArray(data.duplicates_skipped) && data.duplicates_skipped.length) {
+    data.duplicates_skipped.slice(0, 30).forEach((item) => {
+      console.warn(
+        `[sync] Дубликат не отправлен в терминалы: ${item.skipped_employeeNo} ${item.fullName || ''} ` +
+        `(оставлен ID ${item.kept_employeeNo})`
+      );
+    });
+  }
   return data.students || [];
 }
 
@@ -667,7 +726,7 @@ async function syncDevice(device, students, reports) {
       setAction(`${deviceName}: ${student.enabled ? 'записываем' : 'блокируем'} ${studentTitle}`);
       if (!student.enabled) {
         stats.rejected += 1;
-        await deleteUser(device, student.employeeNo);
+        await deletePersonFromDevice(device, student.employeeNo);
         changed += 1;
         stats.deleted += 1;
         const reason = accessReasonLabel(student.access_reason);
@@ -680,7 +739,7 @@ async function syncDevice(device, students, reports) {
       }
       if (CONFIG.recreateUsersOnSync) {
         try {
-          await deleteUser(device, student.employeeNo);
+          await deletePersonFromDevice(device, student.employeeNo);
         } catch (e) {
           console.warn(`${logPrefix} Не удалось удалить старую запись перед обновлением ${studentTitle}: ${humanError(e)}`);
         }
@@ -782,7 +841,7 @@ async function syncPersonDevice(device, person, reports, action = 'upsert') {
     });
 
     if (action === 'delete' || !person.enabled) {
-      await deleteUser(device, person.employeeNo);
+      await deletePersonFromDevice(device, person.employeeNo);
       stats.rejected = 1;
       const reason = action === 'delete' ? 'удален из системы' : accessReasonLabel(person.access_reason);
       stats.results.rejected.push({ employeeNo: person.employeeNo, fullName: person.fullName || '', reason });
