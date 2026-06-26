@@ -980,9 +980,15 @@ def ensure_device_commands_table():
 
 
 def ensure_bridge_status_table():
-    inspector = db.inspect(db.engine)
-    if 'bridge_status' not in inspector.get_table_names():
-        db.create_all()
+    try:
+        inspector = db.inspect(db.engine)
+        if 'bridge_status' not in inspector.get_table_names():
+            db.create_all()
+    except Exception as e:
+        db.session.rollback()
+        err_text = str(e).lower()
+        if 'already exists' not in err_text and 'duplicate' not in err_text and 'uniqueviolation' not in err_text:
+            print(f"Ошибка при проверке bridge_status: {e}")
 
 
 def ensure_payment_indexes():
