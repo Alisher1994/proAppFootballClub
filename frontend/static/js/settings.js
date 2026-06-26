@@ -78,6 +78,10 @@ async function initSettings() {
         loadBridgeStatus();
         bridgeStatusTimer = setInterval(loadBridgeStatus, 5000);
     }
+    const bridgePauseBtn = document.getElementById('bridgePauseBtn');
+    if (bridgePauseBtn) bridgePauseBtn.addEventListener('click', () => requestBridgeControl(bridgePauseBtn.dataset.action || 'pause'));
+    const bridgeStopBtn = document.getElementById('bridgeStopBtn');
+    if (bridgeStopBtn) bridgeStopBtn.addEventListener('click', () => requestBridgeControl('stop'));
 
     const bridgeResultsBtn = document.getElementById('bridgeResultsBtn');
     if (bridgeResultsBtn) bridgeResultsBtn.addEventListener('click', openBridgeResultsModal);
@@ -338,6 +342,33 @@ async function requestHikvisionDoorOpen(deviceName, btn) {
             btn.disabled = false;
             btn.textContent = originalText;
         }
+    }
+}
+
+async function requestBridgeControl(action) {
+    const labels = {
+        pause: 'поставить запись на паузу',
+        resume: 'продолжить запись',
+        stop: 'полностью остановить текущую запись'
+    };
+    if (!confirm(`Вы уверены, что хотите ${labels[action] || 'управлять bridge'}?`)) return;
+
+    try {
+        const resp = await fetch('/api/hikvision/bridge/control', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action })
+        });
+        const result = await resp.json();
+        if (result.success) {
+            alert(result.message || 'Команда отправлена bridge');
+            setTimeout(loadBridgeStatus, 500);
+        } else {
+            alert('Ошибка: ' + (result.message || 'не удалось отправить команду'));
+        }
+    } catch (error) {
+        console.error('Ошибка управления bridge:', error);
+        alert('Не удалось отправить команду bridge');
     }
 }
 
@@ -751,18 +782,29 @@ function updateBridgeProgress(progress) {
         return;
     }
 
+    const pauseBtn = document.getElementById('bridgePauseBtn');
+    const stopBtn = document.getElementById('bridgeStopBtn');
+    const paused = !!progress.paused;
+    if (pauseBtn) {
+        pauseBtn.dataset.action = paused ? 'resume' : 'pause';
+        pauseBtn.textContent = paused ? '▶️ Продолжить запись' : '⏸️ Пауза записи';
+    }
+    if (stopBtn) {
+        stopBtn.disabled = progress.stage === 'done' || progress.stage === 'stopped';
+    }
+
     const percent = Math.max(0, Math.min(100, Number(progress.percent || 0)));
     const processed = Number(progress.processed || 0);
     const total = Number(progress.total || 0);
     const stage = progress.stage || '';
 
     panel.style.display = 'block';
-    setBridgeText('bridgeProgressTitle', stage === 'done' ? 'Синхронизация завершена' : 'Синхронизация Bridge');
+    setBridgeText('bridgeProgressTitle', stage === 'done' ? 'Синхронизация завершена' : (stage === 'stopped' ? 'Синхронизация остановлена' : 'Синхронизация Bridge'));
     setBridgeText('bridgeProgressPercent', `${percent}%`);
     const bar = document.getElementById('bridgeProgressBar');
     if (bar) {
         bar.style.width = `${percent}%`;
-        bar.style.background = stage === 'error' ? '#dc2626' : (stage === 'done' ? '#16a34a' : '#2563eb');
+        bar.style.background = stage === 'error' || stage === 'stopped' ? '#dc2626' : (stage === 'done' ? '#16a34a' : (progress.paused ? '#f59e0b' : '#2563eb'));
     }
 
     const status = progress.status_text || progress.current || 'Выполняется задача';

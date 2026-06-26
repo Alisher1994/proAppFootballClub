@@ -37,6 +37,8 @@ let currentCommandId = null;
 let currentAction = 'idle';
 let lastHeartbeatAt = 0;
 let currentProgress = null;
+let syncPaused = false;
+let stopRequested = false;
 
 function rememberLog(level, args) {
   const line = {
@@ -132,6 +134,8 @@ function setProgress(patch = null) {
     const total = Number(next.total || 0);
     const processed = Number(next.processed || 0);
     next.percent = total > 0 ? Math.min(100, Math.max(0, Math.round((processed / total) * 100))) : 0;
+    next.paused = syncPaused;
+    next.stop_requested = stopRequested;
     currentProgress = next;
   }
   sendHeartbeat(true);
@@ -186,6 +190,9 @@ function reasonLabel(reason) {
     monthly_payment_added: 'Месячная оплата',
     settings_updated: 'Обновлены настройки',
     manual_door_open: 'Открытие турникета из админки',
+    bridge_pause: 'Пауза записи',
+    bridge_resume: 'Продолжить запись',
+    bridge_stop: 'Остановить запись',
     command: 'Команда из очереди',
     interval: 'Плановая проверка',
   };
@@ -672,6 +679,19 @@ async function loadRemoteConfig() {
   }
 }
 
+async function waitIfPaused() {
+  while (syncPaused && !stopRequested) {
+    setAction('Пауза записи: ожидаем продолжения');
+    setProgress({ status_text: 'Пауза записи. Нажмите "Продолжить", чтобы продолжить синхронизацию.' });
+    await sleep(1000);
+  }
+  if (stopRequested) {
+    const err = new Error('Синхронизация остановлена вручную');
+    err.code = 'SYNC_STOPPED';
+    throw err;
+  }
+}
+
 async function syncDevice(device, students, reports) {
   let changed = 0;
   let processed = 0;
@@ -708,6 +728,7 @@ async function syncDevice(device, students, reports) {
   changed += await cleanupStaleUsers(device, students, reports, stats);
 
   for (const student of students) {
+    await waitIfPaused();
     processed += 1;
     const studentTitle = `${student.employeeNo} ${student.fullName}`;
     setDeviceProgress(device, {
@@ -829,6 +850,7 @@ async function syncPersonDevice(device, person, reports, action = 'upsert') {
   }
 
   try {
+    await waitIfPaused();
     setAction(`${deviceName}: точечное обновление ${studentTitle}`);
     setDeviceProgress(device, {
       stage: 'sync',
@@ -1011,11 +1033,44 @@ async function runDoorOpenCommand(payload = {}, commandId = null) {
   }
 }
 
+async function runControlCommand(payload = {}, commandId = null) {
+  const previousCommandId = currentCommandId;
+  const previousAction = currentAction;
+  currentCommandId = commandId;
+  const action = payload.action || '';
+  let message = '';
+
+  if (action === 'pause') {
+    syncPaused = true;
+    message = 'Запись поставлена на паузу.';
+  } else if (action === 'resume') {
+    syncPaused = false;
+    message = 'Запись продолжена.';
+  } else if (action === 'stop') {
+    stopRequested = true;
+    syncPaused = false;
+    message = 'Запрошена полная остановка записи.';
+  } else {
+    throw new Error(`unknown control action ${action}`);
+  }
+
+  console.log(`[control] ${message}`);
+  setAction(message);
+  setProgress({ status_text: message });
+  if (commandId) {
+    await reportCommand(commandId, true, `[${new Date().toISOString()}] ${message}\n`);
+  }
+  currentCommandId = syncInProgress ? previousCommandId : null;
+  setAction(syncInProgress ? previousAction : 'idle');
+  return message;
+}
+
 async function runSync(reason = 'interval', commandId = null) {
   if (syncInProgress) {
     return 'Sync skipped: another sync is already in progress.';
   }
   syncInProgress = true;
+  stopRequested = false;
   currentCommandId = commandId;
   setProgress({ stage: 'start', reason: reasonLabel(reason), total: 0, processed: 0, status_text: `Начинаем синхронизацию: ${reasonLabel(reason)}` });
   setAction(`Запуск синхронизации: ${reasonLabel(reason)}`);
@@ -1134,9 +1189,10 @@ async function runSync(reason = 'interval', commandId = null) {
     }
     return logOutput;
   } catch (e) {
-    setProgress({ stage: 'error', status_text: `Синхронизация завершилась с ошибкой: ${humanError(e)}` });
-    const errorMsg = `[sync] Ошибка синхронизации: ${humanError(e)}\n`;
-    console.error(errorMsg.trim());
+    const stopped = e.code === 'SYNC_STOPPED';
+    setProgress({ stage: stopped ? 'stopped' : 'error', status_text: stopped ? 'Синхронизация остановлена вручную' : `Синхронизация завершилась с ошибкой: ${humanError(e)}` });
+    const errorMsg = stopped ? '[sync] Синхронизация остановлена вручную.\n' : `[sync] Ошибка синхронизации: ${humanError(e)}\n`;
+    console[stopped ? 'warn' : 'error'](errorMsg.trim());
     logOutput += errorMsg;
 
     if (localCommandId) {
@@ -1145,6 +1201,8 @@ async function runSync(reason = 'interval', commandId = null) {
     throw new Error(logOutput);
   } finally {
     syncInProgress = false;
+    syncPaused = false;
+    stopRequested = false;
     currentCommandId = null;
     setAction('idle');
   }
@@ -1196,11 +1254,16 @@ async function pollCommands() {
       }
     } else if (command.type === 'HIKVISION_DOOR_OPEN') {
       try {
-        currentCommandId = command.id;
         setAction(`Открытие турникета #${command.id}`);
         await runDoorOpenCommand(command.payload || {}, command.id);
       } catch (err) {
         // Ошибка уже отправлена внутри runDoorOpenCommand
+      }
+    } else if (command.type === 'HIKVISION_CONTROL') {
+      try {
+        await runControlCommand(command.payload || {}, command.id);
+      } catch (err) {
+        await reportCommand(command.id, false, `Ошибка управления bridge: ${humanError(err)}`);
       }
     } else {
       await reportCommand(command.id, false, `unknown command ${command.type}`);

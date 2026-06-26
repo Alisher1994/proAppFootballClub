@@ -1730,7 +1730,11 @@
                                     <div id="bridgeProgressText" style="font-size:13px; color:var(--theme-text-secondary);">Ожидание задачи</div>
                                     <div style="display:flex; justify-content:space-between; gap:12px; align-items:center; flex-wrap:wrap; margin-top:6px;">
                                         <div id="bridgeProgressStats" style="font-size:12px; color:var(--theme-text-secondary);"></div>
-                                        <button type="button" id="bridgeResultsBtn" class="btn-secondary" style="padding:6px 10px; display:none;">Списки записей</button>
+                                        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                                            <button type="button" id="bridgePauseBtn" class="btn-secondary" style="padding:6px 10px;">⏸️ Пауза записи</button>
+                                            <button type="button" id="bridgeStopBtn" class="btn-secondary" style="padding:6px 10px; color:#b91c1c; border-color:#fecaca;">⛔ Остановить запись</button>
+                                            <button type="button" id="bridgeResultsBtn" class="btn-secondary" style="padding:6px 10px; display:none;">Списки записей</button>
+                                        </div>
                                     </div>
                                     <div id="bridgeDeviceProgressGrid" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(230px, 1fr)); gap:10px; margin-top:12px;"></div>
                                 </div>
