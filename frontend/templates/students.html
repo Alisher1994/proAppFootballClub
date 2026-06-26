@@ -3,6 +3,10 @@
 
 <head>
     <meta charset="UTF-8">
+    <script>
+        document.documentElement.classList.add('theme-light');
+        document.documentElement.style.background = '#f5f7fb';
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ученики</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
@@ -2921,7 +2925,7 @@
     </style>
 </head>
 
-<body>
+<body class="theme-light">
     {% include '_sidebar.html' %}
 
     <div class="main-content game-main-content">
@@ -3075,7 +3079,7 @@
                         {% set payment = payment_info.get(student.id) if payment_info else None %}
                         {% set points = student_points.get(student.id) if student_points else 0 %}
                         {% set turnstile = access_info.get(student.id) if access_info else None %}
-                        <div class="student-list-item {% if loop.first %}selected{% endif %} {% if balance_value <= 2 %}low-balance{% endif %} {% if student.status == 'blacklist' %}blacklisted{% endif %}"
+                        <div class="student-list-item {% if balance_value <= 2 %}low-balance{% endif %} {% if student.status == 'blacklist' %}blacklisted{% endif %}"
                             data-student-id="{{ student.id }}" data-group-id="{{ student.group_id or '' }}"
                             data-status="{{ student.status }}"
                             data-search="{{ (student.full_name ~ ' ' ~ (student.student_number or '') ~ ' ' ~ (student.phone or '') ~ ' ' ~ (student.parent_phone or '') ~ ' ' ~ (student.group.name if student.group else ''))|lower }}"
@@ -3117,7 +3121,7 @@
 
         <!-- Секция 2: Параметры ученика -->
         <div class="student-details-panel" id="studentDetailsPanel">
-            <div class="student-details-placeholder {% if students %}hidden{% endif %}">
+            <div class="student-details-placeholder">
                 <div class="placeholder-icon">👆</div>
                 <p>Выберите ученика из списка</p>
             </div>
@@ -3127,7 +3131,7 @@
             {% set payment = payment_info.get(student.id) if payment_info else None %}
             {% set points = student_points.get(student.id) if student_points else 0 %}
             {% set turnstile = access_info.get(student.id) if access_info else None %}
-            <div class="student-details-content {% if not loop.first %}hidden{% endif %}"
+            <div class="student-details-content hidden"
                 id="studentDetails_{{ student.id }}">
                 <div class="student-details-header">
                     <div class="student-details-header-top">
@@ -3509,13 +3513,13 @@
 
         <!-- Секция 3: Фото ученика (фиксированное) -->
         <div class="student-photo-panel">
-            <div class="student-photo-placeholder-main {% if students %}hidden{% endif %}">
+            <div class="student-photo-placeholder-main">
                 <div class="placeholder-icon">👆</div>
                 <p>Выберите ученика</p>
             </div>
 
             {% for student in students[:1] %}
-            <div class="student-photo-content {% if not loop.first %}hidden{% endif %}"
+            <div class="student-photo-content hidden"
                 id="studentPhoto_{{ student.id }}">
                 <div class="student-photo-container-fixed">
                     <!-- Фото сверху -->
@@ -5092,10 +5096,7 @@
             // Загрузить группы
 
 
-            // Восстановить состояние страницы после небольшой задержки
-            setTimeout(() => {
-                restorePageState();
-            }, 300);
+            localStorage.removeItem('students_page_selected_student');
 
             // Обработчик фильтрации по группам
             const groupFilterSelect = document.getElementById('groupFilterSelect');
@@ -5191,35 +5192,8 @@
                 });
             }
 
-            // Инициализация: выбрать первого ученика, если есть
-            const firstItem = document.querySelector('.student-list-item');
-            if (firstItem) {
-                const studentId = firstItem.getAttribute('data-student-id');
-                if (studentId) {
-                    // Выбрать первого ученика
-                    selectStudent(parseInt(studentId));
-                } else {
-                    // Если первый ученик не выбран, показать placeholder
-                    const placeholder = document.querySelector('.student-details-placeholder');
-                    if (placeholder) {
-                        placeholder.classList.remove('hidden');
-                    }
-                    const photoPlaceholder = document.querySelector('.student-photo-placeholder-main');
-                    if (photoPlaceholder) {
-                        photoPlaceholder.classList.remove('hidden');
-                    }
-                }
-            } else {
-                // Нет учеников - показать placeholder
-                const placeholder = document.querySelector('.student-details-placeholder');
-                if (placeholder) {
-                    placeholder.classList.remove('hidden');
-                }
-                const photoPlaceholder = document.querySelector('.student-photo-placeholder-main');
-                if (photoPlaceholder) {
-                    photoPlaceholder.classList.remove('hidden');
-                }
-            }
+            document.querySelector('.student-details-placeholder')?.classList.remove('hidden');
+            document.querySelector('.student-photo-placeholder-main')?.classList.remove('hidden');
 
             // Обработка клавиатурной навигации
             let selectedIndex = 0;

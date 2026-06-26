@@ -29,6 +29,7 @@ class User(UserMixin, db.Model):
     role_id = db.Column(db.Integer, db.ForeignKey('roles.id'), nullable=True)  # Новая система ролей
     group_id = db.Column(db.Integer, db.ForeignKey('groups.id'), nullable=True)  # Для учителей - их группа
     full_name = db.Column(db.String(200))  # Полное имя пользователя
+    photo_path = db.Column(db.String(300))  # Фото для Face ID / турникета
     is_active = db.Column(db.Boolean, default=True)  # Активен ли пользователь
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     

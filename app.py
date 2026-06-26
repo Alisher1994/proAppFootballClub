@@ -586,6 +586,8 @@ ACCESS_REASON_LABELS = {
     'partial_current_month': 'Есть частичная оплата за текущий месяц',
     'no_current_month_payment': 'Нет оплаты за текущий месяц',
     'no_photo': 'Нет фото для Face ID',
+    'staff_active': 'Сотрудник активен',
+    'staff_inactive': 'Сотрудник неактивен',
 }
 
 
@@ -782,6 +784,16 @@ def ensure_users_table_columns():
                 db.session.rollback()
                 if "duplicate column" not in str(e).lower():
                     print(f"Ошибка при добавлении full_name: {e}")
+
+        if 'photo_path' not in columns:
+            try:
+                db.session.execute(db.text("ALTER TABLE users ADD COLUMN photo_path VARCHAR(300)"))
+                db.session.commit()
+                print("✓ Добавлена колонка photo_path в таблицу users")
+            except Exception as e:
+                db.session.rollback()
+                if "duplicate column" not in str(e).lower():
+                    print(f"Ошибка при добавлении photo_path: {e}")
         
         if 'is_active' not in columns:
             try:
@@ -1636,6 +1648,20 @@ def build_photo_url(photo_path):
     return url_for('static', filename=path)
 
 
+def save_user_photo(photo_file, user_id):
+    if not photo_file or not photo_file.filename:
+        return None
+    os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+    _, ext = os.path.splitext(secure_filename(photo_file.filename))
+    ext = ext.lower() if ext else '.jpg'
+    if ext not in {'.jpg', '.jpeg', '.png', '.webp'}:
+        ext = '.jpg'
+    filename = f"user_{user_id}_{int(time.time())}{ext}"
+    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    photo_file.save(filepath)
+    return os.path.join('frontend', 'static', 'uploads', filename)
+
+
 @app.route('/portal/login', methods=['GET', 'POST'])
 def portal_login():
     if request.method == 'POST':
@@ -1972,23 +1998,7 @@ def students():
     ).outerjoin(Group).order_by(Group.name.asc(), Student.full_name.asc()).all()
     balances = calculate_student_balances_bulk(all_students)
 
-    latest_payment_subquery = db.session.query(
-        Payment.student_id,
-        db.func.max(Payment.payment_date).label('latest_date')
-    ).group_by(Payment.student_id).subquery()
-
-    latest_payments = db.session.query(Payment).join(
-        latest_payment_subquery,
-        Payment.student_id == latest_payment_subquery.c.student_id
-    ).filter(Payment.payment_date == latest_payment_subquery.c.latest_date).all()
-
     payment_info = {}
-    for payment in latest_payments:
-        payment_info[payment.student_id] = {
-            'date': payment.payment_date.strftime('%d.%m.%Y') if payment.payment_date else None,
-            'amount': payment.amount_paid,
-            'debt': payment.amount_due
-        }
     
     # Подсчет баллов для текущего месяца
     current_month = date.today().month
@@ -3635,6 +3645,7 @@ def hikvision_students():
         joinedload(Student.tariff),
         joinedload(Student.group)
     ).order_by(Student.id.asc()).all()
+    staff_users = User.query.order_by(User.id.asc()).all()
 
     base_url = request.host_url.rstrip('/')
     payload = []
@@ -3659,6 +3670,33 @@ def hikvision_students():
             'has_photo': bool(access_payload['has_photo']),
             'status': student.status,
             'student_number': student.student_number,
+        })
+
+    for user in staff_users:
+        photo_url = build_photo_url(user.photo_path)
+        if photo_url and photo_url.startswith('/'):
+            photo_url = f"{base_url}{photo_url}"
+        allowed = bool(user.is_active)
+        reason = 'staff_active' if allowed else 'staff_inactive'
+        final_reason = 'no_photo' if allowed and not photo_url else reason
+        payload.append({
+            'student_id': None,
+            'user_id': user.id,
+            'person_type': 'staff',
+            'employeeNo': f"900000{user.id}",
+            'fullName': user.full_name or user.username,
+            'group': 'Сотрудники клуба',
+            'photoUrl': photo_url,
+            'enabled': bool(allowed and photo_url),
+            'access_allowed': allowed,
+            'access_reason': final_reason,
+            'access_reason_label': ACCESS_REASON_LABELS.get(final_reason, final_reason),
+            'current_month_debt': 0,
+            'current_month_paid': 0,
+            'paid_this_calendar_month': 0,
+            'has_photo': bool(photo_url),
+            'status': 'active' if user.is_active else 'inactive',
+            'student_number': None,
         })
 
     return jsonify({
@@ -5353,6 +5391,8 @@ def get_users():
             'role_id': user.role_id,
             'role_name': role_name,
             'is_active': user.is_active,
+            'photo_path': user.photo_path,
+            'photo_url': build_photo_url(user.photo_path),
             'created_at': user.created_at.isoformat() if user.created_at else None
         })
     
@@ -5367,12 +5407,12 @@ def create_user():
         return jsonify({'success': False, 'message': 'Доступ запрещен'}), 403
     
     try:
-        data = request.json
+        data = request.form if request.form else (request.get_json(silent=True) or {})
         username = data.get('username', '').strip()
         password = data.get('password', '').strip()
         full_name = data.get('full_name', '').strip()
-        role_id = data.get('role_id')
-        is_active = data.get('is_active', True)
+        role_id = data.get('role_id') or None
+        is_active = str(data.get('is_active', 'true')).lower() in ('true', '1', 'on', 'yes')
         
         if not username:
             return jsonify({'success': False, 'message': 'Введите имя пользователя'}), 400
@@ -5395,6 +5435,11 @@ def create_user():
         )
         
         db.session.add(user)
+        db.session.flush()
+        photo = request.files.get('photo') if request.files else None
+        if photo and photo.filename:
+            user.photo_path = save_user_photo(photo, user.id)
+        queue_hikvision_sync('staff_created')
         db.session.commit()
         
         return jsonify({
@@ -5424,12 +5469,13 @@ def update_user(user_id):
         if not user:
             return jsonify({'success': False, 'message': 'Пользователь не найден'}), 404
         
-        data = request.json
+        data = request.form if request.form else (request.get_json(silent=True) or {})
         username = data.get('username')
         password = data.get('password')
         full_name = data.get('full_name')
         role_id = data.get('role_id')
         is_active = data.get('is_active')
+        remove_photo = str(data.get('remove_photo', '')).lower() in ('true', '1', 'on', 'yes')
         
         if username and username != user.username:
             if User.query.filter_by(username=username).first():
@@ -5445,13 +5491,33 @@ def update_user(user_id):
             user.full_name = full_name
         
         if role_id is not None:
-            user.role_id = role_id
+            user.role_id = role_id or None
             if role_id:
                 user.role = 'custom'
         
         if is_active is not None:
-            user.is_active = is_active
+            user.is_active = str(is_active).lower() in ('true', '1', 'on', 'yes')
+
+        if remove_photo and user.photo_path:
+            old_path = user.photo_path
+            user.photo_path = None
+            try:
+                if os.path.exists(old_path):
+                    os.remove(old_path)
+            except Exception as photo_error:
+                print(f"Ошибка при удалении фото сотрудника: {photo_error}")
+
+        photo = request.files.get('photo') if request.files else None
+        if photo and photo.filename:
+            old_path = user.photo_path
+            user.photo_path = save_user_photo(photo, user.id)
+            try:
+                if old_path and os.path.exists(old_path):
+                    os.remove(old_path)
+            except Exception as photo_error:
+                print(f"Ошибка при удалении старого фото сотрудника: {photo_error}")
         
+        queue_hikvision_sync('staff_updated')
         db.session.commit()
         
         return jsonify({
@@ -5485,7 +5551,15 @@ def delete_user(user_id):
             if admin_count <= 1:
                 return jsonify({'success': False, 'message': 'Нельзя удалить последнего администратора'}), 400
         
+        if user.photo_path:
+            try:
+                if os.path.exists(user.photo_path):
+                    os.remove(user.photo_path)
+            except Exception as photo_error:
+                print(f"Ошибка при удалении фото сотрудника: {photo_error}")
+
         db.session.delete(user)
+        queue_hikvision_sync('staff_deleted')
         db.session.commit()
         
         return jsonify({

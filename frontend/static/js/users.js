@@ -30,7 +30,7 @@ async function loadUsers() {
         console.error('Ошибка загрузки пользователей:', error);
         const tbody = document.getElementById('users-table-body');
         if (tbody) {
-            tbody.innerHTML = '<tr><td colspan="6" class="info-text">Ошибка загрузки данных</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="7" class="info-text">Ошибка загрузки данных</td></tr>';
         }
     }
 }
@@ -59,7 +59,7 @@ function renderUsersTable() {
     if (!tbody) return;
 
     if (allUsers.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" class="info-text">Сотрудники не найдены</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" class="info-text">Сотрудники не найдены</td></tr>';
         return;
     }
 
@@ -69,9 +69,13 @@ function renderUsersTable() {
             : '<span style="color: #e74c3c; font-weight: 600;">✗ Неактивен</span>';
 
         const createdDate = user.created_at ? new Date(user.created_at).toLocaleDateString('ru-RU') : '-';
+        const photoCell = user.photo_url
+            ? `<img src="${escapeHtml(user.photo_url)}" alt="${escapeHtml(user.full_name || user.username)}" style="width:42px;height:42px;object-fit:cover;border-radius:8px;border:1px solid var(--theme-border);">`
+            : '<span style="color:#94a3b8;font-size:12px;">Нет фото</span>';
 
         return `
             <tr>
+                <td>${photoCell}</td>
                 <td>${escapeHtml(user.username)}</td>
                 <td>${escapeHtml(user.full_name || '-')}</td>
                 <td>${escapeHtml(user.role_name || user.role || '-')}</td>
@@ -99,6 +103,20 @@ function renderUsersTable() {
             deleteUser(userId);
         });
     });
+}
+
+function setUserPhotoPreview(url) {
+    const preview = document.getElementById('user-photo-preview');
+    const img = document.getElementById('user-photo-preview-img');
+    if (!preview || !img) return;
+
+    if (url) {
+        img.src = url;
+        preview.style.display = 'flex';
+    } else {
+        img.removeAttribute('src');
+        preview.style.display = 'none';
+    }
 }
 
 // Отображение таблицы ролей
@@ -163,6 +181,8 @@ function openAddUserModal() {
         title.textContent = 'Добавить сотрудника';
         editId.value = '';
         form.reset();
+        document.getElementById('remove-user-photo').value = 'false';
+        setUserPhotoPreview(null);
         passwordRequired.style.display = 'inline';
         passwordHint.style.display = 'none';
         document.getElementById('user-password').required = true;
@@ -191,6 +211,9 @@ async function editUser(userId) {
         document.getElementById('user-full-name').value = user.full_name || '';
         document.getElementById('user-role-id').value = user.role_id || '';
         document.getElementById('user-is-active').checked = user.is_active !== false;
+        document.getElementById('remove-user-photo').value = 'false';
+        document.getElementById('user-photo').value = '';
+        setUserPhotoPreview(user.photo_url || null);
 
         passwordRequired.style.display = 'none';
         passwordHint.style.display = 'block';
@@ -209,6 +232,7 @@ function closeUserModal() {
         const form = document.getElementById('userForm');
         if (form) {
             form.reset();
+            setUserPhotoPreview(null);
         }
     }
 }
@@ -223,6 +247,8 @@ async function saveUser(event) {
     const password = document.getElementById('user-password').value;
     const roleId = document.getElementById('user-role-id').value;
     const isActive = document.getElementById('user-is-active').checked;
+    const photo = document.getElementById('user-photo').files[0];
+    const removePhoto = document.getElementById('remove-user-photo').value === 'true';
 
     if (!username) {
         alert('Введите логин сотрудника');
@@ -236,28 +262,29 @@ async function saveUser(event) {
 
     try {
         let response;
-        const data = {
-            username: username,
-            full_name: fullName,
-            role_id: roleId || null,
-            is_active: isActive
-        };
+        const data = new FormData();
+        data.append('username', username);
+        data.append('full_name', fullName);
+        data.append('role_id', roleId || '');
+        data.append('is_active', isActive ? 'true' : 'false');
+        data.append('remove_photo', removePhoto ? 'true' : 'false');
 
         if (password) {
-            data.password = password;
+            data.append('password', password);
+        }
+        if (photo) {
+            data.append('photo', photo);
         }
 
         if (editId) {
             response = await fetch(`/api/users/${editId}`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data)
+                body: data
             });
         } else {
             response = await fetch('/api/users', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data)
+                body: data
             });
         }
 
@@ -516,6 +543,24 @@ document.addEventListener('DOMContentLoaded', () => {
         userForm.addEventListener('submit', saveUser);
     }
 
+    const userPhotoInput = document.getElementById('user-photo');
+    if (userPhotoInput) {
+        userPhotoInput.addEventListener('change', () => {
+            const file = userPhotoInput.files[0];
+            document.getElementById('remove-user-photo').value = 'false';
+            setUserPhotoPreview(file ? URL.createObjectURL(file) : null);
+        });
+    }
+
+    const removeUserPhotoBtn = document.getElementById('removeUserPhotoBtn');
+    if (removeUserPhotoBtn) {
+        removeUserPhotoBtn.addEventListener('click', () => {
+            document.getElementById('remove-user-photo').value = 'true';
+            document.getElementById('user-photo').value = '';
+            setUserPhotoPreview(null);
+        });
+    }
+
     const roleForm = document.getElementById('roleForm');
     if (roleForm) {
         roleForm.addEventListener('submit', saveRole);
@@ -534,7 +579,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 });
-
 
 
 

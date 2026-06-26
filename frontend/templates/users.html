@@ -3,6 +3,10 @@
 
 <head>
     <meta charset="UTF-8">
+    <script>
+        document.documentElement.classList.add('theme-light');
+        document.documentElement.style.background = '#f5f7fb';
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Сотрудники клуба</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
@@ -448,7 +452,7 @@
     </style>
 </head>
 
-<body class="users-page">
+<body class="users-page theme-light">
     {% include '_sidebar.html' %}
 
     <div class="main-content game-main-content">
@@ -494,6 +498,7 @@
                     <table class="data-table">
                         <thead>
                             <tr>
+                                <th>Фото</th>
                                 <th>Имя пользователя</th>
                                 <th>Полное имя</th>
                                 <th>Роль</th>
@@ -504,7 +509,7 @@
                         </thead>
                         <tbody id="users-table-body">
                             <tr>
-                                <td colspan="6" class="info-text">Загрузка...</td>
+                                <td colspan="7" class="info-text">Загрузка...</td>
                             </tr>
                         </tbody>
                     </table>
@@ -559,6 +564,7 @@
                     <div class="modal-body-scrollable">
                         <form id="userForm">
                             <input type="hidden" id="edit-user-id">
+                            <input type="hidden" id="remove-user-photo" value="false">
 
                             <div class="form-group">
                                 <label>👤 Имя пользователя *</label>
@@ -570,6 +576,17 @@
                                 <label>📝 Полное имя</label>
                                 <input type="text" id="user-full-name" class="form-input-modern"
                                     placeholder="Введите полное имя">
+                            </div>
+
+                            <div class="form-group">
+                                <label>📷 Фото для турникета</label>
+                                <input type="file" id="user-photo" class="form-input-modern" accept="image/*">
+                                <div id="user-photo-preview" style="display:none; align-items:center; gap:12px; margin-top:10px;">
+                                    <img id="user-photo-preview-img" src="" alt="Фото сотрудника"
+                                        style="width:64px; height:64px; object-fit:cover; border-radius:8px; border:1px solid var(--theme-border);">
+                                    <button type="button" id="removeUserPhotoBtn" class="btn-secondary">Удалить фото</button>
+                                </div>
+                                <small style="color:#666; font-size:12px;">Без фото сотрудник не будет записан в Face ID терминал.</small>
                             </div>
 
                             <div class="form-group">
