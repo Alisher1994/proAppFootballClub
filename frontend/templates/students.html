@@ -1166,12 +1166,18 @@
         .turnstile-status-card {
             display: flex;
             flex-direction: column;
-            gap: 6px;
-            min-width: 190px;
-            padding: 10px 12px;
-            border-radius: 8px;
+            justify-content: center;
+            gap: 4px;
+            flex: 1 1 132px;
+            min-width: 132px;
+            max-width: 180px;
+            height: 60px;
+            padding: 6px 10px;
+            box-sizing: border-box;
+            border-radius: 6px;
             border: 1px solid var(--theme-border);
             background: var(--theme-bg-secondary);
+            overflow: hidden;
         }
 
         .turnstile-status-card.pass {
@@ -1183,7 +1189,7 @@
         }
 
         .turnstile-status-title {
-            font-size: 11px;
+            font-size: 9px;
             color: var(--theme-text-secondary);
             text-transform: uppercase;
             letter-spacing: 0;
@@ -1191,15 +1197,20 @@
         }
 
         .turnstile-status-value {
-            font-size: 14px;
+            font-size: 13px;
+            line-height: 1.1;
             font-weight: 700;
             color: var(--theme-text-primary);
         }
 
         .turnstile-status-reason {
-            font-size: 12px;
-            line-height: 1.35;
+            font-size: 10px;
+            line-height: 1.25;
             color: var(--theme-text-secondary);
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
         }
 
         .student-item-group {
@@ -1301,6 +1312,10 @@
             align-items: stretch;
             gap: 8px;
             flex: 1;
+            min-width: 0;
+            flex-wrap: wrap;
+            align-content: flex-start;
+            overflow: hidden;
         }
 
         /* Блоки значений в ряд */
@@ -1311,7 +1326,7 @@
             justify-content: center;
             text-align: center;
             flex: 1;
-            min-width: 0;
+            min-width: 74px;
             padding: 6px 4px;
             background: var(--theme-bg-secondary);
             transition: background-color 0.3s ease;
