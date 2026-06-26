@@ -1656,12 +1656,20 @@
                                         <div id="bridgeProgressBar" style="height:100%; width:0%; background:#16a34a; border-radius:999px; transition:width .2s ease;"></div>
                                     </div>
                                     <div id="bridgeProgressText" style="font-size:13px; color:var(--theme-text-secondary);">Ожидание задачи</div>
-                                    <div id="bridgeProgressStats" style="margin-top:6px; font-size:12px; color:var(--theme-text-secondary);"></div>
+                                    <div style="display:flex; justify-content:space-between; gap:12px; align-items:center; flex-wrap:wrap; margin-top:6px;">
+                                        <div id="bridgeProgressStats" style="font-size:12px; color:var(--theme-text-secondary);"></div>
+                                        <button type="button" id="bridgeResultsBtn" class="btn-secondary" style="padding:6px 10px; display:none;">Списки записей</button>
+                                    </div>
+                                    <div id="bridgeDeviceProgressGrid" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(230px, 1fr)); gap:10px; margin-top:12px;"></div>
                                 </div>
                                 <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap:12px; margin-bottom:14px;">
                                     <div style="padding:12px; border:1px solid var(--theme-border); border-radius:8px; background:var(--theme-bg-secondary);">
                                         <div style="font-size:11px; color:var(--theme-text-secondary); text-transform:uppercase;">Очередь</div>
                                         <div id="bridgeQueueMetric" style="font-size:22px; font-weight:700;">—</div>
+                                    </div>
+                                    <div style="padding:12px; border:1px solid var(--theme-border); border-radius:8px; background:var(--theme-bg-secondary);">
+                                        <div style="font-size:11px; color:var(--theme-text-secondary); text-transform:uppercase;">CPU</div>
+                                        <div id="bridgeCpuMetric" style="font-size:22px; font-weight:700;">—</div>
                                     </div>
                                     <div style="padding:12px; border:1px solid var(--theme-border); border-radius:8px; background:var(--theme-bg-secondary);">
                                         <div style="font-size:11px; color:var(--theme-text-secondary); text-transform:uppercase;">RAM</div>
@@ -2136,6 +2144,32 @@
                 </div>
             </div>
 
+            <div id="bridgeResultsModal" class="modal">
+                <div class="modal-content" style="max-width: 900px; display: flex; flex-direction: column; height: 80vh;">
+                    <div class="modal-header-fixed" style="border-bottom: 1px solid var(--theme-border);">
+                        <h2>Списки Bridge</h2>
+                        <div class="modal-header-actions">
+                            <button type="button" class="btn-secondary"
+                                onclick="document.getElementById('bridgeResultsModal').style.display='none'">Закрыть</button>
+                        </div>
+                    </div>
+                    <div class="modal-body-scrollable" style="flex: 1; display: flex; flex-direction: column; padding: 20px; min-height: 0;">
+                        <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:12px;">
+                            <select id="bridgeResultsDeviceFilter" class="form-input-modern" style="max-width:220px;">
+                                <option value="all">Все терминалы</option>
+                            </select>
+                            <select id="bridgeResultsTypeFilter" class="form-input-modern" style="max-width:220px;">
+                                <option value="errors">Ошибки</option>
+                                <option value="success">Успешно</option>
+                                <option value="rejected">Отклонено</option>
+                            </select>
+                            <input id="bridgeResultsSearch" class="form-input-modern" type="text" placeholder="Поиск по имени или ID" style="flex:1; min-width:220px;">
+                        </div>
+                        <div id="bridgeResultsList" style="flex:1; min-height:0; overflow:auto; border:1px solid var(--theme-border); border-radius:8px; background:var(--theme-bg-primary);"></div>
+                    </div>
+                </div>
+            </div>
+
             <script src="{{ url_for('static', filename='js/settings.js') }}"></script>
             <script src="{{ url_for('static', filename='js/groups.js') }}"></script>
             <script src="{{ url_for('static', filename='js/tariffs.js') }}"></script>
@@ -2145,61 +2179,73 @@
                 // Переключение вкладок в настройках
                 document.addEventListener('DOMContentLoaded', function () {
                     const tabs = document.querySelectorAll('.settings-tab');
-                    tabs.forEach(tab => {
-                        tab.addEventListener('click', function () {
-                            const tabName = this.getAttribute('data-tab');
+                    function activateSettingsTab(tab) {
+                        if (!tab) return;
+                        const tabName = tab.getAttribute('data-tab');
 
-                            // Убрать активный класс со всех вкладок
-                            tabs.forEach(t => t.classList.remove('active'));
-                            document.querySelectorAll('.settings-tab-content').forEach(content => {
-                                content.classList.remove('active');
-                            });
+                        localStorage.setItem('settingsActiveTab', tabName);
 
-                            // Активировать выбранную вкладку
-                            this.classList.add('active');
-                            const content = document.getElementById(`${tabName}-tab`);
-                            if (content) {
-                                content.classList.add('active');
+                        // Убрать активный класс со всех вкладок
+                        tabs.forEach(t => t.classList.remove('active'));
+                        document.querySelectorAll('.settings-tab-content').forEach(content => {
+                            content.classList.remove('active');
+                        });
 
-                                // Показать/скрыть кнопки добавления
-                                const addGroupBtn = document.getElementById('addGroupBtnHeader');
-                                const addTariffBtn = document.getElementById('addTariffBtnHeader');
-                                const addRewardBtn = document.getElementById('addRewardBtnHeader');
+                        // Активировать выбранную вкладку
+                        tab.classList.add('active');
+                        const content = document.getElementById(`${tabName}-tab`);
+                        if (content) {
+                            content.classList.add('active');
 
-                                if (addGroupBtn) addGroupBtn.style.display = (tabName === 'groups') ? 'block' : 'none';
-                                if (addTariffBtn) addTariffBtn.style.display = (tabName === 'tariffs') ? 'block' : 'none';
-                                if (addRewardBtn) addRewardBtn.style.display = (tabName === 'rewards') ? 'block' : 'none';
+                            // Показать/скрыть кнопки добавления
+                            const addGroupBtn = document.getElementById('addGroupBtnHeader');
+                            const addTariffBtn = document.getElementById('addTariffBtnHeader');
+                            const addRewardBtn = document.getElementById('addRewardBtnHeader');
 
-                                // Загрузить данные при переключении на вкладку
-                                if (tabName === 'groups') {
-                                    // Загрузить группы, если еще не загружены
-                                    if (typeof loadGroups === 'function') {
-                                        setTimeout(() => loadGroups(), 100);
-                                    }
-                                } else if (tabName === 'tariffs') {
-                                    // Загрузить тарифы, если еще не загружены
-                                    if (typeof loadTariffs === 'function') {
-                                        setTimeout(() => loadTariffs(), 100);
-                                    }
-                                } else if (tabName === 'rewards') {
-                                    // Загрузить вознаграждения и инициализировать обработчики
-                                    if (typeof loadRewards === 'function') {
-                                        setTimeout(() => {
-                                            initRewardsHandlers();
-                                            loadRewards();
-                                        }, 100);
-                                    }
-                                } else if (tabName === 'hikvision') {
-                                    if (typeof loadBridgeStatus === 'function') {
-                                        setTimeout(() => loadBridgeStatus(), 50);
-                                    }
-                                    if (typeof loadSyncHistory === 'function') {
-                                        setTimeout(() => loadSyncHistory(), 100);
-                                    }
+                            if (addGroupBtn) addGroupBtn.style.display = (tabName === 'groups') ? 'block' : 'none';
+                            if (addTariffBtn) addTariffBtn.style.display = (tabName === 'tariffs') ? 'block' : 'none';
+                            if (addRewardBtn) addRewardBtn.style.display = (tabName === 'rewards') ? 'block' : 'none';
+
+                            // Загрузить данные при переключении на вкладку
+                            if (tabName === 'groups') {
+                                // Загрузить группы, если еще не загружены
+                                if (typeof loadGroups === 'function') {
+                                    setTimeout(() => loadGroups(), 100);
+                                }
+                            } else if (tabName === 'tariffs') {
+                                // Загрузить тарифы, если еще не загружены
+                                if (typeof loadTariffs === 'function') {
+                                    setTimeout(() => loadTariffs(), 100);
+                                }
+                            } else if (tabName === 'rewards') {
+                                // Загрузить вознаграждения и инициализировать обработчики
+                                if (typeof loadRewards === 'function') {
+                                    setTimeout(() => {
+                                        initRewardsHandlers();
+                                        loadRewards();
+                                    }, 100);
+                                }
+                            } else if (tabName === 'hikvision') {
+                                if (typeof loadBridgeStatus === 'function') {
+                                    setTimeout(() => loadBridgeStatus(), 50);
+                                }
+                                if (typeof loadSyncHistory === 'function') {
+                                    setTimeout(() => loadSyncHistory(), 100);
                                 }
                             }
+                        }
+                    }
+
+                    tabs.forEach(tab => {
+                        tab.addEventListener('click', function () {
+                            activateSettingsTab(this);
                         });
                     });
+                    const savedTab = localStorage.getItem('settingsActiveTab');
+                    if (savedTab) {
+                        const savedButton = document.querySelector(`.settings-tab[data-tab="${savedTab}"]`);
+                        if (savedButton) setTimeout(() => activateSettingsTab(savedButton), 0);
+                    }
                 });
 
                 // Инициализация обработчиков для вознаграждений

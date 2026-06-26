@@ -2,6 +2,7 @@
 document.addEventListener('DOMContentLoaded', initSettings);
 let expenseCategories = [];
 let bridgeStatusTimer = null;
+let lastBridgeProgress = null;
 
 async function initSettings() {
     attachWorkingDayToggles();
@@ -72,6 +73,13 @@ async function initSettings() {
         loadBridgeStatus();
         bridgeStatusTimer = setInterval(loadBridgeStatus, 5000);
     }
+
+    const bridgeResultsBtn = document.getElementById('bridgeResultsBtn');
+    if (bridgeResultsBtn) bridgeResultsBtn.addEventListener('click', openBridgeResultsModal);
+    ['bridgeResultsDeviceFilter', 'bridgeResultsTypeFilter', 'bridgeResultsSearch'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener(id === 'bridgeResultsSearch' ? 'input' : 'change', renderBridgeResultsList);
+    });
 }
 
 function attachWorkingDayToggles() {
@@ -602,6 +610,7 @@ async function loadBridgeStatus() {
         `;
 
         const metrics = bridge.metrics || {};
+        setBridgeText('bridgeCpuMetric', metrics.cpu_used_percent != null ? `${metrics.cpu_used_percent}%` : '—');
         setBridgeText('bridgeRamMetric', metrics.memory_used_percent != null ? `${metrics.memory_used_percent}%` : '—');
         setBridgeText('bridgeUptimeMetric', formatUptime(bridge.uptime_seconds || 0));
         updateBridgeProgress(metrics.progress || null);
@@ -622,9 +631,13 @@ function setBridgeText(id, value) {
 function updateBridgeProgress(progress) {
     const panel = document.getElementById('bridgeProgressPanel');
     if (!panel) return;
+    lastBridgeProgress = progress || null;
 
     if (!progress) {
         panel.style.display = 'none';
+        renderBridgeDeviceProgress(null);
+        const btn = document.getElementById('bridgeResultsBtn');
+        if (btn) btn.style.display = 'none';
         return;
     }
 
@@ -646,11 +659,64 @@ function updateBridgeProgress(progress) {
     const countText = total > 0 ? ` · ${processed} из ${total}` : '';
     setBridgeText('bridgeProgressText', `${status}${countText}`);
 
+    const deviceList = Object.values(progress.devices || {});
+    const aggregate = deviceList.reduce((acc, device) => {
+        acc.success += Number(device.success || 0);
+        acc.errors += Number(device.errors || 0);
+        acc.rejected += Number(device.rejected || 0);
+        return acc;
+    }, { success: 0, errors: 0, rejected: 0 });
     const stats = [];
-    if (progress.success != null) stats.push(`успешно: ${progress.success}`);
-    if (progress.errors != null) stats.push(`ошибок: ${progress.errors}`);
+    if (progress.success != null || deviceList.length) stats.push(`успешно: ${progress.success ?? aggregate.success}`);
+    if (progress.errors != null || deviceList.length) stats.push(`ошибок: ${progress.errors ?? aggregate.errors}`);
+    if (progress.rejected != null || deviceList.length) stats.push(`отклонено: ${progress.rejected ?? aggregate.rejected}`);
     if (progress.skipped != null) stats.push(`заблокировано/пропущено: ${progress.skipped}`);
     setBridgeText('bridgeProgressStats', stats.join(' · '));
+    renderBridgeDeviceProgress(progress);
+
+    const btn = document.getElementById('bridgeResultsBtn');
+    if (btn) {
+        const hasResults = Object.values(progress.devices || {}).some(device => {
+            const results = device.results || {};
+            return (results.success || []).length || (results.errors || []).length || (results.rejected || []).length;
+        });
+        btn.style.display = hasResults ? 'inline-flex' : 'none';
+    }
+}
+
+function renderBridgeDeviceProgress(progress) {
+    const grid = document.getElementById('bridgeDeviceProgressGrid');
+    if (!grid) return;
+    const devices = Object.values(progress?.devices || {});
+    if (!devices.length) {
+        grid.innerHTML = '';
+        return;
+    }
+
+    grid.innerHTML = devices.map(device => {
+        const percent = Math.max(0, Math.min(100, Number(device.percent || 0)));
+        const isEntry = device.name === 'entry';
+        const accent = isEntry ? '#2563eb' : '#7c3aed';
+        const bg = isEntry ? '#eff6ff' : '#f5f3ff';
+        const status = device.status === 'waiting' ? 'ожидает' : (device.status_text || 'выполняется');
+        return `
+            <div style="border:1px solid ${accent}33; background:${bg}; border-radius:8px; padding:10px;">
+                <div style="display:flex; justify-content:space-between; gap:8px; align-items:center;">
+                    <strong style="color:${accent};">${escapeHtml(device.label || 'Терминал')}</strong>
+                    <strong>${percent}%</strong>
+                </div>
+                <div style="height:8px; background:#e5e7eb; border-radius:999px; overflow:hidden; margin:8px 0;">
+                    <div style="height:100%; width:${percent}%; background:${accent}; border-radius:999px;"></div>
+                </div>
+                <div style="font-size:12px; color:var(--theme-text-secondary);">${escapeHtml(status)}</div>
+                <div style="font-size:12px; margin-top:5px;">
+                    <span style="color:#16a34a;">успешно: ${Number(device.success || 0)}</span>
+                    <span style="color:#dc2626; margin-left:8px;">ошибок: ${Number(device.errors || 0)}</span>
+                    <span style="color:#92400e; margin-left:8px;">отклонено: ${Number(device.rejected || 0)}</span>
+                </div>
+            </div>
+        `;
+    }).join('');
 }
 
 function escapeHtml(value) {
@@ -667,9 +733,11 @@ function setBridgeLogs(logs) {
         el.textContent = 'Логи пока не получены.';
         return;
     }
-    el.textContent = logs.map(line => {
+    el.innerHTML = logs.map(line => {
         const time = line.ts ? new Date(line.ts).toLocaleTimeString('ru-RU') : '';
-        return `${time} ${bridgeLogLevelLabel(line.level)} ${formatBridgeLogMessage(line.message || '')}`;
+        const message = formatBridgeLogMessage(line.message || '');
+        const color = bridgeLogColor(line.level, message);
+        return `<span style="color:${color};">${escapeHtml(`${time} ${bridgeLogLevelLabel(line.level)} ${message}`)}</span>`;
     }).join('\n');
     if (nearBottom) el.scrollTop = el.scrollHeight;
 }
@@ -682,6 +750,8 @@ function bridgeLogLevelLabel(level) {
 
 function formatBridgeLogMessage(message) {
     let text = String(message || '');
+    text = text.replace(/\[entry\]/gi, '[Вход]');
+    text = text.replace(/\[exit\]/gi, '[Выход]');
     text = text.replace(/\[bridge\] command polling (\d+)ms, daily full sync ([^ ]+) Asia\/Tashkent/i,
         'Bridge запущен. Проверка очереди каждые $1 мс, полная синхронизация в $2');
     text = text.replace(/\[bridge\] (\d+) Hikvision terminal\(s\) -> (.+)/i,
@@ -699,6 +769,73 @@ function formatBridgeLogMessage(message) {
     text = text.replace(/ETIMEDOUT/g, 'терминал не ответил вовремя');
     text = text.replace(/fetch failed/g, 'соединение с терминалом оборвалось');
     return text;
+}
+
+function bridgeLogColor(level, message) {
+    if (level === 'ERROR' || /ОШИБКА|Ошибка/i.test(message)) return '#fecaca';
+    if (/УСПЕШНО|успешно|Записан/i.test(message)) return '#bbf7d0';
+    if (/Доступ закрыт|Отклонено|отклонено/i.test(message)) return '#fde68a';
+    if (/\[Выход|Выход \(/i.test(message)) return '#ddd6fe';
+    if (/\[Вход|Вход \(/i.test(message)) return '#bfdbfe';
+    return '#e5eefb';
+}
+
+function openBridgeResultsModal() {
+    const modal = document.getElementById('bridgeResultsModal');
+    if (!modal) return;
+    populateBridgeResultsDevices();
+    renderBridgeResultsList();
+    modal.style.display = 'block';
+}
+
+function populateBridgeResultsDevices() {
+    const select = document.getElementById('bridgeResultsDeviceFilter');
+    if (!select) return;
+    const currentValue = select.value || 'all';
+    const devices = Object.values(lastBridgeProgress?.devices || {});
+    select.innerHTML = '<option value="all">Все терминалы</option>' + devices.map(device =>
+        `<option value="${escapeHtml(device.key)}">${escapeHtml(device.label || device.key)}</option>`
+    ).join('');
+    select.value = Array.from(select.options).some(option => option.value === currentValue) ? currentValue : 'all';
+}
+
+function renderBridgeResultsList() {
+    const list = document.getElementById('bridgeResultsList');
+    if (!list) return;
+    const deviceFilter = document.getElementById('bridgeResultsDeviceFilter')?.value || 'all';
+    const type = document.getElementById('bridgeResultsTypeFilter')?.value || 'errors';
+    const search = (document.getElementById('bridgeResultsSearch')?.value || '').trim().toLowerCase();
+    const devices = Object.values(lastBridgeProgress?.devices || {})
+        .filter(device => deviceFilter === 'all' || device.key === deviceFilter);
+
+    const rows = [];
+    devices.forEach(device => {
+        const items = device.results?.[type] || [];
+        items.forEach(item => {
+            const text = `${item.employeeNo || ''} ${item.fullName || ''} ${item.reason || ''} ${item.detail || ''}`.toLowerCase();
+            if (search && !text.includes(search)) return;
+            rows.push({ device, item });
+        });
+    });
+
+    if (!rows.length) {
+        list.innerHTML = '<div style="padding:18px; color:var(--theme-text-secondary);">Записей нет.</div>';
+        return;
+    }
+
+    const typeColor = type === 'success' ? '#16a34a' : (type === 'errors' ? '#dc2626' : '#92400e');
+    const typeLabel = type === 'success' ? 'Успешно' : (type === 'errors' ? 'Ошибка' : 'Отклонено');
+    list.innerHTML = rows.map(({ device, item }) => `
+        <div style="display:grid; grid-template-columns:150px 110px 1fr 110px; gap:10px; align-items:start; padding:10px 12px; border-bottom:1px solid var(--theme-border);">
+            <div style="font-weight:700;">${escapeHtml(device.label || device.key)}</div>
+            <div>${escapeHtml(item.employeeNo || '—')}</div>
+            <div>
+                <div style="font-weight:600;">${escapeHtml(item.fullName || '—')}</div>
+                <div style="font-size:12px; color:var(--theme-text-secondary);">${escapeHtml(item.reason || item.detail || '')}</div>
+            </div>
+            <div style="font-weight:700; color:${typeColor};">${typeLabel}</div>
+        </div>
+    `).join('');
 }
 
 function formatUptime(seconds) {
@@ -737,6 +874,10 @@ function translateReason(reason) {
     if (reason === 'student_created') return 'Новый ученик';
     if (reason === 'student_updated') return 'Ученик обновлен';
     if (reason === 'student_deleted') return 'Ученик удален';
+    if (reason === 'student_photo_deleted') return 'Фото ученика удалено';
+    if (reason === 'staff_created') return 'Новый сотрудник';
+    if (reason === 'staff_updated') return 'Сотрудник обновлен';
+    if (reason === 'staff_deleted') return 'Сотрудник удален';
     if (reason === 'payment_added') return 'Оплата добавлена';
     if (reason === 'payment_updated') return 'Оплата обновлена';
     if (reason === 'payment_deleted') return 'Оплата удалена';

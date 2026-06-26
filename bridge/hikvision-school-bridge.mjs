@@ -76,8 +76,12 @@ function sleep(ms) {
 function getMetrics() {
   const totalMem = os.totalmem();
   const freeMem = os.freemem();
+  const cpuCount = os.cpus()?.length || 1;
+  const cpuLoad = os.loadavg()[0] || 0;
   return {
-    cpu_load_1m: Number((os.loadavg()[0] || 0).toFixed(2)),
+    cpu_load_1m: Number(cpuLoad.toFixed(2)),
+    cpu_used_percent: Number(Math.min(100, Math.max(0, (cpuLoad / cpuCount) * 100)).toFixed(1)),
+    cpu_cores: cpuCount,
     memory_used_percent: totalMem ? Number((((totalMem - freeMem) / totalMem) * 100).toFixed(1)) : 0,
     memory_used_mb: Math.round((totalMem - freeMem) / 1024 / 1024),
     memory_total_mb: Math.round(totalMem / 1024 / 1024),
@@ -131,6 +135,38 @@ function setProgress(patch = null) {
   sendHeartbeat(true);
 }
 
+function setDeviceProgress(device, patch = {}) {
+  const key = device.name || device.ip;
+  const existing = currentProgress || {};
+  const devices = { ...(existing.devices || {}) };
+  const previousDevice = devices[key] || {};
+  const total = Number(patch.total ?? previousDevice.total ?? 0);
+  const processed = Number(patch.processed ?? previousDevice.processed ?? 0);
+  devices[key] = {
+    ...previousDevice,
+    key,
+    name: device.name || '',
+    ip: device.ip,
+    port: device.port || 443,
+    label: deviceLabel(device),
+    ...patch,
+    total,
+    processed,
+    percent: total > 0 ? Math.min(100, Math.max(0, Math.round((processed / total) * 100))) : 0,
+  };
+
+  const deviceList = Object.values(devices);
+  const overallTotal = deviceList.reduce((sum, item) => sum + Number(item.total || 0), 0);
+  const overallProcessed = deviceList.reduce((sum, item) => sum + Number(item.processed || 0), 0);
+  setProgress({
+    ...existing,
+    devices,
+    total: overallTotal,
+    processed: overallProcessed,
+    status_text: patch.status_text || existing.status_text || '',
+  });
+}
+
 function reasonLabel(reason) {
   const labels = {
     startup: 'Запуск bridge',
@@ -156,6 +192,18 @@ function reasonLabel(reason) {
 function deviceLabel(device) {
   const name = device.name === 'entry' ? 'Вход' : device.name === 'exit' ? 'Выход' : (device.name || 'Терминал');
   return `${name} (${device.ip}:${device.port || 443})`;
+}
+
+function deviceShortLabel(deviceName) {
+  if (deviceName === 'entry') return 'Вход';
+  if (deviceName === 'exit') return 'Выход';
+  return deviceName || 'Терминал';
+}
+
+function capList(list, limit = 250) {
+  const copy = Array.isArray(list) ? list : [];
+  if (copy.length > limit) copy.splice(0, copy.length - limit);
+  return copy;
 }
 
 function accessReasonLabel(reason) {
@@ -397,6 +445,20 @@ async function fetchStudents() {
   return data.students || [];
 }
 
+async function fetchPerson(personType, personId) {
+  const url = new URL(`${CONFIG.serverUrl}/api/hikvision/person`);
+  url.searchParams.set('person_type', personType);
+  url.searchParams.set('person_id', String(personId));
+  const res = await fetch(url, {
+    headers: { 'x-device-key': CONFIG.deviceKey },
+    signal: AbortSignal.timeout(15000)
+  });
+  if (!res.ok) throw new Error(`person ${res.status}: ${await res.text()}`);
+  const data = await res.json();
+  if (!data.success || !data.person) throw new Error(data.message || 'person not found');
+  return data.person;
+}
+
 function logStudentSummary(students) {
   const summary = students.reduce((acc, student) => {
     const key = student.enabled ? 'enabled' : (student.access_reason || 'disabled');
@@ -445,51 +507,62 @@ async function syncDevice(device, students, reports) {
   let changed = 0;
   let processed = 0;
   const deviceName = deviceLabel(device);
+  const logPrefix = `[${deviceShortLabel(device.name)} ${device.ip}]`;
   const stats = {
     upserted: 0,
     deleted: 0,
-    skippedDisabled: 0,
+    rejected: 0,
     errors: 0,
     errorTypes: {},
+    results: {
+      success: [],
+      errors: [],
+      rejected: [],
+    },
   };
 
   setAction(`Проверка терминала ${deviceName}`);
-  setProgress({ stage: 'probe', device: deviceName, status_text: `Проверяем связь с терминалом ${deviceName}` });
+  setDeviceProgress(device, { stage: 'probe', status: 'checking', status_text: `Проверяем связь с терминалом ${deviceName}` });
   const probe = await probeDevice(device);
   if (!probe.ok) {
     stats.errors += 1;
     stats.errorTypes[probe.code || 'DEVICE_OFFLINE'] = 1;
-    const msg = `[${device.name || device.ip}] Терминал недоступен: запись пропущена. Причина: ${humanError(probe.message)}`;
+    const msg = `${logPrefix} Терминал недоступен: запись пропущена. Причина: ${humanError(probe.message)}`;
     console.warn(msg);
     reports.push(msg);
     reports.push(`Проверьте питание и сеть терминала ${device.ip}:${device.port || 443}. Bridge повторит попытку через ${Math.round(CONFIG.offlineBackoffMs / 1000)} сек.`);
     reports.unshift(`[${device.name || device.ip}] summary ${JSON.stringify(stats)}`);
+    setDeviceProgress(device, { stage: 'offline', status: 'error', errors: 1, status_text: `Терминал ${deviceName} недоступен`, results: stats.results });
     return changed;
   }
-  console.log(`[${device.name || device.ip}] Связь с терминалом есть. Начинаем запись ${students.length} записей.`);
+  console.log(`${logPrefix} Связь с терминалом есть. Начинаем запись ${students.length} записей.`);
 
   for (const student of students) {
     processed += 1;
     const studentTitle = `${student.employeeNo} ${student.fullName}`;
-    setProgress({
+    setDeviceProgress(device, {
       stage: 'sync',
-      device: deviceName,
+      status: 'running',
       total: students.length,
       processed,
       success: stats.upserted + stats.deleted,
       errors: stats.errors,
-      skipped: stats.skippedDisabled,
+      rejected: stats.rejected,
       current: studentTitle,
       status_text: `${deviceName}: ${processed} из ${students.length} - ${studentTitle}`,
+      results: stats.results,
     });
     try {
       setAction(`${deviceName}: ${student.enabled ? 'записываем' : 'блокируем'} ${studentTitle}`);
       if (!student.enabled) {
-        stats.skippedDisabled += 1;
+        stats.rejected += 1;
         await deleteUser(device, student.employeeNo);
         changed += 1;
         stats.deleted += 1;
-        const msg = `[${device.name}] Доступ закрыт: ${studentTitle}. Причина: ${accessReasonLabel(student.access_reason)}`;
+        const reason = accessReasonLabel(student.access_reason);
+        stats.results.rejected.push({ employeeNo: student.employeeNo, fullName: student.fullName, reason });
+        capList(stats.results.rejected);
+        const msg = `${logPrefix} Доступ закрыт: ${studentTitle}. Причина: ${reason}`;
         console.log(msg);
         reports.push(msg);
         continue;
@@ -498,7 +571,7 @@ async function syncDevice(device, students, reports) {
         try {
           await deleteUser(device, student.employeeNo);
         } catch (e) {
-          console.warn(`[${device.name}] Не удалось удалить старую запись перед обновлением ${studentTitle}: ${humanError(e)}`);
+          console.warn(`${logPrefix} Не удалось удалить старую запись перед обновлением ${studentTitle}: ${humanError(e)}`);
         }
         await sleep(500);
       }
@@ -508,14 +581,19 @@ async function syncDevice(device, students, reports) {
       changed += 1;
       stats.upserted += 1;
       const faceText = face === 'already-exists' ? 'фото уже было в терминале' : 'фото записано';
-      const msg = `[${device.name}] Записан в терминал: ${studentTitle} (${faceText})`;
+      stats.results.success.push({ employeeNo: student.employeeNo, fullName: student.fullName, detail: faceText });
+      capList(stats.results.success);
+      const msg = `${logPrefix} УСПЕШНО: записан в терминал: ${studentTitle} (${faceText})`;
       console.log(msg);
       reports.push(msg);
     } catch (e) {
       stats.errors += 1;
       const errKey = e.code || e.cause?.code || e.message.split(':')[0] || 'error';
       stats.errorTypes[errKey] = (stats.errorTypes[errKey] || 0) + 1;
-      const errMsg = `[${device.name}] Ошибка записи: ${studentTitle}. Причина: ${humanError(e)}`;
+      const reason = humanError(e);
+      stats.results.errors.push({ employeeNo: student.employeeNo, fullName: student.fullName, reason });
+      capList(stats.results.errors);
+      const errMsg = `${logPrefix} ОШИБКА: не удалось записать ${studentTitle}. Причина: ${reason}`;
       console.error(errMsg);
       reports.push(`ОШИБКА: ${errMsg}`);
       if (e.message.includes('EHOSTUNREACH') || e.code === 'EHOSTUNREACH') {
@@ -528,14 +606,15 @@ async function syncDevice(device, students, reports) {
     }
     await sleep(300);
   }
-  setProgress({
-    stage: 'device_done',
-    device: deviceName,
+  setDeviceProgress(device, {
+    stage: 'done',
+    status: stats.errors > 0 ? 'done_with_errors' : 'done',
     total: students.length,
     processed: students.length,
     success: stats.upserted + stats.deleted,
     errors: stats.errors,
-    skipped: stats.skippedDisabled,
+    rejected: stats.rejected,
+    results: stats.results,
     status_text: `${deviceName}: готово. Успешно ${stats.upserted + stats.deleted}, ошибок ${stats.errors}.`,
   });
   setAction(`Терминал ${deviceName}: готово`);
@@ -544,6 +623,177 @@ async function syncDevice(device, students, reports) {
 }
 
 let syncInProgress = false;
+
+async function syncPersonDevice(device, person, reports, action = 'upsert') {
+  const deviceName = deviceLabel(device);
+  const logPrefix = `[${deviceShortLabel(device.name)} ${device.ip}]`;
+  const studentTitle = `${person.employeeNo} ${person.fullName || ''}`.trim();
+  const stats = { success: 0, errors: 0, rejected: 0, results: { success: [], errors: [], rejected: [] } };
+
+  setDeviceProgress(device, {
+    stage: 'probe',
+    status: 'checking',
+    total: 1,
+    processed: 0,
+    status_text: `Проверяем связь с терминалом ${deviceName}`,
+    results: stats.results,
+  });
+  const probe = await probeDevice(device);
+  if (!probe.ok) {
+    const reason = humanError(probe.message);
+    stats.errors = 1;
+    stats.results.errors.push({ employeeNo: person.employeeNo, fullName: person.fullName || '', reason });
+    const msg = `${logPrefix} ОШИБКА: терминал недоступен для точечного обновления ${studentTitle}. Причина: ${reason}`;
+    console.error(msg);
+    reports.push(msg);
+    setDeviceProgress(device, {
+      stage: 'error',
+      status: 'error',
+      total: 1,
+      processed: 1,
+      errors: 1,
+      results: stats.results,
+      status_text: `${deviceName}: ошибка связи`,
+    });
+    return stats;
+  }
+
+  try {
+    setAction(`${deviceName}: точечное обновление ${studentTitle}`);
+    setDeviceProgress(device, {
+      stage: 'sync',
+      status: 'running',
+      total: 1,
+      processed: 0,
+      current: studentTitle,
+      status_text: `${deviceName}: обновляем ${studentTitle}`,
+      results: stats.results,
+    });
+
+    if (action === 'delete' || !person.enabled) {
+      await deleteUser(device, person.employeeNo);
+      stats.rejected = 1;
+      const reason = action === 'delete' ? 'удален из системы' : accessReasonLabel(person.access_reason);
+      stats.results.rejected.push({ employeeNo: person.employeeNo, fullName: person.fullName || '', reason });
+      const msg = `${logPrefix} Доступ закрыт: ${studentTitle}. Причина: ${reason}`;
+      console.log(msg);
+      reports.push(msg);
+    } else {
+      await upsertUser(device, person);
+      await sleep(300);
+      const face = await uploadFace(device, person);
+      stats.success = 1;
+      const faceText = face === 'already-exists' ? 'фото уже было в терминале' : 'фото записано';
+      stats.results.success.push({ employeeNo: person.employeeNo, fullName: person.fullName || '', detail: faceText });
+      const msg = `${logPrefix} УСПЕШНО: точечно записан ${studentTitle} (${faceText})`;
+      console.log(msg);
+      reports.push(msg);
+    }
+  } catch (error) {
+    const reason = humanError(error);
+    stats.errors = 1;
+    stats.results.errors.push({ employeeNo: person.employeeNo, fullName: person.fullName || '', reason });
+    const msg = `${logPrefix} ОШИБКА: точечное обновление не выполнено для ${studentTitle}. Причина: ${reason}`;
+    console.error(msg);
+    reports.push(msg);
+  }
+
+  setDeviceProgress(device, {
+    stage: stats.errors ? 'error' : 'done',
+    status: stats.errors ? 'error' : 'done',
+    total: 1,
+    processed: 1,
+    success: stats.success,
+    errors: stats.errors,
+    rejected: stats.rejected,
+    results: stats.results,
+    status_text: `${deviceName}: точечное обновление завершено`,
+  });
+  return stats;
+}
+
+async function runPersonCommand(payload = {}, commandId = null) {
+  if (syncInProgress) {
+    return 'Точечная команда пропущена: уже идет другая операция.';
+  }
+  syncInProgress = true;
+  currentCommandId = commandId;
+  const action = payload.action || 'upsert';
+  const personType = payload.person_type || 'student';
+  const personId = payload.person_id;
+  const employeeNo = payload.employeeNo || (personType === 'staff' && personId ? `900000${personId}` : personId ? String(personId) : '');
+  let person = null;
+  let logOutput = `[${new Date().toISOString()}] Точечная команда начата. Причина: ${reasonLabel(payload.reason || 'change')}\n`;
+
+  try {
+    await loadRemoteConfig();
+    if (action === 'delete') {
+      person = {
+        employeeNo,
+        fullName: payload.fullName || '',
+        enabled: false,
+        access_reason: 'deleted',
+      };
+    } else {
+      person = await fetchPerson(personType, personId);
+    }
+
+    const deviceProgress = {};
+    CONFIG.devices.forEach((device) => {
+      const key = device.name || device.ip;
+      deviceProgress[key] = {
+        key,
+        name: device.name || '',
+        ip: device.ip,
+        port: device.port || 443,
+        label: deviceLabel(device),
+        stage: 'waiting',
+        status: 'waiting',
+        total: 1,
+        processed: 0,
+        percent: 0,
+        success: 0,
+        errors: 0,
+        rejected: 0,
+        status_text: `${deviceLabel(device)}: ожидает точечную команду`,
+        results: { success: [], errors: [], rejected: [] },
+      };
+    });
+    setProgress({
+      stage: 'person',
+      reason: reasonLabel(payload.reason || 'change'),
+      devices: deviceProgress,
+      total: CONFIG.devices.length,
+      processed: 0,
+      status_text: `Точечно обновляем: ${person.employeeNo} ${person.fullName || ''}`.trim(),
+    });
+
+    const reports = [];
+    for (const device of CONFIG.devices) {
+      await syncPersonDevice(device, person, reports, action);
+    }
+    if (reports.length) logOutput += reports.join('\n') + '\n';
+    const finishedDevices = Object.values(currentProgress?.devices || {});
+    const finishedTotal = finishedDevices.reduce((sum, item) => sum + Number(item.total || 0), 0);
+    const finishedProcessed = finishedDevices.reduce((sum, item) => sum + Number(item.processed || 0), 0);
+    setProgress({ stage: 'done', total: finishedTotal, processed: finishedProcessed, status_text: 'Точечное обновление завершено' });
+    logOutput += `[${new Date().toISOString()}] Точечное обновление завершено.\n`;
+    if (commandId) await reportCommand(commandId, true, logOutput);
+    return logOutput;
+  } catch (error) {
+    const message = `Точечное обновление завершилось с ошибкой: ${humanError(error)}`;
+    setProgress({ stage: 'error', status_text: message });
+    logOutput += `${message}\n`;
+    console.error(`[person] ${message}`);
+    if (commandId) await reportCommand(commandId, false, logOutput);
+    throw error;
+  } finally {
+    syncInProgress = false;
+    currentCommandId = null;
+    setAction('idle');
+  }
+}
+
 async function runSync(reason = 'interval', commandId = null) {
   if (syncInProgress) {
     return 'Sync skipped: another sync is already in progress.';
@@ -592,6 +842,36 @@ async function runSync(reason = 'interval', commandId = null) {
     logOutput += `Summary: ${JSON.stringify(summary)}\n`;
     logStudentSummary(students);
 
+    const deviceProgress = {};
+    CONFIG.devices.forEach((device) => {
+      const key = device.name || device.ip;
+      deviceProgress[key] = {
+        key,
+        name: device.name || '',
+        ip: device.ip,
+        port: device.port || 443,
+        label: deviceLabel(device),
+        stage: 'waiting',
+        status: 'waiting',
+        total: students.length,
+        processed: 0,
+        percent: 0,
+        success: 0,
+        errors: 0,
+        rejected: 0,
+        status_text: `${deviceLabel(device)}: ожидает очереди`,
+        results: { success: [], errors: [], rejected: [] },
+      };
+    });
+    setProgress({
+      stage: 'devices_ready',
+      reason: reasonLabel(reason),
+      devices: deviceProgress,
+      total: students.length * CONFIG.devices.length,
+      processed: 0,
+      status_text: `Подготовлено ${students.length} записей для ${CONFIG.devices.length} терминалов`,
+    });
+
     for (const device of CONFIG.devices) {
       setAction(`Синхронизация терминала ${deviceLabel(device)}`);
       setProgress({
@@ -611,7 +891,10 @@ async function runSync(reason = 'interval', commandId = null) {
       console.log(`[sync] ` + finishedMsg.trim());
       logOutput += finishedMsg;
     }
-    setProgress({ stage: 'done', total: students.length, processed: students.length, percent: 100, status_text: 'Синхронизация завершена успешно' });
+    const finishedDevices = Object.values(currentProgress?.devices || {});
+    const finishedTotal = finishedDevices.reduce((sum, item) => sum + Number(item.total || 0), 0);
+    const finishedProcessed = finishedDevices.reduce((sum, item) => sum + Number(item.processed || 0), 0);
+    setProgress({ stage: 'done', total: finishedTotal, processed: finishedProcessed, status_text: 'Синхронизация завершена успешно' });
     logOutput += `[${new Date().toISOString()}] Синхронизация завершена успешно.\n`;
 
     if (localCommandId) {
@@ -667,6 +950,14 @@ async function pollCommands() {
         await runSync(command.payload?.reason || 'command', command.id);
       } catch (err) {
         // Ошибка уже отправлена внутри runSync
+      }
+    } else if (command.type === 'HIKVISION_PERSON') {
+      try {
+        currentCommandId = command.id;
+        setAction(`Точечная команда #${command.id}`);
+        await runPersonCommand(command.payload || {}, command.id);
+      } catch (err) {
+        // Ошибка уже отправлена внутри runPersonCommand
       }
     } else {
       await reportCommand(command.id, false, `unknown command ${command.type}`);

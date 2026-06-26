@@ -499,6 +499,60 @@ def queue_hikvision_sync(reason='change'):
         print(f"Не удалось поставить команду синхронизации Hikvision: {e}")
 
 
+def queue_hikvision_person(person_type, person_id=None, reason='change', action='upsert', employee_no=None):
+    """Поставить точечную команду bridge для одного ученика или сотрудника."""
+    try:
+        ensure_device_commands_table()
+
+        payload = {
+            'reason': reason,
+            'action': action,
+            'person_type': person_type,
+        }
+        if person_id is not None:
+            payload['person_id'] = int(person_id)
+        if employee_no:
+            payload['employeeNo'] = str(employee_no)
+
+        now = get_local_datetime()
+        stale_before = now - timedelta(minutes=30)
+
+        stale_processing = DeviceCommand.query.filter(
+            DeviceCommand.command == 'HIKVISION_PERSON',
+            DeviceCommand.status == 'processing',
+            DeviceCommand.picked_at < stale_before
+        ).all()
+        for old_cmd in stale_processing:
+            old_cmd.status = 'failed'
+            old_cmd.result = 'Точечная команда зависла и была закрыта перед постановкой новой команды.'
+            old_cmd.finished_at = now
+
+        pending_commands = DeviceCommand.query.filter(
+            DeviceCommand.command == 'HIKVISION_PERSON',
+            DeviceCommand.status == 'pending'
+        ).all()
+        for pending in pending_commands:
+            pending_payload = pending.get_payload()
+            same_person = (
+                pending_payload.get('person_type') == person_type and
+                (
+                    (person_id is not None and pending_payload.get('person_id') == int(person_id)) or
+                    (employee_no and str(pending_payload.get('employeeNo')) == str(employee_no))
+                )
+            )
+            if same_person:
+                pending.set_payload(payload)
+                pending.result = f'Обновлено более новой точечной командой: {reason}'
+                pending.created_at = now
+                return
+
+        cmd = DeviceCommand(command='HIKVISION_PERSON')
+        cmd.set_payload(payload)
+        db.session.add(cmd)
+    except Exception as e:
+        print(f"Не удалось поставить точечную команду Hikvision: {e}")
+
+
 def get_month_paid_map(year, month):
     rows = db.session.query(
         Payment.student_id,
@@ -637,6 +691,76 @@ def build_student_access_payload(student, settings=None, paid_map=None, payment_
         'payment_policy': get_access_payment_policy(settings),
         'month': today.month,
         'year': today.year,
+    }
+
+
+def build_hikvision_person_payload(person_type, person_id, settings=None, today=None, paid_map=None, payment_date_paid_map=None):
+    """Собрать одну запись в формате локального Hikvision bridge."""
+    settings = settings or get_club_settings_instance()
+    today = today or get_local_date()
+    base_url = request.host_url.rstrip('/')
+
+    if person_type == 'staff':
+        user = db.session.get(User, int(person_id))
+        if not user:
+            return None
+        photo_url = build_photo_url(user.photo_path)
+        if photo_url and photo_url.startswith('/'):
+            photo_url = f"{base_url}{photo_url}"
+        allowed = bool(user.is_active)
+        reason = 'staff_active' if allowed else 'staff_inactive'
+        final_reason = 'no_photo' if allowed and not photo_url else reason
+        return {
+            'student_id': None,
+            'user_id': user.id,
+            'person_type': 'staff',
+            'employeeNo': f"900000{user.id}",
+            'fullName': user.full_name or user.username,
+            'group': 'Сотрудники клуба',
+            'photoUrl': photo_url,
+            'enabled': bool(allowed and photo_url),
+            'access_allowed': allowed,
+            'access_reason': final_reason,
+            'access_reason_label': ACCESS_REASON_LABELS.get(final_reason, final_reason),
+            'current_month_debt': 0,
+            'current_month_paid': 0,
+            'paid_this_calendar_month': 0,
+            'has_photo': bool(photo_url),
+            'status': 'active' if user.is_active else 'inactive',
+            'student_number': None,
+        }
+
+    student = Student.query.options(
+        joinedload(Student.tariff),
+        joinedload(Student.group)
+    ).filter(Student.id == int(person_id)).first()
+    if not student:
+        return None
+
+    paid_map = paid_map if paid_map is not None else get_month_paid_map(today.year, today.month)
+    payment_date_paid_map = payment_date_paid_map if payment_date_paid_map is not None else get_payment_date_paid_map(today.year, today.month)
+    access_payload = build_student_access_payload(student, settings, paid_map, payment_date_paid_map, today)
+    photo_url = build_photo_url(student.photo_path)
+    if photo_url and photo_url.startswith('/'):
+        photo_url = f"{base_url}{photo_url}"
+    return {
+        'student_id': student.id,
+        'person_type': 'student',
+        'employeeNo': str(student.id),
+        'fullName': student.full_name,
+        'group': student.group.name if student.group else None,
+        'photoUrl': photo_url,
+        'enabled': bool(access_payload['can_sync_to_turnstile']),
+        'access_allowed': bool(access_payload['allowed']),
+        'access_reason': access_payload['reason'],
+        'access_reason_label': access_payload['reason_label'],
+        'access_exempt_from_payment': access_payload['access_exempt_from_payment'],
+        'current_month_debt': access_payload['debt'],
+        'current_month_paid': access_payload['current_month_paid'],
+        'paid_this_calendar_month': access_payload['paid_this_calendar_month'],
+        'has_photo': bool(access_payload['has_photo']),
+        'status': student.status,
+        'student_number': student.student_number,
     }
 
 
@@ -2251,7 +2375,7 @@ def add_student():
                 # Если лицо не найдено, не блокируем создание, просто нет вектора
                 print(f"⚠️ Лицо не обнаружено для студента {student.id}, пропускаем создание вектора")
         
-        queue_hikvision_sync('student_created')
+        queue_hikvision_person('student', student.id, 'student_created')
         db.session.commit()
 
         if encoding_updated:
@@ -2507,7 +2631,7 @@ def update_student(student_id):
         # Убедиться, что у ученика есть код для Telegram
         ensure_student_has_telegram_code(student)
         
-        queue_hikvision_sync('student_updated')
+        queue_hikvision_person('student', student.id, 'student_updated')
         db.session.commit()
         return jsonify({'success': True})
     
@@ -2545,7 +2669,7 @@ def delete_student(student_id):
         
         # 6. Теперь можно безопасно удалить самого ученика
         db.session.delete(student)
-        queue_hikvision_sync('student_deleted')
+        queue_hikvision_person('student', student_id, 'student_deleted', action='delete', employee_no=str(student_id))
         db.session.commit()
         
         # Перезагрузить encodings
@@ -2595,7 +2719,7 @@ def add_payment():
         if is_full_payment:
             student.tariff_type = tariff.name if tariff else None
 
-        queue_hikvision_sync('payment_added')
+        queue_hikvision_person('student', student.id, 'payment_added')
         db.session.commit()
         
         # Отправить уведомление в Telegram (для старого метода)
@@ -3710,55 +3834,14 @@ def hikvision_students():
     base_url = request.host_url.rstrip('/')
     payload = []
     for student in students:
-        access_payload = build_student_access_payload(student, settings, paid_map, payment_date_paid_map, today)
-        photo_url = build_photo_url(student.photo_path)
-        if photo_url and photo_url.startswith('/'):
-            photo_url = f"{base_url}{photo_url}"
-        payload.append({
-            'student_id': student.id,
-            'employeeNo': str(student.id),
-            'fullName': student.full_name,
-            'group': student.group.name if student.group else None,
-            'photoUrl': photo_url,
-            'enabled': bool(access_payload['can_sync_to_turnstile']),
-            'access_allowed': bool(access_payload['allowed']),
-            'access_reason': access_payload['reason'],
-            'access_reason_label': access_payload['reason_label'],
-            'access_exempt_from_payment': access_payload['access_exempt_from_payment'],
-            'current_month_debt': access_payload['debt'],
-            'current_month_paid': access_payload['current_month_paid'],
-            'paid_this_calendar_month': access_payload['paid_this_calendar_month'],
-            'has_photo': bool(access_payload['has_photo']),
-            'status': student.status,
-            'student_number': student.student_number,
-        })
+        item = build_hikvision_person_payload('student', student.id, settings, today, paid_map, payment_date_paid_map)
+        if item:
+            payload.append(item)
 
     for user in staff_users:
-        photo_url = build_photo_url(user.photo_path)
-        if photo_url and photo_url.startswith('/'):
-            photo_url = f"{base_url}{photo_url}"
-        allowed = bool(user.is_active)
-        reason = 'staff_active' if allowed else 'staff_inactive'
-        final_reason = 'no_photo' if allowed and not photo_url else reason
-        payload.append({
-            'student_id': None,
-            'user_id': user.id,
-            'person_type': 'staff',
-            'employeeNo': f"900000{user.id}",
-            'fullName': user.full_name or user.username,
-            'group': 'Сотрудники клуба',
-            'photoUrl': photo_url,
-            'enabled': bool(allowed and photo_url),
-            'access_allowed': allowed,
-            'access_reason': final_reason,
-            'access_reason_label': ACCESS_REASON_LABELS.get(final_reason, final_reason),
-            'current_month_debt': 0,
-            'current_month_paid': 0,
-            'paid_this_calendar_month': 0,
-            'has_photo': bool(photo_url),
-            'status': 'active' if user.is_active else 'inactive',
-            'student_number': None,
-        })
+        item = build_hikvision_person_payload('staff', user.id, settings, today)
+        if item:
+            payload.append(item)
 
     return jsonify({
         'success': True,
@@ -3767,6 +3850,34 @@ def hikvision_students():
         'access_block_day': int(getattr(settings, 'access_block_day', 10) or 10),
         'access_payment_policy': get_access_payment_policy(settings),
         'students': payload
+    })
+
+
+@app.route('/api/hikvision/person', methods=['GET'])
+def hikvision_person():
+    """Одна запись для точечного обновления локальным bridge."""
+    if not check_bridge_auth():
+        return jsonify({'success': False, 'message': 'Unauthorized'}), 401
+
+    person_type = (request.args.get('person_type') or request.args.get('type') or 'student').strip()
+    person_id = request.args.get('person_id') or request.args.get('id')
+    if person_type not in {'student', 'staff'} or not person_id:
+        return jsonify({'success': False, 'message': 'Invalid person request'}), 400
+
+    ensure_club_settings_columns()
+    settings = get_club_settings_instance()
+    today = get_local_date()
+    payload = build_hikvision_person_payload(person_type, person_id, settings, today)
+    if not payload:
+        return jsonify({'success': False, 'message': 'Person not found'}), 404
+
+    return jsonify({
+        'success': True,
+        'person': payload,
+        'month': today.month,
+        'year': today.year,
+        'access_block_day': int(getattr(settings, 'access_block_day', 10) or 10),
+        'access_payment_policy': get_access_payment_policy(settings),
     })
 
 
@@ -3928,7 +4039,7 @@ def get_hikvision_commands_history():
         return jsonify({'success': False, 'message': 'Доступ запрещен'}), 403
 
     ensure_device_commands_table()
-    commands = DeviceCommand.query.filter_by(command='HIKVISION_SYNC')\
+    commands = DeviceCommand.query.filter(DeviceCommand.command.in_(['HIKVISION_SYNC', 'HIKVISION_PERSON']))\
         .order_by(DeviceCommand.created_at.desc())\
         .limit(30)\
         .all()
@@ -5592,7 +5703,7 @@ def create_user():
         photo = request.files.get('photo') if request.files else None
         if photo and photo.filename:
             user.photo_path = save_user_photo(photo, user.id)
-        queue_hikvision_sync('staff_created')
+        queue_hikvision_person('staff', user.id, 'staff_created')
         db.session.commit()
         
         return jsonify({
@@ -5670,7 +5781,7 @@ def update_user(user_id):
             except Exception as photo_error:
                 print(f"Ошибка при удалении старого фото сотрудника: {photo_error}")
         
-        queue_hikvision_sync('staff_updated')
+        queue_hikvision_person('staff', user.id, 'staff_updated')
         db.session.commit()
         
         return jsonify({
@@ -5712,7 +5823,7 @@ def delete_user(user_id):
                 print(f"Ошибка при удалении фото сотрудника: {photo_error}")
 
         db.session.delete(user)
-        queue_hikvision_sync('staff_deleted')
+        queue_hikvision_person('staff', user_id, 'staff_deleted', action='delete', employee_no=f"900000{user_id}")
         db.session.commit()
         
         return jsonify({
@@ -6193,6 +6304,7 @@ def delete_student_photo(student_id):
         
         student.photo_path = None
         student.face_encoding = None
+        queue_hikvision_person('student', student.id, 'student_photo_deleted')
         db.session.commit()
         
         # Обновить кэш лиц
@@ -6422,7 +6534,7 @@ def add_monthly_payment():
         )
         
         db.session.add(payment)
-        queue_hikvision_sync('monthly_payment_added')
+        queue_hikvision_person('student', student_id, 'monthly_payment_added')
         db.session.commit()
         
         # Вычислить долг за этот месяц
@@ -6523,7 +6635,7 @@ def update_payment(payment_id):
         if 'notes' in data:
             payment.notes = data.get('notes')
 
-        queue_hikvision_sync('payment_updated')
+        queue_hikvision_person('student', payment.student_id, 'payment_updated')
         db.session.commit()
         return jsonify({'success': True})
     except Exception as e:
@@ -6544,8 +6656,9 @@ def delete_payment(payment_id):
             return jsonify({'success': False, 'message': 'Оплата не найдена'}), 404
 
         student = payment.student
+        student_id = payment.student_id
         db.session.delete(payment)
-        queue_hikvision_sync('payment_deleted')
+        queue_hikvision_person('student', student_id, 'payment_deleted')
         db.session.commit()
 
         return jsonify({
@@ -6588,7 +6701,7 @@ def refund_payment(payment_id):
         )
         
         db.session.add(refund_payment)
-        queue_hikvision_sync('payment_refunded')
+        queue_hikvision_person('student', original_payment.student_id, 'payment_refunded')
         db.session.commit()
 
         student = original_payment.student
