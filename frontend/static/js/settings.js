@@ -3,6 +3,8 @@ document.addEventListener('DOMContentLoaded', initSettings);
 let expenseCategories = [];
 let bridgeStatusTimer = null;
 let lastBridgeProgress = null;
+let settingsDirtyTrackingReady = false;
+const settingsFormSnapshots = new Map();
 
 async function initSettings() {
     attachWorkingDayToggles();
@@ -80,6 +82,8 @@ async function initSettings() {
         const el = document.getElementById(id);
         if (el) el.addEventListener(id === 'bridgeResultsSearch' ? 'input' : 'change', renderBridgeResultsList);
     });
+
+    initializeSettingsDirtyTracking();
 }
 
 function attachWorkingDayToggles() {
@@ -89,6 +93,7 @@ function attachWorkingDayToggles() {
         const btn = e.target.closest('.day-toggle');
         if (!btn) return;
         btn.classList.toggle('active');
+        updateSettingsFormDirtyState(document.getElementById('settingsForm'));
     });
 }
 
@@ -122,12 +127,16 @@ async function loadSettings() {
         const accessBlockDayEl = document.getElementById('access_block_day');
         const accessPaymentPolicyEl = document.getElementById('access_payment_policy');
         const hikvisionDailySyncTimeEl = document.getElementById('hikvision_daily_sync_time');
+        const hikvisionParallelDevicesEl = document.getElementById('hikvision_parallel_devices');
+        const hikvisionCleanupStaleUsersEl = document.getElementById('hikvision_cleanup_stale_users');
         const accessDebtStartMonthEl = document.getElementById('access_debt_start_month');
         const accessDebtStartYearEl = document.getElementById('access_debt_start_year');
         const hikvisionDeviceKeyEl = document.getElementById('hikvision_device_key');
         if (accessBlockDayEl) accessBlockDayEl.value = data.access_block_day || 10;
         if (accessPaymentPolicyEl) accessPaymentPolicyEl.value = data.access_payment_policy || 'partial_current_month';
         if (hikvisionDailySyncTimeEl) hikvisionDailySyncTimeEl.value = data.hikvision_daily_sync_time || '03:00';
+        if (hikvisionParallelDevicesEl) hikvisionParallelDevicesEl.checked = !!data.hikvision_parallel_devices;
+        if (hikvisionCleanupStaleUsersEl) hikvisionCleanupStaleUsersEl.checked = data.hikvision_cleanup_stale_users !== false;
         if (accessDebtStartMonthEl) accessDebtStartMonthEl.value = data.access_debt_start_month || '';
         if (accessDebtStartYearEl) accessDebtStartYearEl.value = data.access_debt_start_year || '';
         if (hikvisionDeviceKeyEl) hikvisionDeviceKeyEl.value = data.hikvision_device_key || '';
@@ -258,6 +267,7 @@ async function saveSettings() {
         const result = await resp.json();
         if (result.success) {
             alert('Настройки сохранены');
+            markSettingsFormsClean();
         } else {
             alert('Ошибка: ' + (result.message || 'не удалось сохранить'));
         }
@@ -306,6 +316,8 @@ function gatherAllSettings() {
         access_block_day: parseInt(document.getElementById('access_block_day')?.value || '10', 10),
         access_payment_policy: document.getElementById('access_payment_policy')?.value || 'partial_current_month',
         hikvision_daily_sync_time: document.getElementById('hikvision_daily_sync_time')?.value || '03:00',
+        hikvision_parallel_devices: document.getElementById('hikvision_parallel_devices')?.checked || false,
+        hikvision_cleanup_stale_users: document.getElementById('hikvision_cleanup_stale_users')?.checked !== false,
         access_debt_start_month: document.getElementById('access_debt_start_month')?.value || null,
         access_debt_start_year: document.getElementById('access_debt_start_year')?.value || null,
         hikvision_device_key: (document.getElementById('hikvision_device_key')?.value || '').trim(),
@@ -353,6 +365,7 @@ async function saveTelegramSettings() {
         const result = await resp.json();
         if (result.success) {
             alert('Настройки Telegram сохранены!');
+            markSettingsFormsClean();
         } else {
             alert('Ошибка: ' + (result.message || 'Не удалось сохранить настройки'));
         }
@@ -374,6 +387,7 @@ async function saveCameraSettings() {
         const result = await resp.json();
         if (result.success) {
             alert('Настройки камеры сохранены! Видео обновится при следующем открытии страницы камеры.');
+            markSettingsFormsClean();
         } else {
             alert('Ошибка: ' + (result.message || 'Не удалось сохранить настройки'));
         }
@@ -430,6 +444,64 @@ function renderExpenseCategories() {
     });
 }
 
+function serializeSettingsForm(form) {
+    const values = [];
+    form.querySelectorAll('input, select, textarea').forEach((el) => {
+        const key = el.name || el.id;
+        if (!key) return;
+        if (el.type === 'file') {
+            const files = Array.from(el.files || []).map((file) => `${file.name}:${file.size}`).join(',');
+            values.push(`${key}=file:${files}`);
+        } else if (el.type === 'checkbox' || el.type === 'radio') {
+            values.push(`${key}=${el.checked ? '1' : '0'}`);
+        } else {
+            values.push(`${key}=${el.value}`);
+        }
+    });
+    if (form.id === 'expenseCategoriesForm') {
+        values.push(`expenseCategories=${JSON.stringify(expenseCategories)}`);
+    }
+    return values.join('|');
+}
+
+function getSettingsSubmitButtons(form) {
+    const buttons = Array.from(form.querySelectorAll('button[type="submit"], input[type="submit"]'));
+    if (form.id) {
+        buttons.push(...Array.from(document.querySelectorAll(`button[form="${form.id}"], input[form="${form.id}"]`)));
+    }
+    return buttons;
+}
+
+function updateSettingsFormDirtyState(form) {
+    if (!settingsDirtyTrackingReady || !form) return;
+    const initial = settingsFormSnapshots.get(form.id || form);
+    const dirty = serializeSettingsForm(form) !== initial;
+    getSettingsSubmitButtons(form).forEach((button) => {
+        button.disabled = !dirty;
+        button.style.opacity = dirty ? '' : '0.55';
+        button.style.cursor = dirty ? '' : 'not-allowed';
+        button.title = dirty ? '' : 'Нет изменений для сохранения';
+    });
+}
+
+function markSettingsFormsClean() {
+    document.querySelectorAll('.settings-form').forEach((form) => {
+        settingsFormSnapshots.set(form.id || form, serializeSettingsForm(form));
+        updateSettingsFormDirtyState(form);
+    });
+}
+
+function initializeSettingsDirtyTracking() {
+    const forms = Array.from(document.querySelectorAll('.settings-form'));
+    settingsDirtyTrackingReady = true;
+    forms.forEach((form) => {
+        settingsFormSnapshots.set(form.id || form, serializeSettingsForm(form));
+        form.addEventListener('input', () => updateSettingsFormDirtyState(form));
+        form.addEventListener('change', () => updateSettingsFormDirtyState(form));
+        updateSettingsFormDirtyState(form);
+    });
+}
+
 function addExpenseCategorySetting() {
     const input = document.getElementById('expense-category-input');
     if (!input) return;
@@ -446,12 +518,14 @@ function addExpenseCategorySetting() {
     expenseCategories.push(value);
     input.value = '';
     renderExpenseCategories();
+    updateSettingsFormDirtyState(document.getElementById('expenseCategoriesForm'));
 }
 
 function removeExpenseCategorySetting(index) {
     if (index < 0 || index >= expenseCategories.length) return;
     expenseCategories.splice(index, 1);
     renderExpenseCategories();
+    updateSettingsFormDirtyState(document.getElementById('expenseCategoriesForm'));
 }
 
 window.addExpenseCategorySetting = addExpenseCategorySetting;

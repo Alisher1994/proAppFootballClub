@@ -25,6 +25,8 @@ const CONFIG = {
   defaultDoorRight: process.env.HIK_DOOR_RIGHT || '1',
   defaultPlanTemplateNo: process.env.HIK_PLAN_TEMPLATE_NO || '1',
   recreateUsersOnSync: (process.env.HIK_SYNC_RECREATE_USERS || 'false') === 'true',
+  parallelDevices: (process.env.HIK_PARALLEL_DEVICES || 'false') === 'true',
+  cleanupStaleUsersOnFullSync: (process.env.HIK_CLEANUP_STALE_USERS || 'true') !== 'false',
   devices: JSON.parse(process.env.HIK_DEVICES_JSON || '[]'),
 };
 
@@ -223,6 +225,7 @@ function humanError(error) {
   if (code === 'EHOSTUNREACH' || message.includes('EHOSTUNREACH')) return 'терминал недоступен по сети';
   if (code === 'ECONNREFUSED' || message.includes('ECONNREFUSED')) return 'терминал отклонил подключение';
   if (code === 'ETIMEDOUT' || message.includes('ETIMEDOUT') || message.includes('Connection timeout')) return 'терминал не ответил вовремя';
+  if (message.includes('aborted due to timeout') || message.includes('AbortError') || message.includes('The operation was aborted')) return 'сервер не ответил вовремя';
   if (code === 'ECONNRESET' || message.includes('ECONNRESET') || message.includes('fetch failed')) return 'соединение с терминалом оборвалось';
   if (code === 'HIKVISION_LOCKED') return `терминал временно заблокирован${error.unlockTime ? `, ждать ${error.unlockTime} сек` : ''}`;
   if (message.includes('401')) return 'неверный логин или пароль Hikvision';
@@ -395,6 +398,89 @@ async function deleteUser(device, employeeNo) {
   assertOk('delete-user', res);
 }
 
+function isManagedEmployeeNo(employeeNo) {
+  return /^\d+$/.test(String(employeeNo || '').trim());
+}
+
+async function fetchDeviceUsers(device) {
+  const users = [];
+  const maxResults = 100;
+  let position = 0;
+  for (let page = 0; page < 50; page += 1) {
+    const body = {
+      UserInfoSearchCond: {
+        searchID: `karasu-${Date.now()}-${page}`,
+        searchResultPosition: position,
+        maxResults,
+      },
+    };
+    const res = await requestJson(device, 'POST', '/ISAPI/AccessControl/UserInfo/Search?format=json', body);
+    const data = parseJsonSafe(res.body) || {};
+    const search = data.UserInfoSearch || data.userInfoSearch || data;
+    const listRaw = search.UserInfo || search.userInfo || [];
+    const list = Array.isArray(listRaw) ? listRaw : [listRaw].filter(Boolean);
+    list.forEach((user) => {
+      const employeeNo = String(user.employeeNo || user.employeeNO || user.EmployeeNo || '').trim();
+      if (employeeNo) {
+        users.push({
+          employeeNo,
+          fullName: String(user.name || user.fullName || '').trim(),
+        });
+      }
+    });
+    const num = Number(search.numOfMatches ?? search.numMatches ?? list.length);
+    const total = Number(search.totalMatches ?? search.total ?? 0);
+    if (!num || list.length < maxResults || (total > 0 && position + num >= total)) break;
+    position += num;
+  }
+  return users;
+}
+
+async function cleanupStaleUsers(device, expectedPeople, reports, stats) {
+  if (!CONFIG.cleanupStaleUsersOnFullSync) return 0;
+  const expected = new Set(expectedPeople.map((person) => String(person.employeeNo)));
+  const logPrefix = `[${deviceShortLabel(device.name)} ${device.ip}]`;
+  let removed = 0;
+
+  try {
+    const terminalUsers = await fetchDeviceUsers(device);
+    const staleUsers = terminalUsers.filter((user) => isManagedEmployeeNo(user.employeeNo) && !expected.has(user.employeeNo));
+    if (!staleUsers.length) {
+      console.log(`${logPrefix} Старых записей для удаления не найдено.`);
+      return 0;
+    }
+    console.log(`${logPrefix} Найдено старых записей в терминале: ${staleUsers.length}. Удаляем лишние.`);
+    for (const user of staleUsers) {
+      try {
+        await deleteUser(device, user.employeeNo);
+        removed += 1;
+        stats.deleted += 1;
+        stats.rejected += 1;
+        stats.results.rejected.push({ employeeNo: user.employeeNo, fullName: user.fullName || '', reason: 'старая запись удалена: нет в системе' });
+        capList(stats.results.rejected);
+        const msg = `${logPrefix} Удалена старая запись: ${user.employeeNo} ${user.fullName || ''}`.trim();
+        console.log(msg);
+        reports.push(msg);
+        await sleep(120);
+      } catch (error) {
+        stats.errors += 1;
+        const reason = humanError(error);
+        stats.results.errors.push({ employeeNo: user.employeeNo, fullName: user.fullName || '', reason: `ошибка удаления старой записи: ${reason}` });
+        capList(stats.results.errors);
+        const msg = `${logPrefix} ОШИБКА: не удалось удалить старую запись ${user.employeeNo} ${user.fullName || ''}. Причина: ${reason}`.trim();
+        console.error(msg);
+        reports.push(`ОШИБКА: ${msg}`);
+      }
+    }
+  } catch (error) {
+    const reason = humanError(error);
+    const msg = `${logPrefix} Не удалось проверить старые записи терминала. Причина: ${reason}`;
+    console.warn(msg);
+    reports.push(msg);
+  }
+  return removed;
+}
+
 async function upsertUser(device, student) {
   const now = new Date();
   const beginTime = new Date(now.getTime() - 24 * 3600 * 1000).toISOString().slice(0, 19);
@@ -501,6 +587,12 @@ async function loadRemoteConfig() {
   if (typeof data.daily_sync_time === 'string' && /^\d{2}:\d{2}$/.test(data.daily_sync_time)) {
     CONFIG.dailySyncTime = data.daily_sync_time;
   }
+  if (typeof data.parallel_devices === 'boolean') {
+    CONFIG.parallelDevices = data.parallel_devices;
+  }
+  if (typeof data.cleanup_stale_users === 'boolean') {
+    CONFIG.cleanupStaleUsersOnFullSync = data.cleanup_stale_users;
+  }
 }
 
 async function syncDevice(device, students, reports) {
@@ -536,6 +628,7 @@ async function syncDevice(device, students, reports) {
     return changed;
   }
   console.log(`${logPrefix} Связь с терминалом есть. Начинаем запись ${students.length} записей.`);
+  changed += await cleanupStaleUsers(device, students, reports, stats);
 
   for (const student of students) {
     processed += 1;
@@ -768,10 +861,20 @@ async function runPersonCommand(payload = {}, commandId = null) {
       status_text: `Точечно обновляем: ${person.employeeNo} ${person.fullName || ''}`.trim(),
     });
 
-    const reports = [];
-    for (const device of CONFIG.devices) {
-      await syncPersonDevice(device, person, reports, action);
+    const runDevice = async (device) => {
+      const deviceReports = [];
+      await syncPersonDevice(device, person, deviceReports, action);
+      return deviceReports;
+    };
+    const reportGroups = CONFIG.parallelDevices && CONFIG.devices.length > 1
+      ? await Promise.all(CONFIG.devices.map(runDevice))
+      : [];
+    if (!CONFIG.parallelDevices || CONFIG.devices.length <= 1) {
+      for (const device of CONFIG.devices) {
+        reportGroups.push(await runDevice(device));
+      }
     }
+    const reports = reportGroups.flat();
     if (reports.length) logOutput += reports.join('\n') + '\n';
     const finishedDevices = Object.values(currentProgress?.devices || {});
     const finishedTotal = finishedDevices.reduce((sum, item) => sum + Number(item.total || 0), 0);
@@ -872,18 +975,33 @@ async function runSync(reason = 'interval', commandId = null) {
       status_text: `Подготовлено ${students.length} записей для ${CONFIG.devices.length} терминалов`,
     });
 
-    for (const device of CONFIG.devices) {
+    const runDevice = async (device) => {
       setAction(`Синхронизация терминала ${deviceLabel(device)}`);
-      setProgress({
-        stage: 'device_start',
-        device: deviceLabel(device),
-        total: students.length,
-        processed: 0,
-        status_text: `Начинаем запись в терминал ${deviceLabel(device)}`,
-      });
-      logOutput += `Терминал: ${deviceLabel(device)} (${device.protocol || 'https'}://${device.ip}:${device.port || 443}).\n`;
       const reports = [];
       const changed = await syncDevice(device, students, reports);
+      return { device, reports, changed };
+    };
+
+    const deviceResults = CONFIG.parallelDevices && CONFIG.devices.length > 1
+      ? await Promise.all(CONFIG.devices.map(runDevice))
+      : [];
+    if (!CONFIG.parallelDevices || CONFIG.devices.length <= 1) {
+      for (const device of CONFIG.devices) {
+        setProgress({
+          stage: 'device_start',
+          device: deviceLabel(device),
+          total: students.length,
+          processed: 0,
+          status_text: `Начинаем запись в терминал ${deviceLabel(device)}`,
+        });
+        deviceResults.push(await runDevice(device));
+      }
+    } else {
+      logOutput += `Параллельная запись включена: терминалы работают одновременно.\n`;
+    }
+
+    for (const { device, reports, changed } of deviceResults) {
+      logOutput += `Терминал: ${deviceLabel(device)} (${device.protocol || 'https'}://${device.ip}:${device.port || 443}).\n`;
       if (reports.length > 0) {
         logOutput += reports.map(line => `  ${line}`).join('\n') + '\n';
       }
@@ -937,7 +1055,7 @@ async function pollCommands() {
     if (syncInProgress) return;
     const res = await fetch(`${CONFIG.serverUrl}/api/hikvision/commands/next`, {
       headers: { 'x-device-key': CONFIG.deviceKey },
-      signal: AbortSignal.timeout(10000)
+      signal: AbortSignal.timeout(20000)
     });
     if (!res.ok) throw new Error(`server command ${res.status}`);
     const data = await res.json();
@@ -963,7 +1081,7 @@ async function pollCommands() {
       await reportCommand(command.id, false, `unknown command ${command.type}`);
     }
   } catch (e) {
-    console.error('[command] failed:', e.message);
+    console.error(`[command] Ошибка опроса очереди команд: ${humanError(e)}`);
   }
 }
 

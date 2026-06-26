@@ -451,6 +451,8 @@ class ClubSettings(db.Model):
     hikvision_daily_sync_time = db.Column(db.String(5), default='03:00')  # Время полной синхронизации HH:MM (Asia/Tashkent)
     hikvision_device_key = db.Column(db.String(120), nullable=True)  # Ключ локального bridge
     hikvision_devices = db.Column(db.Text, nullable=True)  # JSON-массив терминалов Hikvision
+    hikvision_parallel_devices = db.Column(db.Boolean, default=False)  # Писать вход/выход параллельно
+    hikvision_cleanup_stale_users = db.Column(db.Boolean, default=True)  # Удалять из терминалов лишние записи
 
     def get_working_days_list(self):
         if self.working_days:

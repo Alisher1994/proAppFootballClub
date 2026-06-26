@@ -1083,6 +1083,10 @@ def ensure_club_settings_columns():
             conn.execute(db.text("ALTER TABLE club_settings ADD COLUMN hikvision_device_key VARCHAR(120)"))
         if 'hikvision_devices' not in columns:
             conn.execute(db.text("ALTER TABLE club_settings ADD COLUMN hikvision_devices TEXT"))
+        if 'hikvision_parallel_devices' not in columns:
+            conn.execute(db.text("ALTER TABLE club_settings ADD COLUMN hikvision_parallel_devices BOOLEAN DEFAULT 0"))
+        if 'hikvision_cleanup_stale_users' not in columns:
+            conn.execute(db.text("ALTER TABLE club_settings ADD COLUMN hikvision_cleanup_stale_users BOOLEAN DEFAULT 1"))
 
 
 def ensure_device_commands_table():
@@ -3893,6 +3897,8 @@ def hikvision_config():
         'success': True,
         'devices': devices,
         'daily_sync_time': get_hikvision_daily_sync_time(settings),
+        'parallel_devices': bool(getattr(settings, 'hikvision_parallel_devices', False)),
+        'cleanup_stale_users': bool(getattr(settings, 'hikvision_cleanup_stale_users', True)),
         'timezone': 'Asia/Tashkent',
     })
 
@@ -4312,6 +4318,8 @@ def get_club_settings():
         'access_debt_start_month': getattr(settings, 'access_debt_start_month', None),
         'hikvision_device_key': get_bridge_key(settings),
         'hikvision_devices': settings.get_hikvision_devices() or default_hikvision_devices(),
+        'hikvision_parallel_devices': bool(getattr(settings, 'hikvision_parallel_devices', False)),
+        'hikvision_cleanup_stale_users': bool(getattr(settings, 'hikvision_cleanup_stale_users', True)),
         # Телефоны руководства
         'director_phone': getattr(settings, 'director_phone', '') or '',
         'founder_phone': getattr(settings, 'founder_phone', '') or '',
@@ -4375,6 +4383,8 @@ def update_club_settings():
         access_debt_start_month = data.get('access_debt_start_month', getattr(settings, 'access_debt_start_month', None))
         hikvision_device_key = get_str_setting('hikvision_device_key', getattr(settings, 'hikvision_device_key', '') or '')
         hikvision_devices = data.get('hikvision_devices') if isinstance(data.get('hikvision_devices'), list) else None
+        hikvision_parallel_devices = get_bool_setting('hikvision_parallel_devices', getattr(settings, 'hikvision_parallel_devices', False))
+        hikvision_cleanup_stale_users = get_bool_setting('hikvision_cleanup_stale_users', getattr(settings, 'hikvision_cleanup_stale_users', True))
         expense_categories = data.get('expense_categories') if isinstance(data.get('expense_categories'), list) else []
         expense_categories = [str(c).strip() for c in expense_categories if str(c).strip()]
         # Убираем техническую категорию "Encashment" и "Инкасация" - она не должна храниться в настройках
@@ -4451,6 +4461,8 @@ def update_club_settings():
         settings.access_debt_start_year = access_debt_start_year
         settings.access_debt_start_month = access_debt_start_month
         settings.hikvision_device_key = hikvision_device_key if hikvision_device_key else None
+        settings.hikvision_parallel_devices = hikvision_parallel_devices
+        settings.hikvision_cleanup_stale_users = hikvision_cleanup_stale_users
         if hikvision_devices is not None:
             settings.set_hikvision_devices(hikvision_devices)
         settings.expense_categories = json.dumps(expense_categories) if expense_categories else None
