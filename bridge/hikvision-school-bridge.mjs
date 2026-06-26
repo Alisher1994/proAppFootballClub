@@ -486,23 +486,29 @@ async function openDoor(device) {
 }
 
 async function clearDeviceMemory(device, onProgress = null) {
-  const users = await fetchDeviceUsers(device);
   let deleted = 0;
+  let totalSeen = 0;
   const errors = [];
 
-  for (const user of users) {
-    try {
-      await deletePersonFromDevice(device, user.employeeNo);
-      deleted += 1;
-      if (onProgress) onProgress({ deleted, total: users.length, user });
-      await sleep(120);
-    } catch (error) {
-      errors.push({ user, reason: humanError(error) });
-      console.error(`[clear] Не удалось удалить ${user.employeeNo} ${user.fullName || ''}: ${humanError(error)}`);
+  for (let pass = 1; pass <= 30; pass += 1) {
+    const users = await fetchDeviceUsers(device);
+    if (!users.length) break;
+    totalSeen = Math.max(totalSeen, deleted + users.length);
+
+    for (const user of users) {
+      try {
+        await deletePersonFromDevice(device, user.employeeNo);
+        deleted += 1;
+        if (onProgress) onProgress({ deleted, total: Math.max(totalSeen, deleted), user });
+        await sleep(120);
+      } catch (error) {
+        errors.push({ user, reason: humanError(error) });
+        console.error(`[clear] Не удалось удалить ${user.employeeNo} ${user.fullName || ''}: ${humanError(error)}`);
+      }
     }
   }
 
-  return { total: users.length, deleted, errors };
+  return { total: Math.max(totalSeen, deleted), deleted, errors };
 }
 
 function isManagedEmployeeNo(employeeNo) {
@@ -537,7 +543,7 @@ async function fetchDeviceUsers(device) {
     });
     const num = Number(search.numOfMatches ?? search.numMatches ?? list.length);
     const total = Number(search.totalMatches ?? search.total ?? 0);
-    if (!num || list.length < maxResults || (total > 0 && position + num >= total)) break;
+    if (!num || (total > 0 && position + num >= total) || (total <= 0 && list.length < maxResults)) break;
     position += num;
   }
   return users;
