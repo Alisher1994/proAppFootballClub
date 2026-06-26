@@ -792,7 +792,8 @@ def ensure_users_table_columns():
                 print("✓ Добавлена колонка photo_path в таблицу users")
             except Exception as e:
                 db.session.rollback()
-                if "duplicate column" not in str(e).lower():
+                err_text = str(e).lower()
+                if "duplicate column" not in err_text and "duplicatecolumn" not in err_text:
                     print(f"Ошибка при добавлении photo_path: {e}")
         
         if 'is_active' not in columns:
