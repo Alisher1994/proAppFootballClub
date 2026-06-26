@@ -339,6 +339,48 @@ class DeviceCommand(db.Model):
         self.payload = json.dumps(payload or {}, ensure_ascii=False)
 
 
+class BridgeStatus(db.Model):
+    """Live-состояние локального Hikvision bridge."""
+    __tablename__ = 'bridge_status'
+
+    id = db.Column(db.Integer, primary_key=True)
+    bridge_id = db.Column(db.String(80), unique=True, nullable=False, default='hikvision-school-bridge')
+    status = db.Column(db.String(30), default='offline')
+    host = db.Column(db.String(120), nullable=True)
+    pid = db.Column(db.Integer, nullable=True)
+    version = db.Column(db.String(50), nullable=True)
+    uptime_seconds = db.Column(db.Integer, default=0)
+    current_command_id = db.Column(db.Integer, nullable=True)
+    current_action = db.Column(db.String(200), nullable=True)
+    metrics = db.Column(db.Text, nullable=True)
+    logs = db.Column(db.Text, nullable=True)
+    last_seen_at = db.Column(db.DateTime, nullable=True, index=True)
+    updated_at = db.Column(db.DateTime, default=get_local_datetime, onupdate=get_local_datetime)
+
+    def get_metrics(self):
+        if not self.metrics:
+            return {}
+        try:
+            return json.loads(self.metrics)
+        except Exception:
+            return {}
+
+    def set_metrics(self, value):
+        self.metrics = json.dumps(value or {}, ensure_ascii=False)
+
+    def get_logs(self):
+        if not self.logs:
+            return []
+        try:
+            data = json.loads(self.logs)
+            return data if isinstance(data, list) else []
+        except Exception:
+            return []
+
+    def set_logs(self, lines):
+        self.logs = json.dumps((lines or [])[-500:], ensure_ascii=False)
+
+
 class Expense(db.Model):
     """Расходы школы"""
     __tablename__ = 'expenses'

@@ -1634,6 +1634,43 @@
                             </div>
                         </form>
 
+                        <!-- Live состояние bridge -->
+                        <div class="settings-section" style="margin-top: 32px; border-top: 1px solid var(--theme-border); padding-top: 24px;">
+                            <div class="settings-section-header" style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
+                                <div style="display:flex; align-items:center; gap:10px;">
+                                    <span class="settings-section-icon">🟢</span>
+                                    <h3 class="settings-section-title">Bridge сейчас</h3>
+                                </div>
+                                <button type="button" id="bridgeStatusRefreshBtn" class="btn-secondary" style="padding: 8px 12px;">🔄 Обновить</button>
+                            </div>
+                            <div class="settings-section-content">
+                                <div id="bridgeStatusBanner" style="margin-bottom: 14px; padding: 12px 14px; border-radius: 8px; border: 1px solid var(--theme-border); background: var(--theme-bg-secondary); color: var(--theme-text-primary);">
+                                    Загрузка состояния bridge...
+                                </div>
+                                <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap:12px; margin-bottom:14px;">
+                                    <div style="padding:12px; border:1px solid var(--theme-border); border-radius:8px; background:var(--theme-bg-secondary);">
+                                        <div style="font-size:11px; color:var(--theme-text-secondary); text-transform:uppercase;">Очередь</div>
+                                        <div id="bridgeQueueMetric" style="font-size:22px; font-weight:700;">—</div>
+                                    </div>
+                                    <div style="padding:12px; border:1px solid var(--theme-border); border-radius:8px; background:var(--theme-bg-secondary);">
+                                        <div style="font-size:11px; color:var(--theme-text-secondary); text-transform:uppercase;">RAM</div>
+                                        <div id="bridgeRamMetric" style="font-size:22px; font-weight:700;">—</div>
+                                    </div>
+                                    <div style="padding:12px; border:1px solid var(--theme-border); border-radius:8px; background:var(--theme-bg-secondary);">
+                                        <div style="font-size:11px; color:var(--theme-text-secondary); text-transform:uppercase;">Uptime</div>
+                                        <div id="bridgeUptimeMetric" style="font-size:22px; font-weight:700;">—</div>
+                                    </div>
+                                </div>
+                                <div style="border:1px solid var(--theme-border); border-radius:8px; overflow:hidden;">
+                                    <div style="display:flex; justify-content:space-between; gap:12px; padding:10px 12px; background:var(--theme-bg-secondary); border-bottom:1px solid var(--theme-border);">
+                                        <strong>Live-логи Bridge</strong>
+                                        <span style="color:var(--theme-text-secondary); font-size:12px;">Последние 500 строк</span>
+                                    </div>
+                                    <pre id="bridgeLiveLogs" style="margin:0; height:260px; overflow:auto; padding:12px; background:#0f172a; color:#e5eefb; font-family:Consolas, monospace; font-size:12px; line-height:1.45; white-space:pre-wrap;">Логи пока не получены.</pre>
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- Секция истории синхронизаций -->
                         <div class="settings-section" style="margin-top: 32px; border-top: 1px solid var(--theme-border); padding-top: 24px;">
                             <div class="settings-section-header">
@@ -2142,6 +2179,9 @@
                                         }, 100);
                                     }
                                 } else if (tabName === 'hikvision') {
+                                    if (typeof loadBridgeStatus === 'function') {
+                                        setTimeout(() => loadBridgeStatus(), 50);
+                                    }
                                     if (typeof loadSyncHistory === 'function') {
                                         setTimeout(() => loadSyncHistory(), 100);
                                     }

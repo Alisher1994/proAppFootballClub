@@ -1,6 +1,7 @@
 // settings.js updated: FORCE REBUILD 2
 document.addEventListener('DOMContentLoaded', initSettings);
 let expenseCategories = [];
+let bridgeStatusTimer = null;
 
 async function initSettings() {
     attachWorkingDayToggles();
@@ -61,6 +62,15 @@ async function initSettings() {
     const hikvisionManualSyncBtn = document.getElementById('hikvisionManualSyncBtn');
     if (hikvisionManualSyncBtn) {
         hikvisionManualSyncBtn.addEventListener('click', requestHikvisionSync);
+    }
+
+    const bridgeStatusRefreshBtn = document.getElementById('bridgeStatusRefreshBtn');
+    if (bridgeStatusRefreshBtn) {
+        bridgeStatusRefreshBtn.addEventListener('click', loadBridgeStatus);
+    }
+    if (document.getElementById('bridgeStatusBanner')) {
+        loadBridgeStatus();
+        bridgeStatusTimer = setInterval(loadBridgeStatus, 5000);
     }
 }
 
@@ -539,6 +549,100 @@ async function loadSyncHistory() {
         console.error('Ошибка при загрузке истории:', error);
         body.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #ef4444; padding: 20px;">Ошибка при загрузке данных: ${error.message}</td></tr>`;
     }
+}
+
+async function loadBridgeStatus() {
+    const banner = document.getElementById('bridgeStatusBanner');
+    if (!banner) return;
+
+    try {
+        const resp = await fetch('/api/hikvision/bridge/status');
+        if (!resp.ok) throw new Error('Ошибка сети');
+        const data = await resp.json();
+        if (!data.success) throw new Error(data.message || 'Ошибка загрузки');
+
+        const bridge = data.bridge;
+        const queue = data.queue || {};
+        const pending = queue.pending || 0;
+        const processing = queue.processing;
+
+        const queueMetric = document.getElementById('bridgeQueueMetric');
+        if (queueMetric) queueMetric.textContent = processing ? `${pending} + 1` : String(pending);
+
+        if (!bridge) {
+            banner.style.borderColor = '#fecaca';
+            banner.style.background = '#fff1f2';
+            banner.innerHTML = '<strong>Bridge не найден</strong><br><span style="font-size:13px;">Локальный bridge еще не отправлял heartbeat.</span>';
+            setBridgeText('bridgeRamMetric', '—');
+            setBridgeText('bridgeUptimeMetric', '—');
+            setBridgeLogs([]);
+            return;
+        }
+
+        const online = data.online;
+        banner.style.borderColor = online ? '#bbf7d0' : '#fecaca';
+        banner.style.background = online ? '#f0fdf4' : '#fff1f2';
+        const dot = online ? '●' : '●';
+        const dotColor = online ? '#16a34a' : '#dc2626';
+        const seenText = bridge.seconds_since_seen == null ? 'нет данных' : `${bridge.seconds_since_seen} сек назад`;
+        const action = bridge.current_action && bridge.current_action !== 'idle' ? bridge.current_action : 'ожидает задачи';
+        banner.innerHTML = `
+            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                <span style="color:${dotColor}; font-size:18px;">${dot}</span>
+                <strong>${online ? 'Локальный Bridge online' : 'Локальный Bridge offline'}</strong>
+                <span style="color:var(--theme-text-secondary);">• ${escapeHtml(bridge.host || 'unknown')} • PID ${escapeHtml(bridge.pid || '—')}</span>
+            </div>
+            <div style="margin-top:6px; font-size:13px; color:var(--theme-text-secondary);">
+                Сейчас: ${escapeHtml(action)} · Последний heartbeat: ${escapeHtml(seenText)}
+            </div>
+            ${processing ? `<div style="margin-top:4px; font-size:13px;">Выполняется команда #${processing.id}</div>` : ''}
+        `;
+
+        const metrics = bridge.metrics || {};
+        setBridgeText('bridgeRamMetric', metrics.memory_used_percent != null ? `${metrics.memory_used_percent}%` : '—');
+        setBridgeText('bridgeUptimeMetric', formatUptime(bridge.uptime_seconds || 0));
+        setBridgeLogs(bridge.logs || []);
+    } catch (error) {
+        banner.style.borderColor = '#fecaca';
+        banner.style.background = '#fff1f2';
+        banner.innerHTML = `<strong>Ошибка загрузки bridge</strong><br><span style="font-size:13px;">${escapeHtml(error.message)}</span>`;
+    }
+}
+
+function setBridgeText(id, value) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = value;
+}
+
+function escapeHtml(value) {
+    const div = document.createElement('div');
+    div.textContent = String(value ?? '');
+    return div.innerHTML;
+}
+
+function setBridgeLogs(logs) {
+    const el = document.getElementById('bridgeLiveLogs');
+    if (!el) return;
+    const nearBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 20;
+    if (!logs.length) {
+        el.textContent = 'Логи пока не получены.';
+        return;
+    }
+    el.textContent = logs.map(line => {
+        const time = line.ts ? new Date(line.ts).toLocaleTimeString('ru-RU') : '';
+        return `${time} ${line.level || 'LOG'} ${line.message || ''}`;
+    }).join('\n');
+    if (nearBottom) el.scrollTop = el.scrollHeight;
+}
+
+function formatUptime(seconds) {
+    const total = Number(seconds || 0);
+    const days = Math.floor(total / 86400);
+    const hours = Math.floor((total % 86400) / 3600);
+    const minutes = Math.floor((total % 3600) / 60);
+    if (days > 0) return `${days}д ${hours}ч`;
+    if (hours > 0) return `${hours}ч ${minutes}м`;
+    return `${minutes}м`;
 }
 
 function formatDateTime(isoStr) {

@@ -7,6 +7,7 @@
 
 import http from 'node:http';
 import https from 'node:https';
+import os from 'node:os';
 
 const CONFIG = {
   serverUrl: process.env.SERVER_URL || 'https://proapp.up.railway.app',
@@ -19,6 +20,8 @@ const CONFIG = {
   deviceRequestTimeoutMs: Number(process.env.HIK_REQUEST_TIMEOUT_MS || 10000),
   deviceProbeTimeoutMs: Number(process.env.HIK_PROBE_TIMEOUT_MS || 2500),
   offlineBackoffMs: Number(process.env.HIK_OFFLINE_BACKOFF_MS || 60000),
+  heartbeatIntervalMs: Number(process.env.BRIDGE_HEARTBEAT_INTERVAL_MS || 5000),
+  bridgeId: process.env.BRIDGE_ID || 'hikvision-school-bridge',
   defaultDoorRight: process.env.HIK_DOOR_RIGHT || '1',
   defaultPlanTemplateNo: process.env.HIK_PLAN_TEMPLATE_NO || '1',
   recreateUsersOnSync: (process.env.HIK_SYNC_RECREATE_USERS || 'false') === 'true',
@@ -26,6 +29,34 @@ const CONFIG = {
 };
 
 const deviceOfflineUntil = new Map();
+const startTime = Date.now();
+const liveLogs = [];
+let currentCommandId = null;
+let currentAction = 'idle';
+let lastHeartbeatAt = 0;
+
+function rememberLog(level, args) {
+  const line = {
+    ts: new Date().toISOString(),
+    level,
+    message: args.map((arg) => {
+      if (typeof arg === 'string') return arg;
+      try { return JSON.stringify(arg); } catch { return String(arg); }
+    }).join(' '),
+  };
+  liveLogs.push(line);
+  if (liveLogs.length > 500) liveLogs.splice(0, liveLogs.length - 500);
+}
+
+const originalConsole = {
+  log: console.log.bind(console),
+  warn: console.warn.bind(console),
+  error: console.error.bind(console),
+};
+
+console.log = (...args) => { rememberLog('LOG', args); originalConsole.log(...args); };
+console.warn = (...args) => { rememberLog('WARN', args); originalConsole.warn(...args); };
+console.error = (...args) => { rememberLog('ERROR', args); originalConsole.error(...args); };
 
 if (!CONFIG.devices.length && process.env.HIK_IP) {
   CONFIG.devices.push({
@@ -39,6 +70,50 @@ if (!CONFIG.devices.length && process.env.HIK_IP) {
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function getMetrics() {
+  const totalMem = os.totalmem();
+  const freeMem = os.freemem();
+  return {
+    cpu_load_1m: Number((os.loadavg()[0] || 0).toFixed(2)),
+    memory_used_percent: totalMem ? Number((((totalMem - freeMem) / totalMem) * 100).toFixed(1)) : 0,
+    memory_used_mb: Math.round((totalMem - freeMem) / 1024 / 1024),
+    memory_total_mb: Math.round(totalMem / 1024 / 1024),
+    node_memory_mb: Math.round(process.memoryUsage().rss / 1024 / 1024),
+  };
+}
+
+async function sendHeartbeat(force = false) {
+  const now = Date.now();
+  if (!force && now - lastHeartbeatAt < CONFIG.heartbeatIntervalMs) return;
+  lastHeartbeatAt = now;
+  try {
+    await fetch(`${CONFIG.serverUrl}/api/hikvision/bridge/status`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-device-key': CONFIG.deviceKey },
+      body: JSON.stringify({
+        bridge_id: CONFIG.bridgeId,
+        status: currentAction === 'idle' ? 'online' : 'busy',
+        host: os.hostname(),
+        pid: process.pid,
+        version: process.version,
+        uptime_seconds: Math.round((Date.now() - startTime) / 1000),
+        current_command_id: currentCommandId,
+        current_action: currentAction,
+        metrics: getMetrics(),
+        logs: liveLogs,
+      }),
+      signal: AbortSignal.timeout(5000),
+    });
+  } catch (error) {
+    originalConsole.error('[heartbeat] failed:', error.message);
+  }
+}
+
+function setAction(action) {
+  currentAction = action || 'idle';
+  sendHeartbeat(true);
 }
 
 async function md5(s) {
@@ -309,6 +384,7 @@ async function syncDevice(device, students, reports) {
     errorTypes: {},
   };
 
+  setAction(`Проверка терминала ${device.name || device.ip}`);
   const probe = await probeDevice(device);
   if (!probe.ok) {
     stats.errors += 1;
@@ -323,6 +399,7 @@ async function syncDevice(device, students, reports) {
 
   for (const student of students) {
     try {
+      setAction(`${device.name || device.ip}: ${student.enabled ? 'запись' : 'блокировка'} ${student.employeeNo} ${student.fullName}`);
       if (!student.enabled) {
         stats.skippedDisabled += 1;
         await deleteUser(device, student.employeeNo);
@@ -366,6 +443,7 @@ async function syncDevice(device, students, reports) {
     }
     await sleep(300);
   }
+  setAction(`Терминал ${device.name || device.ip}: готово`);
   reports.unshift(`[${device.name || device.ip}] summary ${JSON.stringify(stats)}`);
   return changed;
 }
@@ -376,6 +454,8 @@ async function runSync(reason = 'interval', commandId = null) {
     return 'Sync skipped: another sync is already in progress.';
   }
   syncInProgress = true;
+  currentCommandId = commandId;
+  setAction(`Запуск синхронизации: ${reason}`);
   let logOutput = `[${new Date().toISOString()}] Sync started, reason=${reason}\n`;
 
   let localCommandId = commandId;
@@ -391,6 +471,8 @@ async function runSync(reason = 'interval', commandId = null) {
         const data = await res.json();
         if (data.success) {
           localCommandId = data.command_id;
+          currentCommandId = localCommandId;
+          sendHeartbeat(true);
         }
       }
     } catch (e) {
@@ -399,6 +481,7 @@ async function runSync(reason = 'interval', commandId = null) {
   }
 
   try {
+    setAction('Загрузка списка учеников и сотрудников с сервера');
     const students = await fetchStudents();
     logOutput += `Loaded ${students.length} student(s) from server.\n`;
     console.log(`[sync] ${students.length} student(s), reason=${reason}`);
@@ -413,6 +496,7 @@ async function runSync(reason = 'interval', commandId = null) {
     logStudentSummary(students);
 
     for (const device of CONFIG.devices) {
+      setAction(`Синхронизация терминала ${device.name || device.ip}`);
       logOutput += `Syncing device: ${device.name || device.ip} (${device.protocol || 'https'}://${device.ip}:${device.port || 443})...\n`;
       const reports = [];
       const changed = await syncDevice(device, students, reports);
@@ -440,6 +524,8 @@ async function runSync(reason = 'interval', commandId = null) {
     throw new Error(logOutput);
   } finally {
     syncInProgress = false;
+    currentCommandId = null;
+    setAction('idle');
   }
 }
 
@@ -458,6 +544,8 @@ async function reportCommand(id, ok, result) {
 
 async function pollCommands() {
   try {
+    await sendHeartbeat();
+    if (syncInProgress) return;
     const res = await fetch(`${CONFIG.serverUrl}/api/hikvision/commands/next`, {
       headers: { 'x-device-key': CONFIG.deviceKey },
       signal: AbortSignal.timeout(10000)
@@ -468,6 +556,8 @@ async function pollCommands() {
     if (!command) return;
     if (command.type === 'HIKVISION_SYNC') {
       try {
+        currentCommandId = command.id;
+        setAction(`Команда из очереди #${command.id}`);
         await runSync(command.payload?.reason || 'command', command.id);
       } catch (err) {
         // Ошибка уже отправлена внутри runSync
@@ -511,6 +601,8 @@ async function main() {
   }
   console.log(`[bridge] ${CONFIG.devices.length} Hikvision terminal(s) -> ${CONFIG.serverUrl}`);
   console.log(`[bridge] command polling ${CONFIG.commandPollIntervalMs}ms, daily full sync ${CONFIG.dailySyncTime} Asia/Tashkent`);
+  setAction('idle');
+  setInterval(() => sendHeartbeat(), CONFIG.heartbeatIntervalMs);
   // Запускаем стартовую синхронизацию в фоновом режиме (без await), чтобы не блокировать опрос команд
   runSync('startup').catch((e) => {
     console.error('Startup sync failed:', e.message);

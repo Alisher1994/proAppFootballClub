@@ -53,7 +53,7 @@ os.environ['FFMPEG_LOG_LEVEL'] = 'quiet'
 # Форсируем использование CUDA/TensorRT в ONNX
 os.environ['ORT_TENSORRT_FP16_ENABLE'] = '1'
 
-from backend.models.models import db, User, Student, Payment, Attendance, Expense, Group, Tariff, ClubSettings, RewardType, StudentReward, CashTransfer, Role, RolePermission, CardType, StudentCard, DeviceCommand
+from backend.models.models import db, User, Student, Payment, Attendance, Expense, Group, Tariff, ClubSettings, RewardType, StudentReward, CashTransfer, Role, RolePermission, CardType, StudentCard, DeviceCommand, BridgeStatus
 # Face recognition permanently disabled per client; keep dummy service only.
 USE_FACE = False
 from backend.services.face_stub import DummyFaceService as FaceService
@@ -977,6 +977,12 @@ def ensure_device_commands_table():
             conn.execute(db.text("ALTER TABLE device_commands ADD COLUMN picked_at TIMESTAMP"))
         if 'finished_at' not in columns:
             conn.execute(db.text("ALTER TABLE device_commands ADD COLUMN finished_at TIMESTAMP"))
+
+
+def ensure_bridge_status_table():
+    inspector = db.inspect(db.engine)
+    if 'bridge_status' not in inspector.get_table_names():
+        db.create_all()
 
 
 def ensure_payment_indexes():
@@ -3750,6 +3756,87 @@ def request_hikvision_sync():
     return jsonify({'success': True, 'message': 'Команда синхронизации отправлена'})
 
 
+@app.route('/api/hikvision/bridge/status', methods=['POST'])
+def update_hikvision_bridge_status():
+    if not check_bridge_auth():
+        return jsonify({'success': False, 'message': 'Unauthorized'}), 401
+
+    ensure_bridge_status_table()
+    data = request.get_json(silent=True) or {}
+    bridge_id = (data.get('bridge_id') or 'hikvision-school-bridge').strip()[:80]
+    now = get_local_datetime()
+    status = BridgeStatus.query.filter_by(bridge_id=bridge_id).first()
+    if not status:
+        status = BridgeStatus(bridge_id=bridge_id)
+        db.session.add(status)
+
+    status.status = (data.get('status') or 'online')[:30]
+    status.host = (data.get('host') or '')[:120]
+    status.pid = data.get('pid') if isinstance(data.get('pid'), int) else None
+    status.version = (data.get('version') or '')[:50]
+    status.uptime_seconds = int(data.get('uptime_seconds') or 0)
+    status.current_command_id = data.get('current_command_id') if isinstance(data.get('current_command_id'), int) else None
+    status.current_action = (data.get('current_action') or '')[:200]
+    status.set_metrics(data.get('metrics') or {})
+    status.set_logs(data.get('logs') or [])
+    status.last_seen_at = now
+    status.updated_at = now
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@app.route('/api/hikvision/bridge/status', methods=['GET'])
+@login_required
+def get_hikvision_bridge_status():
+    if current_user.role not in ['admin']:
+        return jsonify({'success': False, 'message': 'Доступ запрещен'}), 403
+
+    ensure_bridge_status_table()
+    ensure_device_commands_table()
+    now = get_local_datetime()
+    status = BridgeStatus.query.order_by(BridgeStatus.last_seen_at.desc()).first()
+    pending_count = DeviceCommand.query.filter_by(command='HIKVISION_SYNC', status='pending').count()
+    processing = DeviceCommand.query.filter_by(command='HIKVISION_SYNC', status='processing')\
+        .order_by(DeviceCommand.picked_at.desc()).first()
+
+    online = False
+    payload = None
+    if status:
+        seconds_since_seen = None
+        if status.last_seen_at:
+            seconds_since_seen = max(0, int((now - status.last_seen_at).total_seconds()))
+            online = seconds_since_seen <= 20
+        payload = {
+            'bridge_id': status.bridge_id,
+            'status': 'online' if online else 'offline',
+            'reported_status': status.status,
+            'host': status.host,
+            'pid': status.pid,
+            'version': status.version,
+            'uptime_seconds': status.uptime_seconds,
+            'current_command_id': status.current_command_id,
+            'current_action': status.current_action,
+            'metrics': status.get_metrics(),
+            'logs': status.get_logs(),
+            'last_seen_at': status.last_seen_at.isoformat() if status.last_seen_at else None,
+            'seconds_since_seen': seconds_since_seen,
+        }
+
+    return jsonify({
+        'success': True,
+        'online': online,
+        'bridge': payload,
+        'queue': {
+            'pending': pending_count,
+            'processing': {
+                'id': processing.id,
+                'payload': processing.get_payload(),
+                'picked_at': processing.picked_at.isoformat() if processing.picked_at else None,
+            } if processing else None
+        }
+    })
+
+
 @app.route('/api/hikvision/commands/next', methods=['GET'])
 def hikvision_next_command():
     if not check_bridge_auth():
@@ -3833,13 +3920,12 @@ def hikvision_create_local_command():
     now = get_local_datetime()
     stale_before = now - timedelta(minutes=30)
 
-    # Отменяем старые зависшие команды, чтобы не засорять историю
+    # Закрываем только реально зависшие processing-команды. Pending не трогаем:
+    # bridge заберет их после завершения текущей операции.
     stuck_commands = DeviceCommand.query.filter(
         DeviceCommand.command == 'HIKVISION_SYNC',
-        or_(
-            DeviceCommand.status == 'pending',
-            (DeviceCommand.status == 'processing') & (DeviceCommand.picked_at < stale_before)
-        )
+        DeviceCommand.status == 'processing',
+        DeviceCommand.picked_at < stale_before
     ).all()
     for old_cmd in stuck_commands:
         old_cmd.status = 'failed'
@@ -6131,6 +6217,7 @@ def init_db():
         ensure_students_columns()
         ensure_cash_transfers_table()
         ensure_device_commands_table()
+        ensure_bridge_status_table()
         ensure_payment_indexes()
         ensure_payment_type_column()
         
@@ -6958,6 +7045,7 @@ with app.app_context():
         ensure_expense_columns()
         ensure_cash_transfers_table()
         ensure_device_commands_table()
+        ensure_bridge_status_table()
         ensure_payment_indexes()
         
         # Создание администратора
