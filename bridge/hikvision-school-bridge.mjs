@@ -185,6 +185,7 @@ function reasonLabel(reason) {
     payment_refunded: 'Возврат оплаты',
     monthly_payment_added: 'Месячная оплата',
     settings_updated: 'Обновлены настройки',
+    manual_door_open: 'Открытие турникета из админки',
     command: 'Команда из очереди',
     interval: 'Плановая проверка',
   };
@@ -396,6 +397,23 @@ async function deleteUser(device, employeeNo) {
   const res = await requestDigest(device, 'PUT', '/ISAPI/AccessControl/UserInfo/Delete?format=json', JSON.stringify(body), { 'Content-Type': 'application/json' });
   if (res.statusCode === 404) return;
   assertOk('delete-user', res);
+}
+
+async function openDoor(device) {
+  const doorNo = Number(device.doorNo || 1);
+  const xml =
+    '<RemoteControlDoor version="2.0" xmlns="http://www.isapi.org/ver20/XMLSchema">' +
+    '<cmd>open</cmd>' +
+    '</RemoteControlDoor>';
+  const res = await requestDigest(
+    device,
+    'PUT',
+    `/ISAPI/AccessControl/RemoteControl/door/${doorNo}`,
+    xml,
+    { 'Content-Type': 'application/xml' },
+    CONFIG.deviceRequestTimeoutMs
+  );
+  assertOk('open-door', res);
 }
 
 function isManagedEmployeeNo(employeeNo) {
@@ -897,6 +915,43 @@ async function runPersonCommand(payload = {}, commandId = null) {
   }
 }
 
+async function runDoorOpenCommand(payload = {}, commandId = null) {
+  const previousCommandId = currentCommandId;
+  const previousAction = currentAction;
+  currentCommandId = commandId;
+  const deviceName = payload.device_name || payload.device || '';
+  let logOutput = `[${new Date().toISOString()}] Команда открытия турникета начата. Причина: ${reasonLabel(payload.reason || 'manual_door_open')}\n`;
+
+  try {
+    await loadRemoteConfig();
+    const device = CONFIG.devices.find((item) => item.name === deviceName);
+    if (!device) throw new Error(`терминал "${deviceName}" не найден в настройках`);
+
+    const label = deviceLabel(device);
+    setAction(`Открываем турникет: ${label}`);
+    const probe = await probeDevice(device);
+    if (!probe.ok) {
+      throw new Error(`терминал недоступен: ${humanError(probe.message)}`);
+    }
+
+    await openDoor(device);
+    const msg = `Турникет открыт: ${label}`;
+    console.log(`[door] ${msg}`);
+    logOutput += `${msg}\n`;
+    if (commandId) await reportCommand(commandId, true, logOutput);
+    return logOutput;
+  } catch (error) {
+    const message = `Не удалось открыть турникет: ${humanError(error)}`;
+    console.error(`[door] ${message}`);
+    logOutput += `${message}\n`;
+    if (commandId) await reportCommand(commandId, false, logOutput);
+    throw error;
+  } finally {
+    currentCommandId = syncInProgress ? previousCommandId : null;
+    setAction(syncInProgress ? previousAction : 'idle');
+  }
+}
+
 async function runSync(reason = 'interval', commandId = null) {
   if (syncInProgress) {
     return 'Sync skipped: another sync is already in progress.';
@@ -1052,8 +1107,9 @@ async function reportCommand(id, ok, result) {
 async function pollCommands() {
   try {
     await sendHeartbeat();
-    if (syncInProgress) return;
-    const res = await fetch(`${CONFIG.serverUrl}/api/hikvision/commands/next`, {
+    const url = new URL(`${CONFIG.serverUrl}/api/hikvision/commands/next`);
+    if (syncInProgress) url.searchParams.set('urgent', '1');
+    const res = await fetch(url, {
       headers: { 'x-device-key': CONFIG.deviceKey },
       signal: AbortSignal.timeout(20000)
     });
@@ -1062,6 +1118,7 @@ async function pollCommands() {
     const command = data.command;
     if (!command) return;
     if (command.type === 'HIKVISION_SYNC') {
+      if (syncInProgress) return;
       try {
         currentCommandId = command.id;
         setAction(`Команда из очереди #${command.id}`);
@@ -1070,12 +1127,21 @@ async function pollCommands() {
         // Ошибка уже отправлена внутри runSync
       }
     } else if (command.type === 'HIKVISION_PERSON') {
+      if (syncInProgress) return;
       try {
         currentCommandId = command.id;
         setAction(`Точечная команда #${command.id}`);
         await runPersonCommand(command.payload || {}, command.id);
       } catch (err) {
         // Ошибка уже отправлена внутри runPersonCommand
+      }
+    } else if (command.type === 'HIKVISION_DOOR_OPEN') {
+      try {
+        currentCommandId = command.id;
+        setAction(`Открытие турникета #${command.id}`);
+        await runDoorOpenCommand(command.payload || {}, command.id);
+      } catch (err) {
+        // Ошибка уже отправлена внутри runDoorOpenCommand
       }
     } else {
       await reportCommand(command.id, false, `unknown command ${command.type}`);

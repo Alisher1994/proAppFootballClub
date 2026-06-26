@@ -559,6 +559,26 @@ def queue_hikvision_person(person_type, person_id=None, reason='change', action=
         print(f"Не удалось поставить точечную команду Hikvision: {e}")
 
 
+def queue_hikvision_door_open(device_name):
+    """Поставить срочную команду bridge на открытие двери терминала."""
+    try:
+        ensure_device_commands_table()
+        device_name = (device_name or '').strip()
+        if device_name not in {'entry', 'exit'}:
+            raise ValueError('Unknown Hikvision device')
+
+        cmd = DeviceCommand(command='HIKVISION_DOOR_OPEN')
+        cmd.set_payload({
+            'device_name': device_name,
+            'reason': 'manual_door_open',
+            'requested_at': get_local_datetime().isoformat(),
+        })
+        db.session.add(cmd)
+    except Exception as e:
+        print(f"Не удалось поставить команду открытия турникета Hikvision: {e}")
+        raise
+
+
 def get_month_paid_map(year, month):
     rows = db.session.query(
         Payment.student_id,
@@ -3919,6 +3939,24 @@ def request_hikvision_sync():
     return jsonify({'success': True, 'message': 'Команда синхронизации отправлена'})
 
 
+@app.route('/api/hikvision/open-door', methods=['POST'])
+@login_required
+def request_hikvision_open_door():
+    if current_user.role not in ['admin']:
+        return jsonify({'success': False, 'message': 'Доступ запрещен'}), 403
+
+    data = request.get_json(silent=True) or {}
+    device_name = (data.get('device_name') or data.get('device') or '').strip()
+    if device_name not in {'entry', 'exit'}:
+        return jsonify({'success': False, 'message': 'Выберите терминал входа или выхода'}), 400
+
+    ensure_club_settings_columns()
+    queue_hikvision_door_open(device_name)
+    db.session.commit()
+    label = 'вход' if device_name == 'entry' else 'выход'
+    return jsonify({'success': True, 'message': f'Команда открыть {label} отправлена bridge'})
+
+
 @app.route('/api/hikvision/bridge/status', methods=['POST'])
 def update_hikvision_bridge_status():
     if not check_bridge_auth():
@@ -4007,7 +4045,11 @@ def hikvision_next_command():
         current_action='Опрашивает очередь команд',
         logs=None,
     )
-    cmd = DeviceCommand.query.filter_by(status='pending').order_by(DeviceCommand.created_at.asc()).first()
+    urgent_only = request.args.get('urgent') in {'1', 'true', 'yes'}
+    query = DeviceCommand.query.filter_by(status='pending')
+    if urgent_only:
+        query = query.filter_by(command='HIKVISION_DOOR_OPEN')
+    cmd = query.order_by(DeviceCommand.created_at.asc()).first()
     if not cmd:
         db.session.commit()
         return jsonify({'command': None})
@@ -4052,7 +4094,7 @@ def get_hikvision_commands_history():
         return jsonify({'success': False, 'message': 'Доступ запрещен'}), 403
 
     ensure_device_commands_table()
-    commands = DeviceCommand.query.filter(DeviceCommand.command.in_(['HIKVISION_SYNC', 'HIKVISION_PERSON']))\
+    commands = DeviceCommand.query.filter(DeviceCommand.command.in_(['HIKVISION_SYNC', 'HIKVISION_PERSON', 'HIKVISION_DOOR_OPEN']))\
         .order_by(DeviceCommand.created_at.desc())\
         .limit(30)\
         .all()

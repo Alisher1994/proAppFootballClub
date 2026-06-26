@@ -66,6 +66,9 @@ async function initSettings() {
     if (hikvisionManualSyncBtn) {
         hikvisionManualSyncBtn.addEventListener('click', requestHikvisionSync);
     }
+    document.querySelectorAll('[data-open-hikvision-door]').forEach((button) => {
+        button.addEventListener('click', () => requestHikvisionDoorOpen(button.dataset.openHikvisionDoor, button));
+    });
 
     const bridgeStatusRefreshBtn = document.getElementById('bridgeStatusRefreshBtn');
     if (bridgeStatusRefreshBtn) {
@@ -301,6 +304,39 @@ async function requestHikvisionSync() {
         if (btn) {
             btn.disabled = false;
             btn.textContent = '🔄 Синхронизировать сейчас';
+        }
+    }
+}
+
+async function requestHikvisionDoorOpen(deviceName, btn) {
+    const label = deviceName === 'entry' ? 'вход' : 'выход';
+    if (!confirm(`Открыть турникет "${label}" сейчас?`)) return;
+
+    const originalText = btn ? btn.textContent : '';
+    if (btn) {
+        btn.disabled = true;
+        btn.textContent = '⏳ Открываем...';
+    }
+    try {
+        const resp = await fetch('/api/hikvision/open-door', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ device_name: deviceName })
+        });
+        const result = await resp.json();
+        if (result.success) {
+            alert(result.message || `Команда открыть ${label} отправлена bridge`);
+            setTimeout(loadSyncHistory, 500);
+        } else {
+            alert('Ошибка: ' + (result.message || 'не удалось открыть турникет'));
+        }
+    } catch (error) {
+        console.error('Ошибка открытия турникета Hikvision:', error);
+        alert('Не удалось отправить команду открытия турникета');
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.textContent = originalText;
         }
     }
 }
