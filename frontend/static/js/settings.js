@@ -761,6 +761,8 @@ async function loadBridgeStatus() {
             banner.style.background = '#fff1f2';
             banner.innerHTML = '<strong>Bridge не найден</strong><br><span style="font-size:13px;">Локальный bridge еще не отправлял heartbeat.</span>';
             setBridgeText('bridgeRamMetric', '—');
+            setBridgeText('bridgeTempMetric', '—');
+            setBridgeText('bridgeTempDetails', '');
             setBridgeText('bridgeUptimeMetric', '—');
             updateBridgeProgress(null);
             setBridgeLogs([]);
@@ -792,6 +794,7 @@ async function loadBridgeStatus() {
 
         setBridgeText('bridgeCpuMetric', metrics.cpu_used_percent != null ? `${metrics.cpu_used_percent}%` : '—');
         setBridgeText('bridgeRamMetric', metrics.memory_used_percent != null ? `${metrics.memory_used_percent}%` : '—');
+        setBridgeTemperature(metrics);
         setBridgeText('bridgeUptimeMetric', formatUptime(bridge.uptime_seconds || 0));
         updateBridgeProgress(metrics.progress || null);
         setBridgeLogs(bridge.logs || []);
@@ -808,6 +811,31 @@ function setBridgeText(id, value) {
     if (el) el.textContent = value;
 }
 
+function setBridgeTemperature(metrics) {
+    const temp = metrics.temperature_c ?? metrics.temperatures?.max_c;
+    setBridgeText('bridgeTempMetric', temp != null ? `${temp}°C` : '—');
+    const zones = Array.isArray(metrics.temperatures?.zones) ? metrics.temperatures.zones : [];
+    const details = zones.slice(0, 3).map(zone => `${zone.name}: ${zone.c}°C`).join(' · ');
+    setBridgeText('bridgeTempDetails', details);
+}
+
+function setBridgeControlButtons(enabled, paused) {
+    const pauseBtn = document.getElementById('bridgePauseBtn');
+    const stopBtn = document.getElementById('bridgeStopBtn');
+    if (pauseBtn) {
+        pauseBtn.dataset.action = paused ? 'resume' : 'pause';
+        pauseBtn.textContent = paused ? '▶️ Продолжить запись' : '⏸️ Пауза записи';
+        pauseBtn.disabled = !enabled;
+        pauseBtn.style.opacity = enabled ? '1' : '0.55';
+        pauseBtn.style.cursor = enabled ? 'pointer' : 'not-allowed';
+    }
+    if (stopBtn) {
+        stopBtn.disabled = !enabled;
+        stopBtn.style.opacity = enabled ? '1' : '0.55';
+        stopBtn.style.cursor = enabled ? 'pointer' : 'not-allowed';
+    }
+}
+
 function updateBridgeProgress(progress) {
     const panel = document.getElementById('bridgeProgressPanel');
     if (!panel) return;
@@ -818,19 +846,14 @@ function updateBridgeProgress(progress) {
         renderBridgeDeviceProgress(null);
         const btn = document.getElementById('bridgeResultsBtn');
         if (btn) btn.style.display = 'none';
+        setBridgeControlButtons(false, false);
         return;
     }
 
-    const pauseBtn = document.getElementById('bridgePauseBtn');
-    const stopBtn = document.getElementById('bridgeStopBtn');
     const paused = !!progress.paused;
-    if (pauseBtn) {
-        pauseBtn.dataset.action = paused ? 'resume' : 'pause';
-        pauseBtn.textContent = paused ? '▶️ Продолжить запись' : '⏸️ Пауза записи';
-    }
-    if (stopBtn) {
-        stopBtn.disabled = progress.stage === 'done' || progress.stage === 'stopped';
-    }
+    const activeStages = new Set(['start', 'loading', 'devices_ready', 'device_start', 'probe', 'sync', 'clear_device']);
+    const isActive = paused || activeStages.has(progress.stage || '');
+    setBridgeControlButtons(isActive, paused);
 
     const percent = Math.max(0, Math.min(100, Number(progress.percent || 0)));
     const processed = Number(progress.processed || 0);

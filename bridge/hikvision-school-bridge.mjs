@@ -8,6 +8,7 @@
 import http from 'node:http';
 import https from 'node:https';
 import os from 'node:os';
+import fs from 'node:fs';
 
 const CONFIG = {
   serverUrl: process.env.SERVER_URL || 'https://proapp.up.railway.app',
@@ -92,6 +93,7 @@ function getMetrics() {
   const freeMem = os.freemem();
   const cpuCount = os.cpus()?.length || 1;
   const cpuLoad = os.loadavg()[0] || 0;
+  const temperatures = getTemperatures();
   return {
     cpu_load_1m: Number(cpuLoad.toFixed(2)),
     cpu_used_percent: Number(Math.min(100, Math.max(0, (cpuLoad / cpuCount) * 100)).toFixed(1)),
@@ -100,8 +102,31 @@ function getMetrics() {
     memory_used_mb: Math.round((totalMem - freeMem) / 1024 / 1024),
     memory_total_mb: Math.round(totalMem / 1024 / 1024),
     node_memory_mb: Math.round(process.memoryUsage().rss / 1024 / 1024),
+    temperature_c: temperatures.max_c,
+    temperatures,
     progress: currentProgress,
   };
+}
+
+function getTemperatures() {
+  const zones = [];
+  try {
+    const base = '/sys/class/thermal';
+    const entries = fs.readdirSync(base).filter((name) => /^thermal_zone\d+$/.test(name));
+    for (const entry of entries) {
+      const dir = `${base}/${entry}`;
+      const raw = fs.readFileSync(`${dir}/temp`, 'utf8').trim();
+      const value = Number(raw);
+      if (!Number.isFinite(value)) continue;
+      const type = fs.existsSync(`${dir}/type`) ? fs.readFileSync(`${dir}/type`, 'utf8').trim() : entry;
+      const celsius = value > 1000 ? value / 1000 : value;
+      zones.push({ name: type || entry, c: Number(celsius.toFixed(1)) });
+    }
+  } catch {
+    // Some systems do not expose thermal zones without extra packages.
+  }
+  const max = zones.reduce((highest, zone) => Math.max(highest, zone.c), 0);
+  return { max_c: zones.length ? Number(max.toFixed(1)) : null, zones };
 }
 
 async function sendHeartbeat(force = false) {
