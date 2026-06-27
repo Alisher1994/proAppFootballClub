@@ -916,7 +916,319 @@
                 transform: translateY(0);
             }
         }
+
+        /* Compact professional settings skin */
+        .settings-page {
+            --settings-accent: #2563eb;
+            --settings-accent-soft: #eff6ff;
+            --settings-border: #dbe3ef;
+            --settings-muted: #64748b;
+            --settings-text: #0f172a;
+            --settings-success: #059669;
+            --settings-danger: #dc2626;
+        }
+
+        body.theme-light .game-main-content,
+        body.theme-light .game-layout,
+        .settings-page .game-layout {
+            background: #e8eef7 !important;
+        }
+
+        .settings-page .game-top-bar {
+            height: 56px;
+            min-height: 56px;
+            max-height: 56px;
+            background: rgba(255, 255, 255, 0.96);
+            border-bottom: 1px solid var(--settings-border);
+        }
+
+        .settings-page .settings-tabs {
+            padding: 0 18px;
+            gap: 2px;
+            background: transparent;
+        }
+
+        .settings-page .settings-tab {
+            height: 56px;
+            padding: 0 14px;
+            gap: 8px;
+            color: var(--settings-muted);
+            font-size: 14px;
+            font-weight: 600;
+            letter-spacing: 0;
+            border-bottom: 2px solid transparent;
+        }
+
+        .settings-page .settings-tab svg,
+        .settings-page .settings-section-icon svg,
+        .settings-page .settings-card-icon svg,
+        .settings-page .btn-primary svg,
+        .settings-page .btn-success svg,
+        .settings-page .btn-secondary svg,
+        .settings-page .btn-danger svg {
+            width: 16px;
+            height: 16px;
+            stroke-width: 2;
+            flex: 0 0 auto;
+        }
+
+        .settings-page .settings-tab:hover {
+            color: var(--settings-text);
+            background: #f8fafc;
+        }
+
+        .settings-page .settings-tab.active {
+            color: var(--settings-accent);
+            background: #f8fafc;
+            border-bottom-color: var(--settings-accent);
+        }
+
+        .settings-page .game-layout>div[style*="overflow-y: auto"] {
+            padding: 18px 22px !important;
+        }
+
+        .settings-page .settings-main-card,
+        .settings-page .card.settings-main-card {
+            max-width: 880px !important;
+            padding: 28px 32px !important;
+            border-radius: 14px !important;
+            border: 1px solid var(--settings-border) !important;
+            box-shadow: 0 12px 32px rgba(15, 23, 42, 0.08) !important;
+        }
+
+        .settings-page .card:hover {
+            transform: none !important;
+            box-shadow: 0 12px 32px rgba(15, 23, 42, 0.08) !important;
+        }
+
+        .settings-page .settings-card-header {
+            gap: 14px;
+            margin-bottom: 24px;
+            padding-bottom: 18px;
+            border-bottom: 1px solid var(--settings-border);
+        }
+
+        .settings-page .settings-card-icon {
+            width: 44px;
+            height: 44px;
+            font-size: 0;
+            color: var(--settings-accent);
+            background: var(--settings-accent-soft);
+            border: 1px solid #bfdbfe;
+            border-radius: 10px;
+            box-shadow: none;
+        }
+
+        .settings-page .settings-card-icon svg {
+            width: 22px;
+            height: 22px;
+        }
+
+        .settings-page .settings-card-title {
+            font-size: 21px;
+            line-height: 1.2;
+            color: var(--settings-text);
+        }
+
+        .settings-page .settings-card-subtitle {
+            font-size: 13px;
+            color: var(--settings-muted);
+        }
+
+        .settings-page .settings-section {
+            margin-bottom: 24px;
+        }
+
+        .settings-page .settings-section-header {
+            gap: 10px;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--settings-border);
+        }
+
+        .settings-page .settings-section-icon {
+            width: 24px;
+            height: 24px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--settings-accent);
+            font-size: 0;
+        }
+
+        .settings-page .settings-section-title {
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--settings-text);
+        }
+
+        .settings-page .form-group {
+            margin-bottom: 16px;
+        }
+
+        .settings-page .form-group label,
+        .settings-page .payment-method-input label {
+            font-size: 13px;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        .settings-page .form-group label span[style*="margin-right"] {
+            display: none;
+        }
+
+        .settings-page .form-input-modern,
+        .settings-page select.form-input-modern {
+            min-height: 42px;
+            padding: 10px 14px !important;
+            border-width: 1px !important;
+            border-radius: 9px !important;
+            box-shadow: none !important;
+            background: #fff !important;
+        }
+
+        .settings-page .form-input-modern:focus {
+            border-color: var(--settings-accent) !important;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12) !important;
+            transform: none !important;
+        }
+
+        .settings-page .form-row {
+            gap: 16px;
+        }
+
+        .settings-page .day-toggle-group {
+            gap: 8px;
+            grid-template-columns: repeat(7, minmax(0, 1fr));
+        }
+
+        .settings-page .day-toggle {
+            min-height: 38px;
+            padding: 8px 10px;
+            border-radius: 9px;
+            border: 1px solid var(--settings-border);
+            background: #fff;
+            box-shadow: none;
+            font-size: 13px;
+        }
+
+        .settings-page .day-toggle:hover {
+            transform: none;
+            box-shadow: none;
+            border-color: #93c5fd;
+            color: var(--settings-accent);
+        }
+
+        .settings-page .day-toggle.active {
+            transform: none;
+            color: #fff;
+            border-color: var(--settings-accent);
+            background: var(--settings-accent);
+            box-shadow: none;
+        }
+
+        .settings-page .payment-method-list {
+            gap: 12px;
+        }
+
+        .settings-page .payment-method-item {
+            padding: 14px;
+            border-radius: 10px;
+            box-shadow: none;
+        }
+
+        .settings-page .settings-form-actions {
+            margin-top: 24px;
+            padding-top: 18px;
+            border-top: 1px solid var(--settings-border);
+        }
+
+        .settings-page .btn-primary,
+        .settings-page .btn-success,
+        .settings-page .btn-secondary,
+        .settings-page .btn-danger {
+            min-height: 40px;
+            padding: 9px 16px;
+            border-radius: 9px;
+            font-size: 14px;
+            box-shadow: none;
+            transform: none;
+        }
+
+        .settings-page .btn-primary,
+        .settings-page .btn-primary.btn-large {
+            background: var(--settings-accent);
+            color: #fff;
+            box-shadow: none;
+        }
+
+        .settings-page .btn-success {
+            background: var(--settings-success);
+            color: #fff;
+        }
+
+        .settings-page .btn-secondary {
+            background: #f8fafc;
+            color: #334155;
+            border: 1px solid var(--settings-border);
+        }
+
+        .settings-page .btn-danger {
+            background: #fff;
+            color: var(--settings-danger);
+            border: 1px solid #fecaca;
+        }
+
+        .settings-page .btn-primary:hover,
+        .settings-page .btn-success:hover,
+        .settings-page .btn-secondary:hover,
+        .settings-page .btn-danger:hover,
+        .settings-page .btn-primary.btn-large:hover {
+            transform: none;
+            filter: brightness(0.97);
+            box-shadow: none;
+        }
+
+        .settings-page .btn-primary.btn-large {
+            width: 100%;
+            padding: 12px 18px;
+            border-radius: 10px;
+            font-size: 15px;
+        }
+
+        .settings-page .expense-category-input {
+            padding-left: 14px !important;
+            background: #fff;
+            box-shadow: none;
+        }
+
+        .settings-page .data-table {
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .settings-page .data-table th,
+        .settings-page .data-table td {
+            padding: 12px 14px;
+        }
+
+        @media (max-width: 900px) {
+            .settings-page .settings-tab {
+                padding: 0 12px;
+                font-size: 13px;
+            }
+
+            .settings-page .settings-main-card,
+            .settings-page .card.settings-main-card {
+                padding: 22px !important;
+            }
+
+            .settings-page .day-toggle-group {
+                grid-template-columns: repeat(4, minmax(0, 1fr));
+            }
+        }
     </style>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 </head>
 
 <body class="settings-page">
@@ -928,14 +1240,14 @@
             <!-- Верхняя панель с вкладками -->
             <div class="game-top-bar">
                 <div class="settings-tabs">
-                    <button class="settings-tab active" data-tab="main-settings">⚙️ Основные настройки</button>
-                    <button class="settings-tab" data-tab="finances">💰 Финансы</button>
-                    <button class="settings-tab" data-tab="telegram">📱 Telegram</button>
-                    <button class="settings-tab" data-tab="groups">👨‍👩‍👦 Группы</button>
-                    <button class="settings-tab" data-tab="tariffs">💳 Тарифы</button>
-                    <button class="settings-tab" data-tab="rewards">🏆 Вознаграждения</button>
-                    <button class="settings-tab" data-tab="camera">🎥 Камера</button>
-                    <button class="settings-tab" data-tab="hikvision">🛂 Hikvision</button>
+                    <button class="settings-tab active" data-tab="main-settings"><i data-lucide="settings"></i> Основные настройки</button>
+                    <button class="settings-tab" data-tab="finances"><i data-lucide="circle-dollar-sign"></i> Финансы</button>
+                    <button class="settings-tab" data-tab="telegram"><i data-lucide="send"></i> Telegram</button>
+                    <button class="settings-tab" data-tab="groups"><i data-lucide="users"></i> Группы</button>
+                    <button class="settings-tab" data-tab="tariffs"><i data-lucide="credit-card"></i> Тарифы</button>
+                    <button class="settings-tab" data-tab="rewards"><i data-lucide="trophy"></i> Вознаграждения</button>
+                    <button class="settings-tab" data-tab="camera"><i data-lucide="video"></i> Камера</button>
+                    <button class="settings-tab" data-tab="hikvision"><i data-lucide="scan-face"></i> Hikvision</button>
                 </div>
             </div>
 
@@ -944,9 +1256,9 @@
                 <!-- Кнопки действий для каждой вкладки -->
                 <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 20px;">
                     <button class="btn-success" id="addGroupBtnHeader" onclick="showAddGroupModal()"
-                        style="display: none;">➕ Добавить группу</button>
-                    <button id="addTariffBtnHeader" class="btn-primary" style="display: none;">➕ Добавить тариф</button>
-                    <button id="addRewardBtnHeader" class="btn-primary" style="display: none;">➕ Добавить
+                        style="display: none;"><i data-lucide="plus"></i> Добавить группу</button>
+                    <button id="addTariffBtnHeader" class="btn-primary" style="display: none;"><i data-lucide="plus"></i> Добавить тариф</button>
+                    <button id="addRewardBtnHeader" class="btn-primary" style="display: none;"><i data-lucide="plus"></i> Добавить
                         вознаграждение</button>
                 </div>
 
@@ -954,7 +1266,7 @@
                 <div id="main-settings-tab" class="settings-tab-content active">
                     <div class="card settings-main-card" style="max-width: 900px; margin: 0 auto;">
                         <div class="settings-card-header">
-                            <div class="settings-card-icon">⚙️</div>
+                            <div class="settings-card-icon"><i data-lucide="settings"></i></div>
                             <div>
                                 <h2 class="settings-card-title">Основные настройки</h2>
                                 <p class="settings-card-subtitle">Настройте параметры работы клуба</p>
@@ -964,7 +1276,7 @@
                             <!-- Секция: Основная информация -->
                             <div class="settings-section">
                                 <div class="settings-section-header">
-                                    <span class="settings-section-icon">🏷️</span>
+                                    <span class="settings-section-icon"><i data-lucide="tag"></i></span>
                                     <h3 class="settings-section-title">Основная информация</h3>
                                 </div>
                                 <div class="settings-section-content">
@@ -982,7 +1294,7 @@
                             <!-- Секция: Рабочее время -->
                             <div class="settings-section">
                                 <div class="settings-section-header">
-                                    <span class="settings-section-icon">🕐</span>
+                                    <span class="settings-section-icon"><i data-lucide="clock"></i></span>
                                     <h3 class="settings-section-title">Рабочее время</h3>
                                 </div>
                                 <div class="settings-section-content">
@@ -1033,7 +1345,7 @@
                             <!-- Секция: Платежи и финансы -->
                             <div class="settings-section">
                                 <div class="settings-section-header">
-                                    <span class="settings-section-icon">💳</span>
+                                    <span class="settings-section-icon"><i data-lucide="credit-card"></i></span>
                                     <h3 class="settings-section-title">Платежи и финансы</h3>
                                 </div>
                                 <div class="settings-section-content">
@@ -1225,7 +1537,7 @@
                             <!-- Секция: Вознаграждения -->
                             <div class="settings-section">
                                 <div class="settings-section-header">
-                                    <span class="settings-section-icon">🏆</span>
+                                    <span class="settings-section-icon"><i data-lucide="trophy"></i></span>
                                     <h3 class="settings-section-title">Вознаграждения и рейтинг</h3>
                                 </div>
                                 <div class="settings-section-content">
@@ -1280,7 +1592,7 @@
 
                             <div class="settings-form-actions">
                                 <button type="submit" class="btn-primary btn-large">
-                                    <span style="margin-right: 8px;">💾</span>
+                                    <i data-lucide="save"></i>
                                     Сохранить настройки
                                 </button>
                             </div>
@@ -1292,7 +1604,7 @@
                 <div id="finances-tab" class="settings-tab-content">
                     <div class="card settings-main-card" style="max-width: 900px; margin: 0 auto;">
                         <div class="settings-card-header">
-                            <div class="settings-card-icon">💰</div>
+                            <div class="settings-card-icon"><i data-lucide="circle-dollar-sign"></i></div>
                             <div>
                                 <h2 class="settings-card-title">Статьи расхода</h2>
                                 <p class="settings-card-subtitle">Управляйте списком категорий расходов, которые будут
@@ -1302,7 +1614,7 @@
                         <form id="expenseCategoriesForm" class="settings-form">
                             <div class="settings-section">
                                 <div class="settings-section-header">
-                                    <span class="settings-section-icon">📂</span>
+                                    <span class="settings-section-icon"><i data-lucide="folder"></i></span>
                                     <h3 class="settings-section-title">Категории расходов</h3>
                                 </div>
                                 <div class="settings-section-content">
@@ -1312,7 +1624,7 @@
                                             placeholder="Добавить статью (например, Дивиденты)"
                                             style="flex:1; min-width: 240px;">
                                         <button type="button" class="btn-primary" style="white-space: nowrap;"
-                                            onclick="window.addExpenseCategorySetting && window.addExpenseCategorySetting()">➕
+                                            onclick="window.addExpenseCategorySetting && window.addExpenseCategorySetting()"><i data-lucide="plus"></i>
                                             Добавить</button>
                                     </div>
                                     <div id="expense-categories-list" style="display: flex; flex-wrap: wrap; gap: 8px;">
@@ -1325,7 +1637,7 @@
 
                             <div class="settings-form-actions">
                                 <button type="submit" class="btn-primary btn-large">
-                                    <span style="margin-right: 8px;">💾</span>
+                                    <i data-lucide="save"></i>
                                     Сохранить статьи расхода
                                 </button>
                             </div>
@@ -1337,7 +1649,7 @@
                 <div id="telegram-tab" class="settings-tab-content">
                     <div class="card settings-main-card" style="max-width: 900px; margin: 0 auto;">
                         <div class="settings-card-header">
-                            <div class="settings-card-icon">📱</div>
+                            <div class="settings-card-icon"><i data-lucide="send"></i></div>
                             <div>
                                 <h2 class="settings-card-title">Настройки Telegram</h2>
                                 <p class="settings-card-subtitle">Настройте интеграцию с Telegram ботом и шаблоны
@@ -1348,7 +1660,7 @@
                             <!-- Секция: Токен бота -->
                             <div class="settings-section">
                                 <div class="settings-section-header">
-                                    <span class="settings-section-icon">🤖</span>
+                                    <span class="settings-section-icon"><i data-lucide="bot"></i></span>
                                     <h3 class="settings-section-title">Токен бота</h3>
                                 </div>
                                 <div class="settings-section-content">
@@ -1384,7 +1696,7 @@
                             <!-- Секция: Командный центр (Телефоны руководства) - Updated -->
                             <div class="settings-section">
                                 <div class="settings-section-header">
-                                    <span class="settings-section-icon">👔</span>
+                                    <span class="settings-section-icon"><i data-lucide="headphones"></i></span>
                                     <h3 class="settings-section-title">Командный центр</h3>
                                 </div>
                                 <div class="settings-section-content">
@@ -1432,7 +1744,7 @@
                             <!-- Секция: Шаблоны уведомлений -->
                             <div class="settings-section">
                                 <div class="settings-section-header">
-                                    <span class="settings-section-icon">📝</span>
+                                    <span class="settings-section-icon"><i data-lucide="file-text"></i></span>
                                     <h3 class="settings-section-title">Шаблоны уведомлений</h3>
                                 </div>
                                 <div class="settings-section-content">
@@ -1507,7 +1819,7 @@
 
                             <div class="settings-form-actions">
                                 <button type="submit" class="btn-primary btn-large">
-                                    <span style="margin-right: 8px;">💾</span>
+                                    <i data-lucide="save"></i>
                                     Сохранить настройки Telegram
                                 </button>
                             </div>
@@ -1519,7 +1831,7 @@
                 <div id="camera-tab" class="settings-tab-content">
                     <div class="card settings-main-card" style="max-width: 900px; margin: 0 auto;">
                         <div class="settings-card-header">
-                            <div class="settings-card-icon">🎥</div>
+                            <div class="settings-card-icon"><i data-lucide="video"></i></div>
                             <div>
                                 <h2 class="settings-card-title">Настройки камеры</h2>
                                 <p class="settings-card-subtitle">Настройте RTSP поток для распознавания лиц</p>
@@ -1528,7 +1840,7 @@
                         <form id="cameraSettingsForm" class="settings-form">
                             <div class="settings-section">
                                 <div class="settings-section-header">
-                                    <span class="settings-section-icon">🔗</span>
+                                    <span class="settings-section-icon"><i data-lucide="link"></i></span>
                                     <h3 class="settings-section-title">RTSP Поток</h3>
                                 </div>
                                 <div class="settings-section-content">
@@ -1553,7 +1865,7 @@
 
                             <div class="settings-form-actions">
                                 <button type="submit" class="btn-primary btn-large">
-                                    <span style="margin-right: 8px;">💾</span>
+                                    <i data-lucide="save"></i>
                                     Сохранить настройки камеры
                                 </button>
                             </div>
@@ -1565,7 +1877,7 @@
                 <div id="hikvision-tab" class="settings-tab-content">
                     <div class="card settings-main-card" style="max-width: 900px; margin: 0 auto;">
                         <div class="settings-card-header">
-                            <div class="settings-card-icon">🛂</div>
+                            <div class="settings-card-icon"><i data-lucide="scan-face"></i></div>
                             <div>
                                 <h2 class="settings-card-title">Hikvision терминалы</h2>
                                 <p class="settings-card-subtitle">Ключ bridge и локальные IP терминалов вход/выход</p>
@@ -1574,7 +1886,7 @@
                         <form id="hikvisionSettingsForm" class="settings-form">
                             <div class="settings-section">
                                 <div class="settings-section-header">
-                                    <span class="settings-section-icon">🔑</span>
+                                    <span class="settings-section-icon"><i data-lucide="key-round"></i></span>
                                     <h3 class="settings-section-title">Ключ bridge</h3>
                                 </div>
                                 <div class="settings-section-content">
@@ -1591,7 +1903,7 @@
 
                             <div class="settings-section">
                                 <div class="settings-section-header">
-                                    <span class="settings-section-icon">🚪</span>
+                                    <span class="settings-section-icon"><i data-lucide="door-open"></i></span>
                                     <h3 class="settings-section-title">Терминалы</h3>
                                 </div>
                                 <div class="settings-section-content">
@@ -1602,11 +1914,11 @@
                                                 placeholder="192.168.68.107">
                                             <button type="button" class="btn-secondary" data-open-hikvision-door="entry"
                                                 style="margin-top: 10px; width: 100%; justify-content: center;">
-                                                🚪 Открыть вход
+                                                <i data-lucide="door-open"></i> Открыть вход
                                             </button>
                                             <button type="button" class="btn-secondary" data-clear-hikvision-device="entry"
                                                 style="margin-top: 8px; width: 100%; justify-content: center; color:#b91c1c; border-color:#fecaca;">
-                                                🧹 Очистить память входа
+                                                <i data-lucide="trash-2"></i> Очистить память входа
                                             </button>
                                         </div>
                                         <div class="form-group">
@@ -1615,11 +1927,11 @@
                                                 placeholder="192.168.68.104">
                                             <button type="button" class="btn-secondary" data-open-hikvision-door="exit"
                                                 style="margin-top: 10px; width: 100%; justify-content: center;">
-                                                🚪 Открыть выход
+                                                <i data-lucide="door-open"></i> Открыть выход
                                             </button>
                                             <button type="button" class="btn-secondary" data-clear-hikvision-device="exit"
                                                 style="margin-top: 8px; width: 100%; justify-content: center; color:#b91c1c; border-color:#fecaca;">
-                                                🧹 Очистить память выхода
+                                                <i data-lucide="trash-2"></i> Очистить память выхода
                                             </button>
                                         </div>
                                     </div>
@@ -1642,7 +1954,7 @@
 
                             <div class="settings-section">
                                 <div class="settings-section-header">
-                                    <span class="settings-section-icon">🚧</span>
+                                    <span class="settings-section-icon"><i data-lucide="shield-alert"></i></span>
                                     <h3 class="settings-section-title">Блокировка должников</h3>
                                 </div>
                                 <div class="settings-section-content">
@@ -1709,8 +2021,8 @@
                             </div>
 
                             <div style="display:flex; justify-content:flex-end; gap: 12px; margin-top: 24px; flex-wrap: wrap;">
-                                <button type="button" id="hikvisionManualSyncBtn" class="btn-secondary">🔄 Синхронизировать сейчас</button>
-                                <button type="submit" class="btn-primary">💾 Сохранить Hikvision</button>
+                                <button type="button" id="hikvisionManualSyncBtn" class="btn-secondary"><i data-lucide="refresh-cw"></i> Синхронизировать сейчас</button>
+                                <button type="submit" class="btn-primary"><i data-lucide="save"></i> Сохранить Hikvision</button>
                             </div>
                         </form>
 
@@ -1718,10 +2030,10 @@
                         <div class="settings-section" style="margin-top: 32px; border-top: 1px solid var(--theme-border); padding-top: 24px;">
                             <div class="settings-section-header" style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
                                 <div style="display:flex; align-items:center; gap:10px;">
-                                    <span class="settings-section-icon">🟢</span>
+                                    <span class="settings-section-icon"><i data-lucide="activity"></i></span>
                                     <h3 class="settings-section-title">Bridge сейчас</h3>
                                 </div>
-                                <button type="button" id="bridgeStatusRefreshBtn" class="btn-secondary" style="padding: 8px 12px;">🔄 Обновить</button>
+                                <button type="button" id="bridgeStatusRefreshBtn" class="btn-secondary" style="padding: 8px 12px;"><i data-lucide="refresh-cw"></i> Обновить</button>
                             </div>
                             <div class="settings-section-content">
                                 <div id="bridgeStatusBanner" style="margin-bottom: 14px; padding: 12px 14px; border-radius: 8px; border: 1px solid var(--theme-border); background: var(--theme-bg-secondary); color: var(--theme-text-primary);">
@@ -1782,7 +2094,7 @@
                         <!-- Секция истории синхронизаций -->
                         <div class="settings-section" style="margin-top: 32px; border-top: 1px solid var(--theme-border); padding-top: 24px;">
                             <div class="settings-section-header">
-                                <span class="settings-section-icon">📜</span>
+                                <span class="settings-section-icon"><i data-lucide="scroll-text"></i></span>
                                 <h3 class="settings-section-title">История синхронизаций</h3>
                             </div>
                             <div class="settings-section-content">
@@ -2267,6 +2579,10 @@
             <script>
                 // Переключение вкладок в настройках
                 document.addEventListener('DOMContentLoaded', function () {
+                    if (window.lucide) {
+                        window.lucide.createIcons();
+                    }
+
                     const tabs = document.querySelectorAll('.settings-tab');
                     function activateSettingsTab(tab) {
                         if (!tab) return;
