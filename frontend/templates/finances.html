@@ -1307,6 +1307,66 @@
             box-shadow: none !important;
             font-size: 13px;
         }
+
+        .finances-page .native-search-select {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .searchable-select {
+            position: relative;
+            width: 100%;
+        }
+
+        .searchable-select-input {
+            width: 100%;
+        }
+
+        .searchable-select-options {
+            display: none;
+            position: absolute;
+            z-index: 40;
+            top: calc(100% + 4px);
+            left: 0;
+            right: 0;
+            max-height: 220px;
+            overflow: auto;
+            border: 1px solid var(--finance-border);
+            border-radius: 10px;
+            background: #fff;
+            box-shadow: 0 14px 32px rgba(15, 23, 42, 0.16);
+            padding: 4px;
+        }
+
+        .searchable-select.open .searchable-select-options {
+            display: block;
+        }
+
+        .searchable-select-option,
+        .searchable-select-empty {
+            padding: 9px 10px;
+            border-radius: 8px;
+            font-size: 14px;
+            line-height: 1.25;
+        }
+
+        .searchable-select-option {
+            cursor: pointer;
+            color: var(--finance-text);
+        }
+
+        .searchable-select-option:hover,
+        .searchable-select-option.is-selected {
+            background: #eff6ff;
+            color: var(--finance-accent);
+        }
+
+        .searchable-select-empty {
+            color: var(--finance-muted);
+        }
     </style>
 </head>
 
@@ -1775,9 +1835,14 @@
                         <form id="addIncomeForm">
                             <div class="form-group">
                                 <label>Группа *</label>
-                                <select id="add-income-group" name="group_id" required>
+                                <select id="add-income-group" name="group_id" class="native-search-select">
                                     <option value="">Выберите группу</option>
                                 </select>
+                                <div class="searchable-select" data-searchable-select="add-income-group">
+                                    <input type="text" class="form-input-modern searchable-select-input"
+                                        placeholder="Поиск группы..." autocomplete="off">
+                                    <div class="searchable-select-options"></div>
+                                </div>
                             </div>
 
                             <div class="form-group" id="student-select-group" style="display: none;">
@@ -1791,9 +1856,16 @@
                                             style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 24px;">
                                             👤</div>
                                     </div>
-                                    <select id="add-income-student" name="student_id" required style="flex: 1;">
-                                        <option value="">Выберите ученика</option>
-                                    </select>
+                                    <div style="flex: 1;">
+                                        <select id="add-income-student" name="student_id" class="native-search-select">
+                                            <option value="">Выберите ученика</option>
+                                        </select>
+                                        <div class="searchable-select" data-searchable-select="add-income-student">
+                                            <input type="text" class="form-input-modern searchable-select-input"
+                                                placeholder="Поиск ученика..." autocomplete="off">
+                                            <div class="searchable-select-options"></div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
 

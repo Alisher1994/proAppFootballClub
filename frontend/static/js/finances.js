@@ -866,6 +866,96 @@ function confirmCloseAddIncomeModal() {
 
 let allStudentsData = {}; // Хранилище данных учеников для доступа к фото
 
+function escapeHtml(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+function setupSearchableSelect(selectId, placeholder = 'Поиск...') {
+    const select = document.getElementById(selectId);
+    const wrapper = document.querySelector(`[data-searchable-select="${selectId}"]`);
+    if (!select || !wrapper) return;
+
+    const input = wrapper.querySelector('.searchable-select-input');
+    const optionsBox = wrapper.querySelector('.searchable-select-options');
+    if (!input || !optionsBox) return;
+
+    input.placeholder = placeholder;
+
+    const getOptions = () => Array.from(select.options).filter(option => option.value);
+
+    const syncInput = () => {
+        const selected = select.selectedOptions && select.selectedOptions[0];
+        input.disabled = select.disabled;
+        input.value = selected && selected.value ? selected.textContent.trim() : '';
+    };
+
+    const close = () => wrapper.classList.remove('open');
+    const open = () => {
+        renderOptions(input.value);
+        wrapper.classList.add('open');
+    };
+
+    const renderOptions = (query = '') => {
+        const normalizedQuery = query.trim().toLowerCase();
+        const options = getOptions().filter(option =>
+            option.textContent.toLowerCase().includes(normalizedQuery)
+        );
+
+        if (!options.length) {
+            optionsBox.innerHTML = '<div class="searchable-select-empty">Ничего не найдено</div>';
+            return;
+        }
+
+        optionsBox.innerHTML = options.map(option => `
+            <div class="searchable-select-option ${option.value === select.value ? 'is-selected' : ''}"
+                data-value="${escapeHtml(option.value)}">
+                ${escapeHtml(option.textContent.trim())}
+            </div>
+        `).join('');
+
+        optionsBox.querySelectorAll('.searchable-select-option').forEach(optionEl => {
+            optionEl.addEventListener('mousedown', (event) => {
+                event.preventDefault();
+                select.value = optionEl.dataset.value;
+                syncInput();
+                close();
+                select.dispatchEvent(new Event('change', { bubbles: true }));
+            });
+        });
+    };
+
+    if (!wrapper.dataset.searchReady) {
+        wrapper.dataset.searchReady = 'true';
+        input.addEventListener('focus', () => {
+            input.select();
+            renderOptions('');
+            wrapper.classList.add('open');
+        });
+        input.addEventListener('input', () => open());
+        input.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape') {
+                close();
+                syncInput();
+            }
+        });
+        input.addEventListener('blur', () => {
+            setTimeout(() => {
+                close();
+                syncInput();
+            }, 120);
+        });
+        select.addEventListener('change', syncInput);
+    }
+
+    syncInput();
+    renderOptions();
+}
+
 // Скрыть все поля кроме группы при открытии
 function resetIncomeForm() {
     const studentSelectGroup = document.getElementById('student-select-group');
@@ -883,6 +973,7 @@ function resetIncomeForm() {
     if (notesInputGroup) notesInputGroup.style.display = 'none';
 
     document.getElementById('add-income-student').value = '';
+    setupSearchableSelect('add-income-student', 'Поиск ученика...');
     document.getElementById('add-income-year').value = '';
     document.getElementById('add-income-month').value = '';
     document.getElementById('add-income-amount').value = '';
@@ -1127,6 +1218,8 @@ async function loadIncomeModalGroups() {
                     availableGroups.map(g => `<option value="${g.id}">${g.name}</option>`).join('');
             }
 
+            setupSearchableSelect('add-income-group', 'Поиск группы...');
+
             // Убедимся, что обработчик события привязан
             if (!groupSelect.hasAttribute('data-listener-attached')) {
                 groupSelect.setAttribute('data-listener-attached', 'true');
@@ -1166,6 +1259,7 @@ async function loadIncomeModalStudents(groupId) {
         studentSelect.innerHTML = '<option value="">Выберите ученика</option>' +
             groupStudents.map(s => `<option value="${s.id}" data-photo="${s.photo_path || ''}">${s.full_name} (№${s.student_number || s.id})</option>`).join('');
 
+        setupSearchableSelect('add-income-student', 'Поиск ученика...');
         document.getElementById('student-select-group').style.display = 'block';
     } catch (error) {
         console.error('Ошибка загрузки учеников:', error);
