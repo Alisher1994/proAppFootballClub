@@ -2696,7 +2696,7 @@ body.theme-light .modal-body-scrollable::-webkit-scrollbar-thumb:hover {
 .login-page {
     display: flex;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-end;
     min-height: 100vh;
     background: #000000;
     position: relative;
@@ -2764,20 +2764,28 @@ body.theme-light .modal-body-scrollable::-webkit-scrollbar-thumb:hover {
 
 .login-container {
     width: 100%;
-    max-width: 440px;
-    padding: 24px;
+    max-width: 430px;
+    min-height: 100vh;
+    padding: 0;
     position: relative;
     z-index: 3;
+    display: flex;
+    align-items: stretch;
 }
 
 .login-box {
-    background: rgba(255, 255, 255, 0.12);
-    padding: 48px;
-    border-radius: 24px;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
-    border: 1px solid rgba(255, 255, 255, 0.25);
-    backdrop-filter: blur(18px);
-    -webkit-backdrop-filter: blur(18px);
+    width: 100%;
+    min-height: 100vh;
+    background: linear-gradient(180deg, rgba(14, 18, 24, 0.86), rgba(15, 23, 42, 0.74));
+    padding: 48px 44px 72px;
+    border-radius: 0;
+    box-shadow: -24px 0 80px rgba(0, 0, 0, 0.36);
+    border-left: 1px solid rgba(255, 255, 255, 0.16);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
 }
 
 .login-box label,
@@ -2854,7 +2862,7 @@ body.theme-light .modal-body-scrollable::-webkit-scrollbar-thumb:hover {
 .login-ticker {
     position: fixed;
     left: 0;
-    right: 0;
+    right: 430px;
     bottom: 18px;
     z-index: 3;
     overflow: hidden;
@@ -2938,6 +2946,32 @@ body.theme-light .modal-body-scrollable::-webkit-scrollbar-thumb:hover {
 
 .error:empty {
     display: none;
+}
+
+@media (max-width: 860px) {
+    .login-page {
+        justify-content: center;
+        overflow-y: auto;
+    }
+
+    .login-container {
+        max-width: 440px;
+        min-height: 100vh;
+        padding: 24px;
+        align-items: center;
+    }
+
+    .login-box {
+        min-height: auto;
+        padding: 40px 32px;
+        border-radius: 24px;
+        border: 1px solid rgba(255, 255, 255, 0.22);
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+    }
+
+    .login-ticker {
+        right: 0;
+    }
 }
 
 .quick-actions {
