@@ -2806,6 +2806,39 @@ body.theme-light .modal-body-scrollable::-webkit-scrollbar-thumb:hover {
     outline: none;
 }
 
+.password-field {
+    position: relative;
+}
+
+.password-field input {
+    padding-right: 48px;
+}
+
+.password-toggle {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 34px;
+    height: 34px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    border-radius: 10px;
+    background: transparent;
+    color: rgba(248, 250, 252, 0.76);
+    cursor: pointer;
+    transition: background-color 0.16s ease, color 0.16s ease;
+}
+
+.password-toggle:hover,
+.password-toggle:focus-visible {
+    background: rgba(255, 255, 255, 0.12);
+    color: #ffffff;
+    outline: none;
+}
+
 .login-box .btn-primary {
     background: linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%);
     color: #ffffff;

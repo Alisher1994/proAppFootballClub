@@ -31,6 +31,26 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
     }
 });
 
+(() => {
+    const passwordInput = document.getElementById('password');
+    const toggleButton = document.getElementById('togglePassword');
+    if (!passwordInput || !toggleButton) return;
+
+    const eyeIcon = toggleButton.querySelector('[data-eye-icon]');
+    const eyeOffIcon = toggleButton.querySelector('[data-eye-off-icon]');
+
+    toggleButton.addEventListener('click', () => {
+        const shouldShowPassword = passwordInput.type === 'password';
+        passwordInput.type = shouldShowPassword ? 'text' : 'password';
+        toggleButton.setAttribute('aria-label', shouldShowPassword ? 'Скрыть пароль' : 'Показать пароль');
+
+        if (eyeIcon && eyeOffIcon) {
+            eyeIcon.style.display = shouldShowPassword ? 'none' : '';
+            eyeOffIcon.style.display = shouldShowPassword ? '' : 'none';
+        }
+    });
+})();
+
 // Секретная последовательность для входа в админку
 (() => {
     const root = document.body;
