@@ -669,7 +669,110 @@ def should_check_access_debt(settings, today=None):
     return today.day >= block_day
 
 
-def student_access_state(student, settings=None, paid_map=None, payment_date_paid_map=None, today=None):
+def get_access_max_debt_months(settings):
+    try:
+        value = int(getattr(settings, 'access_max_debt_months', 0) or 0)
+    except (TypeError, ValueError):
+        value = 0
+    return max(0, min(36, value))
+
+
+def normalize_month_pair(year, month):
+    if not year or not month:
+        return None
+    try:
+        year = int(year)
+        month = int(month)
+    except (TypeError, ValueError):
+        return None
+    if month < 1 or month > 12:
+        return None
+    return year, month
+
+
+def iter_month_pairs(start_year, start_month, end_year, end_month):
+    year, month = start_year, start_month
+    while (year, month) <= (end_year, end_month):
+        yield year, month
+        month += 1
+        if month > 12:
+            month = 1
+            year += 1
+
+
+def get_student_debt_start_pair(student, settings, today=None):
+    today = today or get_local_date()
+    candidates = []
+
+    global_start = normalize_month_pair(
+        getattr(settings, 'access_debt_start_year', None),
+        getattr(settings, 'access_debt_start_month', None)
+    )
+    if global_start:
+        candidates.append(global_start)
+
+    if getattr(student, 'admission_date', None):
+        candidates.append((student.admission_date.year, student.admission_date.month))
+    else:
+        candidates.append((today.year, 1))
+
+    return max(candidates)
+
+
+def get_debt_month_counts(students, settings=None, today=None):
+    settings = settings or get_club_settings_instance()
+    today = today or get_local_date()
+    students = [student for student in students if student and student.tariff and not student.club_funded]
+    if not students:
+        return {}
+
+    start_pairs = {
+        student.id: get_student_debt_start_pair(student, settings, today)
+        for student in students
+    }
+    min_start_year = min(pair[0] for pair in start_pairs.values())
+    student_ids = [student.id for student in students]
+
+    paid_rows = db.session.query(
+        Payment.student_id,
+        Payment.payment_year,
+        Payment.payment_month,
+        func.coalesce(func.sum(Payment.amount_paid), 0)
+    ).filter(
+        Payment.student_id.in_(student_ids),
+        Payment.payment_year.isnot(None),
+        Payment.payment_month.isnot(None),
+        Payment.payment_year >= min_start_year,
+        Payment.payment_year <= today.year
+    ).group_by(
+        Payment.student_id,
+        Payment.payment_year,
+        Payment.payment_month
+    ).all()
+    paid_by_month = {
+        (student_id, year, month): float(total or 0)
+        for student_id, year, month, total in paid_rows
+    }
+
+    counts = {}
+    for student in students:
+        start_year, start_month = start_pairs[student.id]
+        if (start_year, start_month) > (today.year, today.month):
+            counts[student.id] = 0
+            continue
+
+        tariff_price = float(student.tariff.price or 0)
+        count = 0
+        for year, month in iter_month_pairs(start_year, start_month, today.year, today.month):
+            paid = paid_by_month.get((student.id, year, month), 0)
+            if max(0, tariff_price - paid) > 0:
+                count += 1
+        counts[student.id] = count
+
+    return counts
+
+
+def student_access_state(student, settings=None, paid_map=None, payment_date_paid_map=None, today=None, debt_month_count=None):
     settings = settings or get_club_settings_instance()
     today = today or get_local_date()
     paid_map = paid_map or {}
@@ -689,6 +792,13 @@ def student_access_state(student, settings=None, paid_map=None, payment_date_pai
     paid_by_date = float(payment_date_paid_map.get(student.id, 0) or 0)
     debt = max(0, tariff_price - paid)
     policy = get_access_payment_policy(settings)
+    max_debt_months = get_access_max_debt_months(settings)
+
+    if policy != 'full_current_month' and max_debt_months > 0:
+        if debt_month_count is None:
+            debt_month_count = get_debt_month_counts([student], settings, today).get(student.id, 0)
+        if debt_month_count > max_debt_months:
+            return False, 'too_many_debt_months', debt
 
     if policy == 'full_current_month':
         if debt > 0:
@@ -713,23 +823,33 @@ ACCESS_REASON_LABELS = {
     'no_tariff': 'Тариф не указан, блокировка по оплате не применяется',
     'grace_period': 'Льготный период до дня блокировки',
     'current_month_debt': 'Есть долг за текущий месяц',
-    'paid_full_current_month': 'Текущий месяц оплачен полностью',
-    'any_payment_this_month': 'Есть оплата в этом календарном месяце',
-    'no_payment_this_month': 'В этом календарном месяце нет оплаты',
-    'partial_current_month': 'Есть частичная оплата за текущий месяц',
+    'paid_full_current_month': 'Месяц оплачен полностью',
+    'any_payment_this_month': 'Есть оплата в этом месяце',
+    'no_payment_this_month': 'Нет оплаты в этом месяце',
+    'partial_current_month': 'Есть оплата за этот месяц',
     'no_current_month_payment': 'Нет оплаты за текущий месяц',
+    'too_many_debt_months': 'Долг больше разрешенного срока',
     'no_photo': 'Нет фото для Face ID',
     'staff_active': 'Сотрудник активен',
     'staff_inactive': 'Сотрудник неактивен',
 }
 
 
-def build_student_access_payload(student, settings=None, paid_map=None, payment_date_paid_map=None, today=None):
+def build_student_access_payload(student, settings=None, paid_map=None, payment_date_paid_map=None, today=None, debt_month_count=None):
     settings = settings or get_club_settings_instance()
     today = today or get_local_date()
     paid_map = paid_map or {}
     payment_date_paid_map = payment_date_paid_map or {}
-    allowed, reason, debt = student_access_state(student, settings, paid_map, payment_date_paid_map, today)
+    if debt_month_count is None and get_access_max_debt_months(settings) > 0 and not student.club_funded:
+        debt_month_count = get_debt_month_counts([student], settings, today).get(student.id, 0)
+    allowed, reason, debt = student_access_state(
+        student,
+        settings,
+        paid_map,
+        payment_date_paid_map,
+        today,
+        debt_month_count=debt_month_count
+    )
     photo_url = build_photo_url(student.photo_path)
     can_sync_to_turnstile = bool(allowed and photo_url)
     final_reason = reason if allowed else reason
@@ -755,12 +875,14 @@ def build_student_access_payload(student, settings=None, paid_map=None, payment_
         'has_photo': bool(photo_url),
         'block_day': int(getattr(settings, 'access_block_day', 10) or 10),
         'payment_policy': get_access_payment_policy(settings),
+        'max_debt_months': get_access_max_debt_months(settings),
+        'debt_month_count': int(debt_month_count or 0),
         'month': today.month,
         'year': today.year,
     }
 
 
-def build_hikvision_person_payload(person_type, person_id, settings=None, today=None, paid_map=None, payment_date_paid_map=None):
+def build_hikvision_person_payload(person_type, person_id, settings=None, today=None, paid_map=None, payment_date_paid_map=None, debt_month_counts=None):
     """Собрать одну запись в формате локального Hikvision bridge."""
     settings = settings or get_club_settings_instance()
     today = today or get_local_date()
@@ -805,7 +927,17 @@ def build_hikvision_person_payload(person_type, person_id, settings=None, today=
 
     paid_map = paid_map if paid_map is not None else get_month_paid_map(today.year, today.month)
     payment_date_paid_map = payment_date_paid_map if payment_date_paid_map is not None else get_payment_date_paid_map(today.year, today.month)
-    access_payload = build_student_access_payload(student, settings, paid_map, payment_date_paid_map, today)
+    debt_month_count = None
+    if isinstance(debt_month_counts, dict):
+        debt_month_count = debt_month_counts.get(student.id)
+    access_payload = build_student_access_payload(
+        student,
+        settings,
+        paid_map,
+        payment_date_paid_map,
+        today,
+        debt_month_count=debt_month_count
+    )
     photo_url = build_photo_url(student.photo_path)
     if photo_url and photo_url.startswith('/'):
         photo_url = f"{base_url}{photo_url}"
@@ -1173,6 +1305,8 @@ def ensure_club_settings_columns():
             conn.execute(db.text("ALTER TABLE club_settings ADD COLUMN access_debt_start_year INTEGER"))
         if 'access_debt_start_month' not in columns:
             conn.execute(db.text("ALTER TABLE club_settings ADD COLUMN access_debt_start_month INTEGER"))
+        if 'access_max_debt_months' not in columns:
+            conn.execute(db.text("ALTER TABLE club_settings ADD COLUMN access_max_debt_months INTEGER DEFAULT 0"))
         if 'hikvision_device_key' not in columns:
             conn.execute(db.text("ALTER TABLE club_settings ADD COLUMN hikvision_device_key VARCHAR(120)"))
         if 'hikvision_devices' not in columns:
@@ -3831,6 +3965,13 @@ def calculate_month_debt_total(year, month):
     today = get_local_date()
     if (year, month) > (today.year, today.month):
         return 0
+    settings = get_club_settings_instance()
+    global_start = normalize_month_pair(
+        getattr(settings, 'access_debt_start_year', None),
+        getattr(settings, 'access_debt_start_month', None)
+    )
+    if global_start and (year, month) < global_start:
+        return 0
 
     month_end = date(year, month, monthrange(year, month)[1])
 
@@ -3867,16 +4008,21 @@ def calculate_month_debt_total(year, month):
 @login_required
 def get_debtors():
     """Список должников с помесячной детализацией"""
-    from datetime import date
-    
-    # Получить всех активных учеников с тарифами
+    settings = get_club_settings_instance()
+    today = get_local_date()
+    global_start = normalize_month_pair(
+        getattr(settings, 'access_debt_start_year', None),
+        getattr(settings, 'access_debt_start_month', None)
+    )
+
     students = Student.query.filter(
         Student.status == 'active',
-        Student.tariff_id.isnot(None)
+        Student.tariff_id.isnot(None),
+        db.or_(Student.club_funded == False, Student.club_funded.is_(None))
     ).options(joinedload(Student.tariff)).all()
-    
-    current_year = date.today().year
-    current_month = date.today().month
+
+    current_year = today.year
+    current_month = today.month
 
     paid_rows = db.session.query(
         Payment.student_id,
@@ -3905,13 +4051,16 @@ def get_debtors():
             
         tariff_price = float(student.tariff.price)
         
-        # Определить с какого месяца начинать проверку
         if student.admission_date:
             start_year = student.admission_date.year
             start_month = student.admission_date.month
         else:
             start_year = current_year
             start_month = 1
+        if global_start and (start_year, start_month) < global_start:
+            start_year, start_month = global_start
+        if (start_year, start_month) > (current_year, current_month):
+            continue
         
         # Проверить каждый месяц от даты принятия до текущего месяца
         year = start_year
@@ -3969,11 +4118,20 @@ def hikvision_students():
         joinedload(Student.group)
     ).order_by(Student.id.asc()).all()
     staff_users = User.query.order_by(User.id.asc()).all()
+    debt_month_counts = get_debt_month_counts(students, settings, today) if get_access_max_debt_months(settings) > 0 else {}
 
     base_url = request.host_url.rstrip('/')
     payload = []
     for student in students:
-        item = build_hikvision_person_payload('student', student.id, settings, today, paid_map, payment_date_paid_map)
+        item = build_hikvision_person_payload(
+            'student',
+            student.id,
+            settings,
+            today,
+            paid_map,
+            payment_date_paid_map,
+            debt_month_counts
+        )
         if item:
             payload.append(item)
 
@@ -3989,6 +4147,7 @@ def hikvision_students():
         'year': today.year,
         'access_block_day': int(getattr(settings, 'access_block_day', 10) or 10),
         'access_payment_policy': get_access_payment_policy(settings),
+        'access_max_debt_months': get_access_max_debt_months(settings),
         'duplicates_skipped': duplicates_skipped,
         'students': payload
     })
@@ -4019,6 +4178,7 @@ def hikvision_person():
         'year': today.year,
         'access_block_day': int(getattr(settings, 'access_block_day', 10) or 10),
         'access_payment_policy': get_access_payment_policy(settings),
+        'access_max_debt_months': get_access_max_debt_months(settings),
     })
 
 
@@ -4036,6 +4196,7 @@ def hikvision_config():
         'daily_sync_time': get_hikvision_daily_sync_time(settings),
         'parallel_devices': bool(getattr(settings, 'hikvision_parallel_devices', False)),
         'cleanup_stale_users': bool(getattr(settings, 'hikvision_cleanup_stale_users', True)),
+        'max_debt_months': get_access_max_debt_months(settings),
         'timezone': 'Asia/Tashkent',
     })
 
@@ -4512,6 +4673,7 @@ def get_club_settings():
         'hikvision_daily_sync_time': get_hikvision_daily_sync_time(settings),
         'access_debt_start_year': getattr(settings, 'access_debt_start_year', None),
         'access_debt_start_month': getattr(settings, 'access_debt_start_month', None),
+        'access_max_debt_months': get_access_max_debt_months(settings),
         'hikvision_device_key': get_bridge_key(settings),
         'hikvision_devices': settings.get_hikvision_devices() or default_hikvision_devices(),
         'hikvision_parallel_devices': bool(getattr(settings, 'hikvision_parallel_devices', False)),
@@ -4577,6 +4739,7 @@ def update_club_settings():
         hikvision_daily_sync_time = (data.get('hikvision_daily_sync_time') or getattr(settings, 'hikvision_daily_sync_time', '') or '03:00').strip()
         access_debt_start_year = data.get('access_debt_start_year', getattr(settings, 'access_debt_start_year', None))
         access_debt_start_month = data.get('access_debt_start_month', getattr(settings, 'access_debt_start_month', None))
+        access_max_debt_months = data.get('access_max_debt_months', getattr(settings, 'access_max_debt_months', 0) or 0)
         hikvision_device_key = get_str_setting('hikvision_device_key', getattr(settings, 'hikvision_device_key', '') or '')
         hikvision_devices = data.get('hikvision_devices') if isinstance(data.get('hikvision_devices'), list) else None
         hikvision_parallel_devices = get_bool_setting('hikvision_parallel_devices', getattr(settings, 'hikvision_parallel_devices', False))
@@ -4615,6 +4778,9 @@ def update_club_settings():
             access_debt_start_month = int(access_debt_start_month)
         if access_debt_start_month and (access_debt_start_month < 1 or access_debt_start_month > 12):
             return jsonify({'success': False, 'message': 'Месяц начала контроля доступа должен быть от 1 до 12'}), 400
+        access_max_debt_months = int(access_max_debt_months or 0)
+        if access_max_debt_months < 0 or access_max_debt_months > 36:
+            return jsonify({'success': False, 'message': 'Лимит месяцев долга должен быть от 0 до 36'}), 400
 
         settings.system_name = system_name
         settings.set_working_days_list(working_days)
@@ -4656,6 +4822,7 @@ def update_club_settings():
         settings.hikvision_daily_sync_time = hikvision_daily_sync_time
         settings.access_debt_start_year = access_debt_start_year
         settings.access_debt_start_month = access_debt_start_month
+        settings.access_max_debt_months = access_max_debt_months
         settings.hikvision_device_key = hikvision_device_key if hikvision_device_key else None
         settings.hikvision_parallel_devices = hikvision_parallel_devices
         settings.hikvision_cleanup_stale_users = hikvision_cleanup_stale_users

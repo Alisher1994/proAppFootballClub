@@ -888,6 +888,29 @@ function setupSearchableSelect(selectId, placeholder = 'Поиск...') {
 
     const getOptions = () => Array.from(select.options).filter(option => option.value);
 
+    const positionOptions = () => {
+        if (!wrapper.classList.contains('open')) return;
+        const rect = input.getBoundingClientRect();
+        const gap = 8;
+        const minHeight = 120;
+        const preferredHeight = 260;
+        const spaceBelow = window.innerHeight - rect.bottom - gap;
+        const spaceAbove = rect.top - gap;
+        const openAbove = spaceBelow < minHeight && spaceAbove > spaceBelow;
+        const availableHeight = Math.max(minHeight, Math.min(preferredHeight, (openAbove ? spaceAbove : spaceBelow) - gap));
+
+        optionsBox.style.left = `${rect.left}px`;
+        optionsBox.style.width = `${rect.width}px`;
+        optionsBox.style.maxHeight = `${availableHeight}px`;
+        if (openAbove) {
+            optionsBox.style.top = 'auto';
+            optionsBox.style.bottom = `${window.innerHeight - rect.top + gap}px`;
+        } else {
+            optionsBox.style.top = `${rect.bottom + gap}px`;
+            optionsBox.style.bottom = 'auto';
+        }
+    };
+
     const syncInput = () => {
         const selected = select.selectedOptions && select.selectedOptions[0];
         input.disabled = select.disabled;
@@ -898,6 +921,7 @@ function setupSearchableSelect(selectId, placeholder = 'Поиск...') {
     const open = () => {
         renderOptions(input.value);
         wrapper.classList.add('open');
+        requestAnimationFrame(positionOptions);
     };
 
     const renderOptions = (query = '') => {
@@ -927,6 +951,7 @@ function setupSearchableSelect(selectId, placeholder = 'Поиск...') {
                 select.dispatchEvent(new Event('change', { bubbles: true }));
             });
         });
+        requestAnimationFrame(positionOptions);
     };
 
     if (!wrapper.dataset.searchReady) {
@@ -935,6 +960,7 @@ function setupSearchableSelect(selectId, placeholder = 'Поиск...') {
             input.select();
             renderOptions('');
             wrapper.classList.add('open');
+            requestAnimationFrame(positionOptions);
         });
         input.addEventListener('input', () => open());
         input.addEventListener('keydown', (event) => {
@@ -950,6 +976,8 @@ function setupSearchableSelect(selectId, placeholder = 'Поиск...') {
             }, 120);
         });
         select.addEventListener('change', syncInput);
+        window.addEventListener('resize', positionOptions);
+        window.addEventListener('scroll', positionOptions, true);
     }
 
     syncInput();

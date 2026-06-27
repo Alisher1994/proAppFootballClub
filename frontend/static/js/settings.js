@@ -141,6 +141,7 @@ async function loadSettings() {
         const hikvisionCleanupStaleUsersEl = document.getElementById('hikvision_cleanup_stale_users');
         const accessDebtStartMonthEl = document.getElementById('access_debt_start_month');
         const accessDebtStartYearEl = document.getElementById('access_debt_start_year');
+        const accessMaxDebtMonthsEl = document.getElementById('access_max_debt_months');
         const hikvisionDeviceKeyEl = document.getElementById('hikvision_device_key');
         if (accessBlockDayEl) accessBlockDayEl.value = data.access_block_day || 10;
         if (accessPaymentPolicyEl) accessPaymentPolicyEl.value = data.access_payment_policy || 'partial_current_month';
@@ -149,6 +150,7 @@ async function loadSettings() {
         if (hikvisionCleanupStaleUsersEl) hikvisionCleanupStaleUsersEl.checked = data.hikvision_cleanup_stale_users !== false;
         if (accessDebtStartMonthEl) accessDebtStartMonthEl.value = data.access_debt_start_month || '';
         if (accessDebtStartYearEl) accessDebtStartYearEl.value = data.access_debt_start_year || '';
+        if (accessMaxDebtMonthsEl) accessMaxDebtMonthsEl.value = data.access_max_debt_months ?? 0;
         if (hikvisionDeviceKeyEl) hikvisionDeviceKeyEl.value = data.hikvision_device_key || '';
         setHikvisionDevices(data.hikvision_devices || []);
         document.getElementById('rewards_reset_period_months').value = data.rewards_reset_period_months || 1;
@@ -425,6 +427,7 @@ function gatherAllSettings() {
         hikvision_cleanup_stale_users: document.getElementById('hikvision_cleanup_stale_users')?.checked !== false,
         access_debt_start_month: document.getElementById('access_debt_start_month')?.value || null,
         access_debt_start_year: document.getElementById('access_debt_start_year')?.value || null,
+        access_max_debt_months: parseInt(document.getElementById('access_max_debt_months')?.value || '0', 10),
         hikvision_device_key: (document.getElementById('hikvision_device_key')?.value || '').trim(),
         hikvision_devices: collectHikvisionDevices(),
         rewards_reset_period_months: parseInt(document.getElementById('rewards_reset_period_months').value, 10),

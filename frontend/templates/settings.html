@@ -2103,13 +2103,22 @@
                                     <div class="form-group">
                                         <label>Правило допуска по оплате</label>
                                         <select id="access_payment_policy" class="form-input-modern">
-                                            <option value="partial_current_month">Есть любая частичная оплата за текущий месяц</option>
-                                            <option value="any_payment_this_month">Есть любая оплата в этом календарном месяце</option>
-                                            <option value="full_current_month">Только полная оплата за текущий месяц</option>
+                                            <option value="partial_current_month">Часть оплаты за этот месяц</option>
+                                            <option value="any_payment_this_month">Любая оплата в этом месяце</option>
+                                            <option value="full_current_month">Месяц оплачен полностью</option>
                                         </select>
                                         <small>
-                                            Для рассрочки выберите частичную оплату. Для старых долгов, которые родители
-                                            догоняют сейчас, выберите любую оплату в этом календарном месяце.
+                                            Для рассрочки выберите частичную оплату. Для старых долгов, которые догоняют
+                                            сейчас, выберите любую оплату в этом календарном месяце.
+                                        </small>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Пропускать с долгом не более</label>
+                                        <input type="number" id="access_max_debt_months" min="0" max="36"
+                                            class="form-input-modern" placeholder="0">
+                                        <small>
+                                            0 = без ограничения по количеству месяцев. Если поставить 2, ученик с долгом
+                                            за 3 месяца не пройдет даже при частичной оплате.
                                         </small>
                                     </div>
                                     <div class="form-group">
