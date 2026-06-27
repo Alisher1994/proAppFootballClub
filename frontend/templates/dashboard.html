@@ -527,7 +527,7 @@
         /* Отчёт расходов */
         .expense-report-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
             gap: 16px;
         }
 
@@ -549,6 +549,7 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
+            gap: 10px;
             margin-bottom: 10px;
             color: var(--theme-text-primary);
         }
@@ -562,11 +563,31 @@
         }
 
         .expense-category-row {
-            display: grid;
-            grid-template-columns: minmax(120px, 1fr) minmax(120px, 2fr) auto;
-            align-items: center;
-            gap: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            padding: 8px 0;
+            border-bottom: 1px solid #eef2f7;
             color: var(--theme-text-primary);
+        }
+
+        .expense-category-top {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            align-items: flex-start;
+        }
+
+        .expense-category-name {
+            min-width: 0;
+            overflow-wrap: anywhere;
+            line-height: 1.25;
+        }
+
+        .expense-category-value {
+            flex: 0 0 auto;
+            white-space: nowrap;
+            font-size: 12px;
         }
 
         .expense-category-track {
@@ -1840,14 +1861,16 @@
                             const share = month.total ? Math.round((seg.value / month.total) * 100) : 0;
                             return `
                                 <div class="expense-category-row">
-                                    <div class="expense-legend-item">
-                                        <span class="expense-legend-dot" style="background:${seg.color};"></span>
-                                        <span>${seg.category}</span>
+                                    <div class="expense-category-top">
+                                        <div class="expense-legend-item expense-category-name">
+                                            <span class="expense-legend-dot" style="background:${seg.color};"></span>
+                                            <span>${seg.category}</span>
+                                        </div>
+                                        <strong class="expense-category-value">${seg.value.toLocaleString('ru-RU')} сум · ${share}%</strong>
                                     </div>
                                     <div class="expense-category-track">
                                         <div class="expense-category-fill" style="width:${share}%; background:${seg.color};"></div>
                                     </div>
-                                    <strong style="white-space:nowrap;">${seg.value.toLocaleString('ru-RU')} сум · ${share}%</strong>
                                 </div>
                             `;
                         }).join('') : '<div class="expense-report-empty" style="padding:18px;">Нет расходов</div>';
