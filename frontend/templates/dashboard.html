@@ -516,7 +516,12 @@
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
             margin-top: 12px;
             width: 100%;
+            height: 360px;
             overflow-x: auto;
+        }
+
+        .main-income-expense-chart {
+            height: 260px;
         }
 
         /* Отчёт расходов */
@@ -714,17 +719,17 @@
 
                     <div class="stat-card success">
                         <h3>Доход (месяц)</h3>
-                        <p class="stat-number">{{ "%.0f"|format(month_income) }} сум</p>
+                        <p class="stat-number">{{ "{:,.0f}".format(month_income or 0).replace(",", " ") }} сум</p>
                     </div>
 
                     <div class="stat-card danger">
                         <h3>Расходы (месяц)</h3>
-                        <p class="stat-number">{{ "%.0f"|format(month_expenses) }} сум</p>
+                        <p class="stat-number">{{ "{:,.0f}".format(month_expenses or 0).replace(",", " ") }} сум</p>
                     </div>
 
                     <div class="stat-card {% if profit >= 0 %}success{% else %}danger{% endif %}">
                         <h3>Прибыль (месяц)</h3>
-                        <p class="stat-number">{{ "%.0f"|format(profit) }} сум</p>
+                        <p class="stat-number">{{ "{:,.0f}".format(profit or 0).replace(",", " ") }} сум</p>
                     </div>
                 </div>
 
@@ -939,7 +944,34 @@
                     </div>
                 </div>
             </div>
+            <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.9/dist/chart.umd.min.js"></script>
+            <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
             <script>
+                if (window.Chart && window.ChartDataLabels) {
+                    Chart.register(ChartDataLabels);
+                }
+
+                const dashboardCharts = {};
+                const moneyFormatter = new Intl.NumberFormat('ru-RU');
+
+                function formatMoneyShort(value) {
+                    const amount = Number(value || 0);
+                    if (Math.abs(amount) >= 1000000) {
+                        return `${moneyFormatter.format(Math.round(amount / 100000) / 10)} млн`;
+                    }
+                    if (Math.abs(amount) >= 1000) {
+                        return `${moneyFormatter.format(Math.round(amount / 1000))} тыс`;
+                    }
+                    return moneyFormatter.format(amount);
+                }
+
+                function replaceChart(key, canvas, config) {
+                    if (!window.Chart || !canvas) return null;
+                    if (dashboardCharts[key]) dashboardCharts[key].destroy();
+                    dashboardCharts[key] = new Chart(canvas, config);
+                    return dashboardCharts[key];
+                }
+
                 // Функция для получения контейнера с прокруткой
                 function getScrollContainer() {
                     return document.querySelector('.tab-content-container');
@@ -1102,10 +1134,118 @@
                     }
                 }
 
+                function drawFinanceChartJs(canvas, months) {
+                    if (!window.Chart || !canvas) return false;
+                    const labels = months.map(m => m.month_name);
+                    replaceChart('financeDetails', canvas, {
+                        type: 'bar',
+                        data: {
+                            labels,
+                            datasets: [
+                                {
+                                    label: 'Приход',
+                                    data: months.map(m => Number(m.income || 0)),
+                                    backgroundColor: '#10b981',
+                                    borderRadius: 6,
+                                    maxBarThickness: 34,
+                                },
+                                {
+                                    label: 'Расход',
+                                    data: months.map(m => Number(m.expense || 0)),
+                                    backgroundColor: '#ef4444',
+                                    borderRadius: 6,
+                                    maxBarThickness: 34,
+                                },
+                            ],
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            interaction: { mode: 'index', intersect: false },
+                            plugins: {
+                                legend: { position: 'top', align: 'start', labels: { boxWidth: 12, usePointStyle: true } },
+                                tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${moneyFormatter.format(ctx.raw)} сум` } },
+                                datalabels: {
+                                    anchor: 'end',
+                                    align: 'top',
+                                    color: '#334155',
+                                    font: { weight: '700', size: 10 },
+                                    formatter: value => value ? formatMoneyShort(value) : '',
+                                },
+                            },
+                            scales: {
+                                x: { grid: { display: false }, ticks: { maxRotation: 45, minRotation: 35 } },
+                                y: {
+                                    beginAtZero: true,
+                                    grid: { color: '#e2e8f0', borderDash: [4, 4] },
+                                    ticks: { callback: value => formatMoneyShort(value) },
+                                },
+                            },
+                        },
+                    });
+                    return true;
+                }
+
+                function drawIncomeExpenseChartJs(canvas, months) {
+                    if (!window.Chart || !canvas) return false;
+                    replaceChart('incomeExpense', canvas, {
+                        type: 'line',
+                        data: {
+                            labels: months.map(m => m.month_name),
+                            datasets: [
+                                {
+                                    label: 'Приход',
+                                    data: months.map(m => Number(m.income || 0)),
+                                    borderColor: '#10b981',
+                                    backgroundColor: 'rgba(16, 185, 129, 0.12)',
+                                    pointBackgroundColor: '#10b981',
+                                    fill: true,
+                                    tension: 0.32,
+                                },
+                                {
+                                    label: 'Расход',
+                                    data: months.map(m => Number(m.expense || 0)),
+                                    borderColor: '#ef4444',
+                                    backgroundColor: 'rgba(239, 68, 68, 0.10)',
+                                    pointBackgroundColor: '#ef4444',
+                                    fill: true,
+                                    tension: 0.32,
+                                },
+                            ],
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            interaction: { mode: 'index', intersect: false },
+                            plugins: {
+                                legend: { position: 'top', align: 'start', labels: { boxWidth: 12, usePointStyle: true } },
+                                tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${moneyFormatter.format(ctx.raw)} сум` } },
+                                datalabels: {
+                                    align: 'top',
+                                    anchor: 'end',
+                                    color: '#334155',
+                                    font: { weight: '700', size: 9 },
+                                    formatter: value => value ? formatMoneyShort(value) : '',
+                                },
+                            },
+                            scales: {
+                                x: { grid: { display: false } },
+                                y: {
+                                    beginAtZero: true,
+                                    grid: { color: '#e2e8f0', borderDash: [4, 4] },
+                                    ticks: { callback: value => formatMoneyShort(value) },
+                                },
+                            },
+                        },
+                    });
+                    return true;
+                }
+
                 // Простой график на Canvas
                 function drawSimpleChart(months) {
                     const canvas = document.getElementById('financeChart');
                     if (!canvas) return;
+                    if (drawFinanceChartJs(canvas, months)) return;
 
                     const ctx = canvas.getContext('2d');
                     const isLight = document.body.classList.contains('theme-light');
@@ -1347,6 +1487,7 @@
                 function drawIncomeExpenseChart(months) {
                     const canvas = document.getElementById('incomeExpenseChart');
                     if (!canvas) return;
+                    if (drawIncomeExpenseChartJs(canvas, months)) return;
 
                     const ctx = canvas.getContext('2d');
                     const isLight = document.body.classList.contains('theme-light');
@@ -1551,8 +1692,68 @@
                     return Object.values(monthsMap);
                 }
 
+                function renderExpenseDonutChartJs(canvas, segments, total) {
+                    if (!window.Chart || !canvas) return false;
+                    const key = `expense-${canvas.dataset.chartKey || Math.random().toString(36).slice(2)}`;
+                    canvas.dataset.chartKey = key;
+                    replaceChart(key, canvas, {
+                        type: 'doughnut',
+                        data: {
+                            labels: segments.map(seg => seg.category),
+                            datasets: [{
+                                data: segments.map(seg => seg.value),
+                                backgroundColor: segments.map(seg => seg.color),
+                                borderColor: '#ffffff',
+                                borderWidth: 2,
+                                hoverOffset: 6,
+                            }],
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            cutout: '58%',
+                            plugins: {
+                                legend: { display: false },
+                                tooltip: {
+                                    callbacks: {
+                                        label: ctx => {
+                                            const value = Number(ctx.raw || 0);
+                                            const share = total ? Math.round((value / total) * 100) : 0;
+                                            return `${ctx.label}: ${moneyFormatter.format(value)} сум (${share}%)`;
+                                        },
+                                    },
+                                },
+                                datalabels: {
+                                    color: '#ffffff',
+                                    font: { weight: '700', size: 10 },
+                                    formatter: value => {
+                                        const share = total ? Math.round((value / total) * 100) : 0;
+                                        return share >= 8 ? `${share}%` : '';
+                                    },
+                                },
+                            },
+                        },
+                        plugins: [{
+                            id: 'centerText',
+                            afterDraw(chart) {
+                                const { ctx, chartArea } = chart;
+                                if (!chartArea) return;
+                                ctx.save();
+                                ctx.fillStyle = '#0f172a';
+                                ctx.font = '700 14px Inter, Segoe UI, sans-serif';
+                                ctx.textAlign = 'center';
+                                ctx.textBaseline = 'middle';
+                                ctx.fillText(formatMoneyShort(total), (chartArea.left + chartArea.right) / 2, (chartArea.top + chartArea.bottom) / 2);
+                                ctx.restore();
+                            },
+                        }],
+                    });
+                    return true;
+                }
+
                 function renderExpenseDonut(canvas, segments, total) {
                     if (!canvas || !canvas.getContext) return;
+                    if (renderExpenseDonutChartJs(canvas, segments, total)) return;
                     const ctx = canvas.getContext('2d');
                     const parentWidth = canvas.parentElement ? canvas.parentElement.clientWidth : 0;
                     const size = Math.max(140, Math.min(320, parentWidth || 220));
