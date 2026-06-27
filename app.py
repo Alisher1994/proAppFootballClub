@@ -3823,6 +3823,46 @@ def get_balance_breakdown():
     })
 
 
+def calculate_month_debt_total(year, month):
+    """Сумма долга активных учеников за конкретный месяц."""
+    from calendar import monthrange
+    from datetime import date
+
+    today = get_local_date()
+    if (year, month) > (today.year, today.month):
+        return 0
+
+    month_end = date(year, month, monthrange(year, month)[1])
+
+    students = Student.query.filter(
+        Student.status == 'active',
+        Student.tariff_id.isnot(None),
+        db.or_(Student.club_funded == False, Student.club_funded.is_(None)),
+        db.or_(Student.admission_date.is_(None), Student.admission_date <= month_end)
+    ).options(joinedload(Student.tariff)).all()
+
+    if not students:
+        return 0
+
+    paid_rows = db.session.query(
+        Payment.student_id,
+        func.coalesce(func.sum(Payment.amount_paid), 0)
+    ).filter(
+        Payment.payment_year == year,
+        Payment.payment_month == month
+    ).group_by(Payment.student_id).all()
+    paid_by_student = {student_id: float(total or 0) for student_id, total in paid_rows}
+
+    total_debt = 0
+    for student in students:
+        if not student.tariff or not student.tariff.price:
+            continue
+        tariff_price = float(student.tariff.price or 0)
+        total_debt += max(0, tariff_price - paid_by_student.get(student.id, 0))
+
+    return total_debt
+
+
 @app.route('/api/finances/debtors', methods=['GET'])
 @login_required
 def get_debtors():
@@ -4329,6 +4369,8 @@ def get_analytics():
             extract('year', Expense.expense_date) == year,
             extract('month', Expense.expense_date) == month
         ).scalar() or 0
+
+        debt = calculate_month_debt_total(year, month)
         
         # Название месяца
         month_names = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 
@@ -4338,7 +4380,8 @@ def get_analytics():
         months_data.append({
             'month_name': month_name,
             'income': income,
-            'expense': expense
+            'expense': expense,
+            'debt': debt
         })
     
     return jsonify({'months': months_data})
@@ -4367,11 +4410,13 @@ def get_finances_monthly():
             extract('year', Expense.expense_date) == year,
             extract('month', Expense.expense_date) == month
         ).scalar() or 0
+        debt = calculate_month_debt_total(year, month)
         balance = float(income) - float(expense)
         months.append({
             'income': float(income),
             'expense': float(expense),
-            'balance': balance
+            'balance': balance,
+            'debt': float(debt)
         })
 
     return jsonify({'months': months})

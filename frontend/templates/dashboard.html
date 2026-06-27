@@ -815,6 +815,11 @@
                                 <div style="width: 12px; height: 12px; background: #3498db; border-radius: 3px;"></div>
                                 Остаток
                             </div>
+                            <div
+                                style="display: flex; align-items: center; gap: 8px; font-size: 0.9rem; font-weight: 600; color: var(--theme-text-secondary);">
+                                <div style="width: 12px; height: 12px; background: #f59e0b; border-radius: 3px;"></div>
+                                Долг
+                            </div>
                         </div>
 
                         <div class="month-grid">
@@ -828,6 +833,7 @@
                                     <div class="bar income" title="Приход"><span class="bar-value"></span></div>
                                     <div class="bar expense" title="Расход"><span class="bar-value"></span></div>
                                     <div class="bar balance" title="Остаток"><span class="bar-value"></span></div>
+                                    <div class="bar debt" title="Долг за месяц"><span class="bar-value"></span></div>
                                 </div>
                             </div>
                             {% endfor %}
@@ -851,6 +857,7 @@
                                     <th>Приход</th>
                                     <th>Расход</th>
                                     <th>Остаток</th>
+                                    <th>Долг</th>
                                 </tr>
                             </thead>
                             <tbody id="analytics-table-body">
@@ -1130,13 +1137,14 @@
                         if (!tbody) return;
 
                         if (data.months.length === 0) {
-                            tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #95a5a6;">Нет данных</td></tr>';
+                            tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #95a5a6;">Нет данных</td></tr>';
                             return;
                         }
 
                         // Подсчёт итогов
                         const totalIncome = data.months.reduce((acc, m) => acc + Number(m.income || 0), 0);
                         const totalExpense = data.months.reduce((acc, m) => acc + Number(m.expense || 0), 0);
+                        const totalDebt = data.months.reduce((acc, m) => acc + Number(m.debt || 0), 0);
                         const totalBalance = totalIncome - totalExpense;
 
                         const rows = data.months.map(m => {
@@ -1151,6 +1159,7 @@
                         <td style="color: ${balanceColor}; font-weight: bold;">
                             ${balance.toLocaleString('ru-RU')}
                         </td>
+                        <td style="color: #f59e0b; font-weight: bold;">${Number(m.debt || 0).toLocaleString('ru-RU')}</td>
                     </tr>
                 `;
                         }).join('');
@@ -1163,6 +1172,7 @@
                     <td style="color: ${totalBalance >= 0 ? '#27ae60' : '#e74c3c'};">
                         ${totalBalance.toLocaleString('ru-RU')}
                     </td>
+                    <td style="color: #f59e0b;">${totalDebt.toLocaleString('ru-RU')}</td>
                 </tr>
             `;
 
@@ -1194,6 +1204,13 @@
                                     label: 'Расход',
                                     data: months.map(m => Number(m.expense || 0)),
                                     backgroundColor: '#ef4444',
+                                    borderRadius: 6,
+                                    maxBarThickness: 34,
+                                },
+                                {
+                                    label: 'Долг',
+                                    data: months.map(m => Number(m.debt || 0)),
+                                    backgroundColor: '#f59e0b',
                                     borderRadius: 6,
                                     maxBarThickness: 34,
                                 },
@@ -1319,7 +1336,7 @@
                     const chartHeight = height - padding.top - padding.bottom;
 
                     // Находим максимум
-                    const maxValueRaw = Math.max(...months.map(m => Math.max(m.income, m.expense)));
+                    const maxValueRaw = Math.max(...months.map(m => Math.max(m.income, m.expense, m.debt || 0)));
                     const maxValue = maxValueRaw > 0 ? maxValueRaw * 1.15 : 1000000;
 
                     // Отрисовка сетки
@@ -1478,15 +1495,16 @@
                         const data = await res.json();
                         if (!data || !Array.isArray(data.months)) return;
                         const months = data.months;
-                        const maxVal = Math.max(1, ...months.flatMap(m => [m.income || 0, m.expense || 0, m.balance || 0]));
+                        const maxVal = Math.max(1, ...months.flatMap(m => [m.income || 0, m.expense || 0, m.balance || 0, m.debt || 0]));
 
                         // Render each month
                         document.querySelectorAll('.bars').forEach((barsEl, idx) => {
-                            const m = months[idx] || { income: 0, expense: 0, balance: 0 };
+                            const m = months[idx] || { income: 0, expense: 0, balance: 0, debt: 0 };
                             const items = [
                                 { cls: '.income', val: m.income || 0 },
                                 { cls: '.expense', val: m.expense || 0 },
-                                { cls: '.balance', val: m.balance || 0 }
+                                { cls: '.balance', val: m.balance || 0 },
+                                { cls: '.debt', val: m.debt || 0 }
                             ];
                             items.forEach(item => {
                                 const bar = barsEl.querySelector(item.cls);

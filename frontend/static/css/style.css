@@ -3029,7 +3029,7 @@ body.theme-light .modal-body-scrollable::-webkit-scrollbar-thumb:hover {
 
 .bars {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(4, 1fr);
     gap: 6px;
     align-items: end;
     height: 80px;
@@ -3065,6 +3065,10 @@ body.theme-light .modal-body-scrollable::-webkit-scrollbar-thumb:hover {
     background: #3498db;
 }
 
+.bar.debt {
+    background: #f59e0b;
+}
+
 .legend {
     display: flex;
     gap: 8px;
@@ -3097,6 +3101,10 @@ body.theme-light .modal-body-scrollable::-webkit-scrollbar-thumb:hover {
 
 .legend-item.balance::before {
     background: #3498db;
+}
+
+.legend-item.debt::before {
+    background: #f59e0b;
 }
 
 @media (max-width: 1200px) {
