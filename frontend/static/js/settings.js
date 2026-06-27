@@ -1040,14 +1040,14 @@ function renderBridgeResultsList() {
     const typeColor = type === 'success' ? '#16a34a' : (type === 'errors' ? '#dc2626' : '#92400e');
     const typeLabel = type === 'success' ? 'Успешно' : (type === 'errors' ? 'Ошибка' : 'Отклонено');
     list.innerHTML = rows.map(({ device, item }) => `
-        <div style="display:grid; grid-template-columns:150px 110px 1fr 110px; gap:10px; align-items:start; padding:10px 12px; border-bottom:1px solid var(--theme-border);">
-            <div style="font-weight:700;">${escapeHtml(device.label || device.key)}</div>
+        <div class="bridge-result-row">
+            <div class="bridge-result-device">${escapeHtml(device.label || device.key)}</div>
             <div>${escapeHtml(item.employeeNo || '—')}</div>
             <div>
-                <div style="font-weight:600;">${escapeHtml(item.fullName || '—')}</div>
-                <div style="font-size:12px; color:var(--theme-text-secondary);">${escapeHtml(item.reason || item.detail || '')}</div>
+                <div class="bridge-result-name">${escapeHtml(item.fullName || '—')}</div>
+                <div class="bridge-result-detail">${escapeHtml(item.reason || item.detail || '')}</div>
             </div>
-            <div style="font-weight:700; color:${typeColor};">${typeLabel}</div>
+            <div class="bridge-result-status" style="color:${typeColor};">${typeLabel}</div>
         </div>
     `).join('');
 }

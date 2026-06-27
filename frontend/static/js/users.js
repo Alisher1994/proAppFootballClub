@@ -390,6 +390,41 @@ function renderPermissionsGrid(permissions) {
             </div>
         `;
     }).join('');
+
+    bindPermissionSelectAll();
+}
+
+function updatePermissionSelectAllState() {
+    const selectAll = document.getElementById('permissions-select-all');
+    if (!selectAll) return;
+    const checkboxes = Array.from(document.querySelectorAll('#permissions-grid input[type="checkbox"]'));
+    if (!checkboxes.length) {
+        selectAll.checked = false;
+        selectAll.indeterminate = false;
+        return;
+    }
+    const checkedCount = checkboxes.filter(checkbox => checkbox.checked).length;
+    selectAll.checked = checkedCount === checkboxes.length;
+    selectAll.indeterminate = checkedCount > 0 && checkedCount < checkboxes.length;
+}
+
+function bindPermissionSelectAll() {
+    const selectAll = document.getElementById('permissions-select-all');
+    const grid = document.getElementById('permissions-grid');
+    if (!selectAll || !grid) return;
+
+    selectAll.onchange = () => {
+        grid.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+            checkbox.checked = selectAll.checked;
+        });
+        selectAll.indeterminate = false;
+    };
+
+    grid.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+        checkbox.onchange = updatePermissionSelectAllState;
+    });
+
+    updatePermissionSelectAllState();
 }
 
 // Закрыть модальное окно роли
@@ -579,6 +614,5 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 });
-
 
 

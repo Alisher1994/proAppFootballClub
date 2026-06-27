@@ -1212,6 +1212,69 @@
             padding: 12px 14px;
         }
 
+        .settings-page #bridgeResultsModal .modal-content {
+            max-width: 760px !important;
+            height: 72vh !important;
+            border-radius: 14px;
+            box-shadow: 0 22px 60px rgba(15, 23, 42, 0.24);
+        }
+
+        .settings-page #bridgeResultsModal .modal-header-fixed {
+            padding: 16px 20px;
+        }
+
+        .settings-page #bridgeResultsModal .modal-header-fixed h2 {
+            font-size: 22px;
+        }
+
+        .settings-page #bridgeResultsModal .modal-body-scrollable {
+            padding: 14px 16px !important;
+        }
+
+        .settings-page #bridgeResultsModal .form-input-modern {
+            min-height: 38px;
+            font-size: 13px;
+        }
+
+        .bridge-results-list {
+            flex: 1;
+            min-height: 0;
+            overflow: auto;
+            border: 1px solid var(--settings-border);
+            border-radius: 10px;
+            background: #f8fafc;
+        }
+
+        .bridge-result-row {
+            display: grid;
+            grid-template-columns: 128px 72px minmax(0, 1fr) 82px;
+            gap: 10px;
+            align-items: center;
+            padding: 8px 10px;
+            border-bottom: 1px solid var(--settings-border);
+            background: #fff;
+            font-size: 13px;
+        }
+
+        .bridge-result-row:last-child {
+            border-bottom: 0;
+        }
+
+        .bridge-result-device,
+        .bridge-result-name,
+        .bridge-result-status {
+            font-weight: 700;
+        }
+
+        .bridge-result-detail {
+            margin-top: 2px;
+            color: var(--settings-muted);
+            font-size: 12px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
         @media (max-width: 900px) {
             .settings-page .settings-tab {
                 padding: 0 12px;
@@ -2566,7 +2629,7 @@
                             </select>
                             <input id="bridgeResultsSearch" class="form-input-modern" type="text" placeholder="Поиск по имени или ID" style="flex:1; min-width:220px;">
                         </div>
-                        <div id="bridgeResultsList" style="flex:1; min-height:0; overflow:auto; border:1px solid var(--theme-border); border-radius:8px; background:var(--theme-bg-primary);"></div>
+                        <div id="bridgeResultsList" class="bridge-results-list"></div>
                     </div>
                 </div>
             </div>
