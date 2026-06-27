@@ -2799,18 +2799,19 @@ body.theme-light .modal-body-scrollable::-webkit-scrollbar-thumb:hover {
 }
 
 .login-box input {
-    background: rgba(255, 255, 255, 0.12);
-    color: #f8fafc;
-    border: 1px solid rgba(255, 255, 255, 0.18);
+    background: #e8f0ff;
+    color: #0f172a;
+    border: 1px solid rgba(148, 163, 184, 0.36);
 }
 
 .login-box input::placeholder {
-    color: rgba(248, 250, 252, 0.6);
+    color: #64748b;
 }
 
 .login-box input:focus {
-    border-color: rgba(99, 102, 241, 0.8);
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.25);
+    background: #f8fbff;
+    border-color: rgba(99, 102, 241, 0.85);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.28);
     outline: none;
 }
 
@@ -2835,15 +2836,15 @@ body.theme-light .modal-body-scrollable::-webkit-scrollbar-thumb:hover {
     border: 0;
     border-radius: 10px;
     background: transparent;
-    color: rgba(248, 250, 252, 0.76);
+    color: #334155;
     cursor: pointer;
     transition: background-color 0.16s ease, color 0.16s ease;
 }
 
 .password-toggle:hover,
 .password-toggle:focus-visible {
-    background: rgba(255, 255, 255, 0.12);
-    color: #ffffff;
+    background: rgba(15, 23, 42, 0.08);
+    color: #0f172a;
     outline: none;
 }
 
