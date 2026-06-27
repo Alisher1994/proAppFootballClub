@@ -1212,6 +1212,54 @@
             padding: 12px 14px;
         }
 
+        .hikvision-terminal-heading {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+        }
+
+        .terminal-face-thumb {
+            width: 58px;
+            height: 58px;
+            object-fit: cover;
+            border-radius: 10px;
+            border: 1px solid var(--settings-border);
+            background: #f8fafc;
+            box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+        }
+
+        .terminal-ip-row {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 42px 42px;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .terminal-ip-row .form-input-modern {
+            min-height: 42px;
+        }
+
+        .terminal-icon-button {
+            width: 42px;
+            height: 42px;
+            min-width: 42px;
+            min-height: 42px;
+            padding: 0 !important;
+            border-radius: 9px;
+        }
+
+        .terminal-icon-button svg {
+            width: 18px !important;
+            height: 18px !important;
+        }
+
+        .terminal-icon-button.terminal-clear {
+            color: var(--settings-danger);
+            border-color: #fecaca;
+            background: #fff;
+        }
+
         .settings-page #bridgeResultsModal .modal-content {
             max-width: 760px !important;
             height: 72vh !important;
@@ -1966,36 +2014,51 @@
 
                             <div class="settings-section">
                                 <div class="settings-section-header">
-                                    <span class="settings-section-icon"><i data-lucide="door-open"></i></span>
-                                    <h3 class="settings-section-title">Терминалы</h3>
+                                    <div class="hikvision-terminal-heading" style="width: 100%;">
+                                        <div style="display:flex; align-items:center; gap:10px;">
+                                            <span class="settings-section-icon"><i data-lucide="door-open"></i></span>
+                                            <h3 class="settings-section-title">Терминалы</h3>
+                                        </div>
+                                        <img class="terminal-face-thumb"
+                                            src="{{ url_for('static', filename='uploads/terminal_Face_ID.webp') }}"
+                                            alt="Face ID терминал">
+                                    </div>
                                 </div>
                                 <div class="settings-section-content">
                                     <div class="form-row">
                                         <div class="form-group">
                                             <label>Вход: IP</label>
-                                            <input type="text" id="hikvision_entry_ip" class="form-input-modern"
-                                                placeholder="192.168.68.107">
-                                            <button type="button" class="btn-secondary" data-open-hikvision-door="entry"
-                                                style="margin-top: 10px; width: 100%; justify-content: center;">
-                                                <i data-lucide="door-open"></i> Открыть вход
-                                            </button>
-                                            <button type="button" class="btn-secondary" data-clear-hikvision-device="entry"
-                                                style="margin-top: 8px; width: 100%; justify-content: center; color:#b91c1c; border-color:#fecaca;">
-                                                <i data-lucide="trash-2"></i> Очистить память входа
-                                            </button>
+                                            <div class="terminal-ip-row">
+                                                <input type="text" id="hikvision_entry_ip" class="form-input-modern"
+                                                    placeholder="192.168.68.107">
+                                                <button type="button" class="btn-secondary terminal-icon-button"
+                                                    data-open-hikvision-door="entry" title="Открыть вход"
+                                                    aria-label="Открыть вход">
+                                                    <i data-lucide="door-open"></i>
+                                                </button>
+                                                <button type="button" class="btn-secondary terminal-icon-button terminal-clear"
+                                                    data-clear-hikvision-device="entry" title="Очистить память входа"
+                                                    aria-label="Очистить память входа">
+                                                    <i data-lucide="trash-2"></i>
+                                                </button>
+                                            </div>
                                         </div>
                                         <div class="form-group">
                                             <label>Выход: IP</label>
-                                            <input type="text" id="hikvision_exit_ip" class="form-input-modern"
-                                                placeholder="192.168.68.104">
-                                            <button type="button" class="btn-secondary" data-open-hikvision-door="exit"
-                                                style="margin-top: 10px; width: 100%; justify-content: center;">
-                                                <i data-lucide="door-open"></i> Открыть выход
-                                            </button>
-                                            <button type="button" class="btn-secondary" data-clear-hikvision-device="exit"
-                                                style="margin-top: 8px; width: 100%; justify-content: center; color:#b91c1c; border-color:#fecaca;">
-                                                <i data-lucide="trash-2"></i> Очистить память выхода
-                                            </button>
+                                            <div class="terminal-ip-row">
+                                                <input type="text" id="hikvision_exit_ip" class="form-input-modern"
+                                                    placeholder="192.168.68.104">
+                                                <button type="button" class="btn-secondary terminal-icon-button"
+                                                    data-open-hikvision-door="exit" title="Открыть выход"
+                                                    aria-label="Открыть выход">
+                                                    <i data-lucide="door-open"></i>
+                                                </button>
+                                                <button type="button" class="btn-secondary terminal-icon-button terminal-clear"
+                                                    data-clear-hikvision-device="exit" title="Очистить память выхода"
+                                                    aria-label="Очистить память выхода">
+                                                    <i data-lucide="trash-2"></i>
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
                                     <div class="form-row">
