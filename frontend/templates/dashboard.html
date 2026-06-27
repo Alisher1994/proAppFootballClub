@@ -556,9 +556,29 @@
         .expense-report-legend {
             margin-top: 10px;
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-            gap: 6px 12px;
+            grid-template-columns: 1fr;
+            gap: 8px;
             font-size: 13px;
+        }
+
+        .expense-category-row {
+            display: grid;
+            grid-template-columns: minmax(120px, 1fr) minmax(120px, 2fr) auto;
+            align-items: center;
+            gap: 10px;
+            color: var(--theme-text-primary);
+        }
+
+        .expense-category-track {
+            height: 8px;
+            border-radius: 999px;
+            background: #e2e8f0;
+            overflow: hidden;
+        }
+
+        .expense-category-fill {
+            height: 100%;
+            border-radius: inherit;
         }
 
         .expense-report-card canvas {
@@ -1808,30 +1828,33 @@
                         header.className = 'expense-report-header';
                         header.innerHTML = `<div style="font-weight: 700;">${month.label}</div><div style="color:#64748b; font-size:13px;">${month.total.toLocaleString('ru-RU')} сум</div>`;
 
-                        const canvas = document.createElement('canvas');
-                        canvas.style.width = '100%';
-
                         const segments = Object.entries(month.categories).map(([category, value]) => ({
                             category,
                             value,
                             color: getExpenseCategoryColor(category)
-                        })).filter(seg => seg.value > 0);
+                        })).filter(seg => seg.value > 0).sort((a, b) => b.value - a.value);
 
                         const legend = document.createElement('div');
                         legend.className = 'expense-report-legend';
-                        legend.innerHTML = segments.map((seg) => {
+                        legend.innerHTML = segments.length ? segments.map((seg) => {
                             const share = month.total ? Math.round((seg.value / month.total) * 100) : 0;
-                            return `<div class="expense-legend-item"><span class="expense-legend-dot" style="background:${seg.color};"></span><span>${seg.category} — ${seg.value.toLocaleString('ru-RU')} сум (${share}%)</span></div>`;
-                        }).join('');
+                            return `
+                                <div class="expense-category-row">
+                                    <div class="expense-legend-item">
+                                        <span class="expense-legend-dot" style="background:${seg.color};"></span>
+                                        <span>${seg.category}</span>
+                                    </div>
+                                    <div class="expense-category-track">
+                                        <div class="expense-category-fill" style="width:${share}%; background:${seg.color};"></div>
+                                    </div>
+                                    <strong style="white-space:nowrap;">${seg.value.toLocaleString('ru-RU')} сум · ${share}%</strong>
+                                </div>
+                            `;
+                        }).join('') : '<div class="expense-report-empty" style="padding:18px;">Нет расходов</div>';
 
                         card.appendChild(header);
-                        card.appendChild(canvas);
                         card.appendChild(legend);
                         grid.appendChild(card);
-
-                        if (segments.length && month.total > 0) {
-                            renderExpenseDonut(canvas, segments, month.total);
-                        }
                     });
                 }
 
