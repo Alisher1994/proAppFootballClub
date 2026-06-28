@@ -53,7 +53,7 @@ os.environ['FFMPEG_LOG_LEVEL'] = 'quiet'
 # Форсируем использование CUDA/TensorRT в ONNX
 os.environ['ORT_TENSORRT_FP16_ENABLE'] = '1'
 
-from backend.models.models import db, User, Student, Payment, Attendance, Expense, Group, Tariff, ClubSettings, RewardType, StudentReward, CashTransfer, Role, RolePermission, CardType, StudentCard, DeviceCommand, BridgeStatus
+from backend.models.models import db, User, Student, Payment, Attendance, AccessLog, Expense, Group, Tariff, ClubSettings, RewardType, StudentReward, CashTransfer, Role, RolePermission, CardType, StudentCard, DeviceCommand, BridgeStatus
 # Face recognition permanently disabled per client; keep dummy service only.
 USE_FACE = False
 from backend.services.face_stub import DummyFaceService as FaceService
@@ -1345,6 +1345,45 @@ def ensure_bridge_status_table():
         err_text = str(e).lower()
         if 'already exists' not in err_text and 'duplicate' not in err_text and 'uniqueviolation' not in err_text:
             print(f"Ошибка при проверке bridge_status: {e}")
+
+
+def ensure_access_logs_table():
+    """Проверяет таблицу журнала вход/выход через турникет."""
+    try:
+        inspector = db.inspect(db.engine)
+        if 'access_logs' not in inspector.get_table_names():
+            db.create_all()
+            return
+
+        columns = {col['name'] for col in inspector.get_columns('access_logs')}
+        with db.engine.begin() as conn:
+            required_columns = {
+                'event_uid': "ALTER TABLE access_logs ADD COLUMN event_uid VARCHAR(160)",
+                'student_id': "ALTER TABLE access_logs ADD COLUMN student_id INTEGER",
+                'attendance_id': "ALTER TABLE access_logs ADD COLUMN attendance_id INTEGER",
+                'person_type': "ALTER TABLE access_logs ADD COLUMN person_type VARCHAR(20) DEFAULT 'student'",
+                'employee_no': "ALTER TABLE access_logs ADD COLUMN employee_no VARCHAR(40)",
+                'full_name': "ALTER TABLE access_logs ADD COLUMN full_name VARCHAR(200)",
+                'group_id': "ALTER TABLE access_logs ADD COLUMN group_id INTEGER",
+                'group_name': "ALTER TABLE access_logs ADD COLUMN group_name VARCHAR(100)",
+                'direction': "ALTER TABLE access_logs ADD COLUMN direction VARCHAR(10) DEFAULT 'entry'",
+                'device_name': "ALTER TABLE access_logs ADD COLUMN device_name VARCHAR(80)",
+                'device_ip': "ALTER TABLE access_logs ADD COLUMN device_ip VARCHAR(80)",
+                'event_time': "ALTER TABLE access_logs ADD COLUMN event_time TIMESTAMP",
+                'event_date': "ALTER TABLE access_logs ADD COLUMN event_date DATE",
+                'result': "ALTER TABLE access_logs ADD COLUMN result VARCHAR(30) DEFAULT 'granted'",
+                'source': "ALTER TABLE access_logs ADD COLUMN source VARCHAR(40) DEFAULT 'hikvision'",
+                'raw_event': "ALTER TABLE access_logs ADD COLUMN raw_event TEXT",
+                'created_at': "ALTER TABLE access_logs ADD COLUMN created_at TIMESTAMP",
+            }
+            for column_name, sql in required_columns.items():
+                if column_name not in columns:
+                    conn.execute(db.text(sql))
+    except Exception as e:
+        db.session.rollback()
+        err_text = str(e).lower()
+        if 'already exists' not in err_text and 'duplicate' not in err_text and 'uniqueviolation' not in err_text:
+            print(f"Ошибка при проверке access_logs: {e}")
 
 
 def upsert_bridge_status(
@@ -3007,6 +3046,203 @@ def add_payment():
 @login_required
 def attendance_page():
     return render_template('attendance.html')
+
+
+@app.route('/access-log')
+@login_required
+def access_log_page():
+    if not current_user.has_permission('attendance', 'view'):
+        return redirect(url_for('dashboard'))
+    return render_template('access_log.html')
+
+
+def parse_access_event_time(value):
+    if not value:
+        return get_local_datetime()
+    if isinstance(value, datetime):
+        dt = value
+    else:
+        raw = str(value).strip()
+        try:
+            dt = datetime.fromisoformat(raw.replace('Z', '+00:00'))
+        except Exception:
+            return get_local_datetime()
+    if dt.tzinfo:
+        return dt.astimezone(TASHKENT_TZ).replace(tzinfo=None)
+    return dt
+
+
+def calculate_attendance_late(student, attendance_date, check_in_dt):
+    is_late = False
+    late_minutes = 0
+    if student.group_id:
+        group = db.session.get(Group, student.group_id)
+        if group and group.schedule_time:
+            schedule_time_str = group.get_schedule_time_for_day(attendance_date.weekday() + 1)
+            if schedule_time_str:
+                parts = str(schedule_time_str).split(':')
+                if len(parts) >= 2:
+                    try:
+                        schedule_time = dt_time(int(parts[0]), int(parts[1]))
+                        scheduled_dt = datetime.combine(attendance_date, schedule_time)
+                        diff_minutes = (check_in_dt - scheduled_dt).total_seconds() / 60
+                        if diff_minutes > (group.late_threshold or 0):
+                            is_late = True
+                            late_minutes = int(diff_minutes)
+                    except Exception:
+                        pass
+    return is_late, late_minutes
+
+
+def create_or_update_attendance_from_access(student, direction, event_dt):
+    attendance_date = event_dt.date()
+    attendance = Attendance.query.filter_by(student_id=student.id, date=attendance_date).first()
+    created = False
+
+    if direction == 'entry':
+        if not attendance:
+            is_late, late_minutes = calculate_attendance_late(student, attendance_date, event_dt)
+            attendance = Attendance(
+                student_id=student.id,
+                date=attendance_date,
+                check_in=event_dt,
+                lesson_deducted=not student.club_funded,
+                is_late=is_late,
+                late_minutes=late_minutes,
+            )
+            db.session.add(attendance)
+            db.session.flush()
+            created = True
+        elif not attendance.check_in or event_dt < attendance.check_in:
+            attendance.check_in = event_dt
+    elif direction == 'exit' and attendance:
+        if not attendance.check_out or event_dt > attendance.check_out:
+            attendance.check_out = event_dt
+
+    return attendance, created
+
+
+def access_log_to_dict(log):
+    return {
+        'id': log.id,
+        'event_uid': log.event_uid,
+        'student_id': log.student_id,
+        'attendance_id': log.attendance_id,
+        'person_type': log.person_type,
+        'employee_no': log.employee_no,
+        'full_name': log.full_name,
+        'group_name': log.group_name,
+        'direction': log.direction,
+        'device_name': log.device_name,
+        'device_ip': log.device_ip,
+        'event_time': log.event_time.isoformat() if log.event_time else None,
+        'event_date': log.event_date.isoformat() if log.event_date else None,
+        'result': log.result,
+        'source': log.source,
+    }
+
+
+@app.route('/api/access-log', methods=['GET'])
+@login_required
+def access_log_list():
+    if not current_user.has_permission('attendance', 'view'):
+        return jsonify({'success': False, 'message': 'Доступ запрещен'}), 403
+
+    ensure_access_logs_table()
+    query = AccessLog.query
+    selected_date = request.args.get('date')
+    direction = (request.args.get('direction') or '').strip()
+    result_filter = (request.args.get('result') or '').strip()
+    search = (request.args.get('search') or '').strip()
+
+    if selected_date:
+        try:
+            query = query.filter(AccessLog.event_date == datetime.strptime(selected_date, '%Y-%m-%d').date())
+        except ValueError:
+            return jsonify({'success': False, 'message': 'Некорректная дата'}), 400
+    if direction in {'entry', 'exit'}:
+        query = query.filter(AccessLog.direction == direction)
+    if result_filter in {'granted', 'denied', 'error'}:
+        query = query.filter(AccessLog.result == result_filter)
+    if search:
+        like = f"%{search}%"
+        query = query.filter(or_(AccessLog.full_name.ilike(like), AccessLog.employee_no.ilike(like), AccessLog.group_name.ilike(like)))
+
+    logs = query.order_by(AccessLog.event_time.desc()).limit(500).all()
+    return jsonify({'success': True, 'logs': [access_log_to_dict(log) for log in logs]})
+
+
+@app.route('/api/hikvision/access-event', methods=['POST'])
+def hikvision_access_event():
+    """Прием события прохода от локального bridge."""
+    if not check_bridge_auth():
+        return jsonify({'success': False, 'message': 'Unauthorized'}), 401
+
+    ensure_access_logs_table()
+    data = request.get_json(silent=True) or {}
+    event_uid = str(data.get('event_uid') or data.get('event_id') or '').strip()[:160] or None
+    if event_uid:
+        existing = AccessLog.query.filter_by(event_uid=event_uid).first()
+        if existing:
+            return jsonify({'success': True, 'duplicate': True, 'log': access_log_to_dict(existing)})
+
+    employee_no = str(data.get('employee_no') or data.get('employeeNo') or data.get('employeeNoString') or '').strip()
+    direction = (data.get('direction') or data.get('device_name') or '').strip().lower()
+    direction = 'exit' if direction in {'exit', 'выход', 'out'} else 'entry'
+    result_value = str(data.get('result') or 'granted').strip().lower()
+    result_value = result_value if result_value in {'granted', 'denied', 'error'} else 'granted'
+    event_dt = parse_access_event_time(data.get('event_time') or data.get('time'))
+
+    person_type = 'unknown'
+    student = None
+    full_name = (data.get('full_name') or data.get('name') or '').strip()[:200]
+    group_id = None
+    group_name = None
+    attendance = None
+    attendance_created = False
+
+    if employee_no.startswith('900000'):
+        person_type = 'staff'
+    elif employee_no.isdigit():
+        student = db.session.get(Student, int(employee_no))
+        if student:
+            person_type = 'student'
+            full_name = student.full_name
+            group_id = student.group_id
+            group_name = student.group.name if student.group else None
+            if result_value == 'granted':
+                attendance, attendance_created = create_or_update_attendance_from_access(student, direction, event_dt)
+
+    log = AccessLog(
+        event_uid=event_uid,
+        student_id=student.id if student else None,
+        attendance_id=attendance.id if attendance else None,
+        person_type=person_type,
+        employee_no=employee_no[:40] if employee_no else None,
+        full_name=full_name or None,
+        group_id=group_id,
+        group_name=group_name,
+        direction=direction,
+        device_name=str(data.get('device_name') or data.get('device') or '')[:80],
+        device_ip=str(data.get('device_ip') or '')[:80],
+        event_time=event_dt,
+        event_date=event_dt.date(),
+        result=result_value,
+        source=str(data.get('source') or 'hikvision')[:40],
+    )
+    log.set_raw_event(data.get('raw_event') or data)
+    db.session.add(log)
+    if attendance and not log.attendance_id:
+        db.session.flush()
+        log.attendance_id = attendance.id
+    db.session.commit()
+
+    return jsonify({
+        'success': True,
+        'log': access_log_to_dict(log),
+        'attendance_created': attendance_created,
+        'attendance_id': attendance.id if attendance else None,
+    })
 
 
 @app.route('/api/attendance/checkin', methods=['POST'])
@@ -6751,6 +6987,7 @@ def init_db():
         ensure_cash_transfers_table()
         ensure_device_commands_table()
         ensure_bridge_status_table()
+        ensure_access_logs_table()
         ensure_payment_indexes()
         ensure_payment_type_column()
         
@@ -7580,6 +7817,7 @@ with app.app_context():
         ensure_cash_transfers_table()
         ensure_device_commands_table()
         ensure_bridge_status_table()
+        ensure_access_logs_table()
         ensure_payment_indexes()
         
         # Создание администратора

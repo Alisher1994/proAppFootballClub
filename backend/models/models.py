@@ -314,6 +314,48 @@ class Attendance(db.Model):
         return f'<Attendance Student {self.student_id} on {self.date}>'
 
 
+class AccessLog(db.Model):
+    """Журнал проходов через Face ID / турникет."""
+    __tablename__ = 'access_logs'
+
+    id = db.Column(db.Integer, primary_key=True)
+    event_uid = db.Column(db.String(160), unique=True, nullable=True, index=True)
+    student_id = db.Column(db.Integer, db.ForeignKey('students.id'), nullable=True, index=True)
+    attendance_id = db.Column(db.Integer, db.ForeignKey('attendance.id'), nullable=True)
+    person_type = db.Column(db.String(20), default='student')  # student, staff, unknown
+    employee_no = db.Column(db.String(40), nullable=True, index=True)
+    full_name = db.Column(db.String(200), nullable=True)
+    group_id = db.Column(db.Integer, db.ForeignKey('groups.id'), nullable=True)
+    group_name = db.Column(db.String(100), nullable=True)
+    direction = db.Column(db.String(10), nullable=False, index=True)  # entry, exit
+    device_name = db.Column(db.String(80), nullable=True)
+    device_ip = db.Column(db.String(80), nullable=True)
+    event_time = db.Column(db.DateTime, default=get_local_datetime, index=True)
+    event_date = db.Column(db.Date, default=get_local_date, index=True)
+    result = db.Column(db.String(30), default='granted')  # granted, denied, error
+    source = db.Column(db.String(40), default='hikvision')
+    raw_event = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=get_local_datetime)
+
+    student = db.relationship('Student', foreign_keys=[student_id], lazy=True)
+    attendance = db.relationship('Attendance', foreign_keys=[attendance_id], lazy=True)
+    group = db.relationship('Group', foreign_keys=[group_id], lazy=True)
+
+    def set_raw_event(self, value):
+        self.raw_event = json.dumps(value or {}, ensure_ascii=False)
+
+    def get_raw_event(self):
+        if not self.raw_event:
+            return {}
+        try:
+            return json.loads(self.raw_event)
+        except Exception:
+            return {}
+
+    def __repr__(self):
+        return f'<AccessLog {self.direction} {self.employee_no} at {self.event_time}>'
+
+
 class DeviceCommand(db.Model):
     """Команды для локального bridge Hikvision."""
     __tablename__ = 'device_commands'

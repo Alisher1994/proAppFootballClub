@@ -58,6 +58,21 @@
         </a>
         {% endif %}
 
+        {% if current_user.has_permission('attendance', 'view') %}
+        <a href="{{ url_for('access_log_page') }}" {% if request.endpoint=='access_log_page' %}class="active" {% endif
+            %} data-tooltip="Журнал проходов">
+            <svg xmlns="http://www.w3.org/2000/svg" class="sidebar-icon lucide lucide-arrow-left-right" width="24"
+                height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path d="M8 3 4 7l4 4" />
+                <path d="M4 7h16" />
+                <path d="m16 21 4-4-4-4" />
+                <path d="M20 17H4" />
+            </svg>
+            <span>Журнал проходов</span>
+        </a>
+        {% endif %}
+
         {#
         {% if current_user.has_permission('camera', 'view') %}
         <a href="{{ url_for('camera_page') }}" {% if request.endpoint=='camera_page' %}class="active" {% endif %}

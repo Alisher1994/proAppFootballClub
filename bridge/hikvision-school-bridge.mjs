@@ -22,6 +22,7 @@ const CONFIG = {
   deviceProbeTimeoutMs: Number(process.env.HIK_PROBE_TIMEOUT_MS || 2500),
   offlineBackoffMs: Number(process.env.HIK_OFFLINE_BACKOFF_MS || 60000),
   heartbeatIntervalMs: Number(process.env.BRIDGE_HEARTBEAT_INTERVAL_MS || 5000),
+  accessEventPollIntervalMs: Number(process.env.HIK_ACCESS_EVENT_POLL_INTERVAL_MS || 5000),
   bridgeId: process.env.BRIDGE_ID || 'hikvision-school-bridge',
   defaultDoorRight: process.env.HIK_DOOR_RIGHT || '1',
   defaultPlanTemplateNo: process.env.HIK_PLAN_TEMPLATE_NO || '1',
@@ -34,6 +35,8 @@ const CONFIG = {
 const deviceOfflineUntil = new Map();
 const startTime = Date.now();
 const liveLogs = [];
+const accessEventSeen = new Set();
+const accessEventPollState = new Map();
 let currentCommandId = null;
 let currentAction = 'idle';
 let lastHeartbeatAt = 0;
@@ -423,6 +426,129 @@ function parseJsonSafe(text) {
 async function requestJson(device, method, uri, data) {
   const res = await requestDigest(device, method, uri, JSON.stringify(data), { 'Content-Type': 'application/json' });
   return assertOk(uri, res);
+}
+
+function formatHikvisionTime(date) {
+  const tzMs = 5 * 60 * 60 * 1000;
+  const local = new Date(date.getTime() + tzMs);
+  return `${local.toISOString().slice(0, 19)}+05:00`;
+}
+
+function getAccessEmployeeNo(event) {
+  return String(
+    event.employeeNoString ||
+    event.employeeNo ||
+    event.cardNo ||
+    event.userID ||
+    event.employeeNoStr ||
+    ''
+  ).trim();
+}
+
+function getAccessEventTime(event) {
+  return event.time || event.eventTime || event.dateTime || event.Time || new Date().toISOString();
+}
+
+function getAccessResult(event) {
+  const status = String(event.attendanceStatus || event.status || event.subStatus || '').toLowerCase();
+  const minor = Number(event.minor ?? event.minorType ?? 0);
+  if (status.includes('fail') || status.includes('denied')) return 'denied';
+  if ([1, 38, 75, 1024].includes(minor)) return 'granted';
+  return 'granted';
+}
+
+function getAccessEventUid(device, event) {
+  const serial = event.serialNo || event.eventID || event.eventId || event.seq || '';
+  const employeeNo = getAccessEmployeeNo(event);
+  const time = getAccessEventTime(event);
+  return `${device.name || 'terminal'}:${device.ip}:${serial || `${employeeNo}:${time}:${event.major || ''}:${event.minor || ''}`}`;
+}
+
+function trimSeenEvents() {
+  if (accessEventSeen.size <= 2000) return;
+  const keep = Array.from(accessEventSeen).slice(-1000);
+  accessEventSeen.clear();
+  keep.forEach((item) => accessEventSeen.add(item));
+}
+
+async function queryAccessEvents(device, startedAt, endedAt) {
+  const body = {
+    AcsEventCond: {
+      searchID: `${Date.now()}-${device.name || device.ip}`,
+      searchResultPosition: 0,
+      maxResults: 40,
+      major: 0,
+      minor: 0,
+      startTime: formatHikvisionTime(startedAt),
+      endTime: formatHikvisionTime(endedAt),
+    },
+  };
+  const res = await requestDigest(
+    device,
+    'POST',
+    '/ISAPI/AccessControl/AcsEvent?format=json',
+    JSON.stringify(body),
+    { 'Content-Type': 'application/json' },
+    CONFIG.deviceProbeTimeoutMs
+  );
+  assertOk('access-event', res);
+  const data = parseJsonSafe(res.body) || {};
+  const root = data.AcsEvent || data;
+  const list = root.InfoList || root.infoList || root.EventList || root.eventList || [];
+  return Array.isArray(list) ? list : [];
+}
+
+async function sendAccessEvent(device, event) {
+  const employeeNo = getAccessEmployeeNo(event);
+  if (!employeeNo) return;
+  const eventUid = getAccessEventUid(device, event);
+  if (accessEventSeen.has(eventUid)) return;
+  accessEventSeen.add(eventUid);
+  trimSeenEvents();
+
+  const direction = device.name === 'exit' ? 'exit' : 'entry';
+  const name = event.name || event.employeeName || event.userName || '';
+  const payload = {
+    event_uid: eventUid,
+    employee_no: employeeNo,
+    full_name: name,
+    direction,
+    device_name: device.name || '',
+    device_ip: device.ip,
+    event_time: getAccessEventTime(event),
+    result: getAccessResult(event),
+    source: 'hikvision-acs-event',
+    raw_event: event,
+  };
+
+  const res = await fetch(`${CONFIG.serverUrl}/api/hikvision/access-event`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-device-key': CONFIG.deviceKey },
+    body: JSON.stringify(payload),
+    signal: AbortSignal.timeout(7000),
+  });
+  if (!res.ok) throw new Error(`access-event server ${res.status}`);
+  const saved = await res.json();
+  if (saved.attendance_created) {
+    console.log(`[access] ${deviceShortLabel(device.name)} ${device.ip}: посещение отмечено ${employeeNo} ${name}`.trim());
+  }
+}
+
+async function pollAccessEvents() {
+  const endedAt = new Date();
+  await Promise.allSettled(CONFIG.devices.map(async (device) => {
+    const key = getDeviceKey(device);
+    const startedAt = accessEventPollState.get(key) || new Date(Date.now() - 60 * 1000);
+    accessEventPollState.set(key, endedAt);
+
+    const probe = await probeDevice(device);
+    if (!probe.ok) return;
+
+    const events = await queryAccessEvents(device, startedAt, endedAt);
+    for (const event of events) {
+      await sendAccessEvent(device, event);
+    }
+  }));
 }
 
 async function downloadPhoto(url) {
@@ -1440,6 +1566,7 @@ async function main() {
   }
   console.log(`[bridge] ${CONFIG.devices.length} Hikvision terminal(s) -> ${CONFIG.serverUrl}`);
   console.log(`[bridge] command polling ${CONFIG.commandPollIntervalMs}ms, daily full sync ${CONFIG.dailySyncTime} Asia/Tashkent`);
+  console.log(`[bridge] access event polling ${CONFIG.accessEventPollIntervalMs}ms`);
   setAction('idle');
   setInterval(() => sendHeartbeat(), CONFIG.heartbeatIntervalMs);
   // Запускаем стартовую синхронизацию в фоновом режиме (без await), чтобы не блокировать опрос команд
@@ -1448,6 +1575,9 @@ async function main() {
   });
   setInterval(checkDailySchedule, CONFIG.scheduleCheckIntervalMs);
   setInterval(pollCommands, CONFIG.commandPollIntervalMs);
+  setInterval(() => {
+    pollAccessEvents().catch((error) => console.error(`[access] Ошибка чтения событий прохода: ${humanError(error)}`));
+  }, CONFIG.accessEventPollIntervalMs);
 }
 
 main().catch((e) => {
