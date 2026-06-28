@@ -447,15 +447,13 @@ function setSystemLogoPreview(url, isCustom) {
 
     const status = document.getElementById('logo_status_text');
     if (status) {
-        status.textContent = isCustom
-            ? 'Используется загруженный логотип.'
-            : 'Используется системный логотип.';
+        status.textContent = isCustom ? 'Загружен' : 'Системный';
     }
 
     const resetBtn = document.getElementById('resetLogoBtn');
     if (resetBtn) resetBtn.disabled = !isCustom;
     const fileName = document.getElementById('logo_file_name');
-    if (fileName && !isCustom) fileName.textContent = 'Файл не выбран';
+    if (fileName && !isCustom) fileName.textContent = '';
 
     updateVisibleBrandLogos(url);
 }
@@ -473,7 +471,7 @@ async function uploadSystemLogo() {
     formData.append('logo', file);
     if (button) button.disabled = true;
     const status = document.getElementById('logo_status_text');
-    if (status) status.textContent = 'Загружаем логотип...';
+    if (status) status.textContent = 'Загрузка...';
 
     try {
         const resp = await fetch('/api/club-settings/logo', {

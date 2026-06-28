@@ -552,36 +552,37 @@
         .settings-card-header {
             display: flex;
             align-items: center;
-            gap: 16px;
-            margin-bottom: 28px;
-            padding-bottom: 20px;
-            border-bottom: 2px solid var(--theme-border);
+            gap: 12px;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--theme-border);
             transition: border-color 0.3s ease;
         }
 
         .settings-card-icon {
-            font-size: 32px;
-            width: 56px;
-            height: 56px;
+            width: 42px;
+            height: 42px;
             display: flex;
             align-items: center;
             justify-content: center;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border-radius: 14px;
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+            background: #eff6ff;
+            color: #2563eb;
+            border: 1px solid #bfdbfe;
+            border-radius: 10px;
+            box-shadow: none;
         }
 
         .settings-card-title {
             margin: 0;
-            font-size: 22px;
+            font-size: 20px;
             font-weight: 700;
             color: var(--theme-text-primary);
             transition: color 0.3s ease;
         }
 
         .settings-card-subtitle {
-            margin: 4px 0 0 0;
-            font-size: 14px;
+            margin: 2px 0 0 0;
+            font-size: 13px;
             color: var(--theme-text-tertiary);
             font-weight: 400;
             transition: color 0.3s ease;
@@ -653,9 +654,9 @@
         .settings-section-header {
             display: flex;
             align-items: center;
-            gap: 12px;
-            padding: 0 0 16px 0;
-            margin-bottom: 20px;
+            gap: 8px;
+            padding: 0 0 12px 0;
+            margin-bottom: 16px;
             background: transparent;
             border-bottom: 1px solid var(--theme-border);
         }
@@ -665,18 +666,28 @@
         }
 
         .settings-section-icon {
-            font-size: 20px;
-            width: auto;
-            height: auto;
-            display: inline-block;
+            width: 20px;
+            height: 20px;
+            color: #2563eb;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
             background: transparent;
             border-radius: 0;
             box-shadow: none;
         }
 
+        .settings-section-icon svg,
+        .settings-form label svg {
+            width: 18px;
+            height: 18px;
+            color: #2563eb;
+            stroke-width: 1.8;
+        }
+
         .settings-section-title {
             margin: 0;
-            font-size: 16px;
+            font-size: 15px;
             font-weight: 600;
             color: var(--theme-text-primary);
             letter-spacing: -0.01em;
@@ -1325,25 +1336,25 @@
 
         .logo-settings-row {
             display: grid;
-            grid-template-columns: 184px minmax(0, 1fr);
-            gap: 18px;
+            grid-template-columns: 164px minmax(0, 1fr);
+            gap: 14px;
             align-items: center;
         }
 
         .logo-preview-box {
-            height: 82px;
+            height: 68px;
             border: 1px solid var(--settings-border);
             border-radius: 12px;
             background: #f8fafc;
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 14px;
+            padding: 10px 14px;
         }
 
         .logo-preview-box img {
             max-width: 100%;
-            max-height: 58px;
+            max-height: 48px;
             object-fit: contain;
             display: block;
         }
@@ -1351,19 +1362,19 @@
         .logo-actions {
             min-width: 0;
             display: grid;
-            gap: 10px;
+            gap: 8px;
         }
 
         .logo-picker-panel {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            gap: 12px;
-            min-height: 48px;
+            gap: 10px;
+            min-height: 44px;
             border: 1px solid var(--settings-border);
             border-radius: 12px;
             background: #f8fafc;
-            padding: 6px 8px 6px 14px;
+            padding: 6px 8px 6px 12px;
         }
 
         .logo-picker-meta {
@@ -1394,31 +1405,43 @@
         .logo-action-buttons {
             display: flex;
             flex-wrap: wrap;
-            gap: 10px;
+            gap: 8px;
+            align-items: center;
         }
 
         .logo-action-buttons .btn-secondary {
-            min-height: 40px;
-            padding: 0 14px;
+            min-height: 34px;
+            padding: 0 12px;
             border-radius: 10px;
-            gap: 8px;
+            gap: 6px;
+            font-size: 13px;
         }
 
         .logo-action-buttons #uploadLogoBtn {
-            background: #2563eb;
-            border-color: #2563eb;
+            background: #1f2937;
+            border-color: #1f2937;
             color: #fff;
-            box-shadow: 0 10px 24px rgba(37, 99, 235, 0.18);
+            box-shadow: none;
         }
 
         .logo-action-buttons #uploadLogoBtn:hover {
-            background: #1d4ed8;
-            border-color: #1d4ed8;
+            background: #111827;
+            border-color: #111827;
+        }
+
+        .logo-action-buttons #resetLogoBtn {
+            width: 34px;
+            min-width: 34px;
+            padding: 0;
+        }
+
+        .logo-action-buttons #resetLogoBtn span {
+            display: none;
         }
 
         #logo_status_text {
             color: var(--settings-muted);
-            font-size: 13px;
+            font-size: 12px;
         }
 
         @media (max-width: 900px) {
@@ -1482,7 +1505,6 @@
                             <div class="settings-card-icon"><i data-lucide="settings"></i></div>
                             <div>
                                 <h2 class="settings-card-title">Основные настройки</h2>
-                                <p class="settings-card-subtitle">Настройте параметры работы клуба</p>
                             </div>
                         </div>
                         <form id="settingsForm" class="settings-form">
@@ -1504,7 +1526,7 @@
                                     <div class="form-group">
                                         <label>
                                             <i data-lucide="image"></i>
-                                            Логотип системы
+                                            Логотип
                                         </label>
                                         <div class="logo-settings-row">
                                             <div class="logo-preview-box">
@@ -1516,21 +1538,20 @@
                                                     class="logo-file-input">
                                                 <div class="logo-picker-panel">
                                                     <div class="logo-picker-meta">
-                                                        <span class="logo-picker-title">PNG, JPG или WEBP</span>
-                                                        <span id="logo_file_name" class="logo-picker-file">Файл не выбран</span>
+                                                        <span class="logo-picker-title" id="logo_status_text">Системный</span>
+                                                        <span id="logo_file_name" class="logo-picker-file"></span>
                                                     </div>
                                                     <div class="logo-action-buttons">
                                                         <button type="button" id="uploadLogoBtn" class="btn-secondary">
                                                             <i data-lucide="upload"></i>
-                                                            Выбрать логотип
+                                                            Выбрать
                                                         </button>
                                                         <button type="button" id="resetLogoBtn" class="btn-secondary" title="Вернуть системный логотип">
                                                             <i data-lucide="rotate-ccw"></i>
-                                                            Сбросить
+                                                            <span>Сбросить</span>
                                                         </button>
                                                     </div>
                                                 </div>
-                                                <small id="logo_status_text">Используется системный логотип.</small>
                                             </div>
                                         </div>
                                     </div>
