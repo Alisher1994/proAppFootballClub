@@ -1269,6 +1269,24 @@
                                     fill: true,
                                     tension: 0.32,
                                 },
+                                {
+                                    label: 'Остаток',
+                                    data: months.map(m => Number(m.balance ?? ((m.income || 0) - (m.expense || 0)))),
+                                    borderColor: '#2563eb',
+                                    backgroundColor: 'rgba(37, 99, 235, 0.08)',
+                                    pointBackgroundColor: '#2563eb',
+                                    fill: false,
+                                    tension: 0.32,
+                                },
+                                {
+                                    label: 'Долг',
+                                    data: months.map(m => Number(m.debt || 0)),
+                                    borderColor: '#f59e0b',
+                                    backgroundColor: 'rgba(245, 158, 11, 0.08)',
+                                    pointBackgroundColor: '#f59e0b',
+                                    fill: false,
+                                    tension: 0.32,
+                                },
                             ],
                         },
                         options: {
@@ -1575,7 +1593,12 @@
                     const padding = { top: 22, right: 18, bottom: 34, left: 34 };
                     const chartWidth = width - padding.left - padding.right;
                     const chartHeight = height - padding.top - padding.bottom;
-                    const maxValueRaw = Math.max(...months.map(m => Math.max(m.income || 0, m.expense || 0)));
+                    const maxValueRaw = Math.max(...months.map(m => Math.max(
+                        m.income || 0,
+                        m.expense || 0,
+                        m.balance ?? ((m.income || 0) - (m.expense || 0)),
+                        m.debt || 0
+                    )));
                     const maxValue = maxValueRaw > 0 ? maxValueRaw * 1.1 : 1;
 
                     const stepX = chartWidth / Math.max(1, months.length - 1);
@@ -1589,6 +1612,14 @@
                     const expensePoints = months.map((m, i) => ({
                         x: padding.left + stepX * i,
                         y: getY(m.expense || 0)
+                    }));
+                    const balancePoints = months.map((m, i) => ({
+                        x: padding.left + stepX * i,
+                        y: getY(m.balance ?? ((m.income || 0) - (m.expense || 0)))
+                    }));
+                    const debtPoints = months.map((m, i) => ({
+                        x: padding.left + stepX * i,
+                        y: getY(m.debt || 0)
                     }));
 
                     const incomeGradient = ctx.createLinearGradient(0, padding.top, 0, height - padding.bottom);
@@ -1628,6 +1659,8 @@
 
                         const incomeInterp = interpPoints(incomePoints);
                         const expenseInterp = interpPoints(expensePoints);
+                        const balanceInterp = interpPoints(balancePoints);
+                        const debtInterp = interpPoints(debtPoints);
 
                         // Areas
                         ctx.beginPath();
@@ -1662,6 +1695,18 @@
                         expenseInterp.forEach(p => ctx.lineTo(p.x, p.y));
                         ctx.stroke();
 
+                        ctx.strokeStyle = '#2563eb';
+                        ctx.beginPath();
+                        ctx.moveTo(balanceInterp[0].x, balanceInterp[0].y);
+                        balanceInterp.forEach(p => ctx.lineTo(p.x, p.y));
+                        ctx.stroke();
+
+                        ctx.strokeStyle = '#f59e0b';
+                        ctx.beginPath();
+                        ctx.moveTo(debtInterp[0].x, debtInterp[0].y);
+                        debtInterp.forEach(p => ctx.lineTo(p.x, p.y));
+                        ctx.stroke();
+
                         // Labels
                         ctx.fillStyle = isLight ? '#64748b' : '#94a3b8';
                         ctx.font = '10px Segoe UI';
@@ -1685,6 +1730,16 @@
                         ctx.fillRect(padding.left + 70, legendY - 8, 10, 10);
                         ctx.fillStyle = isLight ? '#1e293b' : '#ffffff';
                         ctx.fillText('Расход', padding.left + 84, legendY + 1);
+
+                        ctx.fillStyle = '#2563eb';
+                        ctx.fillRect(padding.left + 140, legendY - 8, 10, 10);
+                        ctx.fillStyle = isLight ? '#1e293b' : '#ffffff';
+                        ctx.fillText('Остаток', padding.left + 154, legendY + 1);
+
+                        ctx.fillStyle = '#f59e0b';
+                        ctx.fillRect(padding.left + 225, legendY - 8, 10, 10);
+                        ctx.fillStyle = isLight ? '#1e293b' : '#ffffff';
+                        ctx.fillText('Долг', padding.left + 239, legendY + 1);
 
                         if (t < 1) requestAnimationFrame(drawFrame);
                     };

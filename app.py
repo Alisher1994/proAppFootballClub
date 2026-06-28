@@ -4542,6 +4542,7 @@ def get_analytics():
             'month_name': month_name,
             'income': income,
             'expense': expense,
+            'balance': income - expense,
             'debt': debt
         })
     
