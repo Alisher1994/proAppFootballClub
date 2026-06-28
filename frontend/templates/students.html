@@ -2968,7 +2968,7 @@
             background: #ffffff;
             border-radius: 8px;
             margin-bottom: 8px;
-            overflow: hidden;
+            overflow: visible;
             position: relative;
         }
 
@@ -2987,13 +2987,15 @@
             border-radius: 6px;
             margin: 0 0 8px 0;
             letter-spacing: 0.5px;
-            position: relative;
-            z-index: 2;
+            position: sticky;
+            top: 0;
+            z-index: 20;
             cursor: pointer;
             display: flex;
             justify-content: space-between;
             align-items: center;
             user-select: none;
+            box-shadow: 0 0 0 6px #ffffff, 0 8px 14px rgba(15, 23, 42, 0.08);
         }
 
         .student-group-header .group-chevron {
@@ -3017,6 +3019,10 @@
         body.theme-dark .student-group-section,
         body.theme-dark .student-group-items {
             background: #1e293b;
+        }
+
+        body.theme-dark .student-group-header {
+            box-shadow: 0 0 0 6px #1e293b, 0 8px 14px rgba(0, 0, 0, 0.22);
         }
     </style>
 </head>
