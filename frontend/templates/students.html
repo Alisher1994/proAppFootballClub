@@ -2964,6 +2964,19 @@
             box-shadow: none !important;
         }
 
+        .student-group-section {
+            background: #ffffff;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .student-group-items {
+            background: #ffffff;
+            overflow: hidden;
+        }
+
         .student-group-header {
             padding: 8px 12px;
             font-size: 11px;
@@ -2972,11 +2985,10 @@
             color: #94a3b8;
             background: #1e293b;
             border-radius: 6px;
-            margin: 12px 0 8px 0;
+            margin: 0 0 8px 0;
             letter-spacing: 0.5px;
-            position: sticky;
-            top: 0;
-            z-index: 5;
+            position: relative;
+            z-index: 2;
             cursor: pointer;
             display: flex;
             justify-content: space-between;
@@ -3000,6 +3012,11 @@
         body.theme-light .student-group-header {
             background: #f1f5f9;
             color: #64748b;
+        }
+
+        body.theme-dark .student-group-section,
+        body.theme-dark .student-group-items {
+            background: #1e293b;
         }
     </style>
 </head>
