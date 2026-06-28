@@ -454,7 +454,7 @@
                 }
 
                 // Загрузить учеников группы
-                const studentsResponse = await fetch('/api/students');
+                const studentsResponse = await fetch(`/api/students?view=options&active_only=1&group_id=${encodeURIComponent(groupId)}`);
                 students = (await studentsResponse.json()).filter(s =>
                     s.group_id === groupId && s.status === 'active'
                 );

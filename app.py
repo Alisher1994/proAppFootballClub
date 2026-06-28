@@ -2559,6 +2559,38 @@ def get_students_list():
             'has_prev': pagination.has_prev,
         })
 
+    options_view = request.args.get('view') == 'options'
+    if options_view:
+        group_id = request.args.get('group_id', type=int)
+        active_only = request.args.get('active_only') in {'1', 'true', 'yes'}
+
+        query = Student.query.options(
+            joinedload(Student.group),
+            joinedload(Student.tariff)
+        )
+        if group_id:
+            query = query.filter(Student.group_id == group_id)
+        if active_only:
+            query = query.filter(Student.status == 'active')
+
+        students = query.order_by(Student.full_name.asc()).all()
+        return jsonify([
+            {
+                'id': student.id,
+                'full_name': student.full_name,
+                'student_number': student.student_number,
+                'group_id': student.group_id,
+                'group_name': student.group.name if student.group else None,
+                'status': student.status,
+                'photo_path': student.photo_path,
+                'photo_url': build_photo_url(student.photo_path),
+                'tariff_id': student.tariff_id,
+                'tariff_name': student.tariff.name if student.tariff else None,
+                'tariff_price': student.tariff.price if student.tariff else 0,
+            }
+            for student in students
+        ])
+
     ensure_club_settings_columns()
     settings = get_club_settings_instance()
     today = get_local_date()

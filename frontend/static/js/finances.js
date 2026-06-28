@@ -747,7 +747,7 @@ async function loadGroupStudents(groupId) {
     }
 
     try {
-        const response = await fetch('/api/students');
+        const response = await fetch(`/api/students?view=options&active_only=1&group_id=${encodeURIComponent(groupId)}`);
         const students = await response.json();
         const groupStudents = students.filter(s => s.group_id == groupId && s.status === 'active');
 
@@ -1223,7 +1223,7 @@ async function loadIncomeModalGroups() {
     try {
         const [groupsResponse, studentsResponse] = await Promise.all([
             fetch('/api/groups'),
-            fetch('/api/students')
+            fetch('/api/students?view=options&active_only=1')
         ]);
 
         const groups = await groupsResponse.json();
@@ -1274,7 +1274,7 @@ async function loadIncomeModalStudents(groupId) {
     }
 
     try {
-        const response = await fetch('/api/students');
+        const response = await fetch(`/api/students?view=options&active_only=1&group_id=${encodeURIComponent(groupId)}`);
         const students = await response.json();
         const groupStudents = students.filter(s => s.group_id == groupId && s.status === 'active');
 

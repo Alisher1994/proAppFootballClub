@@ -476,7 +476,7 @@
             container.innerHTML = '<div class="loading">Загрузка учеников...</div>';
             
             try {
-                const response = await fetch('/api/students');
+                const response = await fetch(`/api/students?view=options&active_only=1&group_id=${encodeURIComponent(groupId)}`);
                 const students = await response.json();
                 
                 const groupStudents = students.filter(s => s.group_id == groupId && s.status === 'active');
