@@ -364,8 +364,7 @@
 <body class="portal-page">
     <div class="portal-header">
         <div class="portal-brand">
-            <img class="portal-brand-logo" src="{{ url_for('static', filename='uploads/logo.png') }}" alt="Logo">
-            <span class="portal-brand-name">{{ system_name }}</span>
+            <img class="portal-brand-logo" src="{{ system_logo_url }}" alt="{{ system_name }}">
         </div>
         <a class="portal-logout" href="/portal/logout">Выйти</a>
     </div>

@@ -248,6 +248,12 @@ body.theme-light .theme-icon-moon {
     flex-shrink: 0 !important;
 }
 
+.sidebar-header h2.sidebar-brand {
+    min-width: 0 !important;
+    max-width: 168px !important;
+    overflow: hidden !important;
+}
+
 /* ЕДИНЫЙ СТИЛЬ ДЛЯ ЛОГОТИПА */
 .sidebar-logo-icon {
     width: 24px !important;
@@ -260,6 +266,17 @@ body.theme-light .theme-icon-moon {
     color: #3b82f6 !important;
     display: block !important;
     object-fit: contain !important;
+}
+
+.sidebar-logo-icon.sidebar-logo-horizontal {
+    width: 150px !important;
+    min-width: 150px !important;
+    max-width: 150px !important;
+    height: 38px !important;
+    min-height: 38px !important;
+    max-height: 38px !important;
+    border-radius: 0 !important;
+    background: transparent !important;
 }
 
 .sidebar.collapsed h2 {

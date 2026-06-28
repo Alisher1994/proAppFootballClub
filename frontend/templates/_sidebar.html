@@ -1,8 +1,7 @@
 <div class="sidebar">
     <div class="sidebar-header">
-        <h2>
-            <img class="sidebar-logo-icon" src="{{ url_for('static', filename='uploads/logo.png') }}" alt="Logo">
-            {{ system_name }}
+        <h2 class="sidebar-brand">
+            <img class="sidebar-logo-icon sidebar-logo-horizontal" src="{{ system_logo_url }}" alt="{{ system_name }}">
         </h2>
         <button class="sidebar-toggle" aria-label="Свернуть меню">✕</button>
     </div>

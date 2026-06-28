@@ -28,6 +28,11 @@ async function initSettings() {
         });
     }
 
+    const uploadLogoBtn = document.getElementById('uploadLogoBtn');
+    if (uploadLogoBtn) uploadLogoBtn.addEventListener('click', uploadSystemLogo);
+    const resetLogoBtn = document.getElementById('resetLogoBtn');
+    if (resetLogoBtn) resetLogoBtn.addEventListener('click', resetSystemLogo);
+
     const expenseForm = document.getElementById('expenseCategoriesForm');
     if (expenseForm) {
         expenseForm.addEventListener('submit', async (e) => {
@@ -131,6 +136,7 @@ async function loadSettings() {
         const resp = await fetch('/api/club-settings');
         const data = await resp.json();
         document.getElementById('system_name').value = data.system_name || '';
+        setSystemLogoPreview(data.logo_url, data.logo_is_custom);
         setWorkingDays(data.working_days || []);
         document.getElementById('work_start_time').value = data.work_start_time || '09:00';
         document.getElementById('work_end_time').value = data.work_end_time || '21:00';
@@ -414,6 +420,91 @@ async function requestBridgeControl(action) {
     }
 }
 
+function cacheBustUrl(url) {
+    if (!url) return '';
+    const separator = url.includes('?') ? '&' : '?';
+    return `${url}${separator}v=${Date.now()}`;
+}
+
+function updateVisibleBrandLogos(url) {
+    if (!url) return;
+    document.querySelectorAll('.sidebar-logo-icon, .login-logo, .portal-brand-logo').forEach(img => {
+        img.src = cacheBustUrl(url);
+    });
+}
+
+function setSystemLogoPreview(url, isCustom) {
+    const preview = document.getElementById('system_logo_preview');
+    if (preview && url) preview.src = cacheBustUrl(url);
+
+    const status = document.getElementById('logo_status_text');
+    if (status) {
+        status.textContent = isCustom
+            ? 'Используется загруженный логотип.'
+            : 'Используется системный логотип.';
+    }
+
+    const resetBtn = document.getElementById('resetLogoBtn');
+    if (resetBtn) resetBtn.disabled = !isCustom;
+
+    updateVisibleBrandLogos(url);
+}
+
+async function uploadSystemLogo() {
+    const fileInput = document.getElementById('system_logo_file');
+    const button = document.getElementById('uploadLogoBtn');
+    const file = fileInput?.files?.[0];
+    if (!file) {
+        alert('Выберите файл логотипа');
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('logo', file);
+    if (button) button.disabled = true;
+
+    try {
+        const resp = await fetch('/api/club-settings/logo', {
+            method: 'POST',
+            body: formData
+        });
+        const result = await resp.json();
+        if (!result.success) {
+            alert('Ошибка: ' + (result.message || 'Не удалось загрузить логотип'));
+            return;
+        }
+        setSystemLogoPreview(result.logo_url, result.logo_is_custom);
+        fileInput.value = '';
+        alert('Логотип обновлен');
+    } catch (error) {
+        console.error('Ошибка загрузки логотипа:', error);
+        alert('Не удалось загрузить логотип');
+    } finally {
+        if (button) button.disabled = false;
+    }
+}
+
+async function resetSystemLogo() {
+    if (!confirm('Сбросить логотип на системный?')) return;
+    const button = document.getElementById('resetLogoBtn');
+    if (button) button.disabled = true;
+
+    try {
+        const resp = await fetch('/api/club-settings/logo', { method: 'DELETE' });
+        const result = await resp.json();
+        if (!result.success) {
+            alert('Ошибка: ' + (result.message || 'Не удалось сбросить логотип'));
+            return;
+        }
+        setSystemLogoPreview(result.logo_url, result.logo_is_custom);
+        alert('Системный логотип восстановлен');
+    } catch (error) {
+        console.error('Ошибка сброса логотипа:', error);
+        alert('Не удалось сбросить логотип');
+        if (button) button.disabled = false;
+    }
+}
+
 function gatherAllSettings() {
     return {
         system_name: document.getElementById('system_name').value.trim(),
@@ -557,6 +648,7 @@ function renderExpenseCategories() {
 function serializeSettingsForm(form) {
     const values = [];
     form.querySelectorAll('input, select, textarea').forEach((el) => {
+        if (el.dataset.ignoreDirty === 'true') return;
         const key = el.name || el.id;
         if (!key) return;
         if (el.type === 'file') {
