@@ -821,6 +821,11 @@
                                 <div style="width: 12px; height: 12px; background: #f59e0b; border-radius: 3px;"></div>
                                 Долг
                             </div>
+                            <div
+                                style="display: flex; align-items: center; gap: 8px; font-size: 0.9rem; font-weight: 600; color: var(--theme-text-secondary);">
+                                <div style="width: 12px; height: 12px; background: #64748b; border-radius: 3px;"></div>
+                                Ожидание
+                            </div>
                         </div>
 
                         <div class="month-grid">
@@ -835,6 +840,27 @@
                                     <div class="bar expense" title="Расход"><span class="bar-value"></span></div>
                                     <div class="bar balance" title="Остаток"><span class="bar-value"></span></div>
                                     <div class="bar debt" title="Долг за месяц"><span class="bar-value"></span></div>
+                                    <div class="bar expected" title="Ожидание"><span class="bar-value"></span></div>
+                                </div>
+                                <div class="month-students-meta">
+                                    <span title="Было учеников">
+                                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                                            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                                            <circle cx="9" cy="7" r="4" />
+                                            <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+                                            <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                                        </svg>
+                                        <b class="month-students-total">0</b>
+                                    </span>
+                                    <span title="Добавилось учеников">
+                                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                                            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                                            <circle cx="9" cy="7" r="4" />
+                                            <path d="M19 8v6" />
+                                            <path d="M22 11h-6" />
+                                        </svg>
+                                        <b class="month-students-new">+0</b>
+                                    </span>
                                 </div>
                             </div>
                             {% endfor %}
@@ -859,6 +885,7 @@
                                     <th>Расход</th>
                                     <th>Остаток</th>
                                     <th>Долг</th>
+                                    <th>Ожидание</th>
                                 </tr>
                             </thead>
                             <tbody id="analytics-table-body">
@@ -1138,7 +1165,7 @@
                         if (!tbody) return;
 
                         if (data.months.length === 0) {
-                            tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #95a5a6;">Нет данных</td></tr>';
+                            tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #95a5a6;">Нет данных</td></tr>';
                             return;
                         }
 
@@ -1146,6 +1173,7 @@
                         const totalIncome = data.months.reduce((acc, m) => acc + Number(m.income || 0), 0);
                         const totalExpense = data.months.reduce((acc, m) => acc + Number(m.expense || 0), 0);
                         const totalDebt = data.months.reduce((acc, m) => acc + Number(m.debt || 0), 0);
+                        const totalExpected = data.months.reduce((acc, m) => acc + Number(m.expected || 0), 0);
                         const totalBalance = totalIncome - totalExpense;
 
                         const rows = data.months.map(m => {
@@ -1161,6 +1189,7 @@
                             ${balance.toLocaleString('ru-RU')}
                         </td>
                         <td style="color: #f59e0b; font-weight: bold;">${Number(m.debt || 0).toLocaleString('ru-RU')}</td>
+                        <td style="color: #475569; font-weight: bold;">${Number(m.expected || 0).toLocaleString('ru-RU')}</td>
                     </tr>
                 `;
                         }).join('');
@@ -1174,6 +1203,7 @@
                         ${totalBalance.toLocaleString('ru-RU')}
                     </td>
                     <td style="color: #f59e0b;">${totalDebt.toLocaleString('ru-RU')}</td>
+                    <td style="color: #475569;">${totalExpected.toLocaleString('ru-RU')}</td>
                 </tr>
             `;
 
@@ -1215,6 +1245,13 @@
                                     borderRadius: 6,
                                     maxBarThickness: 34,
                                 },
+                                {
+                                    label: 'Ожидание',
+                                    data: months.map(m => Number(m.expected || 0)),
+                                    backgroundColor: '#64748b',
+                                    borderRadius: 6,
+                                    maxBarThickness: 34,
+                                },
                             ],
                         },
                         options: {
@@ -1222,7 +1259,7 @@
                             maintainAspectRatio: false,
                             interaction: { mode: 'index', intersect: false },
                             plugins: {
-                                legend: { position: 'top', align: 'start', labels: { boxWidth: 12, usePointStyle: true } },
+                                legend: { display: false },
                                 tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${moneyFormatter.format(ctx.raw)} сум` } },
                                 datalabels: {
                                     anchor: 'end',
@@ -1288,6 +1325,15 @@
                                     fill: false,
                                     tension: 0.32,
                                 },
+                                {
+                                    label: 'Ожидание',
+                                    data: months.map(m => Number(m.expected || 0)),
+                                    borderColor: '#64748b',
+                                    backgroundColor: 'rgba(100, 116, 139, 0.08)',
+                                    pointBackgroundColor: '#64748b',
+                                    fill: false,
+                                    tension: 0.32,
+                                },
                             ],
                         },
                         options: {
@@ -1295,7 +1341,7 @@
                             maintainAspectRatio: false,
                             interaction: { mode: 'index', intersect: false },
                             plugins: {
-                                legend: { position: 'top', align: 'start', labels: { boxWidth: 12, usePointStyle: true } },
+                                legend: { display: false },
                                 tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${moneyFormatter.format(ctx.raw)} сум` } },
                                 datalabels: {
                                     align: 'top',
@@ -1361,7 +1407,7 @@
                     const chartHeight = height - padding.top - padding.bottom;
 
                     // Находим максимум
-                    const maxValueRaw = Math.max(...months.map(m => Math.max(m.income, m.expense, m.debt || 0)));
+                    const maxValueRaw = Math.max(...months.map(m => Math.max(m.income, m.expense, m.debt || 0, m.expected || 0)));
                     const maxValue = maxValueRaw > 0 ? maxValueRaw * 1.15 : 1000000;
 
                     // Отрисовка сетки
@@ -1385,25 +1431,30 @@
                     ctx.setLineDash([]);
 
                     const barGroupWidth = chartWidth / months.length;
-                    const barWidth = barGroupWidth * 0.35;
+                    const barWidth = Math.max(4, Math.min(14, (barGroupWidth - 14) / 5));
+                    const series = [
+                        { key: 'income', color: '#10b981' },
+                        { key: 'expense', color: '#ef4444' },
+                        { key: 'balance', color: '#2563eb', get: (m) => m.balance ?? ((m.income || 0) - (m.expense || 0)) },
+                        { key: 'debt', color: '#f59e0b' },
+                        { key: 'expected', color: '#64748b' }
+                    ];
 
                     months.forEach((m, i) => {
                         const groupX = padding.left + i * barGroupWidth;
                         const centerX = groupX + barGroupWidth / 2;
+                        const startX = centerX - ((series.length * barWidth) + ((series.length - 1) * 3)) / 2;
 
-                        // Приход
-                        const incomeHeight = (m.income / maxValue) * chartHeight;
-                        const incomeX = centerX - barWidth - 2;
-                        const incomeY = padding.top + chartHeight - incomeHeight;
-                        ctx.fillStyle = '#10b981';
-                        ctx.fillRect(incomeX, incomeY, barWidth, incomeHeight);
-
-                        // Расход
-                        const expenseHeight = (m.expense / maxValue) * chartHeight;
-                        const expenseX = centerX + 2;
-                        const expenseY = padding.top + chartHeight - expenseHeight;
-                        ctx.fillStyle = '#ef4444';
-                        ctx.fillRect(expenseX, expenseY, barWidth, expenseHeight);
+                        series.forEach((item, index) => {
+                            const value = Number(item.get ? item.get(m) : (m[item.key] || 0));
+                            const barHeight = (Math.abs(value) / maxValue) * chartHeight;
+                            const x = startX + index * (barWidth + 3);
+                            const y = value >= 0
+                                ? padding.top + chartHeight - barHeight
+                                : padding.top + chartHeight;
+                            ctx.fillStyle = item.color;
+                            ctx.fillRect(x, y, barWidth, Math.max(1, barHeight));
+                        });
 
                         // Подпись месяца
                         ctx.save();
@@ -1415,21 +1466,6 @@
                         ctx.fillText(m.month_name, 0, 10);
                         ctx.restore();
                     });
-
-                    // Легенда
-                    const legendY = 30;
-                    ctx.textAlign = 'left';
-                    ctx.font = '600 12px Segoe UI';
-
-                    ctx.fillStyle = '#10b981';
-                    ctx.fillRect(padding.left, legendY - 10, 12, 12);
-                    ctx.fillStyle = isLight ? '#1e293b' : '#ffffff';
-                    ctx.fillText('Приход', padding.left + 18, legendY);
-
-                    ctx.fillStyle = '#ef4444';
-                    ctx.fillRect(padding.left + 100, legendY - 10, 12, 12);
-                    ctx.fillStyle = isLight ? '#1e293b' : '#ffffff';
-                    ctx.fillText('Расход', padding.left + 118, legendY);
                 }
 
                 // Populate year filter
@@ -1520,16 +1556,17 @@
                         const data = await res.json();
                         if (!data || !Array.isArray(data.months)) return;
                         const months = data.months;
-                        const maxVal = Math.max(1, ...months.flatMap(m => [m.income || 0, m.expense || 0, m.balance || 0, m.debt || 0]));
+                        const maxVal = Math.max(1, ...months.flatMap(m => [m.income || 0, m.expense || 0, m.balance || 0, m.debt || 0, m.expected || 0]));
 
                         // Render each month
                         document.querySelectorAll('.bars').forEach((barsEl, idx) => {
-                            const m = months[idx] || { income: 0, expense: 0, balance: 0, debt: 0 };
+                            const m = months[idx] || { income: 0, expense: 0, balance: 0, debt: 0, expected: 0, student_count: 0, new_student_count: 0 };
                             const items = [
                                 { cls: '.income', val: m.income || 0 },
                                 { cls: '.expense', val: m.expense || 0 },
                                 { cls: '.balance', val: m.balance || 0 },
-                                { cls: '.debt', val: m.debt || 0 }
+                                { cls: '.debt', val: m.debt || 0 },
+                                { cls: '.expected', val: m.expected || 0 }
                             ];
                             items.forEach(item => {
                                 const bar = barsEl.querySelector(item.cls);
@@ -1542,6 +1579,10 @@
                                     }
                                 }
                             });
+                            const totalEl = barsEl.parentElement?.querySelector('.month-students-total');
+                            const newEl = barsEl.parentElement?.querySelector('.month-students-new');
+                            if (totalEl) totalEl.textContent = Number(m.student_count || 0).toLocaleString('ru-RU');
+                            if (newEl) newEl.textContent = `+${Number(m.new_student_count || 0).toLocaleString('ru-RU')}`;
                         });
                     } catch (e) {
                         console.warn('Не удалось загрузить финансы по месяцам', e);
@@ -1604,7 +1645,8 @@
                         m.income || 0,
                         m.expense || 0,
                         m.balance ?? ((m.income || 0) - (m.expense || 0)),
-                        m.debt || 0
+                        m.debt || 0,
+                        m.expected || 0
                     )));
                     const maxValue = maxValueRaw > 0 ? maxValueRaw * 1.1 : 1;
 
@@ -1627,6 +1669,10 @@
                     const debtPoints = months.map((m, i) => ({
                         x: padding.left + stepX * i,
                         y: getY(m.debt || 0)
+                    }));
+                    const expectedPoints = months.map((m, i) => ({
+                        x: padding.left + stepX * i,
+                        y: getY(m.expected || 0)
                     }));
 
                     const incomeGradient = ctx.createLinearGradient(0, padding.top, 0, height - padding.bottom);
@@ -1675,6 +1721,7 @@
                         const expenseInterp = interpPoints(expensePoints);
                         const balanceInterp = interpPoints(balancePoints);
                         const debtInterp = interpPoints(debtPoints);
+                        const expectedInterp = interpPoints(expectedPoints);
 
                         // Areas
                         ctx.beginPath();
@@ -1721,6 +1768,12 @@
                         debtInterp.forEach(p => ctx.lineTo(p.x, p.y));
                         ctx.stroke();
 
+                        ctx.strokeStyle = '#64748b';
+                        ctx.beginPath();
+                        ctx.moveTo(expectedInterp[0].x, expectedInterp[0].y);
+                        expectedInterp.forEach(p => ctx.lineTo(p.x, p.y));
+                        ctx.stroke();
+
                         // Labels
                         ctx.fillStyle = isLight ? '#64748b' : '#94a3b8';
                         ctx.font = '10px Segoe UI';
@@ -1730,30 +1783,6 @@
                             const x = padding.left + stepX * i;
                             ctx.fillText(m.month_name, x, height - 12);
                         });
-
-                        // Legend
-                        ctx.textAlign = 'left';
-                        ctx.font = '600 11px Segoe UI';
-                        const legendY = padding.top - 6;
-                        ctx.fillStyle = '#10b981';
-                        ctx.fillRect(padding.left, legendY - 8, 10, 10);
-                        ctx.fillStyle = isLight ? '#1e293b' : '#ffffff';
-                        ctx.fillText('Приход', padding.left + 14, legendY + 1);
-
-                        ctx.fillStyle = '#ef4444';
-                        ctx.fillRect(padding.left + 70, legendY - 8, 10, 10);
-                        ctx.fillStyle = isLight ? '#1e293b' : '#ffffff';
-                        ctx.fillText('Расход', padding.left + 84, legendY + 1);
-
-                        ctx.fillStyle = '#2563eb';
-                        ctx.fillRect(padding.left + 140, legendY - 8, 10, 10);
-                        ctx.fillStyle = isLight ? '#1e293b' : '#ffffff';
-                        ctx.fillText('Остаток', padding.left + 154, legendY + 1);
-
-                        ctx.fillStyle = '#f59e0b';
-                        ctx.fillRect(padding.left + 225, legendY - 8, 10, 10);
-                        ctx.fillStyle = isLight ? '#1e293b' : '#ffffff';
-                        ctx.fillText('Долг', padding.left + 239, legendY + 1);
 
                         if (t < 1) requestAnimationFrame(drawFrame);
                     };

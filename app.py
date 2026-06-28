@@ -3278,6 +3278,9 @@ def access_log_list():
     direction = (request.args.get('direction') or '').strip()
     result_filter = (request.args.get('result') or '').strip()
     search = (request.args.get('search') or '').strip()
+    page = max(1, request.args.get('page', default=1, type=int) or 1)
+    per_page = request.args.get('per_page', default=50, type=int) or 50
+    per_page = min(100, max(10, per_page))
 
     if selected_date:
         try:
@@ -3292,8 +3295,26 @@ def access_log_list():
         like = f"%{search}%"
         query = query.filter(or_(AccessLog.full_name.ilike(like), AccessLog.employee_no.ilike(like), AccessLog.group_name.ilike(like)))
 
-    logs = query.order_by(AccessLog.event_time.desc()).limit(500).all()
-    return jsonify({'success': True, 'logs': [access_log_to_dict(log) for log in logs]})
+    total = query.count()
+    pages = max(1, (total + per_page - 1) // per_page)
+    if page > pages:
+        page = pages
+
+    logs = query.order_by(AccessLog.event_time.desc())\
+        .offset((page - 1) * per_page)\
+        .limit(per_page)\
+        .all()
+
+    return jsonify({
+        'success': True,
+        'logs': [access_log_to_dict(log) for log in logs],
+        'pagination': {
+            'page': page,
+            'per_page': per_page,
+            'total': total,
+            'pages': pages,
+        }
+    })
 
 
 @app.route('/api/hikvision/access-event', methods=['POST'])
@@ -4352,6 +4373,40 @@ def calculate_month_debt_total(year, month):
     return total_debt
 
 
+def calculate_month_student_expectation(year, month):
+    """Ожидаемая сумма и численность учеников на конец месяца."""
+    from calendar import monthrange
+    from datetime import date
+
+    month_start = date(year, month, 1)
+    month_end = date(year, month, monthrange(year, month)[1])
+
+    active_students = Student.query.filter(
+        Student.status == 'active',
+        db.or_(Student.admission_date.is_(None), Student.admission_date <= month_end)
+    ).options(joinedload(Student.tariff)).all()
+
+    expected = 0
+    student_count = 0
+    for student in active_students:
+        student_count += 1
+        if student.tariff and student.tariff.price:
+            expected += float(student.tariff.price or 0)
+
+    new_student_count = Student.query.filter(
+        Student.status == 'active',
+        Student.admission_date.isnot(None),
+        Student.admission_date >= month_start,
+        Student.admission_date <= month_end
+    ).count()
+
+    return {
+        'expected': float(expected),
+        'student_count': int(student_count),
+        'new_student_count': int(new_student_count),
+    }
+
+
 @app.route('/api/finances/debtors', methods=['GET'])
 @login_required
 def get_debtors():
@@ -4880,6 +4935,7 @@ def get_analytics():
         ).scalar() or 0
 
         debt = calculate_month_debt_total(year, month)
+        expectation = calculate_month_student_expectation(year, month)
         
         # Название месяца
         month_names = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 
@@ -4891,7 +4947,10 @@ def get_analytics():
             'income': income,
             'expense': expense,
             'balance': income - expense,
-            'debt': debt
+            'debt': debt,
+            'expected': expectation['expected'],
+            'student_count': expectation['student_count'],
+            'new_student_count': expectation['new_student_count'],
         })
     
     return jsonify({'months': months_data})
@@ -4921,12 +4980,16 @@ def get_finances_monthly():
             extract('month', Expense.expense_date) == month
         ).scalar() or 0
         debt = calculate_month_debt_total(year, month)
+        expectation = calculate_month_student_expectation(year, month)
         balance = float(income) - float(expense)
         months.append({
             'income': float(income),
             'expense': float(expense),
             'balance': balance,
-            'debt': float(debt)
+            'debt': float(debt),
+            'expected': expectation['expected'],
+            'student_count': expectation['student_count'],
+            'new_student_count': expectation['new_student_count'],
         })
 
     return jsonify({'months': months})

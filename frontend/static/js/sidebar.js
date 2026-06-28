@@ -30,9 +30,17 @@ document.addEventListener('DOMContentLoaded', () => {
     // Функция обновления иконки кнопки
     function updateToggleIcon() {
         if (toggleBtn) {
-            // Если меню свернуто - показываем ☰ (чтобы развернуть)
-            // Если меню развернуто - показываем ✕ (чтобы свернуть)
-            toggleBtn.textContent = sidebar.classList.contains('collapsed') ? '☰' : '✕';
+            const collapsed = sidebar.classList.contains('collapsed');
+            toggleBtn.innerHTML = collapsed
+                ? `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M4 6h16" /><path d="M4 12h16" /><path d="M4 18h16" />
+                </svg>`
+                : `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M18 6 6 18" /><path d="m6 6 12 12" />
+                </svg>`;
+            toggleBtn.setAttribute('aria-label', collapsed ? 'Развернуть меню' : 'Свернуть меню');
         }
     }
     
@@ -61,4 +69,3 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
-

@@ -1,5 +1,8 @@
 const accessState = {
     timer: null,
+    page: 1,
+    perPage: 50,
+    pages: 1,
 };
 
 function formatAccessDateTime(value) {
@@ -65,7 +68,27 @@ function renderAccessLogs(logs) {
     }).join('');
 }
 
-async function loadAccessLogs() {
+function renderAccessPagination(pagination = {}) {
+    accessState.page = Number(pagination.page || accessState.page || 1);
+    accessState.pages = Math.max(1, Number(pagination.pages || 1));
+    const total = Number(pagination.total || 0);
+    const perPage = Number(pagination.per_page || accessState.perPage || 50);
+    const from = total ? ((accessState.page - 1) * perPage) + 1 : 0;
+    const to = Math.min(total, accessState.page * perPage);
+
+    const info = document.getElementById('accessPageInfo');
+    const number = document.getElementById('accessPageNumber');
+    const prev = document.getElementById('accessPrevPage');
+    const next = document.getElementById('accessNextPage');
+
+    if (info) info.textContent = total ? `${from}-${to} из ${total}` : '0 записей';
+    if (number) number.textContent = `${accessState.page} / ${accessState.pages}`;
+    if (prev) prev.disabled = accessState.page <= 1;
+    if (next) next.disabled = accessState.page >= accessState.pages;
+}
+
+async function loadAccessLogs({ resetPage = false } = {}) {
+    if (resetPage) accessState.page = 1;
     const params = new URLSearchParams();
     const date = document.getElementById('accessDateFilter')?.value;
     const direction = document.getElementById('accessDirectionFilter')?.value;
@@ -76,20 +99,24 @@ async function loadAccessLogs() {
     if (direction) params.set('direction', direction);
     if (result) params.set('result', result);
     if (search) params.set('search', search);
+    params.set('page', accessState.page);
+    params.set('per_page', accessState.perPage);
 
     try {
         const response = await fetch(`/api/access-log?${params.toString()}`);
         const data = await response.json();
         renderAccessLogs(data.logs || []);
+        renderAccessPagination(data.pagination || {});
     } catch (error) {
         const body = document.getElementById('accessLogBody');
         if (body) body.innerHTML = '<tr><td colspan="7" class="access-empty access-error">Не удалось загрузить журнал</td></tr>';
+        renderAccessPagination({ page: 1, pages: 1, total: 0, per_page: accessState.perPage });
     }
 }
 
 function debounceAccessLoad() {
     clearTimeout(accessState.timer);
-    accessState.timer = setTimeout(loadAccessLogs, 250);
+    accessState.timer = setTimeout(() => loadAccessLogs({ resetPage: true }), 250);
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -98,9 +125,21 @@ document.addEventListener('DOMContentLoaded', () => {
     if (dateInput) dateInput.value = today.toISOString().slice(0, 10);
 
     ['accessDateFilter', 'accessDirectionFilter', 'accessResultFilter'].forEach((id) => {
-        document.getElementById(id)?.addEventListener('change', loadAccessLogs);
+        document.getElementById(id)?.addEventListener('change', () => loadAccessLogs({ resetPage: true }));
     });
     document.getElementById('accessSearchFilter')?.addEventListener('input', debounceAccessLoad);
-    document.getElementById('refreshAccessLogBtn')?.addEventListener('click', loadAccessLogs);
+    document.getElementById('refreshAccessLogBtn')?.addEventListener('click', () => loadAccessLogs());
+    document.getElementById('accessPrevPage')?.addEventListener('click', () => {
+        if (accessState.page > 1) {
+            accessState.page -= 1;
+            loadAccessLogs();
+        }
+    });
+    document.getElementById('accessNextPage')?.addEventListener('click', () => {
+        if (accessState.page < accessState.pages) {
+            accessState.page += 1;
+            loadAccessLogs();
+        }
+    });
     loadAccessLogs();
 });

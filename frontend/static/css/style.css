@@ -148,7 +148,7 @@ html {
     margin: 0 !important;
     margin-bottom: 0 !important;
     margin-top: 0 !important;
-    border-bottom: 1px solid #e2e8f0 !important;
+    border-bottom: none !important;
     height: 64px !important;
     min-height: 64px !important;
     max-height: 64px !important;
@@ -307,12 +307,12 @@ body.theme-light .theme-icon-moon {
     margin: 0 !important;
     padding: 0 !important;
     line-height: 1 !important;
-    font-size: 16px !important;
+    font-size: 0 !important;
 }
 
 .sidebar-toggle svg {
-    width: 20px;
-    height: 20px;
+    width: 19px;
+    height: 19px;
     stroke: currentColor;
 }
 
@@ -3044,10 +3044,10 @@ body.theme-light .modal-body-scrollable::-webkit-scrollbar-thumb:hover {
 
 .bars {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 7px;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 5px;
     align-items: end;
-    height: 88px;
+    height: 82px;
     margin-bottom: 4px;
     padding-top: 14px;
     overflow: visible;
@@ -3067,7 +3067,7 @@ body.theme-light .modal-body-scrollable::-webkit-scrollbar-thumb:hover {
     transform: translateX(-50%);
     bottom: calc(100% + 3px);
     color: #1f2937;
-    font-size: 0.56rem;
+    font-size: 0.5rem;
     font-weight: 700;
     line-height: 1;
     white-space: nowrap;
@@ -3089,6 +3089,43 @@ body.theme-light .modal-body-scrollable::-webkit-scrollbar-thumb:hover {
 
 .bar.debt {
     background: #f59e0b;
+}
+
+.bar.expected {
+    background: #64748b;
+}
+
+.month-students-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    margin-top: 6px;
+    color: #64748b;
+    font-size: 0.68rem;
+    line-height: 1;
+}
+
+.month-students-meta span {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    min-width: 0;
+}
+
+.month-students-meta svg {
+    width: 13px;
+    height: 13px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.month-students-meta b {
+    font-weight: 600;
+    color: #334155;
 }
 
 .legend {
@@ -3127,6 +3164,10 @@ body.theme-light .modal-body-scrollable::-webkit-scrollbar-thumb:hover {
 
 .legend-item.debt::before {
     background: #f59e0b;
+}
+
+.legend-item.expected::before {
+    background: #64748b;
 }
 
 @media (max-width: 1200px) {
@@ -4246,6 +4287,32 @@ body.theme-light .modal-body-scrollable::-webkit-scrollbar-thumb:hover {
     border-bottom: none !important;
     border-bottom-color: transparent !important;
     text-decoration: none !important;
+    min-height: 48px !important;
+    height: 48px !important;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 8px !important;
+    font-size: 0.9rem !important;
+    line-height: 1.15 !important;
+    white-space: nowrap !important;
+    box-sizing: border-box !important;
+}
+
+.tab svg,
+.student-tab svg,
+.form-tab svg,
+.details-tab svg,
+.users-tab svg,
+.settings-tab svg,
+.nav-tab svg,
+.form-tabs .tab svg {
+    width: 18px !important;
+    height: 18px !important;
+    flex: 0 0 18px !important;
+    margin-right: 0 !important;
 }
 
 .tab.active,
@@ -4412,14 +4479,14 @@ body.theme-light .modal-body-scrollable::-webkit-scrollbar-thumb:hover {
 
 .access-log-header h1 {
     margin: 0;
-    font-size: 1.45rem;
+    font-size: 1.25rem;
     color: #0f1f35;
 }
 
 .access-log-header p {
     margin: 6px 0 0;
     color: #64748b;
-    font-size: .9rem;
+    font-size: .82rem;
 }
 
 .access-refresh-btn {
@@ -4469,24 +4536,30 @@ body.theme-light .modal-body-scrollable::-webkit-scrollbar-thumb:hover {
 }
 
 .access-table th {
-    height: 48px;
+    height: 40px;
     background: #f6f8fb;
     color: #506784;
-    font-size: .73rem;
-    letter-spacing: .04em;
+    font-size: .68rem;
+    letter-spacing: .03em;
     text-transform: uppercase;
     text-align: left;
-    padding: 0 14px;
+    padding: 0 10px;
+    font-weight: 600;
 }
 
 .access-table td {
-    padding: 12px 14px;
+    padding: 9px 10px;
     border-top: 1px solid #eef2f7;
     color: #17243a;
-    font-size: .9rem;
+    font-size: .8rem;
+    font-weight: 400;
     vertical-align: middle;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+
+.access-table strong {
+    font-weight: 500;
 }
 
 .access-table th:nth-child(1),
@@ -4526,7 +4599,7 @@ body.theme-light .modal-body-scrollable::-webkit-scrollbar-thumb:hover {
 .access-muted {
     margin-top: 3px;
     color: #8090a6;
-    font-size: .78rem;
+    font-size: .7rem;
 }
 
 .access-pill,
@@ -4535,10 +4608,10 @@ body.theme-light .modal-body-scrollable::-webkit-scrollbar-thumb:hover {
     align-items: center;
     justify-content: center;
     min-height: 24px;
-    padding: 0 9px;
+    padding: 0 8px;
     border-radius: 999px;
-    font-size: .78rem;
-    font-weight: 800;
+    font-size: .7rem;
+    font-weight: 600;
 }
 
 .access-entry {
@@ -4574,6 +4647,40 @@ body.theme-light .modal-body-scrollable::-webkit-scrollbar-thumb:hover {
 
 .access-error {
     color: #c51616 !important;
+}
+
+.access-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 12px;
+    color: #52667f;
+    font-size: .8rem;
+}
+
+.access-pagination-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.access-page-btn {
+    width: 36px;
+    height: 36px;
+    border: 1px solid #d7e2ef;
+    border-radius: 8px;
+    background: #fff;
+    color: #24364f;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+.access-page-btn:disabled {
+    opacity: .45;
+    cursor: default;
 }
 
 @media (max-width: 900px) {

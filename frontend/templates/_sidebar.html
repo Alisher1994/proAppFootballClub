@@ -3,7 +3,7 @@
         <h2 class="sidebar-brand">
             <img class="sidebar-logo-icon sidebar-logo-horizontal" src="{{ system_logo_url }}" alt="{{ system_name }}">
         </h2>
-        <button class="sidebar-toggle" aria-label="Свернуть меню">✕</button>
+        <button class="sidebar-toggle" aria-label="Свернуть меню" type="button"></button>
     </div>
     <nav>
         {% if current_user.has_permission('dashboard', 'view') %}
@@ -387,7 +387,13 @@
     <div class="mobile-more-menu">
         <div class="mobile-more-header">
             <h3>Меню</h3>
-            <button id="closeMobileMore">✕</button>
+            <button id="closeMobileMore" aria-label="Закрыть меню" type="button">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M18 6 6 18" />
+                    <path d="m6 6 12 12" />
+                </svg>
+            </button>
         </div>
         <div class="mobile-more-grid">
             {% if current_user.has_permission('finances', 'view') %}
