@@ -1,4 +1,7 @@
 // Сохранение активной вкладки в localStorage
+const financeEditIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
+const financeTrashIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v5"/><path d="M14 11v5"/></svg>';
+
 function saveActiveFinancesTab(tabName) {
     localStorage.setItem('finances_active_tab', tabName);
 }
@@ -448,11 +451,11 @@ function renderExpenseTable(expenses) {
                             data-amount="${e.amount}"
                             data-description="${e.description || ''}"
                             data-source="${e.expense_source || 'cash'}">
-                        ✏️
+                        ${financeEditIcon}
                     </button>
                     <button class="btn-small btn-danger delete-expense-btn" 
                             data-expense-id="${e.id}">
-                        🗑️
+                        ${financeTrashIcon}
                     </button>
                 </td>
             </tr>
@@ -1827,11 +1830,11 @@ function renderIncomeTable(payments) {
                             data-student-id="${p.student_id || ''}"
                             data-amount="${p.amount_paid}"
                             data-notes="${p.notes || ''}">
-                        ✏️
+                        ${financeEditIcon}
                     </button>
                     <button class="btn-small btn-danger delete-income-btn" 
                             data-payment-id="${p.id}">
-                        🗑️
+                        ${financeTrashIcon}
                     </button>
                 </td>
             </tr>

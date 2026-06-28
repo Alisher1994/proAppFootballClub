@@ -4705,3 +4705,188 @@ body.theme-light .modal-body-scrollable::-webkit-scrollbar-thumb:hover {
         min-width: 900px;
     }
 }
+
+/* Unified polish: tables, buttons and sidebar footer */
+.sidebar-user-card {
+    margin-bottom: 10px;
+    padding: 10px 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    background: #f8fafc;
+    min-width: 0;
+}
+
+.sidebar-user-system,
+.sidebar-user-name,
+.sidebar-user-role {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.sidebar-user-system {
+    color: #94a3b8;
+    font-size: 0.66rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.sidebar-user-name {
+    margin-top: 4px;
+    color: #0f172a;
+    font-size: 0.82rem;
+    font-weight: 600;
+}
+
+.sidebar-user-role {
+    margin-top: 2px;
+    color: #64748b;
+    font-size: 0.74rem;
+    font-weight: 400;
+}
+
+.sidebar.collapsed .sidebar-user-card {
+    display: none;
+}
+
+.btn-primary,
+.btn-success,
+.settings-page .btn-primary,
+.settings-page .btn-success,
+.finances-page .btn-primary,
+.users-page .btn-primary,
+.game-btn-primary {
+    background: #2563eb !important;
+    border: 1px solid #2563eb !important;
+    color: #ffffff !important;
+    box-shadow: none !important;
+    transform: none !important;
+}
+
+.btn-primary:hover,
+.btn-success:hover,
+.settings-page .btn-primary:hover,
+.settings-page .btn-success:hover,
+.finances-page .btn-primary:hover,
+.users-page .btn-primary:hover,
+.game-btn-primary:hover {
+    background: #1d4ed8 !important;
+    border-color: #1d4ed8 !important;
+    box-shadow: none !important;
+    transform: none !important;
+}
+
+.btn-info,
+.btn-danger,
+.btn-warning,
+.btn-delete,
+.btn-small.btn-info,
+.btn-small.btn-danger,
+.btn-small.btn-success,
+.btn-small.btn-warning,
+.action-btn.btn-info,
+.action-btn.btn-danger,
+.edit-transfer-btn,
+.delete-transfer-btn,
+.edit-user-btn,
+.delete-user-btn,
+.edit-role-btn,
+.delete-role-btn,
+.edit-tariff-btn,
+.delete-tariff-btn,
+.edit-reward-btn,
+.delete-reward-btn,
+.edit-expense-btn,
+.delete-expense-btn,
+.edit-income-btn,
+.delete-income-btn,
+.payment-edit-btn,
+.payment-delete-btn,
+.settings-page .data-table .btn-small,
+.settings-page .data-table .btn-small.btn-info,
+.settings-page .data-table .btn-small.btn-danger,
+.settings-page .data-table .btn-small.btn-success,
+.finances-page .data-table .btn-small.btn-info,
+.finances-page .data-table .btn-small.btn-danger,
+.users-page .data-table .edit-user-btn,
+.users-page .data-table .delete-user-btn,
+.users-page .data-table .edit-role-btn,
+.users-page .data-table .delete-role-btn {
+    width: 34px !important;
+    height: 34px !important;
+    min-width: 34px !important;
+    min-height: 34px !important;
+    padding: 0 !important;
+    border-radius: 9px !important;
+    background: #f8fafc !important;
+    border: 1px solid #dbe3ef !important;
+    color: #334155 !important;
+    box-shadow: none !important;
+    transform: none !important;
+}
+
+.btn-info:hover,
+.btn-danger:hover,
+.btn-warning:hover,
+.btn-delete:hover,
+.btn-small.btn-info:hover,
+.btn-small.btn-danger:hover,
+.btn-small.btn-success:hover,
+.btn-small.btn-warning:hover,
+.action-btn.btn-info:hover,
+.action-btn.btn-danger:hover,
+.edit-transfer-btn:hover,
+.delete-transfer-btn:hover,
+.edit-user-btn:hover,
+.delete-user-btn:hover,
+.edit-role-btn:hover,
+.delete-role-btn:hover {
+    background: #eef2f7 !important;
+    border-color: #cbd5e1 !important;
+    color: #0f172a !important;
+    box-shadow: none !important;
+    transform: none !important;
+}
+
+.btn-info svg,
+.btn-danger svg,
+.btn-warning svg,
+.btn-delete svg,
+.btn-small svg,
+.action-btn svg,
+.edit-transfer-btn svg,
+.delete-transfer-btn svg,
+.edit-user-btn svg,
+.delete-user-btn svg,
+.edit-role-btn svg,
+.delete-role-btn svg {
+    width: 17px;
+    height: 17px;
+    stroke: currentColor;
+    stroke-width: 2;
+    fill: none;
+}
+
+.data-table tbody td,
+.data-table tbody td *,
+.analytics-table tbody td,
+.access-table tbody td,
+.access-table tbody td *,
+.finances-page .data-table tbody td,
+.finances-page .data-table tbody td *,
+.users-page .data-table tbody td,
+.users-page .data-table tbody td *,
+.settings-page .data-table tbody td,
+.settings-page .data-table tbody td * {
+    font-weight: 400 !important;
+}
+
+.data-table tbody strong,
+.analytics-table tbody strong,
+.finances-page .data-table tbody strong,
+.users-page .data-table tbody strong,
+.settings-page .data-table tbody strong {
+    font-weight: 400 !important;
+}

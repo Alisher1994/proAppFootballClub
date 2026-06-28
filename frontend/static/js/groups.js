@@ -1,4 +1,7 @@
 const DAY_LABELS = { 1: 'Пн', 2: 'Вт', 3: 'Ср', 4: 'Чт', 5: 'Пт', 6: 'Сб', 7: 'Вс' };
+const groupEditIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
+const groupTrashIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v5"/><path d="M14 11v5"/></svg>';
+const groupPhoneIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.35 1.9.65 2.8a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.9.3 1.84.52 2.8.65A2 2 0 0 1 22 16.92Z"/></svg>';
 let clubSettings = {
     working_days: [1, 2, 3, 4, 5],
     work_start_time: '09:00',
@@ -319,9 +322,9 @@ async function loadGroups() {
                 <td>${studentsDisplay}</td>
                 <td>${group.notes || '-'}</td>
                 <td>
-                    <button class="btn-small btn-success" onclick="sendGroupNotification(${group.id}, '${group.name}')" title="Отправить уведомления в Telegram">📱</button>
-                    <button class="btn-small btn-info" onclick="editGroup(${group.id})" title="Редактировать">✏️</button>
-                    <button class="btn-small btn-danger" onclick="deleteGroup(${group.id}, '${group.name}')" title="Удалить">🗑️</button>
+                    <button class="btn-small btn-success" onclick="sendGroupNotification(${group.id}, '${group.name}')" title="Отправить уведомления в Telegram">${groupPhoneIcon}</button>
+                    <button class="btn-small btn-info" onclick="editGroup(${group.id})" title="Редактировать">${groupEditIcon}</button>
+                    <button class="btn-small btn-danger" onclick="deleteGroup(${group.id}, '${group.name}')" title="Удалить">${groupTrashIcon}</button>
                 </td>
             </tr>
         `}).join('');

@@ -1,5 +1,7 @@
 // Хранилище данных
 let allTransfers = [];
+const cashEditIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
+const cashTrashIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v5"/><path d="M14 11v5"/></svg>';
 let currentBalance = 0;
 let cashDefaultFilterApplied = false;
 
@@ -97,8 +99,8 @@ function renderTransfersTable() {
                 <td>${transfer.notes ? escapeHtml(transfer.notes) : '-'}</td>
                 <td>${transfer.creator_name || 'Неизвестно'}</td>
                 <td>
-                    <button class="btn-info edit-transfer-btn" data-transfer-id="${transfer.id}" style="margin-right: 8px;" title="Изменить">✏️</button>
-                    <button class="btn-danger delete-transfer-btn" data-transfer-id="${transfer.id}" title="Удалить">🗑️</button>
+                    <button class="btn-info edit-transfer-btn" data-transfer-id="${transfer.id}" style="margin-right: 8px;" title="Изменить">${cashEditIcon}</button>
+                    <button class="btn-danger delete-transfer-btn" data-transfer-id="${transfer.id}" title="Удалить">${cashTrashIcon}</button>
                 </td>
             </tr>
         `;
@@ -107,14 +109,14 @@ function renderTransfersTable() {
     // Добавить обработчики событий для кнопок
     document.querySelectorAll('.edit-transfer-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
-            const transferId = parseInt(e.target.dataset.transferId);
+            const transferId = parseInt(e.target.closest('.edit-transfer-btn').dataset.transferId);
             editTransfer(transferId);
         });
     });
     
     document.querySelectorAll('.delete-transfer-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
-            const transferId = parseInt(e.target.dataset.transferId);
+            const transferId = parseInt(e.target.closest('.delete-transfer-btn').dataset.transferId);
             deleteTransfer(transferId);
         });
     });

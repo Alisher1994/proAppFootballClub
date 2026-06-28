@@ -1,3 +1,6 @@
+const studentEditIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
+const studentTrashIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v5"/><path d="M14 11v5"/></svg>';
+
 // Переключение поля причины для чёрного списка
 function toggleBlacklistReason() {
     const statusSelect = document.getElementById('statusSelect');
@@ -838,8 +841,8 @@ function showPaymentInput(monthName, monthData, tariffPrice) {
                         </div>
                         ${p.id ? `
                             <div style="display: flex; gap: 6px;">
-                                <button type="button" class="btn-small btn-info payment-edit-btn" data-payment-id="${p.id}" data-amount="${p.amount}" data-date="${p.date || ''}" data-notes="${p.notes || ''}" style="border-radius: 8px;">✏️</button>
-                                <button type="button" class="btn-small btn-danger payment-delete-btn" data-payment-id="${p.id}" style="border-radius: 8px;">🗑️</button>
+                                <button type="button" class="btn-small btn-info payment-edit-btn" data-payment-id="${p.id}" data-amount="${p.amount}" data-date="${p.date || ''}" data-notes="${p.notes || ''}" style="border-radius: 8px;" title="Изменить">${studentEditIcon}</button>
+                                <button type="button" class="btn-small btn-danger payment-delete-btn" data-payment-id="${p.id}" style="border-radius: 8px;" title="Удалить">${studentTrashIcon}</button>
                             </div>
                         ` : ''}
                     </div>

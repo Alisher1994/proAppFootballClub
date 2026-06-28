@@ -1173,23 +1173,24 @@
                         const totalIncome = data.months.reduce((acc, m) => acc + Number(m.income || 0), 0);
                         const totalExpense = data.months.reduce((acc, m) => acc + Number(m.expense || 0), 0);
                         const totalDebt = data.months.reduce((acc, m) => acc + Number(m.debt || 0), 0);
-                        const totalExpected = data.months.reduce((acc, m) => acc + Number(m.expected || 0), 0);
+                        const totalExpected = data.months.reduce((acc, m, index) => acc + (getCurrentMonthExpectedValue(m, index) || 0), 0);
                         const totalBalance = totalIncome - totalExpense;
 
-                        const rows = data.months.map(m => {
+                        const rows = data.months.map((m, index) => {
                             const balance = m.income - m.expense;
                             const balanceColor = balance >= 0 ? '#27ae60' : '#e74c3c';
+                            const expected = getCurrentMonthExpectedValue(m, index) || 0;
 
                             return `
                     <tr>
                         <td><strong>${m.month_name}</strong></td>
                         <td style="color: #27ae60;">${m.income.toLocaleString('ru-RU')}</td>
                         <td style="color: #e74c3c;">${m.expense.toLocaleString('ru-RU')}</td>
-                        <td style="color: ${balanceColor}; font-weight: bold;">
+                        <td style="color: ${balanceColor};">
                             ${balance.toLocaleString('ru-RU')}
                         </td>
-                        <td style="color: #f59e0b; font-weight: bold;">${Number(m.debt || 0).toLocaleString('ru-RU')}</td>
-                        <td style="color: #475569; font-weight: bold;">${Number(m.expected || 0).toLocaleString('ru-RU')}</td>
+                        <td style="color: #f59e0b;">${Number(m.debt || 0).toLocaleString('ru-RU')}</td>
+                        <td style="color: #475569;">${expected ? expected.toLocaleString('ru-RU') : '-'}</td>
                     </tr>
                 `;
                         }).join('');
@@ -1214,6 +1215,14 @@
                     } catch (error) {
                         console.error('Ошибка загрузки аналитики:', error);
                     }
+                }
+
+                function getCurrentMonthExpectedValue(month, index) {
+                    const now = new Date();
+                    const selectedYear = Number(document.getElementById('yearFilter')?.value || now.getFullYear());
+                    return selectedYear === now.getFullYear() && index === now.getMonth()
+                        ? Number(month.expected || 0)
+                        : null;
                 }
 
                 function drawFinanceChartJs(canvas, months) {
@@ -1247,7 +1256,7 @@
                                 },
                                 {
                                     label: 'Ожидание',
-                                    data: months.map(m => Number(m.expected || 0)),
+                                    data: months.map((m, index) => getCurrentMonthExpectedValue(m, index)),
                                     backgroundColor: '#64748b',
                                     borderRadius: 6,
                                     maxBarThickness: 34,
@@ -1327,7 +1336,7 @@
                                 },
                                 {
                                     label: 'Ожидание',
-                                    data: months.map(m => Number(m.expected || 0)),
+                                    data: months.map((m, index) => getCurrentMonthExpectedValue(m, index)),
                                     borderColor: '#64748b',
                                     backgroundColor: 'rgba(100, 116, 139, 0.08)',
                                     pointBackgroundColor: '#64748b',
@@ -1407,7 +1416,7 @@
                     const chartHeight = height - padding.top - padding.bottom;
 
                     // Находим максимум
-                    const maxValueRaw = Math.max(...months.map(m => Math.max(m.income, m.expense, m.debt || 0, m.expected || 0)));
+                    const maxValueRaw = Math.max(...months.map((m, index) => Math.max(m.income, m.expense, m.debt || 0, getCurrentMonthExpectedValue(m, index) || 0)));
                     const maxValue = maxValueRaw > 0 ? maxValueRaw * 1.15 : 1000000;
 
                     // Отрисовка сетки
@@ -1556,7 +1565,7 @@
                         const data = await res.json();
                         if (!data || !Array.isArray(data.months)) return;
                         const months = data.months;
-                        const maxVal = Math.max(1, ...months.flatMap(m => [m.income || 0, m.expense || 0, m.balance || 0, m.debt || 0, m.expected || 0]));
+                        const maxVal = Math.max(1, ...months.flatMap((m, index) => [m.income || 0, m.expense || 0, m.balance || 0, m.debt || 0, getCurrentMonthExpectedValue(m, index) || 0]));
 
                         // Render each month
                         document.querySelectorAll('.bars').forEach((barsEl, idx) => {
@@ -1566,7 +1575,7 @@
                                 { cls: '.expense', val: m.expense || 0 },
                                 { cls: '.balance', val: m.balance || 0 },
                                 { cls: '.debt', val: m.debt || 0 },
-                                { cls: '.expected', val: m.expected || 0 }
+                                { cls: '.expected', val: getCurrentMonthExpectedValue(m, idx) || 0 }
                             ];
                             items.forEach(item => {
                                 const bar = barsEl.querySelector(item.cls);
@@ -1641,12 +1650,12 @@
                     const padding = { top: 22, right: 18, bottom: 34, left: 34 };
                     const chartWidth = width - padding.left - padding.right;
                     const chartHeight = height - padding.top - padding.bottom;
-                    const maxValueRaw = Math.max(...months.map(m => Math.max(
+                    const maxValueRaw = Math.max(...months.map((m, index) => Math.max(
                         m.income || 0,
                         m.expense || 0,
                         m.balance ?? ((m.income || 0) - (m.expense || 0)),
                         m.debt || 0,
-                        m.expected || 0
+                        getCurrentMonthExpectedValue(m, index) || 0
                     )));
                     const maxValue = maxValueRaw > 0 ? maxValueRaw * 1.1 : 1;
 
@@ -1672,7 +1681,7 @@
                     }));
                     const expectedPoints = months.map((m, i) => ({
                         x: padding.left + stepX * i,
-                        y: getY(m.expected || 0)
+                        y: getY(getCurrentMonthExpectedValue(m, i) || 0)
                     }));
 
                     const incomeGradient = ctx.createLinearGradient(0, padding.top, 0, height - padding.bottom);

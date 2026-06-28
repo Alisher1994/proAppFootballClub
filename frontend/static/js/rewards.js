@@ -1,3 +1,6 @@
+const rewardEditIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
+const rewardTrashIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v5"/><path d="M14 11v5"/></svg>';
+
 // Загрузка вознаграждений
 async function loadRewards() {
     try {
@@ -26,8 +29,8 @@ async function loadRewards() {
                 <td><span style="color: #27ae60; font-weight: bold;">${r.points} балл${r.points === 1 ? '' : r.points < 5 ? 'а' : 'ов'}</span></td>
                 <td>${r.description || '-'}</td>
                 <td class="action-buttons">
-                    <button class="btn-small btn-info edit-reward-btn" data-reward-id="${r.id}">✏️</button>
-                    <button class="btn-small btn-danger delete-reward-btn" data-reward-id="${r.id}" data-reward-name="${r.name}">🗑️</button>
+                    <button class="btn-small btn-info edit-reward-btn" data-reward-id="${r.id}" title="Изменить">${rewardEditIcon}</button>
+                    <button class="btn-small btn-danger delete-reward-btn" data-reward-id="${r.id}" data-reward-name="${r.name}" title="Удалить">${rewardTrashIcon}</button>
                 </td>
             </tr>
         `).join('');
@@ -236,6 +239,5 @@ document.addEventListener('DOMContentLoaded', () => {
         loadRewards();
     }
 });
-
 
 

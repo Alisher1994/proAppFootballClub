@@ -2,6 +2,9 @@
 let allUsers = [];
 let allRoles = [];
 
+const editIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
+const trashIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v5"/><path d="M14 11v5"/></svg>';
+
 // Секции системы
 const sections = [
     { key: 'dashboard', name: 'Главная' },
@@ -82,8 +85,8 @@ function renderUsersTable() {
                 <td>${statusBadge}</td>
                 <td>${createdDate}</td>
                 <td>
-                    <button class="btn-info edit-user-btn" data-user-id="${user.id}" style="margin-right: 8px;" title="Изменить">✏️</button>
-                    <button class="btn-danger delete-user-btn" data-user-id="${user.id}" title="Удалить">🗑️</button>
+                    <button class="btn-info edit-user-btn" data-user-id="${user.id}" style="margin-right: 8px;" title="Изменить">${editIcon}</button>
+                    <button class="btn-danger delete-user-btn" data-user-id="${user.id}" title="Удалить">${trashIcon}</button>
                 </td>
             </tr>
         `;
@@ -144,8 +147,8 @@ function renderRolesTable() {
                 <td>${escapeHtml(role.description || '-')}</td>
                 <td>${role.users_count || 0}</td>
                 <td>
-                    <button class="btn-info edit-role-btn" data-role-id="${role.id}" style="margin-right: 8px;" title="Изменить">✏️</button>
-                    <button class="btn-danger delete-role-btn" data-role-id="${role.id}" title="Удалить">🗑️</button>
+                    <button class="btn-info edit-role-btn" data-role-id="${role.id}" style="margin-right: 8px;" title="Изменить">${editIcon}</button>
+                    <button class="btn-danger delete-role-btn" data-role-id="${role.id}" title="Удалить">${trashIcon}</button>
                 </td>
             </tr>
         `;
@@ -627,4 +630,3 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 });
-

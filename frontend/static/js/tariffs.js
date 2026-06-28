@@ -1,3 +1,6 @@
+const tariffEditIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
+const tariffTrashIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v5"/><path d="M14 11v5"/></svg>';
+
 // Загрузка тарифов
 async function loadTariffs() {
     try {
@@ -19,8 +22,8 @@ async function loadTariffs() {
                 <td>${t.price_per_lesson.toLocaleString('ru-RU')} сум</td>
                 <td>${t.description || '-'}</td>
                 <td class="action-buttons">
-                    <button class="btn-small btn-info edit-tariff-btn" data-tariff-id="${t.id}">✏️</button>
-                    <button class="btn-small btn-danger delete-tariff-btn" data-tariff-id="${t.id}" data-tariff-name="${t.name}">🗑️</button>
+                    <button class="btn-small btn-info edit-tariff-btn" data-tariff-id="${t.id}" title="Изменить">${tariffEditIcon}</button>
+                    <button class="btn-small btn-danger delete-tariff-btn" data-tariff-id="${t.id}" data-tariff-name="${t.name}" title="Удалить">${tariffTrashIcon}</button>
                 </td>
             </tr>
         `).join('');
