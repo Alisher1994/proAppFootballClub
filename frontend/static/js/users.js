@@ -119,6 +119,14 @@ function setUserPhotoPreview(url) {
     }
 }
 
+function setUserPhotoFileName(name) {
+    const fileName = document.getElementById('user-photo-file-name');
+    if (fileName) {
+        fileName.textContent = name || 'Файл не выбран';
+        fileName.title = name || '';
+    }
+}
+
 // Отображение таблицы ролей
 function renderRolesTable() {
     const tbody = document.getElementById('roles-table-body');
@@ -181,6 +189,7 @@ function openAddUserModal() {
         title.textContent = 'Добавить сотрудника';
         editId.value = '';
         form.reset();
+        setUserPhotoFileName('');
         document.getElementById('remove-user-photo').value = 'false';
         setUserPhotoPreview(null);
         passwordRequired.style.display = 'inline';
@@ -213,6 +222,7 @@ async function editUser(userId) {
         document.getElementById('user-is-active').checked = user.is_active !== false;
         document.getElementById('remove-user-photo').value = 'false';
         document.getElementById('user-photo').value = '';
+        setUserPhotoFileName('');
         setUserPhotoPreview(user.photo_url || null);
 
         passwordRequired.style.display = 'none';
@@ -233,6 +243,7 @@ function closeUserModal() {
         if (form) {
             form.reset();
             setUserPhotoPreview(null);
+            setUserPhotoFileName('');
         }
     }
 }
@@ -583,6 +594,7 @@ document.addEventListener('DOMContentLoaded', () => {
         userPhotoInput.addEventListener('change', () => {
             const file = userPhotoInput.files[0];
             document.getElementById('remove-user-photo').value = 'false';
+            setUserPhotoFileName(file ? file.name : '');
             setUserPhotoPreview(file ? URL.createObjectURL(file) : null);
         });
     }
@@ -592,6 +604,7 @@ document.addEventListener('DOMContentLoaded', () => {
         removeUserPhotoBtn.addEventListener('click', () => {
             document.getElementById('remove-user-photo').value = 'true';
             document.getElementById('user-photo').value = '';
+            setUserPhotoFileName('');
             setUserPhotoPreview(null);
         });
     }
@@ -614,5 +627,4 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 });
-
 

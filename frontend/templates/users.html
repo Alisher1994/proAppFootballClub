@@ -598,7 +598,7 @@
         }
 
         .users-page .form-input-modern,
-        .users-page .modal-content input,
+        .users-page .modal-content input:not([type="checkbox"]):not([type="file"]),
         .users-page .modal-content select,
         .users-page .modal-content textarea {
             min-height: 42px;
@@ -606,6 +606,115 @@
             border: 1px solid var(--ui-border);
             border-radius: 9px;
             box-shadow: none;
+        }
+
+        .users-page #roleModal input[type="checkbox"],
+        .users-page #permissions-grid input[type="checkbox"],
+        .users-page #user-is-active {
+            appearance: none !important;
+            -webkit-appearance: none !important;
+            -moz-appearance: none !important;
+            width: 18px !important;
+            height: 18px !important;
+            min-width: 18px !important;
+            max-width: 18px !important;
+            min-height: 18px !important;
+            max-height: 18px !important;
+            border-radius: 5px !important;
+            border-width: 1.5px !important;
+            background: #ffffff !important;
+            cursor: pointer !important;
+            position: relative !important;
+            flex: 0 0 18px !important;
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+
+        .users-page #roleModal input[type="checkbox"]:checked::after,
+        .users-page #permissions-grid input[type="checkbox"]:checked::after,
+        .users-page #user-is-active:checked::after {
+            content: '✓' !important;
+            position: absolute !important;
+            top: 50% !important;
+            left: 50% !important;
+            transform: translate(-50%, -50%) !important;
+            color: white !important;
+            font-size: 12px !important;
+            font-weight: 700 !important;
+            line-height: 1 !important;
+        }
+
+        .users-page #roleModal input[type="checkbox"]:checked,
+        .users-page #permissions-grid input[type="checkbox"]:checked,
+        .users-page #user-is-active:checked {
+            background: var(--ui-accent) !important;
+            border-color: var(--ui-accent) !important;
+        }
+
+        .users-page .permission-checkbox-label {
+            min-height: 26px;
+        }
+
+        .users-page .permission-toolbar {
+            min-height: 52px;
+        }
+
+        .users-page .switch-row {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 13px;
+            font-weight: 700;
+            color: #334155;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .users-page .file-picker {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .users-page .file-picker input[type="file"] {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            overflow: hidden;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .users-page .file-picker-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            min-height: 38px;
+            padding: 0 14px;
+            border: 1px solid var(--ui-border);
+            border-radius: 9px;
+            background: #f8fafc;
+            color: #334155;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: border-color .2s ease, background .2s ease;
+        }
+
+        .users-page .file-picker-button:hover {
+            border-color: var(--ui-accent);
+            background: var(--ui-accent-soft);
+        }
+
+        .users-page .file-picker-name {
+            min-width: 0;
+            color: #64748b;
+            font-size: 13px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
 
         .users-page #permissions-grid {
@@ -788,7 +897,20 @@
 
                             <div class="form-group">
                                 <label>📷 Фото для турникета</label>
-                                <input type="file" id="user-photo" class="form-input-modern" accept="image/*">
+                                <div class="file-picker">
+                                    <label class="file-picker-button" for="user-photo">
+                                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none"
+                                            stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                            stroke-linejoin="round" aria-hidden="true">
+                                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                            <path d="m17 8-5-5-5 5" />
+                                            <path d="M12 3v12" />
+                                        </svg>
+                                        Выбрать фото
+                                    </label>
+                                    <span class="file-picker-name" id="user-photo-file-name">Файл не выбран</span>
+                                    <input type="file" id="user-photo" accept="image/*">
+                                </div>
                                 <div id="user-photo-preview" style="display:none; align-items:center; gap:12px; margin-top:10px;">
                                     <img id="user-photo-preview-img" src="" alt="Фото сотрудника"
                                         style="width:64px; height:64px; object-fit:cover; border-radius:8px; border:1px solid var(--theme-border);">
@@ -813,8 +935,8 @@
                             </div>
 
                             <div class="form-group">
-                                <label>
-                                    <input type="checkbox" id="user-is-active" checked style="margin-right: 8px;">
+                                <label class="switch-row">
+                                    <input type="checkbox" id="user-is-active" checked>
                                     Активен
                                 </label>
                             </div>
