@@ -14,12 +14,33 @@ const editExpenseId = document.getElementById('editExpenseId');
 const addExpenseCategory = document.querySelector('#addExpenseForm select[name="category"]');
 const addExpenseEmployee = document.getElementById('addExpenseEmployee');
 const editExpenseEmployee = document.getElementById('editExpenseEmployee');
+const addSalaryMonth = document.getElementById('addSalaryMonth');
+const addSalaryYear = document.getElementById('addSalaryYear');
+const editSalaryMonth = document.getElementById('editSalaryMonth');
+const editSalaryYear = document.getElementById('editSalaryYear');
+
+function populateSalaryPeriod(monthSelect, yearSelect, selectedYear = null, selectedMonth = null) {
+    if (!monthSelect || !yearSelect) return;
+    const names = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
+    const now = new Date();
+    const year = selectedYear || now.getFullYear();
+    const month = selectedMonth || (now.getMonth() + 1);
+    monthSelect.innerHTML = names.map((name, index) => `<option value="${index + 1}">${name}</option>`).join('');
+    yearSelect.innerHTML = '';
+    for (let y = now.getFullYear() - 2; y <= now.getFullYear() + 1; y += 1) {
+        yearSelect.insertAdjacentHTML('beforeend', `<option value="${y}">${y}</option>`);
+    }
+    monthSelect.value = String(month);
+    yearSelect.value = String(year);
+}
 
 function syncSalaryEmployeeField(categorySelect, employeeSelect) {
     if (!categorySelect || !employeeSelect) return;
     const group = employeeSelect.closest('.salary-employee-group');
+    const periodGroup = group?.nextElementSibling?.classList.contains('salary-period-group') ? group.nextElementSibling : null;
     const isSalary = categorySelect.value === 'Зарплата';
     if (group) group.style.display = isSalary ? 'block' : 'none';
+    if (periodGroup) periodGroup.style.display = isSalary ? 'block' : 'none';
     if (isSalary) {
         employeeSelect.setAttribute('required', 'required');
     } else {
@@ -30,6 +51,7 @@ function syncSalaryEmployeeField(categorySelect, employeeSelect) {
 
 addExpenseBtn.addEventListener('click', () => {
     addExpenseModal.style.display = 'block';
+    populateSalaryPeriod(addSalaryMonth, addSalaryYear);
     syncSalaryEmployeeField(addExpenseCategory, addExpenseEmployee);
 });
 
@@ -67,7 +89,9 @@ document.getElementById('addExpenseForm').addEventListener('submit', async (e) =
         category: formData.get('category'),
         amount: formData.get('amount'),
         description: formData.get('description'),
-        employee_id: formData.get('category') === 'Зарплата' ? formData.get('employee_id') : null
+        employee_id: formData.get('category') === 'Зарплата' ? formData.get('employee_id') : null,
+        salary_month: formData.get('category') === 'Зарплата' ? formData.get('salary_month') : null,
+        salary_year: formData.get('category') === 'Зарплата' ? formData.get('salary_year') : null
     };
     
     try {
@@ -93,12 +117,13 @@ document.getElementById('addExpenseForm').addEventListener('submit', async (e) =
 // Открыть модалку редактирования
 document.querySelectorAll('.edit-expense-btn').forEach((btn) => {
     btn.addEventListener('click', () => {
-        const { id, category, amount, description, employeeId } = btn.dataset;
+        const { id, category, amount, description, employeeId, salaryYear, salaryMonth } = btn.dataset;
         editExpenseId.value = id;
         editCategory.value = category;
         editAmount.value = amount;
         editDescription.value = description || '';
         if (editExpenseEmployee) editExpenseEmployee.value = employeeId || '';
+        populateSalaryPeriod(editSalaryMonth, editSalaryYear, salaryYear ? Number(salaryYear) : null, salaryMonth ? Number(salaryMonth) : null);
         syncSalaryEmployeeField(editCategory, editExpenseEmployee);
         editExpenseModal.style.display = 'block';
     });
@@ -112,7 +137,9 @@ editExpenseForm.addEventListener('submit', async (e) => {
         category: editCategory.value,
         amount: editAmount.value,
         description: editDescription.value,
-        employee_id: editCategory.value === 'Зарплата' ? editExpenseEmployee?.value : null
+        employee_id: editCategory.value === 'Зарплата' ? editExpenseEmployee?.value : null,
+        salary_month: editCategory.value === 'Зарплата' ? editSalaryMonth?.value : null,
+        salary_year: editCategory.value === 'Зарплата' ? editSalaryYear?.value : null
     };
 
     const expenseId = editExpenseId.value;

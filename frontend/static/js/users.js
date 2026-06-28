@@ -33,7 +33,7 @@ async function loadUsers() {
         console.error('Ошибка загрузки пользователей:', error);
         const tbody = document.getElementById('users-table-body');
         if (tbody) {
-            tbody.innerHTML = '<tr><td colspan="7" class="info-text">Ошибка загрузки данных</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="8" class="info-text">Ошибка загрузки данных</td></tr>';
         }
     }
 }
@@ -62,7 +62,7 @@ function renderUsersTable() {
     if (!tbody) return;
 
     if (allUsers.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" class="info-text">Сотрудники не найдены</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" class="info-text">Сотрудники не найдены</td></tr>';
         return;
     }
 
@@ -72,6 +72,9 @@ function renderUsersTable() {
             : '<span style="color: #e74c3c; font-weight: 600;">✗ Неактивен</span>';
 
         const createdDate = user.created_at ? new Date(user.created_at).toLocaleDateString('ru-RU') : '-';
+        const salaryLabel = user.salary_type === 'floating'
+            ? 'Плавающая'
+            : (user.fixed_salary ? Number(user.fixed_salary).toLocaleString('ru-RU') + ' сум' : 'Фиксированная');
         const photoCell = user.photo_url
             ? `<img src="${escapeHtml(user.photo_url)}" alt="${escapeHtml(user.full_name || user.username)}" style="width:42px;height:42px;object-fit:cover;border-radius:8px;border:1px solid var(--theme-border);">`
             : '<span style="color:#94a3b8;font-size:12px;">Нет фото</span>';
@@ -82,6 +85,7 @@ function renderUsersTable() {
                 <td>${escapeHtml(user.username)}</td>
                 <td>${escapeHtml(user.full_name || '-')}</td>
                 <td>${escapeHtml(user.role_name || user.role || '-')}</td>
+                <td>${escapeHtml(salaryLabel)}</td>
                 <td>${statusBadge}</td>
                 <td>${createdDate}</td>
                 <td>
@@ -127,6 +131,18 @@ function setUserPhotoFileName(name) {
     if (fileName) {
         fileName.textContent = name || 'Файл не выбран';
         fileName.title = name || '';
+    }
+}
+
+function syncUserSalaryFields() {
+    const typeSelect = document.getElementById('user-salary-type');
+    const salaryInput = document.getElementById('user-fixed-salary');
+    if (!typeSelect || !salaryInput) return;
+    const isFixed = typeSelect.value !== 'floating';
+    salaryInput.disabled = !isFixed;
+    salaryInput.placeholder = isFixed ? 'Сумма' : 'Расчет позже';
+    if (!isFixed) {
+        salaryInput.value = '';
     }
 }
 
@@ -198,6 +214,9 @@ function openAddUserModal() {
         passwordRequired.style.display = 'inline';
         passwordHint.style.display = 'none';
         document.getElementById('user-password').required = true;
+        document.getElementById('user-salary-type').value = 'fixed';
+        document.getElementById('user-fixed-salary').value = '';
+        syncUserSalaryFields();
 
         modal.style.display = 'flex';
     }
@@ -222,6 +241,9 @@ async function editUser(userId) {
         document.getElementById('user-username').value = user.username;
         document.getElementById('user-full-name').value = user.full_name || '';
         document.getElementById('user-role-id').value = user.role_id || '';
+        document.getElementById('user-salary-type').value = user.salary_type || 'fixed';
+        document.getElementById('user-fixed-salary').value = user.fixed_salary || '';
+        syncUserSalaryFields();
         document.getElementById('user-is-active').checked = user.is_active !== false;
         document.getElementById('remove-user-photo').value = 'false';
         document.getElementById('user-photo').value = '';
@@ -260,6 +282,8 @@ async function saveUser(event) {
     const fullName = document.getElementById('user-full-name').value.trim();
     const password = document.getElementById('user-password').value;
     const roleId = document.getElementById('user-role-id').value;
+    const salaryType = document.getElementById('user-salary-type').value;
+    const fixedSalary = document.getElementById('user-fixed-salary').value;
     const isActive = document.getElementById('user-is-active').checked;
     const photo = document.getElementById('user-photo').files[0];
     const removePhoto = document.getElementById('remove-user-photo').value === 'true';
@@ -280,6 +304,8 @@ async function saveUser(event) {
         data.append('username', username);
         data.append('full_name', fullName);
         data.append('role_id', roleId || '');
+        data.append('salary_type', salaryType || 'fixed');
+        data.append('fixed_salary', salaryType === 'fixed' ? (fixedSalary || '') : '');
         data.append('is_active', isActive ? 'true' : 'false');
         data.append('remove_photo', removePhoto ? 'true' : 'false');
 
@@ -590,6 +616,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const userForm = document.getElementById('userForm');
     if (userForm) {
         userForm.addEventListener('submit', saveUser);
+    }
+
+    const salaryTypeSelect = document.getElementById('user-salary-type');
+    if (salaryTypeSelect) {
+        salaryTypeSelect.addEventListener('change', syncUserSalaryFields);
+        syncUserSalaryFields();
     }
 
     const userPhotoInput = document.getElementById('user-photo');

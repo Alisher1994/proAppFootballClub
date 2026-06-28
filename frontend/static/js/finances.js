@@ -455,7 +455,9 @@ function renderExpenseTable(expenses) {
                             data-amount="${e.amount}"
                             data-description="${escapeAttr(e.description || '')}"
                             data-source="${e.expense_source || 'cash'}"
-                            data-employee-id="${e.employee_id || ''}">
+                            data-employee-id="${e.employee_id || ''}"
+                            data-salary-year="${e.salary_year || ''}"
+                            data-salary-month="${e.salary_month || ''}">
                         ${financeEditIcon}
                     </button>
                     <button class="btn-small btn-danger delete-expense-btn" 
@@ -919,17 +921,45 @@ function populateExpenseEmployeeSelect(selectId, selectedId = '') {
     setupSearchableSelect(selectId, 'Поиск по ФИО...');
 }
 
-function toggleSalaryEmployeeField(categorySelectId, groupId, selectId) {
+function populateSalaryPeriod(prefix, selectedYear = null, selectedMonth = null) {
+    const monthSelect = document.getElementById(`${prefix}-salary-month`);
+    const yearSelect = document.getElementById(`${prefix}-salary-year`);
+    if (!monthSelect || !yearSelect) return;
+
+    const monthNames = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
+    const now = new Date();
+    const currentYear = selectedYear || now.getFullYear();
+    const currentMonth = selectedMonth || (now.getMonth() + 1);
+
+    monthSelect.innerHTML = monthNames.map((name, index) => `<option value="${index + 1}">${name}</option>`).join('');
+    yearSelect.innerHTML = '';
+    for (let year = now.getFullYear() - 2; year <= now.getFullYear() + 1; year += 1) {
+        yearSelect.insertAdjacentHTML('beforeend', `<option value="${year}">${year}</option>`);
+    }
+    monthSelect.value = String(currentMonth);
+    yearSelect.value = String(currentYear);
+}
+
+function toggleSalaryEmployeeField(categorySelectId, groupId, selectId, periodGroupId = '', periodPrefix = '') {
     const categorySelect = document.getElementById(categorySelectId);
     const group = document.getElementById(groupId);
     const employeeSelect = document.getElementById(selectId);
     if (!categorySelect || !group || !employeeSelect) return;
 
     const isSalary = categorySelect.value === 'Зарплата';
+    const periodGroup = periodGroupId ? document.getElementById(periodGroupId) : null;
     group.style.display = isSalary ? 'block' : 'none';
+    if (periodGroup) periodGroup.style.display = isSalary ? 'block' : 'none';
     if (isSalary) {
         employeeSelect.setAttribute('required', 'required');
         setupSearchableSelect(selectId, 'Поиск по ФИО...');
+        if (periodPrefix) {
+            const monthSelect = document.getElementById(`${periodPrefix}-salary-month`);
+            const yearSelect = document.getElementById(`${periodPrefix}-salary-year`);
+            if (!monthSelect?.value || !yearSelect?.value) {
+                populateSalaryPeriod(periodPrefix);
+            }
+        }
     } else {
         employeeSelect.value = '';
         employeeSelect.removeAttribute('required');
@@ -1965,7 +1995,8 @@ if (addExpenseBtn) {
         addExpenseForm.reset();
         await loadFinanceEmployees();
         populateExpenseEmployeeSelect('add-expense-employee');
-        toggleSalaryEmployeeField('add-expense-category', 'add-salary-employee-group', 'add-expense-employee');
+        populateSalaryPeriod('add-expense');
+        toggleSalaryEmployeeField('add-expense-category', 'add-salary-employee-group', 'add-expense-employee', 'add-salary-period-group', 'add-expense');
 
         // Сброс источника на кассу
         const sourceInput = document.getElementById('expense-source');
@@ -2010,13 +2041,17 @@ addExpenseForm.addEventListener('submit', async (e) => {
     }
     const expenseSource = (formData.get('expense_source') || 'cash');
     const employeeId = formData.get('employee_id') || null;
+    const salaryMonth = formData.get('salary_month') || null;
+    const salaryYear = formData.get('salary_year') || null;
 
     const data = {
         category: category,
         amount: parseFloat(formData.get('amount')),
         description: formData.get('description') || '',
         expense_source: expenseSource,
-        employee_id: category === 'Зарплата' ? employeeId : null
+        employee_id: category === 'Зарплата' ? employeeId : null,
+        salary_month: category === 'Зарплата' ? salaryMonth : null,
+        salary_year: category === 'Зарплата' ? salaryYear : null
     };
 
     try {
@@ -2063,6 +2098,8 @@ document.addEventListener('click', async (e) => {
         const description = btn.dataset.description;
         const source = btn.dataset.source || 'cash';
         const employeeId = btn.dataset.employeeId || '';
+        const salaryYear = btn.dataset.salaryYear || '';
+        const salaryMonth = btn.dataset.salaryMonth || '';
 
         // Преобразовать Encashment обратно в Инкасация для редактирования
         if (category === 'Encashment') {
@@ -2092,7 +2129,8 @@ document.addEventListener('click', async (e) => {
         document.getElementById('edit-description').value = description;
         await loadFinanceEmployees();
         populateExpenseEmployeeSelect('edit-expense-employee', employeeId);
-        toggleSalaryEmployeeField('edit-category', 'edit-salary-employee-group', 'edit-expense-employee');
+        populateSalaryPeriod('edit-expense', salaryYear ? Number(salaryYear) : null, salaryMonth ? Number(salaryMonth) : null);
+        toggleSalaryEmployeeField('edit-category', 'edit-salary-employee-group', 'edit-expense-employee', 'edit-salary-period-group', 'edit-expense');
 
         // Установить источник
         const editSourceInput = document.getElementById('edit-expense-source');
@@ -2139,13 +2177,17 @@ editExpenseForm.addEventListener('submit', async (e) => {
     const description = document.getElementById('edit-description').value || '';
     const expenseSource = document.getElementById('edit-expense-source').value || 'cash';
     const employeeId = document.getElementById('edit-expense-employee')?.value || null;
+    const salaryMonth = document.getElementById('edit-expense-salary-month')?.value || null;
+    const salaryYear = document.getElementById('edit-expense-salary-year')?.value || null;
 
     const data = {
         category: category,
         amount: amount,
         description: description,
         expense_source: expenseSource,
-        employee_id: category === 'Зарплата' ? employeeId : null
+        employee_id: category === 'Зарплата' ? employeeId : null,
+        salary_month: category === 'Зарплата' ? salaryMonth : null,
+        salary_year: category === 'Зарплата' ? salaryYear : null
     };
 
     try {
@@ -2356,12 +2398,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const editExpenseCategory = document.getElementById('edit-category');
     if (addExpenseCategory) {
         addExpenseCategory.addEventListener('change', () => {
-            toggleSalaryEmployeeField('add-expense-category', 'add-salary-employee-group', 'add-expense-employee');
+            toggleSalaryEmployeeField('add-expense-category', 'add-salary-employee-group', 'add-expense-employee', 'add-salary-period-group', 'add-expense');
         });
     }
     if (editExpenseCategory) {
         editExpenseCategory.addEventListener('change', () => {
-            toggleSalaryEmployeeField('edit-category', 'edit-salary-employee-group', 'edit-expense-employee');
+            toggleSalaryEmployeeField('edit-category', 'edit-salary-employee-group', 'edit-expense-employee', 'edit-salary-period-group', 'edit-expense');
         });
     }
 

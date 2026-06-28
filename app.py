@@ -5,6 +5,7 @@ import threading
 import time
 import queue
 import re
+import calendar
 import requests
 import cv2
 import numpy as np
@@ -1159,6 +1160,26 @@ def ensure_users_table_columns():
                 err_text = str(e).lower()
                 if "duplicate column" not in err_text and "duplicatecolumn" not in err_text:
                     print(f"Ошибка при добавлении photo_path: {e}")
+
+        if 'salary_type' not in columns:
+            try:
+                db.session.execute(db.text("ALTER TABLE users ADD COLUMN salary_type VARCHAR(20) DEFAULT 'fixed'"))
+                db.session.commit()
+                print("✓ Добавлена колонка salary_type в таблицу users")
+            except Exception as e:
+                db.session.rollback()
+                if "duplicate column" not in str(e).lower():
+                    print(f"Ошибка при добавлении salary_type: {e}")
+
+        if 'fixed_salary' not in columns:
+            try:
+                db.session.execute(db.text("ALTER TABLE users ADD COLUMN fixed_salary FLOAT"))
+                db.session.commit()
+                print("✓ Добавлена колонка fixed_salary в таблицу users")
+            except Exception as e:
+                db.session.rollback()
+                if "duplicate column" not in str(e).lower():
+                    print(f"Ошибка при добавлении fixed_salary: {e}")
         
         if 'is_active' not in columns:
             try:
@@ -1471,6 +1492,10 @@ def ensure_expense_columns():
             conn.execute(db.text("ALTER TABLE expenses ADD COLUMN employee_id INTEGER"))
         if 'employee_name' not in columns:
             conn.execute(db.text("ALTER TABLE expenses ADD COLUMN employee_name VARCHAR(200)"))
+        if 'salary_year' not in columns:
+            conn.execute(db.text("ALTER TABLE expenses ADD COLUMN salary_year INTEGER"))
+        if 'salary_month' not in columns:
+            conn.execute(db.text("ALTER TABLE expenses ADD COLUMN salary_month INTEGER"))
 
 
 def get_salary_expense_employee(data, category):
@@ -1493,6 +1518,39 @@ def get_salary_expense_employee(data, category):
     if not getattr(employee, 'is_active', True):
         raise ValueError('Нельзя выплатить зарплату неактивному сотруднику')
     return employee
+
+
+def parse_salary_period(data, category):
+    if category != 'Зарплата':
+        return None, None
+    if not data.get('salary_year') and not data.get('salary_month'):
+        today = get_local_date()
+        return today.year, today.month
+    try:
+        year = int(data.get('salary_year') or 0)
+        month = int(data.get('salary_month') or 0)
+    except (TypeError, ValueError):
+        raise ValueError('Некорректный месяц зарплаты')
+    if year < 2000 or year > 2100 or month < 1 or month > 12:
+        raise ValueError('Выберите месяц и год зарплаты')
+    return year, month
+
+
+def parse_user_salary_fields(data):
+    salary_type = (data.get('salary_type') or 'fixed').strip()
+    if salary_type not in {'fixed', 'floating'}:
+        salary_type = 'fixed'
+
+    fixed_salary = None
+    raw_salary = str(data.get('fixed_salary') or '').replace(' ', '').strip()
+    if salary_type == 'fixed' and raw_salary:
+        try:
+            fixed_salary = float(raw_salary)
+        except ValueError:
+            raise ValueError('Некорректная сумма фиксированной зарплаты')
+        if fixed_salary < 0:
+            raise ValueError('Зарплата не может быть отрицательной')
+    return salary_type, fixed_salary
 
 
 def ensure_students_columns():
@@ -3206,6 +3264,14 @@ def access_log_page():
     return render_template('access_log.html')
 
 
+@app.route('/staff-timesheet')
+@login_required
+def staff_timesheet_page():
+    if not current_user.has_permission('attendance', 'view'):
+        return redirect(url_for('dashboard'))
+    return render_template('staff_timesheet.html')
+
+
 def parse_access_event_time(value):
     if not value:
         return get_local_datetime()
@@ -3290,6 +3356,159 @@ def access_log_to_dict(log):
         'result': log.result,
         'source': log.source,
     }
+
+
+def staff_employee_no(user_id):
+    return f"900000{user_id}"
+
+
+def parse_staff_user_id(employee_no):
+    raw = str(employee_no or '').strip()
+    if raw.startswith('900000') and raw[6:].isdigit():
+        return int(raw[6:])
+    return None
+
+
+def format_minutes(minutes):
+    if not minutes or minutes <= 0:
+        return ''
+    hours = minutes // 60
+    rest = minutes % 60
+    if hours and rest:
+        return f"{hours} ч {rest} мин"
+    if hours:
+        return f"{hours} ч"
+    return f"{rest} мин"
+
+
+@app.route('/api/staff-timesheet', methods=['GET'])
+@login_required
+def staff_timesheet_data():
+    if not current_user.has_permission('attendance', 'view'):
+        return jsonify({'success': False, 'message': 'Доступ запрещен'}), 403
+
+    ensure_users_table_columns()
+    ensure_access_logs_table()
+    ensure_expense_columns()
+
+    today = get_local_date()
+    year = request.args.get('year', default=today.year, type=int) or today.year
+    month = request.args.get('month', default=today.month, type=int) or today.month
+    search = (request.args.get('search') or '').strip().lower()
+    if year < 2000 or year > 2100 or month < 1 or month > 12:
+        return jsonify({'success': False, 'message': 'Некорректный период'}), 400
+
+    _, days_in_month = calendar.monthrange(year, month)
+    start_date = date(year, month, 1)
+    end_date = date(year, month, days_in_month)
+    start_dt = datetime.combine(start_date, dt_time.min)
+    end_dt = datetime.combine(end_date + timedelta(days=1), dt_time.min)
+
+    users = User.query.order_by(User.full_name.asc(), User.username.asc()).all()
+    if search:
+        users = [
+            user for user in users
+            if search in (user.full_name or '').lower() or search in (user.username or '').lower()
+        ]
+    user_by_id = {user.id: user for user in users}
+    employee_nos = {staff_employee_no(user.id) for user in users}
+
+    logs = AccessLog.query.filter(
+        AccessLog.event_time >= start_dt,
+        AccessLog.event_time < end_dt,
+        AccessLog.result == 'granted',
+        db.or_(
+            AccessLog.person_type == 'staff',
+            AccessLog.employee_no.in_(employee_nos)
+        )
+    ).order_by(AccessLog.event_time.asc()).all()
+
+    day_map = {user.id: {day: {'entries': [], 'exits': [], 'all': []} for day in range(1, days_in_month + 1)} for user in users}
+    for log in logs:
+        user_id = parse_staff_user_id(log.employee_no)
+        if user_id not in user_by_id or str(log.employee_no) not in employee_nos:
+            continue
+        day = log.event_date.day if log.event_date else log.event_time.day
+        if day < 1 or day > days_in_month:
+            continue
+        bucket = day_map[user_id][day]
+        bucket['all'].append(log.event_time)
+        if log.direction == 'exit':
+            bucket['exits'].append(log.event_time)
+        else:
+            bucket['entries'].append(log.event_time)
+
+    salary_rows = Expense.query.filter(
+        Expense.category == 'Зарплата',
+        Expense.salary_year == year,
+        Expense.salary_month == month,
+        Expense.employee_id.isnot(None)
+    ).all()
+    paid_map = {}
+    for expense in salary_rows:
+        paid_map[expense.employee_id] = paid_map.get(expense.employee_id, 0) + float(expense.amount or 0)
+
+    days_meta = []
+    weekday_labels = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс']
+    for day in range(1, days_in_month + 1):
+        current = date(year, month, day)
+        days_meta.append({
+            'day': day,
+            'weekday': weekday_labels[current.weekday()],
+            'weekend': current.weekday() >= 5
+        })
+
+    rows = []
+    for index, user in enumerate(users, start=1):
+        total_minutes = 0
+        cells = []
+        for day in range(1, days_in_month + 1):
+            bucket = day_map[user.id][day]
+            entry_time = min(bucket['entries']) if bucket['entries'] else None
+            exit_time = max(bucket['exits']) if bucket['exits'] else None
+            single_time = None
+            minutes = 0
+            if entry_time and exit_time and exit_time > entry_time:
+                minutes = int((exit_time - entry_time).total_seconds() // 60)
+                total_minutes += minutes
+            elif bucket['all']:
+                single_time = min(bucket['all'])
+
+            cells.append({
+                'day': day,
+                'entry': entry_time.strftime('%H:%M') if entry_time else '',
+                'exit': exit_time.strftime('%H:%M') if exit_time else '',
+                'single': single_time.strftime('%H:%M') if single_time and not (entry_time or exit_time) else '',
+                'minutes': minutes,
+                'hours_label': format_minutes(minutes),
+                'has_data': bool(bucket['all'])
+            })
+
+        salary_paid = paid_map.get(user.id, 0)
+        rows.append({
+            'index': index,
+            'id': user.id,
+            'employee_no': staff_employee_no(user.id),
+            'full_name': user.full_name or user.username,
+            'username': user.username,
+            'role': user.role_obj.name if getattr(user, 'role_obj', None) else user.role,
+            'photo_url': build_photo_url(user.photo_path),
+            'salary_type': getattr(user, 'salary_type', 'fixed') or 'fixed',
+            'fixed_salary': float(user.fixed_salary or 0) if getattr(user, 'fixed_salary', None) is not None else None,
+            'salary_paid': salary_paid,
+            'salary_paid_label': f"{salary_paid:,.0f}".replace(',', ' ') + ' сум' if salary_paid else 'Не получил',
+            'total_minutes': total_minutes,
+            'total_hours_label': format_minutes(total_minutes) or '0 мин',
+            'days': cells
+        })
+
+    return jsonify({
+        'success': True,
+        'year': year,
+        'month': month,
+        'days': days_meta,
+        'rows': rows
+    })
 
 
 @app.route('/api/access-log', methods=['GET'])
@@ -3979,6 +4198,7 @@ def add_expense():
             source = 'cash'
         amount = float(data.get('amount'))
         employee = get_salary_expense_employee(data, category)
+        salary_year, salary_month = parse_salary_period(data, category)
         expense = Expense(
             category=category,
             amount=amount,
@@ -3986,6 +4206,8 @@ def add_expense():
             expense_source=source,
             employee_id=employee.id if employee else None,
             employee_name=(employee.full_name or employee.username) if employee else None,
+            salary_year=salary_year,
+            salary_month=salary_month,
             created_by=current_user.id
         )
         db.session.add(expense)
@@ -4055,9 +4277,14 @@ def update_expense(expense_id):
         if employee:
             expense.employee_id = employee.id
             expense.employee_name = employee.full_name or employee.username
+            salary_year, salary_month = parse_salary_period(data, expense.category)
+            expense.salary_year = salary_year
+            expense.salary_month = salary_month
         elif expense.category != 'Зарплата':
             expense.employee_id = None
             expense.employee_name = None
+            expense.salary_year = None
+            expense.salary_month = None
         
         # Обновить связанный платёж инкассации, если сумма изменилась
         if expense.category == 'Encashment' and new_amount != old_amount:
@@ -4938,7 +5165,9 @@ def get_expense_stats():
         'description': e.description,
         'expense_source': getattr(e, 'expense_source', 'cash') or 'cash',
         'employee_id': getattr(e, 'employee_id', None),
-        'employee_name': getattr(e, 'employee_name', None) or ''
+        'employee_name': getattr(e, 'employee_name', None) or '',
+        'salary_year': getattr(e, 'salary_year', None),
+        'salary_month': getattr(e, 'salary_month', None)
     } for e in expenses]
     
     return jsonify({
@@ -4962,6 +5191,8 @@ def get_finance_employees():
         'name': user.full_name or user.username,
         'username': user.username,
         'role': user.role_obj.name if getattr(user, 'role_obj', None) else user.role,
+        'salary_type': getattr(user, 'salary_type', 'fixed') or 'fixed',
+        'fixed_salary': getattr(user, 'fixed_salary', None),
         'is_active': bool(getattr(user, 'is_active', True))
     } for user in users if getattr(user, 'is_active', True)]
 
@@ -6604,6 +6835,8 @@ def get_users():
             'is_active': user.is_active,
             'photo_path': user.photo_path,
             'photo_url': build_photo_url(user.photo_path),
+            'salary_type': getattr(user, 'salary_type', 'fixed') or 'fixed',
+            'fixed_salary': getattr(user, 'fixed_salary', None),
             'created_at': user.created_at.isoformat() if user.created_at else None
         })
     
@@ -6624,6 +6857,7 @@ def create_user():
         full_name = data.get('full_name', '').strip()
         role_id = data.get('role_id') or None
         is_active = str(data.get('is_active', 'true')).lower() in ('true', '1', 'on', 'yes')
+        salary_type, fixed_salary = parse_user_salary_fields(data)
         
         if not username:
             return jsonify({'success': False, 'message': 'Введите имя пользователя'}), 400
@@ -6642,6 +6876,8 @@ def create_user():
             full_name=full_name,
             role_id=role_id,
             role='custom' if role_id else 'admin',  # Для обратной совместимости
+            salary_type=salary_type,
+            fixed_salary=fixed_salary,
             is_active=is_active
         )
         
@@ -6660,9 +6896,14 @@ def create_user():
                 'id': user.id,
                 'username': user.username,
                 'full_name': user.full_name,
-                'role_id': user.role_id
+                'role_id': user.role_id,
+                'salary_type': user.salary_type,
+                'fixed_salary': user.fixed_salary
             }
         })
+    except ValueError as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 400
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'message': str(e)}), 500
@@ -6687,6 +6928,7 @@ def update_user(user_id):
         role_id = data.get('role_id')
         is_active = data.get('is_active')
         remove_photo = str(data.get('remove_photo', '')).lower() in ('true', '1', 'on', 'yes')
+        salary_type, fixed_salary = parse_user_salary_fields(data)
         
         if username and username != user.username:
             if User.query.filter_by(username=username).first():
@@ -6708,6 +6950,9 @@ def update_user(user_id):
         
         if is_active is not None:
             user.is_active = str(is_active).lower() in ('true', '1', 'on', 'yes')
+
+        user.salary_type = salary_type
+        user.fixed_salary = fixed_salary
 
         if remove_photo and user.photo_path:
             old_path = user.photo_path
@@ -6735,6 +6980,9 @@ def update_user(user_id):
             'success': True,
             'message': 'Пользователь успешно обновлен'
         })
+    except ValueError as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 400
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'message': str(e)}), 500

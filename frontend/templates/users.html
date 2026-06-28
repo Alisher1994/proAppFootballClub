@@ -819,6 +819,7 @@
                                 <th>Имя пользователя</th>
                                 <th>Полное имя</th>
                                 <th>Роль</th>
+                                <th>Зарплата</th>
                                 <th>Статус</th>
                                 <th>Дата создания</th>
                                 <th>Действия</th>
@@ -826,7 +827,7 @@
                         </thead>
                         <tbody id="users-table-body">
                             <tr>
-                                <td colspan="7" class="info-text">Загрузка...</td>
+                                <td colspan="8" class="info-text">Загрузка...</td>
                             </tr>
                         </tbody>
                     </table>
@@ -932,6 +933,18 @@
                                 <select id="user-role-id" class="form-input-modern">
                                     <option value="">Выберите роль</option>
                                 </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Зарплата</label>
+                                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                                    <select id="user-salary-type" class="form-input-modern">
+                                        <option value="fixed">Фиксированная</option>
+                                        <option value="floating">Плавающая</option>
+                                    </select>
+                                    <input type="number" id="user-fixed-salary" class="form-input-modern"
+                                        min="0" step="1000" placeholder="Сумма">
+                                </div>
                             </div>
 
                             <div class="form-group">

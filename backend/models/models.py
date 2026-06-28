@@ -30,6 +30,8 @@ class User(UserMixin, db.Model):
     group_id = db.Column(db.Integer, db.ForeignKey('groups.id'), nullable=True)  # Для учителей - их группа
     full_name = db.Column(db.String(200))  # Полное имя пользователя
     photo_path = db.Column(db.String(300))  # Фото для Face ID / турникета
+    salary_type = db.Column(db.String(20), default='fixed')  # fixed | floating
+    fixed_salary = db.Column(db.Float, nullable=True)
     is_active = db.Column(db.Boolean, default=True)  # Активен ли пользователь
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
@@ -436,6 +438,8 @@ class Expense(db.Model):
     expense_source = db.Column(db.String(50), default='cash')  # cash | bank
     employee_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
     employee_name = db.Column(db.String(200), nullable=True)
+    salary_year = db.Column(db.Integer, nullable=True)
+    salary_month = db.Column(db.Integer, nullable=True)
     
     def __repr__(self):
         return f'<Expense {self.category} {self.amount}>'
