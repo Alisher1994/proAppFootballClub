@@ -2715,7 +2715,9 @@ body.theme-light .modal-body-scrollable::-webkit-scrollbar-thumb:hover {
     align-items: center;
     justify-content: flex-end;
     min-height: 100vh;
-    background: #000000;
+    background:
+        radial-gradient(circle at 30% 20%, rgba(96, 165, 250, 0.18), transparent 34%),
+        linear-gradient(135deg, #e8eef7 0%, #f8fafc 48%, #dbe7f5 100%);
     position: relative;
     overflow: hidden;
     --grid-x: 50;
@@ -2725,14 +2727,19 @@ body.theme-light .modal-body-scrollable::-webkit-scrollbar-thumb:hover {
     --grid-skew: 0;
 }
 
-.login-bg-video {
+.login-bg-image {
     position: absolute;
-    inset: 0;
-    width: 100%;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: calc(100% - 430px);
     height: 100%;
-    object-fit: cover;
-    opacity: 0.35;
+    object-fit: contain;
+    object-position: center;
+    padding: clamp(18px, 4vw, 72px);
+    opacity: 0.88;
     z-index: 0;
+    filter: drop-shadow(0 24px 42px rgba(15, 23, 42, 0.18));
 }
 
 .login-page::before {
@@ -2741,13 +2748,13 @@ body.theme-light .modal-body-scrollable::-webkit-scrollbar-thumb:hover {
     width: 200%;
     height: 200%;
     background-image:
-        linear-gradient(rgba(255, 255, 255, 0.18) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(255, 255, 255, 0.18) 1px, transparent 1px);
+        linear-gradient(rgba(37, 99, 235, 0.08) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(37, 99, 235, 0.08) 1px, transparent 1px);
     background-size: 100px 100px;
     transform: translate(calc(var(--grid-offset-x) * 1px),
             calc(var(--grid-offset-y) * 1px)) skewX(calc(var(--grid-skew) * 1deg));
     filter: url(#login-waves);
-    opacity: 0.75;
+    opacity: 0.45;
     z-index: 1;
 }
 
@@ -2759,7 +2766,7 @@ body.theme-light .modal-body-scrollable::-webkit-scrollbar-thumb:hover {
     content: '';
     position: absolute;
     inset: -20%;
-    background: radial-gradient(800px 400px at calc(var(--grid-x) * 1%) calc(var(--grid-y) * 1%), rgba(255, 255, 255, 0.12), transparent 60%);
+    background: radial-gradient(800px 400px at calc(var(--grid-x) * 1%) calc(var(--grid-y) * 1%), rgba(37, 99, 235, 0.12), transparent 60%);
     animation: glowShift 12s ease-in-out infinite;
     pointer-events: none;
     z-index: 2;
@@ -2872,31 +2879,34 @@ body.theme-light .modal-body-scrollable::-webkit-scrollbar-thumb:hover {
 
 .login-box .btn-primary {
     align-self: center;
-    min-width: 142px;
-    height: 48px;
+    min-width: 176px;
+    height: 52px;
     margin-top: 4px;
     position: relative;
     overflow: hidden;
     background:
-        linear-gradient(135deg, rgba(255, 255, 255, 0.16), transparent 34%),
-        linear-gradient(135deg, #8b5cf6 0%, #5b21b6 48%, #2563eb 100%);
+        linear-gradient(135deg, rgba(255, 255, 255, 0.32), transparent 24%),
+        linear-gradient(180deg, rgba(59, 130, 246, 0.18), rgba(30, 64, 175, 0.28)),
+        linear-gradient(135deg, #2563eb 0%, #4f46e5 52%, #2563eb 100%);
     color: #ffffff;
-    border: 1px solid rgba(147, 197, 253, 0.6);
-    border-radius: 12px;
+    border: 1px solid rgba(125, 211, 252, 0.95);
+    border-radius: 8px;
+    clip-path: polygon(13px 0, calc(100% - 13px) 0, 100% 13px, 100% calc(100% - 10px), calc(100% - 10px) 100%, 10px 100%, 0 calc(100% - 13px), 0 13px);
     box-shadow:
-        0 12px 28px rgba(79, 70, 229, 0.38),
-        0 0 0 1px rgba(255, 255, 255, 0.1) inset,
-        0 0 24px rgba(37, 99, 235, 0.22);
+        0 14px 30px rgba(37, 99, 235, 0.34),
+        0 0 0 1px rgba(219, 234, 254, 0.2) inset,
+        0 0 24px rgba(14, 165, 233, 0.22);
     font-weight: 800;
-    letter-spacing: 0;
-    text-shadow: 0 1px 0 rgba(15, 23, 42, 0.45);
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    text-shadow: 0 1px 0 rgba(15, 23, 42, 0.42);
 }
 
 .login-box .btn-primary::before {
     content: '';
     position: absolute;
     inset: 0;
-    background: linear-gradient(120deg, transparent 0%, rgba(255, 255, 255, 0.36) 42%, transparent 62%);
+    background: linear-gradient(120deg, transparent 0%, rgba(186, 230, 253, 0.55) 42%, transparent 62%);
     transform: translateX(-130%);
     transition: transform 0.55s ease;
 }
@@ -2904,21 +2914,25 @@ body.theme-light .modal-body-scrollable::-webkit-scrollbar-thumb:hover {
 .login-box .btn-primary::after {
     content: '';
     position: absolute;
-    left: 16px;
-    right: 16px;
-    bottom: 6px;
+    left: 20px;
+    right: 20px;
+    bottom: 7px;
     height: 2px;
     border-radius: 999px;
-    background: rgba(191, 219, 254, 0.72);
-    box-shadow: 0 0 12px rgba(147, 197, 253, 0.8);
+    background: rgba(125, 211, 252, 0.86);
+    box-shadow: 0 0 14px rgba(56, 189, 248, 0.88);
 }
 
 .login-box .btn-primary:hover {
     transform: translateY(-2px);
+    background:
+        linear-gradient(135deg, rgba(255, 255, 255, 0.36), transparent 24%),
+        linear-gradient(180deg, rgba(34, 211, 238, 0.2), rgba(30, 64, 175, 0.32)),
+        linear-gradient(135deg, #1d4ed8 0%, #4338ca 52%, #0ea5e9 100%);
     box-shadow:
-        0 16px 34px rgba(79, 70, 229, 0.48),
-        0 0 0 1px rgba(255, 255, 255, 0.16) inset,
-        0 0 30px rgba(37, 99, 235, 0.3);
+        0 18px 36px rgba(37, 99, 235, 0.42),
+        0 0 0 1px rgba(219, 234, 254, 0.22) inset,
+        0 0 34px rgba(14, 165, 233, 0.34);
 }
 
 .login-box .btn-primary:hover::before {
@@ -3021,6 +3035,12 @@ body.theme-light .modal-body-scrollable::-webkit-scrollbar-thumb:hover {
         min-height: 100vh;
         padding: 24px;
         align-items: center;
+    }
+
+    .login-bg-image {
+        width: 100%;
+        opacity: 0.22;
+        padding: 18px;
     }
 
     .login-box {

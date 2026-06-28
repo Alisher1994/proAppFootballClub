@@ -10,9 +10,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body class="login-page">
-    <video class="login-bg-video" autoplay muted loop playsinline>
-        <source src="{{ url_for('static', filename='uploads/background.mp4') }}" type="video/mp4">
-    </video>
+    <img class="login-bg-image" src="{{ url_for('static', filename='uploads/poster.png') }}" alt="" aria-hidden="true">
     <svg class="login-bg-filter" width="0" height="0" aria-hidden="true" focusable="false">
         <filter id="login-waves">
             <feTurbulence type="fractalNoise" baseFrequency="0.008" numOctaves="2" seed="2">
