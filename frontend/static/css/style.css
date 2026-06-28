@@ -3030,10 +3030,12 @@ body.theme-light .modal-body-scrollable::-webkit-scrollbar-thumb:hover {
 .bars {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    gap: 6px;
+    gap: 7px;
     align-items: end;
-    height: 80px;
+    height: 88px;
     margin-bottom: 4px;
+    padding-top: 14px;
+    overflow: visible;
 }
 
 .bar {
@@ -3041,16 +3043,21 @@ body.theme-light .modal-body-scrollable::-webkit-scrollbar-thumb:hover {
     border-radius: 6px 6px 0 0;
     background: #ecf0f1;
     position: relative;
+    min-height: 2px;
 }
 
 .bar .bar-value {
     position: absolute;
     left: 50%;
     transform: translateX(-50%);
-    bottom: 4px;
-    color: #ffffff;
-    font-size: 0.7rem;
-    font-weight: 600;
+    bottom: calc(100% + 3px);
+    color: #1f2937;
+    font-size: 0.56rem;
+    font-weight: 700;
+    line-height: 1;
+    white-space: nowrap;
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.85);
+    pointer-events: none;
 }
 
 .bar.income {

@@ -216,19 +216,20 @@
         /* Сетка групп */
         .groups-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-            gap: 16px;
+            grid-template-columns: repeat(auto-fill, minmax(240px, 300px));
+            gap: 14px;
         }
 
         .group-card {
             background: var(--theme-bg-secondary);
-            border-radius: 16px;
-            padding: 20px;
+            border-radius: 12px;
+            padding: 14px 16px;
             cursor: pointer;
             transition: transform 0.2s, box-shadow 0.2s;
             border: 1px solid var(--theme-border);
             position: relative;
             overflow: hidden;
+            min-height: 118px;
         }
 
         .group-card:hover {
@@ -250,30 +251,43 @@
         .group-header {
             display: flex;
             justify-content: space-between;
-            align-items: center;
-            margin-bottom: 12px;
+            align-items: flex-start;
+            gap: 12px;
+            margin-bottom: 14px;
         }
 
         .group-name {
-            font-size: 1.25rem;
+            min-width: 0;
+            font-size: 1.05rem;
+            line-height: 1.28;
             font-weight: 700;
             color: var(--theme-text-primary);
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            overflow-wrap: anywhere;
         }
 
         .group-time {
             background: var(--theme-bg-tertiary);
-            padding: 4px 10px;
+            flex: 0 0 auto;
+            padding: 5px 8px;
             border-radius: 8px;
-            font-size: 0.875rem;
+            font-size: 0.78rem;
+            line-height: 1.35;
             font-weight: 600;
             color: var(--theme-text-secondary);
+            max-width: 92px;
+            text-align: left;
+            overflow-wrap: anywhere;
         }
 
         .group-stats {
             display: flex;
-            gap: 16px;
+            gap: 12px;
             color: var(--theme-text-secondary);
-            font-size: 0.9rem;
+            font-size: 0.82rem;
         }
 
         .stat-item {

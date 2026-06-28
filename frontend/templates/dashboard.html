@@ -1537,7 +1537,7 @@
                                     bar.style.height = pct + '%';
                                     const valEl = bar.querySelector('.bar-value');
                                     if (valEl) {
-                                        valEl.textContent = item.val ? new Intl.NumberFormat('ru-RU').format(item.val) : '';
+                                        valEl.textContent = item.val ? formatMoneyShort(item.val) : '';
                                     }
                                 }
                             });
