@@ -161,5 +161,5 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
     const currentYear = new Date().getFullYear();
     const yearText = currentYear > startYear ? `${startYear} - ${currentYear}` : `${startYear}`;
 
-    ticker.innerHTML = `По вопросам улучшения или системного сбоя: <a href="https://t.me/alishermusayev94" target="_blank" rel="noopener">Telegram</a> | 📞+998 99 4067406 Алишер - Приложение разработано YTT "MUSAYEV ALISHER" ${yearText}`;
+    ticker.innerHTML = `Поддержка и улучшения системы&nbsp;&nbsp;|&nbsp;&nbsp;<a href="https://t.me/alishermusayev94" target="_blank" rel="noopener">Telegram</a>&nbsp;&nbsp;|&nbsp;&nbsp;+998 99 4067406 Алишер&nbsp;&nbsp;|&nbsp;&nbsp;Разработано YTT "MUSAYEV ALISHER" ${yearText}`;
 })();
