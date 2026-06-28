@@ -2103,13 +2103,12 @@
                                     <div class="form-group">
                                         <label>Правило допуска по оплате</label>
                                         <select id="access_payment_policy" class="form-input-modern">
-                                            <option value="partial_current_month">Часть оплаты за этот месяц</option>
-                                            <option value="any_payment_this_month">Любая оплата в этом месяце</option>
-                                            <option value="full_current_month">Месяц оплачен полностью</option>
+                                            <option value="partial_current_month">Частичная оплата за этот месяц, без долгов за прошлые месяцы</option>
+                                            <option value="any_payment_this_month">Частичная оплата за этот месяц, с долгами за прошлые месяцы</option>
+                                            <option value="full_current_month">Пропуск только при 100% оплате и без долгов за прошлые месяцы</option>
                                         </select>
                                         <small>
-                                            Для рассрочки выберите частичную оплату. Для старых долгов, которые догоняют
-                                            сейчас, выберите любую оплату в этом календарном месяце.
+                                            Если родители догоняют старые долги, выберите вариант с долгами за прошлые месяцы.
                                         </small>
                                     </div>
                                     <div class="form-group">
