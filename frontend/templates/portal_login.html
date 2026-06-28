@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Вход - {{ system_name }}</title>
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='uploads/favicon.png') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <style>
         .portal-login {
@@ -59,19 +60,7 @@
     </style>
 </head>
 <body class="login-page">
-    <video class="login-bg-video" autoplay muted loop playsinline>
-        <source src="{{ url_for('static', filename='uploads/background.mp4') }}" type="video/mp4">
-    </video>
-    <svg class="login-bg-filter" width="0" height="0" aria-hidden="true" focusable="false">
-        <filter id="login-waves">
-            <feTurbulence type="fractalNoise" baseFrequency="0.008" numOctaves="2" seed="2">
-                <animate attributeName="baseFrequency" dur="8s" values="0.006;0.012;0.006" repeatCount="indefinite" />
-            </feTurbulence>
-            <feDisplacementMap in="SourceGraphic" scale="18">
-                <animate attributeName="scale" dur="6s" values="12;24;12" repeatCount="indefinite" />
-            </feDisplacementMap>
-        </filter>
-    </svg>
+    <img class="login-bg-image" src="{{ url_for('static', filename='uploads/poster.png') }}" alt="" aria-hidden="true">
     <div class="portal-login">
         <div class="portal-login-card">
             <div class="login-brand" style="margin-bottom: 10px;">

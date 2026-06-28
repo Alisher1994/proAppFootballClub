@@ -7,20 +7,11 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='uploads/favicon.png') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body class="login-page">
     <img class="login-bg-image" src="{{ url_for('static', filename='uploads/poster.png') }}" alt="" aria-hidden="true">
-    <svg class="login-bg-filter" width="0" height="0" aria-hidden="true" focusable="false">
-        <filter id="login-waves">
-            <feTurbulence type="fractalNoise" baseFrequency="0.008" numOctaves="2" seed="2">
-                <animate attributeName="baseFrequency" dur="8s" values="0.006;0.012;0.006" repeatCount="indefinite" />
-            </feTurbulence>
-            <feDisplacementMap in="SourceGraphic" scale="18">
-                <animate attributeName="scale" dur="6s" values="12;24;12" repeatCount="indefinite" />
-            </feDisplacementMap>
-        </filter>
-    </svg>
     <div class="login-container">
         <div class="login-box">
             <div class="login-brand">
