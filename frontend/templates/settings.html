@@ -2216,9 +2216,15 @@
                                     </div>
                                 </div>
                                 <div style="border:1px solid var(--theme-border); border-radius:8px; overflow:hidden;">
-                                    <div style="display:flex; justify-content:space-between; gap:12px; padding:10px 12px; background:var(--theme-bg-secondary); border-bottom:1px solid var(--theme-border);">
+                                    <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; padding:10px 12px; background:var(--theme-bg-secondary); border-bottom:1px solid var(--theme-border);">
                                         <strong>Live-логи Bridge</strong>
-                                        <span style="color:var(--theme-text-secondary); font-size:12px;">Последние 500 строк</span>
+                                        <div style="display:flex; align-items:center; gap:8px;">
+                                            <span style="color:var(--theme-text-secondary); font-size:12px;">Последние 500 строк</span>
+                                            <button type="button" id="copyBridgeLogsBtn" class="btn-secondary" style="height:32px; padding:0 10px; border-radius:8px; font-size:12px;" title="Скопировать лог">
+                                                <i data-lucide="copy" style="width:14px; height:14px;"></i>
+                                                Скопировать
+                                            </button>
+                                        </div>
                                     </div>
                                     <pre id="bridgeLiveLogs" style="margin:0; height:260px; overflow:auto; padding:12px; background:#0f172a; color:#e5eefb; font-family:Consolas, monospace; font-size:12px; line-height:1.45; white-space:pre-wrap;">Логи пока не получены.</pre>
                                 </div>

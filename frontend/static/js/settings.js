@@ -88,6 +88,8 @@ async function initSettings() {
 
     const bridgeResultsBtn = document.getElementById('bridgeResultsBtn');
     if (bridgeResultsBtn) bridgeResultsBtn.addEventListener('click', openBridgeResultsModal);
+    const copyBridgeLogsBtn = document.getElementById('copyBridgeLogsBtn');
+    if (copyBridgeLogsBtn) copyBridgeLogsBtn.addEventListener('click', copyBridgeLiveLogs);
     ['bridgeResultsDeviceFilter', 'bridgeResultsTypeFilter', 'bridgeResultsSearch'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.addEventListener(id === 'bridgeResultsSearch' ? 'input' : 'change', renderBridgeResultsList);
@@ -959,6 +961,27 @@ function setBridgeLogs(logs) {
     if (nearBottom) el.scrollTop = el.scrollHeight;
 }
 
+async function copyBridgeLiveLogs() {
+    const el = document.getElementById('bridgeLiveLogs');
+    const btn = document.getElementById('copyBridgeLogsBtn');
+    const text = el?.innerText || '';
+    if (!text.trim()) return;
+    try {
+        await navigator.clipboard.writeText(text);
+        if (btn) {
+            const previous = btn.innerHTML;
+            btn.innerHTML = '<i data-lucide="check" style="width:14px; height:14px;"></i> Скопировано';
+            if (window.lucide) window.lucide.createIcons();
+            setTimeout(() => {
+                btn.innerHTML = previous;
+                if (window.lucide) window.lucide.createIcons();
+            }, 1600);
+        }
+    } catch (error) {
+        alert('Не удалось скопировать лог');
+    }
+}
+
 function bridgeLogLevelLabel(level) {
     if (level === 'ERROR') return 'ОШИБКА';
     if (level === 'WARN') return 'ВНИМАНИЕ';
@@ -969,6 +992,23 @@ function formatBridgeLogMessage(message) {
     let text = String(message || '');
     text = text.replace(/\[entry\]/gi, '[Вход]');
     text = text.replace(/\[exit\]/gi, '[Выход]');
+    text = text.replace(/\bentry\b/gi, 'вход');
+    text = text.replace(/\bexit\b/gi, 'выход');
+    text = text.replace(/server command 502/gi, 'сервер Railway временно недоступен (502)');
+    text = text.replace(/server command (\d+)/gi, 'сервер вернул ошибку $1');
+    text = text.replace(/offline backoff active for (\d+)s/gi, 'терминал не отвечает, повторная попытка через $1 сек');
+    text = text.replace(/reason=no_photo/gi, 'причина: нет фото');
+    text = text.replace(/reason=([^,\s]+)/gi, 'причина: $1');
+    text = text.replace(/paidThisMonth=(\d+)/gi, 'оплачено в этом месяце=$1');
+    text = text.replace(/paid=(\d+)/gi, 'оплачено=$1');
+    text = text.replace(/debt=(\d+)/gi, 'долг=$1');
+    text = text.replace(/paymentExempt=(yes|true)/gi, 'льгота по оплате=да');
+    text = text.replace(/paymentExempt=(no|false)/gi, 'льгота по оплате=нет');
+    text = text.replace(/photo=(yes|true)/gi, 'фото=есть');
+    text = text.replace(/photo=(no|false)/gi, 'фото=нет');
+    text = text.replace(/\[sync\] summary \{"enabled":(\d+),"no_photo":(\d+)\}/i,
+        '[sync] Итог списка: к записи готово $1, без фото $2');
+    text = text.replace(/\[sync\] skip (.+)/i, '[sync] Пропущено: $1');
     text = text.replace(/\[bridge\] command polling (\d+)ms, daily full sync ([^ ]+) Asia\/Tashkent/i,
         'Bridge запущен. Проверка очереди каждые $1 мс, полная синхронизация в $2');
     text = text.replace(/\[bridge\] (\d+) Hikvision terminal\(s\) -> (.+)/i,
@@ -1134,7 +1174,9 @@ function showHikvisionLog(id, createdTime, logText) {
     if (modal && idSpan && timeSpan && textEl) {
         idSpan.textContent = `#${id}`;
         timeSpan.textContent = formatDateTime(createdTime);
-        textEl.textContent = logText || 'Нет записей в логе.';
+        textEl.textContent = logText
+            ? String(logText).split('\n').map(formatBridgeLogMessage).join('\n')
+            : 'Нет записей в логе.';
         modal.style.display = 'block';
     }
 }

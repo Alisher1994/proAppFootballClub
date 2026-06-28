@@ -1305,7 +1305,13 @@
                                 },
                             },
                             scales: {
-                                x: { grid: { display: false } },
+                                x: {
+                                    grid: {
+                                        display: true,
+                                        color: 'rgba(148, 163, 184, 0.28)',
+                                        drawBorder: false,
+                                    },
+                                },
                                 y: {
                                     beginAtZero: true,
                                     grid: { color: '#e2e8f0', borderDash: [4, 4] },
@@ -1648,6 +1654,13 @@
                             ctx.beginPath();
                             ctx.moveTo(padding.left, y);
                             ctx.lineTo(width - padding.right, y);
+                            ctx.stroke();
+                        }
+                        for (let i = 0; i < months.length; i++) {
+                            const x = padding.left + stepX * i;
+                            ctx.beginPath();
+                            ctx.moveTo(x, padding.top);
+                            ctx.lineTo(x, padding.top + chartHeight);
                             ctx.stroke();
                         }
                         ctx.setLineDash([]);
