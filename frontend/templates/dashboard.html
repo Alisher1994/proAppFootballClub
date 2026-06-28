@@ -748,30 +748,45 @@
                 <!-- Блоки статистики (Общие для всех вкладок) -->
                 <div class="stats-grid" style="margin-top: 5px; margin-bottom: 25px;">
                     <div class="stat-card">
-                        <h3>Всего учеников</h3>
-                        <p class="stat-number">{{ total_students }}</p>
+                        <div class="stat-card-icon"><i data-lucide="users"></i></div>
+                        <div>
+                            <h3>Всего учеников</h3>
+                            <p class="stat-number">{{ total_students }}</p>
+                        </div>
                     </div>
 
 
 
                     <div class="stat-card">
-                        <h3>Сегодня на занятии</h3>
-                        <p class="stat-number">{{ today_attendance }}</p>
+                        <div class="stat-card-icon"><i data-lucide="clipboard-check"></i></div>
+                        <div>
+                            <h3>Сегодня на занятии</h3>
+                            <p class="stat-number">{{ today_attendance }}</p>
+                        </div>
                     </div>
 
                     <div class="stat-card success">
-                        <h3>Доход (месяц)</h3>
-                        <p class="stat-number">{{ "{:,.0f}".format(month_income or 0).replace(",", " ") }} сум</p>
+                        <div class="stat-card-icon"><i data-lucide="trending-up"></i></div>
+                        <div>
+                            <h3>Доход (месяц)</h3>
+                            <p class="stat-number">{{ "{:,.0f}".format(month_income or 0).replace(",", " ") }} сум</p>
+                        </div>
                     </div>
 
                     <div class="stat-card danger">
-                        <h3>Расходы (месяц)</h3>
-                        <p class="stat-number">{{ "{:,.0f}".format(month_expenses or 0).replace(",", " ") }} сум</p>
+                        <div class="stat-card-icon"><i data-lucide="trending-down"></i></div>
+                        <div>
+                            <h3>Расходы (месяц)</h3>
+                            <p class="stat-number">{{ "{:,.0f}".format(month_expenses or 0).replace(",", " ") }} сум</p>
+                        </div>
                     </div>
 
                     <div class="stat-card {% if profit >= 0 %}success{% else %}danger{% endif %}">
-                        <h3>Прибыль (месяц)</h3>
-                        <p class="stat-number">{{ "{:,.0f}".format(profit or 0).replace(",", " ") }} сум</p>
+                        <div class="stat-card-icon"><i data-lucide="wallet"></i></div>
+                        <div>
+                            <h3>Прибыль (месяц)</h3>
+                            <p class="stat-number">{{ "{:,.0f}".format(profit or 0).replace(",", " ") }} сум</p>
+                        </div>
                     </div>
                 </div>
 
@@ -1020,9 +1035,12 @@
                     </div>
                 </div>
             </div>
+            <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
             <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.9/dist/chart.umd.min.js"></script>
             <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
             <script>
+                if (window.lucide) window.lucide.createIcons();
+
                 if (window.Chart && window.ChartDataLabels) {
                     Chart.register(ChartDataLabels);
                 }
@@ -1220,9 +1238,9 @@
                 function getCurrentMonthExpectedValue(month, index) {
                     const now = new Date();
                     const selectedYear = Number(document.getElementById('yearFilter')?.value || now.getFullYear());
-                    return selectedYear === now.getFullYear() && index === now.getMonth()
-                        ? Number(month.expected || 0)
-                        : null;
+                    if (selectedYear < now.getFullYear()) return Number(month.expected || 0);
+                    if (selectedYear === now.getFullYear() && index <= now.getMonth()) return Number(month.expected || 0);
+                    return null;
                 }
 
                 function drawFinanceChartJs(canvas, months) {

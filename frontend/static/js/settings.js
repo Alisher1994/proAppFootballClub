@@ -936,10 +936,10 @@ async function loadBridgeStatus() {
         `;
 
         setBridgeText('bridgeCpuMetric', metrics.cpu_used_percent != null ? `${metrics.cpu_used_percent}%` : '—');
-        setBridgeText('bridgeCpuDetails', [
-            metrics.cpu_cores ? `${metrics.cpu_cores} ядер` : '',
-            metrics.cpu_model ? shortenText(metrics.cpu_model, 32) : ''
-        ].filter(Boolean).join(' · '));
+        setBridgeHtml('bridgeCpuDetails', bridgeMetricLines([
+            ['Ядра', metrics.cpu_cores || '—'],
+            ['Модель', metrics.cpu_model ? cleanCpuModel(metrics.cpu_model) : '—']
+        ]));
         setBridgeMemory(metrics);
         setBridgeTemperature(metrics);
         setBridgeDisk(metrics.disk);
@@ -962,22 +962,48 @@ function setBridgeText(id, value) {
     if (el) el.textContent = value;
 }
 
+function setBridgeHtml(id, value) {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = value || '';
+}
+
+function bridgeMetricLines(lines) {
+    return lines
+        .filter(([, value]) => value !== null && value !== undefined && value !== '')
+        .map(([label, value]) => `
+            <div class="bridge-metric-line">
+                <span>${escapeHtml(label)}</span>
+                <strong>${escapeHtml(value)}</strong>
+            </div>
+        `)
+        .join('');
+}
+
 function setBridgeMemory(metrics) {
     setBridgeText('bridgeRamMetric', metrics.memory_used_percent != null ? `${metrics.memory_used_percent}%` : '—');
     const used = formatGbFromMb(metrics.memory_used_mb);
     const free = formatGbFromMb(metrics.memory_free_mb);
     const total = formatGbFromMb(metrics.memory_total_mb);
-    setBridgeText('bridgeRamDetails', [used && total ? `${used} / ${total}` : '', free ? `своб. ${free}` : ''].filter(Boolean).join(' · '));
+    setBridgeHtml('bridgeRamDetails', bridgeMetricLines([
+        ['Занято', used || '—'],
+        ['Свободно', free || '—'],
+        ['Всего', total || '—']
+    ]));
 }
 
 function setBridgeTemperature(metrics) {
     const temp = metrics.temperature_c ?? metrics.temperatures?.max_c;
     setBridgeText('bridgeTempMetric', temp != null ? `${temp}°C` : '—');
     const zones = Array.isArray(metrics.temperatures?.zones) ? metrics.temperatures.zones : [];
-    const max = metrics.max_temperature_c != null ? `макс ${metrics.max_temperature_c}°C` : '';
-    const cpuMax = metrics.max_cpu_temperature_c != null ? `CPU макс ${metrics.max_cpu_temperature_c}°C` : '';
-    const details = [max, cpuMax, ...zones.slice(0, 2).map(zone => `${zone.name}: ${zone.c}°C`)].filter(Boolean).join(' · ');
-    setBridgeText('bridgeTempDetails', details);
+    const mainZones = zones
+        .filter(zone => zone && zone.c != null)
+        .slice(0, 2)
+        .map(zone => [friendlySensorName(zone.name), `${zone.c}°C`]);
+    setBridgeHtml('bridgeTempDetails', bridgeMetricLines([
+        ['Макс', metrics.max_temperature_c != null ? `${metrics.max_temperature_c}°C` : '—'],
+        ['CPU макс', metrics.max_cpu_temperature_c != null ? `${metrics.max_cpu_temperature_c}°C` : '—'],
+        ...mainZones
+    ]));
 }
 
 function setBridgeDisk(disk) {
@@ -988,11 +1014,12 @@ function setBridgeDisk(disk) {
     }
     setBridgeText('bridgeDiskMetric', disk.used_percent != null ? `${disk.used_percent}%` : '—');
     const primary = Array.isArray(disk.devices) && disk.devices[0] ? `${disk.devices[0].type} ${disk.devices[0].size_gb || ''}ГБ`.trim() : '';
-    setBridgeText('bridgeDiskDetails', [
-        `${formatGb(disk.used_gb)} / ${formatGb(disk.total_gb)}`,
-        `своб. ${formatGb(disk.free_gb)}`,
-        primary
-    ].filter(Boolean).join(' · '));
+    setBridgeHtml('bridgeDiskDetails', bridgeMetricLines([
+        ['Занято', formatGb(disk.used_gb) || '—'],
+        ['Свободно', formatGb(disk.free_gb) || '—'],
+        ['Всего', formatGb(disk.total_gb) || '—'],
+        ['Диск', primary || '—']
+    ]));
 }
 
 function setBridgeNetwork(network) {
@@ -1002,7 +1029,10 @@ function setBridgeNetwork(network) {
         return;
     }
     setBridgeText('bridgeNetworkMetric', `↓ ${formatSpeed(network.download_mbps)}`);
-    setBridgeText('bridgeNetworkDetails', `↑ ${formatSpeed(network.upload_mbps)} · ${network.iface || 'сеть'}`);
+    setBridgeHtml('bridgeNetworkDetails', bridgeMetricLines([
+        ['Выгрузка', `↑ ${formatSpeed(network.upload_mbps)}`],
+        ['Интерфейс', network.iface || 'сеть']
+    ]));
 }
 
 function setBridgeHardware(hardware) {
@@ -1015,16 +1045,22 @@ function setBridgeHardware(hardware) {
     const usbCount = Array.isArray(hardware.usb_devices) ? hardware.usb_devices.length : 0;
     const netCount = Array.isArray(hardware.network_interfaces) ? hardware.network_interfaces.length : 0;
     setBridgeText('bridgeHardwareMetric', shortenText(board, 24));
-    setBridgeText('bridgeHardwareDetails', [`USB ${usbCount}`, `LAN ${netCount}`, hardware.bios ? `BIOS ${hardware.bios}` : ''].filter(Boolean).join(' · '));
+    setBridgeHtml('bridgeHardwareDetails', bridgeMetricLines([
+        ['USB', usbCount],
+        ['LAN', netCount],
+        ['BIOS', hardware.bios ? shortenText(hardware.bios, 18) : '—']
+    ]));
 }
 
 function setBridgeSensors(temperatures) {
     const fans = Array.isArray(temperatures?.fans) ? temperatures.fans.filter(f => f.rpm != null && f.rpm > 0) : [];
     const voltages = Array.isArray(temperatures?.voltages) ? temperatures.voltages.filter(v => v.v != null && v.v > 0) : [];
     const fanText = fans.length ? `${fans[0].rpm} rpm` : '—';
-    const voltageText = voltages.slice(0, 2).map(v => `${v.name}: ${v.v}V`).join(' · ');
     setBridgeText('bridgeSensorMetric', fanText);
-    setBridgeText('bridgeSensorDetails', voltageText || (fans.length > 1 ? `${fans.length} кулера` : 'датчиков нет'));
+    setBridgeHtml('bridgeSensorDetails', bridgeMetricLines([
+        ['Кулер', fans.length ? `${fans.length} датч.` : 'нет данных'],
+        ['Вольтаж', voltages[0] ? `${voltages[0].v}V` : 'нет данных']
+    ]));
 }
 
 function formatGbFromMb(value) {
@@ -1045,6 +1081,23 @@ function formatSpeed(mbps) {
 function shortenText(text, max = 28) {
     const value = String(text || '').trim();
     return value.length > max ? `${value.slice(0, max - 1)}…` : value;
+}
+
+function cleanCpuModel(model) {
+    return shortenText(String(model || '')
+        .replace(/\(R\)|\(TM\)|CPU/gi, '')
+        .replace(/\s*@\s*.+$/i, '')
+        .replace(/\s+/g, ' ')
+        .trim(), 24);
+}
+
+function friendlySensorName(name) {
+    const value = String(name || '').toLowerCase();
+    if (value.includes('x86_pkg') || value.includes('package')) return 'CPU пакет';
+    if (value.includes('coretemp') || value.includes('cpu')) return 'CPU';
+    if (value.includes('nvme')) return 'SSD';
+    if (value.includes('acpitz')) return 'Система';
+    return shortenText(String(name || 'Датчик').replace(/[_-]+/g, ' '), 16);
 }
 
 function setBridgeControlButtons(enabled, paused) {
