@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Вход - PRO APP</title>
+    <title>Вход - {{ system_name }}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <style>
         .portal-login {
@@ -76,7 +76,6 @@
         <div class="portal-login-card">
             <div class="login-brand" style="margin-bottom: 10px;">
                 <img class="login-logo" src="{{ system_logo_url }}" alt="{{ system_name }}">
-                <span>PRO APP</span>
             </div>
             <h1>Вход для родителей/учеников</h1>
             <p>Введите номер телефона и код из Telegram.</p>

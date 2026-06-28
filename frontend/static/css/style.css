@@ -2793,13 +2793,13 @@ body.theme-light .modal-body-scrollable::-webkit-scrollbar-thumb:hover {
 .login-box {
     width: 100%;
     min-height: 100vh;
-    background: linear-gradient(180deg, rgba(14, 18, 24, 0.86), rgba(15, 23, 42, 0.74));
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(248, 250, 252, 0.92));
     padding: 48px 44px 72px;
     border-radius: 0;
-    box-shadow: -24px 0 80px rgba(0, 0, 0, 0.36);
-    border-left: 1px solid rgba(255, 255, 255, 0.16);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
+    box-shadow: -24px 0 80px rgba(15, 23, 42, 0.18);
+    border-left: 1px solid rgba(226, 232, 240, 0.9);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -2808,17 +2808,17 @@ body.theme-light .modal-body-scrollable::-webkit-scrollbar-thumb:hover {
 .login-box label,
 .login-box h2,
 .login-box .login-brand {
-    color: #f8fafc;
+    color: #0f172a;
 }
 
 .login-box h2 {
-    color: rgba(248, 250, 252, 0.75);
+    color: #475569;
 }
 
 .login-box input {
-    background: #e8f0ff;
+    background: #ffffff;
     color: #0f172a;
-    border: 1px solid rgba(148, 163, 184, 0.36);
+    border: 1px solid #cbd5e1;
 }
 
 .login-box input::placeholder {
@@ -2826,9 +2826,9 @@ body.theme-light .modal-body-scrollable::-webkit-scrollbar-thumb:hover {
 }
 
 .login-box input:focus {
-    background: #f8fbff;
-    border-color: rgba(99, 102, 241, 0.85);
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.28);
+    background: #ffffff;
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14);
     outline: none;
 }
 
@@ -2925,21 +2925,13 @@ body.theme-light .modal-body-scrollable::-webkit-scrollbar-thumb:hover {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 12px;
-    margin-bottom: 12px;
+    margin-bottom: 18px;
     color: #0f172a;
-    font-size: 2rem;
-    font-weight: 900;
-    font-style: italic;
-}
-
-.login-brand span {
-    color: #ffffff;
 }
 
 .login-logo {
-    width: 44px;
-    height: 44px;
+    width: 190px;
+    height: 82px;
     object-fit: contain;
     flex-shrink: 0;
 }
@@ -2983,8 +2975,8 @@ body.theme-light .modal-body-scrollable::-webkit-scrollbar-thumb:hover {
         min-height: auto;
         padding: 40px 32px;
         border-radius: 24px;
-        border: 1px solid rgba(255, 255, 255, 0.22);
-        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+        border: 1px solid rgba(226, 232, 240, 0.95);
+        box-shadow: 0 20px 60px rgba(15, 23, 42, 0.18);
     }
 
     .login-ticker {
