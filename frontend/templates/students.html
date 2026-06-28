@@ -4788,6 +4788,73 @@
             }, new Map());
         }
 
+        function renderStudentGroups(groups) {
+            const listContent = document.getElementById('studentListContent');
+            if (!listContent) return;
+
+            if (!groups.length) {
+                listContent.innerHTML = '<div class="students-list-state" style="padding:28px;text-align:center;color:#64748b;">Группы не найдены</div>';
+                return;
+            }
+
+            listContent.innerHTML = groups.map(group => `
+                <div class="student-group-section collapsed" data-group-id="${escapeHtml(group.id)}" data-group-name="${escapeHtml(group.name)}">
+                    <div class="student-group-header" onclick="toggleGroup(this.parentElement)">
+                        <span>${escapeHtml(group.name)}</span>
+                        <span class="group-chevron">▼</span>
+                    </div>
+                    <div class="student-group-items"></div>
+                </div>
+            `).join('');
+        }
+
+        async function loadStudentGroupsSidebar() {
+            const listContent = document.getElementById('studentListContent');
+            if (listContent) {
+                listContent.innerHTML = '<div class="students-list-state" style="padding:28px;text-align:center;color:#64748b;">Загрузка групп...</div>';
+            }
+
+            try {
+                const response = await fetch('/api/groups');
+                if (!response.ok) throw new Error('Не удалось загрузить группы');
+                const groups = await response.json();
+                renderStudentGroups(groups);
+            } catch (error) {
+                console.error(error);
+                if (listContent) {
+                    listContent.innerHTML = '<div class="students-list-state" style="padding:28px;text-align:center;color:#ef4444;">Не удалось загрузить группы</div>';
+                }
+            }
+        }
+
+        async function loadGroupStudentsIntoSection(section) {
+            const groupId = section?.dataset.groupId;
+            const container = section?.querySelector('.student-group-items');
+            if (!groupId || !container || section.dataset.loaded === 'true') return;
+
+            container.innerHTML = '<div class="students-list-state" style="padding:16px;text-align:center;color:#64748b;">Загрузка...</div>';
+
+            try {
+                const params = new URLSearchParams({
+                    view: 'list',
+                    group_id: groupId,
+                    page: '1',
+                    per_page: '200'
+                });
+                const response = await fetch(`/api/students?${params.toString()}`);
+                if (!response.ok) throw new Error('Не удалось загрузить учеников группы');
+                const data = await response.json();
+                const students = data.items || [];
+                section.dataset.loaded = 'true';
+                container.innerHTML = students.length
+                    ? students.map(buildStudentListItemHtml).join('')
+                    : '<div class="students-list-state" style="padding:16px;text-align:center;color:#64748b;">В группе нет учеников</div>';
+            } catch (error) {
+                console.error(error);
+                container.innerHTML = '<div class="students-list-state" style="padding:16px;text-align:center;color:#ef4444;">Не удалось загрузить учеников</div>';
+            }
+        }
+
         function renderStudentList(students, append = false) {
             const listContent = document.getElementById('studentListContent');
             if (!listContent) return;
@@ -4831,6 +4898,13 @@
         async function loadStudentsPage({ reset = false } = {}) {
             if (studentListState.loading) return;
             if (!reset && !studentListState.hasNext) return;
+
+            if (!studentListState.q && !studentListState.groupId && !studentListState.status) {
+                if (reset) {
+                    await loadStudentGroupsSidebar();
+                }
+                return;
+            }
 
             const listContent = document.getElementById('studentListContent');
             if (reset) {
@@ -5248,6 +5322,9 @@
             const section = header.closest('.student-group-section');
             if (section) {
                 section.classList.toggle('collapsed');
+                if (!section.classList.contains('collapsed')) {
+                    loadGroupStudentsIntoSection(section);
+                }
             }
         }
 
