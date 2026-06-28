@@ -30,6 +30,14 @@ async function initSettings() {
 
     const uploadLogoBtn = document.getElementById('uploadLogoBtn');
     if (uploadLogoBtn) uploadLogoBtn.addEventListener('click', uploadSystemLogo);
+    const logoFileInput = document.getElementById('system_logo_file');
+    if (logoFileInput) {
+        logoFileInput.addEventListener('change', () => {
+            const fileName = document.getElementById('logo_file_name');
+            if (fileName) fileName.textContent = logoFileInput.files?.[0]?.name || 'Файл не выбран';
+            if (logoFileInput.files?.[0]) uploadSystemLogo();
+        });
+    }
     const resetLogoBtn = document.getElementById('resetLogoBtn');
     if (resetLogoBtn) resetLogoBtn.addEventListener('click', resetSystemLogo);
 
@@ -446,6 +454,8 @@ function setSystemLogoPreview(url, isCustom) {
 
     const resetBtn = document.getElementById('resetLogoBtn');
     if (resetBtn) resetBtn.disabled = !isCustom;
+    const fileName = document.getElementById('logo_file_name');
+    if (fileName && !isCustom) fileName.textContent = 'Файл не выбран';
 
     updateVisibleBrandLogos(url);
 }
@@ -455,13 +465,15 @@ async function uploadSystemLogo() {
     const button = document.getElementById('uploadLogoBtn');
     const file = fileInput?.files?.[0];
     if (!file) {
-        alert('Выберите файл логотипа');
+        fileInput?.click();
         return;
     }
 
     const formData = new FormData();
     formData.append('logo', file);
     if (button) button.disabled = true;
+    const status = document.getElementById('logo_status_text');
+    if (status) status.textContent = 'Загружаем логотип...';
 
     try {
         const resp = await fetch('/api/club-settings/logo', {
@@ -475,7 +487,8 @@ async function uploadSystemLogo() {
         }
         setSystemLogoPreview(result.logo_url, result.logo_is_custom);
         fileInput.value = '';
-        alert('Логотип обновлен');
+        const fileName = document.getElementById('logo_file_name');
+        if (fileName) fileName.textContent = file.name;
     } catch (error) {
         console.error('Ошибка загрузки логотипа:', error);
         alert('Не удалось загрузить логотип');
@@ -497,7 +510,8 @@ async function resetSystemLogo() {
             return;
         }
         setSystemLogoPreview(result.logo_url, result.logo_is_custom);
-        alert('Системный логотип восстановлен');
+        const fileInput = document.getElementById('system_logo_file');
+        if (fileInput) fileInput.value = '';
     } catch (error) {
         console.error('Ошибка сброса логотипа:', error);
         alert('Не удалось сбросить логотип');

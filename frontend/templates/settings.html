@@ -1325,25 +1325,25 @@
 
         .logo-settings-row {
             display: grid;
-            grid-template-columns: 180px minmax(0, 1fr);
-            gap: 16px;
+            grid-template-columns: 184px minmax(0, 1fr);
+            gap: 18px;
             align-items: center;
         }
 
         .logo-preview-box {
-            min-height: 72px;
+            height: 82px;
             border: 1px solid var(--settings-border);
-            border-radius: 10px;
+            border-radius: 12px;
             background: #f8fafc;
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 12px;
+            padding: 14px;
         }
 
         .logo-preview-box img {
             max-width: 100%;
-            max-height: 54px;
+            max-height: 58px;
             object-fit: contain;
             display: block;
         }
@@ -1352,6 +1352,43 @@
             min-width: 0;
             display: grid;
             gap: 10px;
+        }
+
+        .logo-picker-panel {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            min-height: 48px;
+            border: 1px solid var(--settings-border);
+            border-radius: 12px;
+            background: #f8fafc;
+            padding: 6px 8px 6px 14px;
+        }
+
+        .logo-picker-meta {
+            min-width: 0;
+            display: grid;
+            gap: 2px;
+        }
+
+        .logo-picker-title {
+            color: var(--settings-text);
+            font-weight: 700;
+            font-size: 13px;
+        }
+
+        .logo-picker-file {
+            color: var(--settings-muted);
+            font-size: 12px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            max-width: 320px;
+        }
+
+        .logo-file-input {
+            display: none;
         }
 
         .logo-action-buttons {
@@ -1365,6 +1402,18 @@
             padding: 0 14px;
             border-radius: 10px;
             gap: 8px;
+        }
+
+        .logo-action-buttons #uploadLogoBtn {
+            background: #2563eb;
+            border-color: #2563eb;
+            color: #fff;
+            box-shadow: 0 10px 24px rgba(37, 99, 235, 0.18);
+        }
+
+        .logo-action-buttons #uploadLogoBtn:hover {
+            background: #1d4ed8;
+            border-color: #1d4ed8;
         }
 
         #logo_status_text {
@@ -1464,16 +1513,22 @@
                                             <div class="logo-actions">
                                                 <input type="file" id="system_logo_file" accept="image/png,image/jpeg,image/webp"
                                                     data-ignore-dirty="true"
-                                                    class="form-input-modern">
-                                                <div class="logo-action-buttons">
-                                                    <button type="button" id="uploadLogoBtn" class="btn-secondary">
-                                                        <i data-lucide="upload"></i>
-                                                        Загрузить логотип
-                                                    </button>
-                                                    <button type="button" id="resetLogoBtn" class="btn-secondary">
-                                                        <i data-lucide="rotate-ccw"></i>
-                                                        Сбросить на системный
-                                                    </button>
+                                                    class="logo-file-input">
+                                                <div class="logo-picker-panel">
+                                                    <div class="logo-picker-meta">
+                                                        <span class="logo-picker-title">PNG, JPG или WEBP</span>
+                                                        <span id="logo_file_name" class="logo-picker-file">Файл не выбран</span>
+                                                    </div>
+                                                    <div class="logo-action-buttons">
+                                                        <button type="button" id="uploadLogoBtn" class="btn-secondary">
+                                                            <i data-lucide="upload"></i>
+                                                            Выбрать логотип
+                                                        </button>
+                                                        <button type="button" id="resetLogoBtn" class="btn-secondary" title="Вернуть системный логотип">
+                                                            <i data-lucide="rotate-ccw"></i>
+                                                            Сбросить
+                                                        </button>
+                                                    </div>
                                                 </div>
                                                 <small id="logo_status_text">Используется системный логотип.</small>
                                             </div>
