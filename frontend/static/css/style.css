@@ -4890,3 +4890,50 @@ body.theme-light .modal-body-scrollable::-webkit-scrollbar-thumb:hover {
 .settings-page .data-table tbody strong {
     font-weight: 400 !important;
 }
+
+.bridge-metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 8px;
+    margin-bottom: 14px;
+}
+
+.bridge-metric-card {
+    min-height: 76px;
+    padding: 9px 10px;
+    border: 1px solid var(--theme-border);
+    border-radius: 8px;
+    background: var(--theme-bg-secondary);
+    overflow: hidden;
+}
+
+.bridge-metric-label {
+    color: var(--theme-text-secondary);
+    font-size: 10px;
+    line-height: 1.2;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.bridge-metric-value {
+    margin-top: 5px;
+    color: var(--theme-text-primary);
+    font-size: 18px;
+    line-height: 1.1;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.bridge-metric-detail {
+    margin-top: 4px;
+    color: var(--theme-text-secondary);
+    font-size: 10.5px;
+    line-height: 1.25;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}

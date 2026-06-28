@@ -892,9 +892,20 @@ async function loadBridgeStatus() {
             banner.style.borderColor = '#fecaca';
             banner.style.background = '#fff1f2';
             banner.innerHTML = '<strong>Bridge не найден</strong><br><span style="font-size:13px;">Локальный bridge еще не отправлял heartbeat.</span>';
+            setBridgeText('bridgeCpuMetric', '—');
+            setBridgeText('bridgeCpuDetails', '');
             setBridgeText('bridgeRamMetric', '—');
+            setBridgeText('bridgeRamDetails', '');
             setBridgeText('bridgeTempMetric', '—');
             setBridgeText('bridgeTempDetails', '');
+            setBridgeText('bridgeDiskMetric', '—');
+            setBridgeText('bridgeDiskDetails', '');
+            setBridgeText('bridgeNetworkMetric', '—');
+            setBridgeText('bridgeNetworkDetails', '');
+            setBridgeText('bridgeHardwareMetric', '—');
+            setBridgeText('bridgeHardwareDetails', '');
+            setBridgeText('bridgeSensorMetric', '—');
+            setBridgeText('bridgeSensorDetails', '');
             setBridgeText('bridgeUptimeMetric', '—');
             updateBridgeProgress(null);
             setBridgeLogs([]);
@@ -925,8 +936,16 @@ async function loadBridgeStatus() {
         `;
 
         setBridgeText('bridgeCpuMetric', metrics.cpu_used_percent != null ? `${metrics.cpu_used_percent}%` : '—');
-        setBridgeText('bridgeRamMetric', metrics.memory_used_percent != null ? `${metrics.memory_used_percent}%` : '—');
+        setBridgeText('bridgeCpuDetails', [
+            metrics.cpu_cores ? `${metrics.cpu_cores} ядер` : '',
+            metrics.cpu_model ? shortenText(metrics.cpu_model, 32) : ''
+        ].filter(Boolean).join(' · '));
+        setBridgeMemory(metrics);
         setBridgeTemperature(metrics);
+        setBridgeDisk(metrics.disk);
+        setBridgeNetwork(metrics.network);
+        setBridgeHardware(metrics.hardware);
+        setBridgeSensors(metrics.temperatures);
         setBridgeText('bridgeUptimeMetric', formatUptime(bridge.uptime_seconds || 0));
         updateBridgeProgress(metrics.progress || null);
         setBridgeLogs(bridge.logs || []);
@@ -943,12 +962,89 @@ function setBridgeText(id, value) {
     if (el) el.textContent = value;
 }
 
+function setBridgeMemory(metrics) {
+    setBridgeText('bridgeRamMetric', metrics.memory_used_percent != null ? `${metrics.memory_used_percent}%` : '—');
+    const used = formatGbFromMb(metrics.memory_used_mb);
+    const free = formatGbFromMb(metrics.memory_free_mb);
+    const total = formatGbFromMb(metrics.memory_total_mb);
+    setBridgeText('bridgeRamDetails', [used && total ? `${used} / ${total}` : '', free ? `своб. ${free}` : ''].filter(Boolean).join(' · '));
+}
+
 function setBridgeTemperature(metrics) {
     const temp = metrics.temperature_c ?? metrics.temperatures?.max_c;
     setBridgeText('bridgeTempMetric', temp != null ? `${temp}°C` : '—');
     const zones = Array.isArray(metrics.temperatures?.zones) ? metrics.temperatures.zones : [];
-    const details = zones.slice(0, 3).map(zone => `${zone.name}: ${zone.c}°C`).join(' · ');
+    const max = metrics.max_temperature_c != null ? `макс ${metrics.max_temperature_c}°C` : '';
+    const cpuMax = metrics.max_cpu_temperature_c != null ? `CPU макс ${metrics.max_cpu_temperature_c}°C` : '';
+    const details = [max, cpuMax, ...zones.slice(0, 2).map(zone => `${zone.name}: ${zone.c}°C`)].filter(Boolean).join(' · ');
     setBridgeText('bridgeTempDetails', details);
+}
+
+function setBridgeDisk(disk) {
+    if (!disk) {
+        setBridgeText('bridgeDiskMetric', '—');
+        setBridgeText('bridgeDiskDetails', '');
+        return;
+    }
+    setBridgeText('bridgeDiskMetric', disk.used_percent != null ? `${disk.used_percent}%` : '—');
+    const primary = Array.isArray(disk.devices) && disk.devices[0] ? `${disk.devices[0].type} ${disk.devices[0].size_gb || ''}ГБ`.trim() : '';
+    setBridgeText('bridgeDiskDetails', [
+        `${formatGb(disk.used_gb)} / ${formatGb(disk.total_gb)}`,
+        `своб. ${formatGb(disk.free_gb)}`,
+        primary
+    ].filter(Boolean).join(' · '));
+}
+
+function setBridgeNetwork(network) {
+    if (!network) {
+        setBridgeText('bridgeNetworkMetric', '—');
+        setBridgeText('bridgeNetworkDetails', '');
+        return;
+    }
+    setBridgeText('bridgeNetworkMetric', `↓ ${formatSpeed(network.download_mbps)}`);
+    setBridgeText('bridgeNetworkDetails', `↑ ${formatSpeed(network.upload_mbps)} · ${network.iface || 'сеть'}`);
+}
+
+function setBridgeHardware(hardware) {
+    if (!hardware) {
+        setBridgeText('bridgeHardwareMetric', '—');
+        setBridgeText('bridgeHardwareDetails', '');
+        return;
+    }
+    const board = hardware.board || hardware.product || '—';
+    const usbCount = Array.isArray(hardware.usb_devices) ? hardware.usb_devices.length : 0;
+    const netCount = Array.isArray(hardware.network_interfaces) ? hardware.network_interfaces.length : 0;
+    setBridgeText('bridgeHardwareMetric', shortenText(board, 24));
+    setBridgeText('bridgeHardwareDetails', [`USB ${usbCount}`, `LAN ${netCount}`, hardware.bios ? `BIOS ${hardware.bios}` : ''].filter(Boolean).join(' · '));
+}
+
+function setBridgeSensors(temperatures) {
+    const fans = Array.isArray(temperatures?.fans) ? temperatures.fans.filter(f => f.rpm != null && f.rpm > 0) : [];
+    const voltages = Array.isArray(temperatures?.voltages) ? temperatures.voltages.filter(v => v.v != null && v.v > 0) : [];
+    const fanText = fans.length ? `${fans[0].rpm} rpm` : '—';
+    const voltageText = voltages.slice(0, 2).map(v => `${v.name}: ${v.v}V`).join(' · ');
+    setBridgeText('bridgeSensorMetric', fanText);
+    setBridgeText('bridgeSensorDetails', voltageText || (fans.length > 1 ? `${fans.length} кулера` : 'датчиков нет'));
+}
+
+function formatGbFromMb(value) {
+    if (value == null || !Number.isFinite(Number(value))) return '';
+    return formatGb(Number(value) / 1024);
+}
+
+function formatGb(value) {
+    if (value == null || !Number.isFinite(Number(value))) return '';
+    return `${Number(value).toLocaleString('ru-RU', { maximumFractionDigits: 1 })} ГБ`;
+}
+
+function formatSpeed(mbps) {
+    if (mbps == null || !Number.isFinite(Number(mbps))) return '—';
+    return `${Number(mbps).toLocaleString('ru-RU', { maximumFractionDigits: 2 })} Мбит/с`;
+}
+
+function shortenText(text, max = 28) {
+    const value = String(text || '').trim();
+    return value.length > max ? `${value.slice(0, max - 1)}…` : value;
 }
 
 function setBridgeControlButtons(enabled, paused) {

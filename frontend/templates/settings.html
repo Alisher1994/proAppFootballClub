@@ -2375,27 +2375,49 @@
                                     </div>
                                     <div id="bridgeDeviceProgressGrid" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(230px, 1fr)); gap:10px; margin-top:12px;"></div>
                                 </div>
-                                <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap:12px; margin-bottom:14px;">
-                                    <div style="padding:12px; border:1px solid var(--theme-border); border-radius:8px; background:var(--theme-bg-secondary);">
-                                        <div style="font-size:11px; color:var(--theme-text-secondary); text-transform:uppercase;">Очередь</div>
-                                        <div id="bridgeQueueMetric" style="font-size:22px; font-weight:700;">—</div>
+                                <div class="bridge-metrics-grid">
+                                    <div class="bridge-metric-card">
+                                        <div class="bridge-metric-label">Очередь</div>
+                                        <div id="bridgeQueueMetric" class="bridge-metric-value">—</div>
                                     </div>
-                                    <div style="padding:12px; border:1px solid var(--theme-border); border-radius:8px; background:var(--theme-bg-secondary);">
-                                        <div style="font-size:11px; color:var(--theme-text-secondary); text-transform:uppercase;">CPU</div>
-                                        <div id="bridgeCpuMetric" style="font-size:22px; font-weight:700;">—</div>
+                                    <div class="bridge-metric-card">
+                                        <div class="bridge-metric-label">CPU</div>
+                                        <div id="bridgeCpuMetric" class="bridge-metric-value">—</div>
+                                        <div id="bridgeCpuDetails" class="bridge-metric-detail"></div>
                                     </div>
-                                    <div style="padding:12px; border:1px solid var(--theme-border); border-radius:8px; background:var(--theme-bg-secondary);">
-                                        <div style="font-size:11px; color:var(--theme-text-secondary); text-transform:uppercase;">RAM</div>
-                                        <div id="bridgeRamMetric" style="font-size:22px; font-weight:700;">—</div>
+                                    <div class="bridge-metric-card">
+                                        <div class="bridge-metric-label">RAM</div>
+                                        <div id="bridgeRamMetric" class="bridge-metric-value">—</div>
+                                        <div id="bridgeRamDetails" class="bridge-metric-detail"></div>
                                     </div>
-                                    <div style="padding:12px; border:1px solid var(--theme-border); border-radius:8px; background:var(--theme-bg-secondary);">
-                                        <div style="font-size:11px; color:var(--theme-text-secondary); text-transform:uppercase;">Температура</div>
-                                        <div id="bridgeTempMetric" style="font-size:22px; font-weight:700;">—</div>
-                                        <div id="bridgeTempDetails" style="font-size:11px; color:var(--theme-text-secondary); margin-top:2px;"></div>
+                                    <div class="bridge-metric-card">
+                                        <div class="bridge-metric-label">Температура</div>
+                                        <div id="bridgeTempMetric" class="bridge-metric-value">—</div>
+                                        <div id="bridgeTempDetails" class="bridge-metric-detail"></div>
                                     </div>
-                                    <div style="padding:12px; border:1px solid var(--theme-border); border-radius:8px; background:var(--theme-bg-secondary);">
-                                        <div style="font-size:11px; color:var(--theme-text-secondary); text-transform:uppercase;">Uptime</div>
-                                        <div id="bridgeUptimeMetric" style="font-size:22px; font-weight:700;">—</div>
+                                    <div class="bridge-metric-card">
+                                        <div class="bridge-metric-label">SSD / диск</div>
+                                        <div id="bridgeDiskMetric" class="bridge-metric-value">—</div>
+                                        <div id="bridgeDiskDetails" class="bridge-metric-detail"></div>
+                                    </div>
+                                    <div class="bridge-metric-card">
+                                        <div class="bridge-metric-label">Сеть сейчас</div>
+                                        <div id="bridgeNetworkMetric" class="bridge-metric-value">—</div>
+                                        <div id="bridgeNetworkDetails" class="bridge-metric-detail"></div>
+                                    </div>
+                                    <div class="bridge-metric-card">
+                                        <div class="bridge-metric-label">Железо</div>
+                                        <div id="bridgeHardwareMetric" class="bridge-metric-value">—</div>
+                                        <div id="bridgeHardwareDetails" class="bridge-metric-detail"></div>
+                                    </div>
+                                    <div class="bridge-metric-card">
+                                        <div class="bridge-metric-label">Питание / кулер</div>
+                                        <div id="bridgeSensorMetric" class="bridge-metric-value">—</div>
+                                        <div id="bridgeSensorDetails" class="bridge-metric-detail"></div>
+                                    </div>
+                                    <div class="bridge-metric-card">
+                                        <div class="bridge-metric-label">Uptime</div>
+                                        <div id="bridgeUptimeMetric" class="bridge-metric-value">—</div>
                                     </div>
                                 </div>
                                 <div style="border:1px solid var(--theme-border); border-radius:8px; overflow:hidden;">

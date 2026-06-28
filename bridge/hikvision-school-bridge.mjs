@@ -9,6 +9,7 @@ import http from 'node:http';
 import https from 'node:https';
 import os from 'node:os';
 import fs from 'node:fs';
+import { execFileSync } from 'node:child_process';
 
 const CONFIG = {
   serverUrl: process.env.SERVER_URL || 'https://proapp.up.railway.app',
@@ -43,6 +44,9 @@ let lastHeartbeatAt = 0;
 let currentProgress = null;
 let syncPaused = false;
 let stopRequested = false;
+let maxTemperatureSeenC = null;
+let maxCpuTemperatureSeenC = null;
+let lastNetworkSample = null;
 
 async function waitForSyncIdle(timeoutMs = 60000) {
   const startedAt = Date.now();
@@ -97,16 +101,33 @@ function getMetrics() {
   const cpuCount = os.cpus()?.length || 1;
   const cpuLoad = os.loadavg()[0] || 0;
   const temperatures = getTemperatures();
+  if (temperatures.max_c != null) {
+    maxTemperatureSeenC = maxTemperatureSeenC == null
+      ? temperatures.max_c
+      : Math.max(maxTemperatureSeenC, temperatures.max_c);
+  }
+  if (temperatures.cpu_max_c != null) {
+    maxCpuTemperatureSeenC = maxCpuTemperatureSeenC == null
+      ? temperatures.cpu_max_c
+      : Math.max(maxCpuTemperatureSeenC, temperatures.cpu_max_c);
+  }
   return {
     cpu_load_1m: Number(cpuLoad.toFixed(2)),
     cpu_used_percent: Number(Math.min(100, Math.max(0, (cpuLoad / cpuCount) * 100)).toFixed(1)),
     cpu_cores: cpuCount,
+    cpu_model: os.cpus()?.[0]?.model || '',
     memory_used_percent: totalMem ? Number((((totalMem - freeMem) / totalMem) * 100).toFixed(1)) : 0,
     memory_used_mb: Math.round((totalMem - freeMem) / 1024 / 1024),
+    memory_free_mb: Math.round(freeMem / 1024 / 1024),
     memory_total_mb: Math.round(totalMem / 1024 / 1024),
     node_memory_mb: Math.round(process.memoryUsage().rss / 1024 / 1024),
     temperature_c: temperatures.max_c,
+    max_temperature_c: maxTemperatureSeenC,
+    max_cpu_temperature_c: maxCpuTemperatureSeenC,
     temperatures,
+    disk: getDiskUsage(),
+    network: getNetworkMetrics(),
+    hardware: getHardwareInfo(),
     progress: currentProgress,
   };
 }
@@ -123,13 +144,174 @@ function getTemperatures() {
       if (!Number.isFinite(value)) continue;
       const type = fs.existsSync(`${dir}/type`) ? fs.readFileSync(`${dir}/type`, 'utf8').trim() : entry;
       const celsius = value > 1000 ? value / 1000 : value;
-      zones.push({ name: type || entry, c: Number(celsius.toFixed(1)) });
+      zones.push({ name: type || entry, c: Number(celsius.toFixed(1)), source: entry });
     }
   } catch {
     // Some systems do not expose thermal zones without extra packages.
   }
+  zones.push(...getHwmonReadings('temp'));
   const max = zones.reduce((highest, zone) => Math.max(highest, zone.c), 0);
-  return { max_c: zones.length ? Number(max.toFixed(1)) : null, zones };
+  const cpuZones = zones.filter((zone) => /cpu|core|pkg|package|x86/i.test(zone.name || ''));
+  const cpuMax = cpuZones.reduce((highest, zone) => Math.max(highest, zone.c), 0);
+  return {
+    max_c: zones.length ? Number(max.toFixed(1)) : null,
+    cpu_max_c: cpuZones.length ? Number(cpuMax.toFixed(1)) : null,
+    zones,
+    fans: getHwmonReadings('fan'),
+    voltages: getHwmonReadings('in'),
+  };
+}
+
+function getHwmonReadings(kind) {
+  const readings = [];
+  try {
+    const base = '/sys/class/hwmon';
+    const chips = fs.readdirSync(base).filter((name) => /^hwmon\d+$/.test(name));
+    for (const chip of chips) {
+      const dir = `${base}/${chip}`;
+      const chipName = readText(`${dir}/name`) || chip;
+      const files = fs.readdirSync(dir).filter((name) => new RegExp(`^${kind}\\d+_input$`).test(name));
+      for (const file of files) {
+        const index = file.match(/\d+/)?.[0] || '';
+        const raw = Number(readText(`${dir}/${file}`));
+        if (!Number.isFinite(raw)) continue;
+        const label = readText(`${dir}/${kind}${index}_label`) || `${chipName}_${kind}${index}`;
+        if (kind === 'temp') {
+          const c = raw > 1000 ? raw / 1000 : raw;
+          readings.push({ name: label, c: Number(c.toFixed(1)), source: chipName });
+        } else if (kind === 'fan') {
+          readings.push({ name: label, rpm: Math.round(raw), source: chipName });
+        } else if (kind === 'in') {
+          const v = raw > 100 ? raw / 1000 : raw;
+          readings.push({ name: label, v: Number(v.toFixed(3)), source: chipName });
+        }
+      }
+    }
+  } catch {
+    // hwmon is optional and depends on kernel drivers.
+  }
+  return readings;
+}
+
+function getDiskUsage() {
+  try {
+    const output = execFileSync('df', ['-k', '/'], { encoding: 'utf8', timeout: 1500 });
+    const line = output.trim().split('\n')[1];
+    if (!line) return null;
+    const parts = line.trim().split(/\s+/);
+    const totalKb = Number(parts[1] || 0);
+    const usedKb = Number(parts[2] || 0);
+    const freeKb = Number(parts[3] || 0);
+    const percent = totalKb ? Number(((usedKb / totalKb) * 100).toFixed(1)) : null;
+    return {
+      mount: parts[5] || '/',
+      used_percent: percent,
+      total_gb: Number((totalKb / 1024 / 1024).toFixed(1)),
+      used_gb: Number((usedKb / 1024 / 1024).toFixed(1)),
+      free_gb: Number((freeKb / 1024 / 1024).toFixed(1)),
+      devices: getBlockDevices(),
+    };
+  } catch {
+    return null;
+  }
+}
+
+function getBlockDevices() {
+  try {
+    return fs.readdirSync('/sys/block')
+      .filter((name) => !/^(loop|ram|zram)/.test(name))
+      .map((name) => {
+        const rotational = readText(`/sys/block/${name}/queue/rotational`);
+        const sizeSectors = Number(readText(`/sys/block/${name}/size`) || 0);
+        return {
+          name,
+          type: rotational === '0' ? 'SSD/NVMe' : rotational === '1' ? 'HDD' : 'Диск',
+          size_gb: sizeSectors ? Number((sizeSectors * 512 / 1024 / 1024 / 1024).toFixed(1)) : null,
+        };
+      });
+  } catch {
+    return [];
+  }
+}
+
+function getNetworkMetrics() {
+  const current = readNetworkCounters();
+  if (!current) return null;
+  const now = Date.now();
+  const previous = lastNetworkSample;
+  lastNetworkSample = { ...current, ts: now };
+  if (!previous || previous.iface !== current.iface) {
+    return { iface: current.iface, download_mbps: 0, upload_mbps: 0, download_MBps: 0, upload_MBps: 0 };
+  }
+  const seconds = Math.max(0.001, (now - previous.ts) / 1000);
+  const rxBytes = Math.max(0, current.rx - previous.rx);
+  const txBytes = Math.max(0, current.tx - previous.tx);
+  return {
+    iface: current.iface,
+    download_mbps: Number(((rxBytes * 8) / seconds / 1000 / 1000).toFixed(2)),
+    upload_mbps: Number(((txBytes * 8) / seconds / 1000 / 1000).toFixed(2)),
+    download_MBps: Number((rxBytes / seconds / 1024 / 1024).toFixed(2)),
+    upload_MBps: Number((txBytes / seconds / 1024 / 1024).toFixed(2)),
+  };
+}
+
+function readNetworkCounters() {
+  try {
+    const route = fs.readFileSync('/proc/net/route', 'utf8').split('\n')
+      .slice(1)
+      .map((line) => line.trim().split(/\s+/))
+      .find((parts) => parts[1] === '00000000');
+    const defaultIface = route?.[0];
+    const lines = fs.readFileSync('/proc/net/dev', 'utf8').split('\n').slice(2);
+    const candidates = lines.map((line) => {
+      const [ifacePart, dataPart] = line.split(':');
+      if (!ifacePart || !dataPart) return null;
+      const iface = ifacePart.trim();
+      const values = dataPart.trim().split(/\s+/).map(Number);
+      return { iface, rx: values[0], tx: values[8] };
+    }).filter(Boolean).filter((item) => item.iface !== 'lo');
+    return candidates.find((item) => item.iface === defaultIface) || candidates[0] || null;
+  } catch {
+    return null;
+  }
+}
+
+function getHardwareInfo() {
+  const boardVendor = readText('/sys/class/dmi/id/board_vendor');
+  const boardName = readText('/sys/class/dmi/id/board_name');
+  const productName = readText('/sys/class/dmi/id/product_name');
+  const biosVersion = readText('/sys/class/dmi/id/bios_version');
+  return {
+    board: [boardVendor, boardName].filter(Boolean).join(' ') || '',
+    product: productName || '',
+    bios: biosVersion || '',
+    usb_devices: listUsbDevices(),
+    network_interfaces: os.networkInterfaces ? Object.keys(os.networkInterfaces()).filter((name) => name !== 'lo') : [],
+  };
+}
+
+function listUsbDevices() {
+  try {
+    return fs.readdirSync('/sys/bus/usb/devices')
+      .map((dev) => {
+        const dir = `/sys/bus/usb/devices/${dev}`;
+        const product = readText(`${dir}/product`);
+        const manufacturer = readText(`${dir}/manufacturer`);
+        return [manufacturer, product].filter(Boolean).join(' ');
+      })
+      .filter(Boolean)
+      .slice(0, 12);
+  } catch {
+    return [];
+  }
+}
+
+function readText(path) {
+  try {
+    return fs.readFileSync(path, 'utf8').trim();
+  } catch {
+    return '';
+  }
 }
 
 async function sendHeartbeat(force = false) {
