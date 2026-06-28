@@ -4913,7 +4913,20 @@ def get_finances_monthly():
 @login_required
 def get_groups():
     """Получить список всех групп"""
-    groups = Group.query.all()
+    groups = Group.query.order_by(Group.name.asc()).all()
+    total_counts = dict(
+        db.session.query(Student.group_id, func.count(Student.id))
+        .filter(Student.group_id.isnot(None))
+        .group_by(Student.group_id)
+        .all()
+    )
+    active_counts = dict(
+        db.session.query(Student.group_id, func.count(Student.id))
+        .filter(Student.group_id.isnot(None), Student.status == 'active')
+        .group_by(Student.group_id)
+        .all()
+    )
+
     return jsonify([{
         'id': g.id,
         'name': g.name,
@@ -4926,9 +4939,9 @@ def get_groups():
         'notes': g.notes,
         'schedule_days': g.get_schedule_days_list(),
         'schedule_days_label': g.get_schedule_days_display(),
-        'student_count': len(g.students),
-        'active_student_count': g.get_current_students_count(),
-        'is_full': g.is_full()
+        'student_count': total_counts.get(g.id, 0),
+        'active_student_count': active_counts.get(g.id, 0),
+        'is_full': bool(g.max_students and active_counts.get(g.id, 0) >= g.max_students)
     } for g in groups])
 
 
