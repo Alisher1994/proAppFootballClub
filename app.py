@@ -1421,16 +1421,35 @@ def upsert_bridge_status(
 
 def ensure_payment_indexes():
     inspector = db.inspect(db.engine)
-    if 'payments' not in inspector.get_table_names():
-        return
-    existing = {idx['name'] for idx in inspector.get_indexes('payments')}
-    with db.engine.begin() as conn:
-        if 'idx_payments_student_month_year' not in existing:
-            conn.execute(db.text("CREATE INDEX IF NOT EXISTS idx_payments_student_month_year ON payments (student_id, payment_year, payment_month)"))
-        if 'idx_payments_month_year' not in existing:
-            conn.execute(db.text("CREATE INDEX IF NOT EXISTS idx_payments_month_year ON payments (payment_year, payment_month)"))
-        if 'idx_payments_payment_date' not in existing:
-            conn.execute(db.text("CREATE INDEX IF NOT EXISTS idx_payments_payment_date ON payments (payment_date)"))
+    tables = set(inspector.get_table_names())
+
+    def ensure_index(table_name, index_name, sql):
+        if table_name not in tables:
+            return
+        existing = {idx['name'] for idx in inspector.get_indexes(table_name)}
+        if index_name in existing:
+            return
+        with db.engine.begin() as conn:
+            conn.execute(db.text(sql))
+
+    if 'payments' in tables:
+        with db.engine.begin() as conn:
+            existing = {idx['name'] for idx in inspector.get_indexes('payments')}
+            if 'idx_payments_student_month_year' not in existing:
+                conn.execute(db.text("CREATE INDEX IF NOT EXISTS idx_payments_student_month_year ON payments (student_id, payment_year, payment_month)"))
+            if 'idx_payments_month_year' not in existing:
+                conn.execute(db.text("CREATE INDEX IF NOT EXISTS idx_payments_month_year ON payments (payment_year, payment_month)"))
+            if 'idx_payments_payment_date' not in existing:
+                conn.execute(db.text("CREATE INDEX IF NOT EXISTS idx_payments_payment_date ON payments (payment_date)"))
+            if 'idx_payments_student_date' not in existing:
+                conn.execute(db.text("CREATE INDEX IF NOT EXISTS idx_payments_student_date ON payments (student_id, payment_date)"))
+
+    ensure_index('attendance', 'idx_attendance_date_student', "CREATE INDEX IF NOT EXISTS idx_attendance_date_student ON attendance (date, student_id)")
+    ensure_index('attendance', 'idx_attendance_student_date', "CREATE INDEX IF NOT EXISTS idx_attendance_student_date ON attendance (student_id, date)")
+    ensure_index('students', 'idx_students_status_group', "CREATE INDEX IF NOT EXISTS idx_students_status_group ON students (status, group_id)")
+    ensure_index('access_logs', 'idx_access_logs_date_direction', "CREATE INDEX IF NOT EXISTS idx_access_logs_date_direction ON access_logs (event_date, direction)")
+    ensure_index('access_logs', 'idx_access_logs_employee_time', "CREATE INDEX IF NOT EXISTS idx_access_logs_employee_time ON access_logs (employee_no, event_time)")
+    ensure_index('device_commands', 'idx_device_commands_status_command_created', "CREATE INDEX IF NOT EXISTS idx_device_commands_status_command_created ON device_commands (status, command, created_at)")
 
 
 def ensure_expense_columns():
@@ -2414,9 +2433,10 @@ def portal_payments():
 def dashboard():
     # Статистика
     total_students = Student.query.filter_by(status='active').count()
-    # Подсчет студентов с низким балансом (<=2 занятия)
-    active_students = Student.query.filter_by(status='active').all()
-    students_low_balance = sum(1 for s in active_students if calculate_student_balance(s) <= 2)
+    # Пакетный расчет баланса вместо отдельных запросов на каждого ученика.
+    active_students = Student.query.options(joinedload(Student.tariff)).filter_by(status='active').all()
+    balances = calculate_student_balances_bulk(active_students)
+    students_low_balance = sum(1 for student in active_students if balances.get(student.id, 0) <= 2)
     
     today = get_local_date()
     today_attendance = Attendance.query.filter_by(date=today).count()
@@ -3655,54 +3675,41 @@ def get_groups_attendance_statistics():
     selected_date = date(year, month, day)
     weekday = selected_date.weekday() + 1  # 1=Пн, 7=Вс
     
-    # Получаем все группы, у которых есть занятия в этот день недели
-    all_groups = Group.query.all()
-    groups_with_lessons = []
-    
-    for group in all_groups:
-        schedule_days = group.get_schedule_days_list()
-        if weekday in schedule_days:
-            groups_with_lessons.append(group)
-    
-    # Получаем всех учеников этих групп и их посещаемость на выбранную дату
+    # Получаем группы, учеников и посещения пачками, без N+1 запросов.
+    groups_with_lessons = [
+        group for group in Group.query.order_by(Group.name.asc()).all()
+        if weekday in group.get_schedule_days_list()
+    ]
+    group_ids = [group.id for group in groups_with_lessons]
+    students_by_group = {group_id: [] for group_id in group_ids}
+    attendance_by_group = {group_id: {} for group_id in group_ids}
+
+    if group_ids:
+        students = Student.query.options(joinedload(Student.group)).filter(
+            Student.group_id.in_(group_ids),
+            Student.status == 'active'
+        ).order_by(Student.full_name.asc()).all()
+        for student in students:
+            students_by_group.setdefault(student.group_id, []).append(student)
+
+        attendances = Attendance.query.join(Student).filter(
+            Attendance.date == selected_date,
+            Student.group_id.in_(group_ids)
+        ).all()
+        for att in attendances:
+            if att.student and att.student.group_id:
+                attendance_by_group.setdefault(att.student.group_id, {})[att.student_id] = att
+
     result = []
     
     for group in groups_with_lessons:
-        # Получаем всех активных учеников группы
-        students = Student.query.filter_by(
-            group_id=group.id,
-            status='active'
-        ).all()
-        
-        # Получаем посещаемость на выбранную дату
-        attendance_records = {}
-        attendances = Attendance.query.filter_by(date=selected_date).join(Student).filter(
-            Student.group_id == group.id
-        ).all()
-        
-        for att in attendances:
-            # Обрабатываем случай, когда check_in может быть None
-            check_in_time_iso = None
-            if att.check_in:
-                check_in_time_iso = att.check_in.isoformat()
-            elif att.date:
-                # Если check_in отсутствует, но есть date, используем date с временем 00:00:00
-                from datetime import datetime, time
-                check_in_datetime = datetime.combine(att.date, time.min)
-                check_in_time_iso = check_in_datetime.isoformat()
-            
-            attendance_records[att.student_id] = {
-                'id': att.id,  # ID записи посещения для возможности удаления
-                'check_in_time': check_in_time_iso,
-                'check_in': att.check_in,  # Может быть None, но это нормально
-                'is_late': att.is_late if att.is_late else False,
-                'late_minutes': att.late_minutes if att.late_minutes else 0
-            }
+        students = students_by_group.get(group.id, [])
+        attendance_records = attendance_by_group.get(group.id, {})
         
         # Формируем список учеников с информацией о посещаемости
         students_list = []
         for student in students:
-            attendance = attendance_records.get(student.id)
+            att = attendance_records.get(student.id)
             
             # Разделяем имя и фамилию
             name_parts = student.full_name.split(' ', 1)
@@ -3714,15 +3721,16 @@ def get_groups_attendance_statistics():
             is_late = False
             late_minutes = 0
             attendance_id = None
-            if attendance:
-                # Всегда получаем ID записи посещения, если она существует
-                attendance_id = attendance.get('id')
-                # Получаем время, если оно есть
-                if attendance.get('check_in'):
-                    check_in_time = attendance['check_in_time']
-                    check_in_datetime = attendance['check_in'].isoformat()
-                is_late = attendance.get('is_late', False)
-                late_minutes = attendance.get('late_minutes', 0)
+            if att:
+                attendance_id = att.id
+                if att.check_in:
+                    check_in_time = att.check_in.isoformat()
+                    check_in_datetime = att.check_in.isoformat()
+                elif att.date:
+                    check_in_datetime = datetime.combine(att.date, dt_time.min).isoformat()
+                    check_in_time = check_in_datetime
+                is_late = bool(att.is_late)
+                late_minutes = att.late_minutes or 0
             
             students_list.append({
                 'id': student.id,
@@ -3730,7 +3738,7 @@ def get_groups_attendance_statistics():
                 'last_name': last_name,
                 'full_name': student.full_name,
                 'photo_path': student.photo_path,
-                'has_attended': attendance is not None,
+                'has_attended': att is not None,
                 'check_in_time': check_in_time,
                 'check_in_datetime': check_in_datetime,
                 'is_late': is_late,

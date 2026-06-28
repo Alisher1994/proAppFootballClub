@@ -538,8 +538,8 @@ async function pollAccessEvents() {
   const endedAt = new Date();
   await Promise.allSettled(CONFIG.devices.map(async (device) => {
     const key = getDeviceKey(device);
-    const startedAt = accessEventPollState.get(key) || new Date(Date.now() - 60 * 1000);
-    accessEventPollState.set(key, endedAt);
+    const previousAt = accessEventPollState.get(key) || new Date(Date.now() - 60 * 1000);
+    const startedAt = new Date(previousAt.getTime() - 10 * 1000);
 
     const probe = await probeDevice(device);
     if (!probe.ok) return;
@@ -548,6 +548,7 @@ async function pollAccessEvents() {
     for (const event of events) {
       await sendAccessEvent(device, event);
     }
+    accessEventPollState.set(key, endedAt);
   }));
 }
 
