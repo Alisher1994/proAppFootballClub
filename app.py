@@ -2466,40 +2466,13 @@ def dashboard():
 @app.route('/students')
 @login_required
 def students():
-    from datetime import date
-    all_students = Student.query.options(
-        joinedload(Student.group),
-        joinedload(Student.tariff)
-    ).outerjoin(Group).order_by(Group.name.asc(), Student.full_name.asc()).all()
-    balances = calculate_student_balances_bulk(all_students)
-
-    payment_info = {}
-    
-    # Подсчет баллов для текущего месяца
-    current_month = date.today().month
-    current_year = date.today().year
-    student_points = get_student_points_bulk([student.id for student in all_students], current_month, current_year)
-
-    # Убедиться, что у всех учеников есть код Telegram
-    for student in all_students:
-        ensure_student_has_telegram_code(student)
-
-    ensure_club_settings_columns()
-    settings = get_club_settings_instance()
-    today = get_local_date()
-    paid_map = get_month_paid_map(today.year, today.month)
-    payment_date_paid_map = get_payment_date_paid_map(today.year, today.month)
-    access_info = {
-        s.id: build_student_access_payload(s, settings, paid_map, payment_date_paid_map, today)
-        for s in all_students
-    }
-    
+    all_students = []
     return render_template('students.html',
                            students=all_students,
-                           payment_info=payment_info,
-                           balances=balances,
-                           student_points=student_points,
-                           access_info=access_info)
+                           payment_info={},
+                           balances={},
+                           student_points={},
+                           access_info={})
 
 
 @app.route('/groups')
@@ -2512,6 +2485,80 @@ def groups_page():
 @login_required
 def get_students_list():
     """Возвращает всех учеников для фильтров"""
+    list_view = request.args.get('view') == 'list'
+    if list_view:
+        page = max(request.args.get('page', 1, type=int) or 1, 1)
+        per_page = min(max(request.args.get('per_page', 80, type=int) or 80, 1), 200)
+        group_id = request.args.get('group_id', type=int)
+        search = (request.args.get('q') or '').strip()
+        status = (request.args.get('status') or '').strip()
+
+        query = Student.query.options(
+            joinedload(Student.group),
+            joinedload(Student.tariff)
+        ).outerjoin(Group)
+
+        if group_id:
+            query = query.filter(Student.group_id == group_id)
+        if status:
+            query = query.filter(Student.status == status)
+        if search:
+            like = f"%{search.lower()}%"
+            query = query.filter(or_(
+                func.lower(Student.full_name).like(like),
+                func.lower(func.coalesce(Student.student_number, '')).like(like),
+                func.lower(func.coalesce(Student.phone, '')).like(like),
+                func.lower(func.coalesce(Student.parent_phone, '')).like(like),
+                func.lower(func.coalesce(Group.name, '')).like(like),
+            ))
+
+        pagination = query.order_by(Group.name.asc(), Student.full_name.asc()).paginate(
+            page=page,
+            per_page=per_page,
+            error_out=False
+        )
+        students = pagination.items
+        balances = calculate_student_balances_bulk(students)
+        today = get_local_date()
+        points = get_student_points_bulk([student.id for student in students], today.month, today.year)
+
+        items = []
+        for student in students:
+            balance = balances.get(student.id, 0)
+            group_name = student.group.name if student.group else 'Без группы'
+            photo_url = build_photo_url(student.photo_path)
+            search_text = ' '.join(filter(None, [
+                student.full_name,
+                student.student_number,
+                student.phone,
+                student.parent_phone,
+                group_name,
+            ])).lower()
+            items.append({
+                'id': student.id,
+                'full_name': student.full_name,
+                'student_number': student.student_number,
+                'group_id': student.group_id,
+                'group_name': group_name,
+                'status': student.status,
+                'birth_year': student.birth_year,
+                'club_funded': bool(student.club_funded),
+                'balance': balance,
+                'points': points.get(student.id, 0),
+                'photo_url': photo_url,
+                'search': search_text,
+            })
+
+        return jsonify({
+            'items': items,
+            'page': pagination.page,
+            'per_page': pagination.per_page,
+            'total': pagination.total,
+            'pages': pagination.pages,
+            'has_next': pagination.has_next,
+            'has_prev': pagination.has_prev,
+        })
+
     ensure_club_settings_columns()
     settings = get_club_settings_instance()
     today = get_local_date()

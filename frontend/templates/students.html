@@ -3140,63 +3140,11 @@
                 <!-- Секция 1: Список учеников -->
                 <div class="student-list-panel">
                     <div class="student-list-content" id="studentListContent">
-                        {% set ns = namespace(last_group=None) %}
-                        {% for student in students %}
-                        {% set current_group = student.group.name if student.group else 'Без группы' %}
-                        {% if ns.last_group != current_group %}
-                        {% if ns.last_group is not none %}</div>
-                </div>{% endif %}
-                <div class="student-group-section collapsed">
-                    <div class="student-group-header" onclick="toggleGroup(this.parentElement)">
-                        <span>{{ current_group }}</span>
-                        <span class="group-chevron">▼</span>
-                    </div>
-                    <div class="student-group-items">
-                        {% set ns.last_group = current_group %}
-                        {% endif %}
-                        {% set balance_value = balances.get(student.id) if balances else 0 %}
-                        {% set payment = payment_info.get(student.id) if payment_info else None %}
-                        {% set points = student_points.get(student.id) if student_points else 0 %}
-                        {% set turnstile = access_info.get(student.id) if access_info else None %}
-                        <div class="student-list-item {% if balance_value <= 2 %}low-balance{% endif %} {% if student.status == 'blacklist' %}blacklisted{% endif %}"
-                            data-student-id="{{ student.id }}" data-group-id="{{ student.group_id or '' }}"
-                            data-status="{{ student.status }}"
-                            data-search="{{ (student.full_name ~ ' ' ~ (student.student_number or '') ~ ' ' ~ (student.phone or '') ~ ' ' ~ (student.parent_phone or '') ~ ' ' ~ (student.group.name if student.group else ''))|lower }}"
-                            onclick="selectStudent({{ student.id }})">
-                            <div class="student-item-status">
-                            </div>
-                            <div class="student-item-photo">
-                                {% if student.photo_path %}
-                                <img src="{{ url_for('static', filename='uploads/' + student.photo_path.replace('\\', '/').split('/')[-1]) }}"
-                                    alt="{{ student.full_name }}" loading="lazy" decoding="async">
-                                {% else %}
-                                <div class="photo-placeholder-small">👤</div>
-                                {% endif %}
-                            </div>
-                            <div class="student-item-info">
-                                <div class="student-item-name">{{ student.full_name }}</div>
-                                <div class="student-item-meta">
-                                    <span class="student-item-age">{{ 2024 - (student.birth_year or 2024) if
-                                        student.birth_year else '-' }} лет</span>
-                                    <span class="student-item-balance">
-                                        {% if student.club_funded %}
-                                        <span class="badge-club">♾️</span>
-                                        {% else %}
-                                        <span class="badge-balance {% if balance_value <= 2 %}low{% endif %}">{{
-                                            balance_value }}</span>
-                                        {% endif %}
-                                    </span>
-                                </div>
-                                <div class="student-item-group">{{ student.group.name if student.group else 'Без группы'
-                                    }}</div>
-                            </div>
+                        <div class="students-list-state" style="padding: 28px; text-align: center; color: #64748b;">
+                            Выберите группу или начните поиск
                         </div>
-                        {% endfor %}
-                        {% if ns.last_group is not none %}
                     </div>
-                </div>{% endif %}
-            </div>
-        </div>
+                </div>
 
         <!-- Секция 2: Параметры ученика -->
         <div class="student-details-panel" id="studentDetailsPanel">
@@ -4757,6 +4705,16 @@
         }
 
         const lazyStudentCache = new Map();
+        const studentListState = {
+            page: 1,
+            perPage: 80,
+            loading: false,
+            hasNext: false,
+            q: '',
+            groupId: '',
+            status: ''
+        };
+        let studentListSearchTimer = null;
 
         function escapeHtml(value) {
             return String(value ?? '')
@@ -4777,6 +4735,186 @@
         function formatMoney(value) {
             const number = Number(value || 0);
             return number.toLocaleString('ru-RU', { maximumFractionDigits: 0 });
+        }
+
+        function getStudentPhotoListHtml(student) {
+            if (student.photo_url) {
+                return `<img src="${escapeHtml(student.photo_url)}" alt="${escapeHtml(student.full_name)}" loading="lazy" decoding="async">`;
+            }
+            return '<div class="photo-placeholder-small">👤</div>';
+        }
+
+        function buildStudentListItemHtml(student) {
+            const currentYear = new Date().getFullYear();
+            const age = student.birth_year ? `${currentYear - Number(student.birth_year)} лет` : '-';
+            const lowBalance = !student.club_funded && Number(student.balance || 0) <= 2;
+            const classes = [
+                'student-list-item',
+                lowBalance ? 'low-balance' : '',
+                student.status === 'blacklist' ? 'blacklisted' : ''
+            ].filter(Boolean).join(' ');
+
+            return `
+                <div class="${classes}"
+                    data-student-id="${escapeHtml(student.id)}"
+                    data-group-id="${escapeHtml(student.group_id || '')}"
+                    data-status="${escapeHtml(student.status || '')}"
+                    data-search="${escapeHtml(student.search || '')}"
+                    onclick="selectStudent(${Number(student.id)})">
+                    <div class="student-item-status"></div>
+                    <div class="student-item-photo">${getStudentPhotoListHtml(student)}</div>
+                    <div class="student-item-info">
+                        <div class="student-item-name">${escapeHtml(student.full_name)}</div>
+                        <div class="student-item-meta">
+                            <span class="student-item-age">${escapeHtml(age)}</span>
+                            <span class="student-item-balance">
+                                ${student.club_funded
+                                    ? '<span class="badge-club">♾️</span>'
+                                    : `<span class="badge-balance ${lowBalance ? 'low' : ''}">${escapeHtml(student.balance ?? 0)}</span>`}
+                            </span>
+                        </div>
+                        <div class="student-item-group">${escapeHtml(student.group_name || 'Без группы')}</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function groupStudentsForList(students) {
+            return students.reduce((groups, student) => {
+                const groupName = student.group_name || 'Без группы';
+                if (!groups.has(groupName)) groups.set(groupName, []);
+                groups.get(groupName).push(student);
+                return groups;
+            }, new Map());
+        }
+
+        function renderStudentList(students, append = false) {
+            const listContent = document.getElementById('studentListContent');
+            if (!listContent) return;
+
+            if (!append) {
+                listContent.innerHTML = '';
+            }
+
+            if (!students.length && !append) {
+                const message = studentListState.q || studentListState.groupId
+                    ? 'Ничего не найдено'
+                    : 'Выберите группу или начните поиск';
+                listContent.innerHTML = `<div class="students-list-state" style="padding:28px;text-align:center;color:#64748b;">${message}</div>`;
+                return;
+            }
+
+            const groups = groupStudentsForList(students);
+            groups.forEach((items, groupName) => {
+                let section = Array.from(listContent.querySelectorAll('.student-group-section'))
+                    .find(el => el.dataset.groupName === groupName);
+
+                if (!section) {
+                    listContent.insertAdjacentHTML('beforeend', `
+                        <div class="student-group-section">
+                            <div class="student-group-header" onclick="toggleGroup(this.parentElement)">
+                                <span>${escapeHtml(groupName)}</span>
+                                <span class="group-chevron">▼</span>
+                            </div>
+                            <div class="student-group-items"></div>
+                        </div>
+                    `);
+                    section = listContent.lastElementChild;
+                    section.dataset.groupName = groupName;
+                }
+
+                const container = section.querySelector('.student-group-items');
+                container.insertAdjacentHTML('beforeend', items.map(buildStudentListItemHtml).join(''));
+            });
+        }
+
+        async function loadStudentsPage({ reset = false } = {}) {
+            if (studentListState.loading) return;
+            if (!reset && !studentListState.hasNext) return;
+
+            const listContent = document.getElementById('studentListContent');
+            if (reset) {
+                studentListState.page = 1;
+                studentListState.hasNext = true;
+                if (listContent) {
+                    listContent.innerHTML = '<div class="students-list-state" style="padding:28px;text-align:center;color:#64748b;">Загрузка...</div>';
+                }
+            }
+
+            studentListState.loading = true;
+            const params = new URLSearchParams({
+                view: 'list',
+                page: String(studentListState.page),
+                per_page: String(studentListState.perPage)
+            });
+            if (studentListState.q) params.set('q', studentListState.q);
+            if (studentListState.groupId) params.set('group_id', studentListState.groupId);
+            if (studentListState.status) params.set('status', studentListState.status);
+
+            try {
+                const response = await fetch(`/api/students?${params.toString()}`);
+                if (!response.ok) throw new Error('Не удалось загрузить список учеников');
+                const data = await response.json();
+                renderStudentList(data.items || [], !reset);
+                studentListState.hasNext = Boolean(data.has_next);
+                studentListState.page = Number(data.page || studentListState.page) + 1;
+            } catch (error) {
+                console.error(error);
+                if (listContent && reset) {
+                    listContent.innerHTML = '<div class="students-list-state" style="padding:28px;text-align:center;color:#ef4444;">Не удалось загрузить учеников</div>';
+                }
+            } finally {
+                studentListState.loading = false;
+            }
+        }
+
+        function scheduleStudentsReload() {
+            clearTimeout(studentListSearchTimer);
+            studentListSearchTimer = setTimeout(() => loadStudentsPage({ reset: true }), 250);
+        }
+
+        function applyServerStudentFilters() {
+            const searchInput = document.getElementById('studentListSearch');
+            const filterNameInput = document.getElementById('filterName');
+            const groupFilter = document.getElementById('filterGroup');
+            const groupFilterSelect = document.getElementById('groupFilterSelect');
+            const statusFilter = document.getElementById('filterStatus');
+
+            const searchTerm = filterNameInput?.value || searchInput?.value || '';
+            studentListState.q = normalizeStudentSearch(searchTerm);
+            studentListState.groupId = groupFilter?.value || groupFilterSelect?.value || '';
+            studentListState.status = statusFilter?.value || '';
+
+            if (searchInput) searchInput.value = searchTerm;
+            if (filterNameInput) filterNameInput.value = searchTerm;
+            if (groupFilterSelect) groupFilterSelect.value = studentListState.groupId;
+            if (groupFilter) groupFilter.value = studentListState.groupId;
+
+            const clearBtn = document.getElementById('clearGroupFilter');
+            if (clearBtn) {
+                clearBtn.style.opacity = studentListState.groupId ? '1' : '0';
+                clearBtn.style.pointerEvents = studentListState.groupId ? 'auto' : 'none';
+            }
+
+            loadStudentsPage({ reset: true });
+        }
+
+        function clearServerStudentFilters() {
+            const searchInput = document.getElementById('studentListSearch');
+            const filterNameInput = document.getElementById('filterName');
+            const groupFilter = document.getElementById('filterGroup');
+            const groupFilterSelect = document.getElementById('groupFilterSelect');
+            const statusFilter = document.getElementById('filterStatus');
+            const balanceFilter = document.getElementById('filterBalance');
+
+            [searchInput, filterNameInput, groupFilter, groupFilterSelect, statusFilter, balanceFilter].forEach(input => {
+                if (input) input.value = '';
+            });
+
+            studentListState.q = '';
+            studentListState.groupId = '';
+            studentListState.status = '';
+            filterStudentsByGroup('');
         }
 
         function getStudentStatusText(status) {
@@ -5115,45 +5253,15 @@
 
         // Функция фильтрации учеников
         function filterStudentsByGroup(groupId) {
-            const items = document.querySelectorAll('.student-list-item');
+            studentListState.groupId = groupId || '';
             const clearBtn = document.getElementById('clearGroupFilter');
 
-            items.forEach(item => {
-                const itemGroupId = item.getAttribute('data-group-id');
-                const currentDisplay = item.style.display;
-
-                // Если элемент скрыт поиском, не трогать его
-                if (currentDisplay === 'none' && !groupId) {
-                    // При сбросе фильтра группы проверяем поиск
-                    return;
-                }
-
-                if (!groupId || itemGroupId === groupId || itemGroupId === '') {
-                    // Показывать, если группа совпадает или фильтр не выбран
-                    if (currentDisplay !== 'none' || !groupId) {
-                        item.style.display = currentDisplay || 'flex';
-                    }
-                } else {
-                    item.style.display = 'none';
-                }
-            });
-
-            // Показать/скрыть кнопку очистки
             if (clearBtn) {
-                if (groupId) {
-                    clearBtn.style.opacity = '1';
-                    clearBtn.style.pointerEvents = 'auto';
-                } else {
-                    clearBtn.style.opacity = '0';
-                    clearBtn.style.pointerEvents = 'none';
-                }
+                clearBtn.style.opacity = studentListState.groupId ? '1' : '0';
+                clearBtn.style.pointerEvents = studentListState.groupId ? 'auto' : 'none';
             }
 
-            // Update group visibility
-            document.querySelectorAll('.student-group-section').forEach(section => {
-                const hasVisibleItems = Array.from(section.querySelectorAll('.student-list-item')).some(item => item.style.display !== 'none');
-                section.style.display = hasVisibleItems ? 'block' : 'none';
-            });
+            loadStudentsPage({ reset: true });
         }
 
         // Поиск по списку учеников
@@ -5163,6 +5271,11 @@
             if (studentListContent) {
                 let scrollTimeout;
                 studentListContent.addEventListener('scroll', function () {
+                    const nearBottom = studentListContent.scrollTop + studentListContent.clientHeight >= studentListContent.scrollHeight - 160;
+                    if (nearBottom) {
+                        loadStudentsPage();
+                    }
+
                     // Дебаунс для оптимизации - сохраняем позицию через 100ms после окончания скролла
                     clearTimeout(scrollTimeout);
                     scrollTimeout = setTimeout(() => {
@@ -5182,14 +5295,7 @@
 
             if (groupFilterSelect) {
                 groupFilterSelect.addEventListener('change', function () {
-                    const selectedGroupId = this.value;
-                    filterStudentsByGroup(selectedGroupId);
-
-                    // Применить также поиск, если он активен
-                    const searchInput = document.getElementById('studentListSearch');
-                    if (searchInput && searchInput.value) {
-                        searchInput.dispatchEvent(new Event('input'));
-                    }
+                    filterStudentsByGroup(this.value);
                 });
             }
 
@@ -5201,12 +5307,6 @@
                         groupFilterSelect.value = '';
                         filterStudentsByGroup('');
 
-                        // Применить также поиск, если он активен
-                        const searchInput = document.getElementById('studentListSearch');
-                        if (searchInput && searchInput.value) {
-                            searchInput.dispatchEvent(new Event('input'));
-                        }
-
                         // Сохранить состояние после сброса фильтра
                         setTimeout(() => savePageState(), 200);
                     }
@@ -5215,6 +5315,10 @@
 
             const searchInput = document.getElementById('studentListSearch');
             const filterNameInput = document.getElementById('filterName');
+            const applyFiltersBtn = document.getElementById('applyFiltersBtn');
+            const clearFiltersBtn = document.getElementById('clearFiltersBtn');
+            const filterGroupInput = document.getElementById('filterGroup');
+            const filterStatusInput = document.getElementById('filterStatus');
 
             // Синхронизация поиска в списке с фильтром
             if (searchInput) {
@@ -5226,40 +5330,8 @@
                         filterNameInput.value = searchTerm;
                     }
 
-                    // Применить фильтры для полной фильтрации
-                    if (typeof applyFilters === 'function') {
-                        applyFilters();
-                    } else {
-                        // Если функция applyFilters еще не загружена, выполнить простой поиск
-                        const items = document.querySelectorAll('.student-list-item');
-                        const selectedGroupId = groupFilterSelect ? groupFilterSelect.value : '';
-
-                        items.forEach(item => {
-                            const name = item.querySelector('.student-item-name').textContent.toLowerCase();
-                            const group = item.querySelector('.student-item-group').textContent.toLowerCase();
-                            const itemGroupId = item.getAttribute('data-group-id');
-
-                            const matchesSearch = name.includes(searchTerm.toLowerCase()) || group.includes(searchTerm.toLowerCase());
-                            const matchesGroup = !selectedGroupId || itemGroupId === selectedGroupId;
-
-                            if (matchesSearch && matchesGroup) {
-                                item.style.display = 'flex';
-                            } else {
-                                item.style.display = 'none';
-                            }
-                        });
-
-                        // Update group visibility
-                        document.querySelectorAll('.student-group-section').forEach(section => {
-                            const hasVisibleItems = Array.from(section.querySelectorAll('.student-list-item')).some(item => item.style.display !== 'none');
-                            section.style.display = hasVisibleItems ? 'block' : 'none';
-
-                            // Если поиск активен и есть результаты в группе - развернуть её
-                            if (searchTerm && hasVisibleItems) {
-                                section.classList.remove('collapsed');
-                            }
-                        });
-                    }
+                    studentListState.q = normalizeStudentSearch(searchTerm);
+                    scheduleStudentsReload();
                 });
             }
 
@@ -5267,20 +5339,46 @@
             if (filterNameInput && searchInput) {
                 filterNameInput.addEventListener('input', function (e) {
                     searchInput.value = e.target.value;
+                    studentListState.q = normalizeStudentSearch(e.target.value);
+                    scheduleStudentsReload();
                 });
             }
+
+            if (applyFiltersBtn) {
+                applyFiltersBtn.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    e.stopImmediatePropagation();
+                    applyServerStudentFilters();
+                }, true);
+            }
+
+            if (clearFiltersBtn) {
+                clearFiltersBtn.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    e.stopImmediatePropagation();
+                    clearServerStudentFilters();
+                }, true);
+            }
+
+            [filterGroupInput, filterStatusInput].forEach(input => {
+                if (!input) return;
+                input.addEventListener('change', function (e) {
+                    e.stopImmediatePropagation();
+                    applyServerStudentFilters();
+                }, true);
+            });
 
             document.querySelector('.student-details-placeholder')?.classList.remove('hidden');
             document.querySelector('.student-photo-placeholder-main')?.classList.remove('hidden');
 
             // Обработка клавиатурной навигации
             let selectedIndex = 0;
-            const studentItems = Array.from(document.querySelectorAll('.student-list-item'));
 
             document.addEventListener('keydown', function (e) {
                 if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
                     e.preventDefault();
 
+                    const studentItems = Array.from(document.querySelectorAll('.student-list-item'));
                     const visibleItems = studentItems.filter(item =>
                         item.style.display !== 'none'
                     );
@@ -5299,6 +5397,8 @@
                     }
                 }
             });
+
+            loadStudentsPage({ reset: true });
         });
 
         // Переключение вкладок в форме добавления ученика
