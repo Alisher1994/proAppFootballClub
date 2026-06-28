@@ -1444,6 +1444,42 @@
             font-size: 12px;
         }
 
+        .template-token-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .template-token-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            min-height: 30px;
+            padding: 0 10px;
+            border: 1px solid #dbe3ef;
+            border-radius: 999px;
+            background: #f8fafc;
+            color: #334155;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+        }
+
+        .template-token-btn:hover {
+            background: #eef2f7;
+            border-color: #cbd5e1;
+            color: #0f172a;
+        }
+
+        .template-token-btn code {
+            color: #64748b;
+            font-family: inherit;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
         @media (max-width: 900px) {
             .settings-page .settings-tab {
                 padding: 0 12px;
@@ -2017,69 +2053,59 @@
                                 <div class="settings-section-content">
                                     <div class="form-group">
                                         <label>
-                                            <span style="margin-right: 6px;">📅</span>
+                                            <i data-lucide="calendar-clock"></i>
                                             Шаблон уведомления о занятии
                                         </label>
                                         <textarea id="telegram_notification_template" class="form-input-modern" rows="5"
                                             placeholder="📅 Напоминание: занятие группы {group_name} через 3 часа в {time}.\n\n{additional_text}"></textarea>
-                                        <small
-                                            style="color: #7f8c8d; display: block; margin-top: 8px; line-height: 1.5;">
-                                            Шаблон для уведомлений о занятиях. Доступные переменные:<br>
-                                            <strong>{group_name}</strong> - название группы<br>
-                                            <strong>{time}</strong> - время занятия<br>
-                                            <strong>{days}</strong> - дни недели<br>
-                                            <strong>{additional_text}</strong> - дополнительный текст (опционально)
-                                        </small>
+                                        <div class="template-token-list" data-template-target="telegram_notification_template">
+                                            <button type="button" class="template-token-btn" data-token="{group_name}">Название группы <code>{group_name}</code></button>
+                                            <button type="button" class="template-token-btn" data-token="{time}">Время занятия <code>{time}</code></button>
+                                            <button type="button" class="template-token-btn" data-token="{days}">Дни недели <code>{days}</code></button>
+                                            <button type="button" class="template-token-btn" data-token="{additional_text}">Доп. текст <code>{additional_text}</code></button>
+                                        </div>
                                     </div>
                                     <div class="form-group">
                                         <label>
-                                            <span style="margin-right: 6px;">⭐</span>
+                                            <i data-lucide="star"></i>
                                             Шаблон уведомления о вознаграждении
                                         </label>
                                         <textarea id="telegram_reward_template" class="form-input-modern" rows="5"
                                             placeholder="⭐ Вам выдано вознаграждение!\n\nТип: {reward_name}\nБаллы: +{points}\nВсего баллов за месяц: {total_points}\n\n{reason}"></textarea>
-                                        <small
-                                            style="color: #7f8c8d; display: block; margin-top: 8px; line-height: 1.5;">
-                                            Шаблон для уведомлений о вознаграждениях. Доступные переменные:<br>
-                                            <strong>{reward_name}</strong> - название вознаграждения<br>
-                                            <strong>{points}</strong> - количество баллов<br>
-                                            <strong>{total_points}</strong> - всего баллов за месяц<br>
-                                            <strong>{reason}</strong> - примечание (опционально)
-                                        </small>
+                                        <div class="template-token-list" data-template-target="telegram_reward_template">
+                                            <button type="button" class="template-token-btn" data-token="{reward_name}">Название награды <code>{reward_name}</code></button>
+                                            <button type="button" class="template-token-btn" data-token="{points}">Баллы <code>{points}</code></button>
+                                            <button type="button" class="template-token-btn" data-token="{total_points}">Баллы за месяц <code>{total_points}</code></button>
+                                            <button type="button" class="template-token-btn" data-token="{reason}">Причина <code>{reason}</code></button>
+                                        </div>
                                     </div>
                                     <div class="form-group">
                                         <label>
-                                            <span style="margin-right: 6px;">🟨</span>
+                                            <i data-lucide="badge-alert"></i>
                                             Шаблон уведомления о карточке
                                         </label>
                                         <textarea id="telegram_card_template" class="form-input-modern" rows="5"
                                             placeholder="🟨 Вам выдана карточка!\n\nТип: {card_name}\nПричина: {reason}"></textarea>
-                                        <small
-                                            style="color: #7f8c8d; display: block; margin-top: 8px; line-height: 1.5;">
-                                            Шаблон для уведомлений о карточках. Доступные переменные:<br>
-                                            <strong>{card_name}</strong> - название карточки<br>
-                                            <strong>{reason}</strong> - причина выдачи
-                                        </small>
+                                        <div class="template-token-list" data-template-target="telegram_card_template">
+                                            <button type="button" class="template-token-btn" data-token="{card_name}">Название карточки <code>{card_name}</code></button>
+                                            <button type="button" class="template-token-btn" data-token="{reason}">Причина <code>{reason}</code></button>
+                                        </div>
                                     </div>
                                     <div class="form-group">
                                         <label>
-                                            <span style="margin-right: 6px;">💳</span>
+                                            <i data-lucide="receipt"></i>
                                             Шаблон уведомления об оплате
                                         </label>
                                         <textarea id="telegram_payment_template" class="form-input-modern" rows="5"
                                             placeholder="💳 Оплата получена!\n\nФИО: {full_name}\nДата оплаты: {payment_date}\nМесяц: {month}\nТип оплаты: {payment_type}\nСумма оплаты: {amount_paid} сум{debt_info}"></textarea>
-                                        <small
-                                            style="color: #7f8c8d; display: block; margin-top: 8px; line-height: 1.5;">
-                                            Шаблон для уведомлений об оплате. Доступные переменные:<br>
-                                            <strong>{full_name}</strong> - ФИО ученика<br>
-                                            <strong>{payment_date}</strong> - дата оплаты<br>
-                                            <strong>{month}</strong> - месяц оплаты<br>
-                                            <strong>{payment_type}</strong> - тип оплаты (Наличные, Карта, Click, Payme,
-                                            Uzum)<br>
-                                            <strong>{amount_paid}</strong> - сумма оплаты<br>
-                                            <strong>{debt_info}</strong> - информация о долге (отображается только если
-                                            есть долг)
-                                        </small>
+                                        <div class="template-token-list" data-template-target="telegram_payment_template">
+                                            <button type="button" class="template-token-btn" data-token="{full_name}">ФИО ученика <code>{full_name}</code></button>
+                                            <button type="button" class="template-token-btn" data-token="{payment_date}">Дата оплаты <code>{payment_date}</code></button>
+                                            <button type="button" class="template-token-btn" data-token="{month}">Месяц оплаты <code>{month}</code></button>
+                                            <button type="button" class="template-token-btn" data-token="{payment_type}">Способ оплаты <code>{payment_type}</code></button>
+                                            <button type="button" class="template-token-btn" data-token="{amount_paid}">Сумма <code>{amount_paid}</code></button>
+                                            <button type="button" class="template-token-btn" data-token="{debt_info}">Информация о долге <code>{debt_info}</code></button>
+                                        </div>
                                     </div>
                                 </div>
                             </div>

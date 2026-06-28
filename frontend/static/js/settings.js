@@ -40,6 +40,7 @@ async function initSettings() {
     }
     const resetLogoBtn = document.getElementById('resetLogoBtn');
     if (resetLogoBtn) resetLogoBtn.addEventListener('click', resetSystemLogo);
+    attachTemplateTokenButtons();
 
     const expenseForm = document.getElementById('expenseCategoriesForm');
     if (expenseForm) {
@@ -109,6 +110,28 @@ async function initSettings() {
     });
 
     initializeSettingsDirtyTracking();
+}
+
+function attachTemplateTokenButtons() {
+    document.querySelectorAll('.template-token-list').forEach(list => {
+        list.addEventListener('click', (event) => {
+            const button = event.target.closest('.template-token-btn');
+            if (!button) return;
+
+            const textarea = document.getElementById(list.dataset.templateTarget || '');
+            const token = button.dataset.token || '';
+            if (!textarea || !token) return;
+
+            const start = textarea.selectionStart ?? textarea.value.length;
+            const end = textarea.selectionEnd ?? textarea.value.length;
+            textarea.value = `${textarea.value.slice(0, start)}${token}${textarea.value.slice(end)}`;
+
+            const cursor = start + token.length;
+            textarea.focus();
+            textarea.setSelectionRange(cursor, cursor);
+            textarea.dispatchEvent(new Event('input', { bubbles: true }));
+        });
+    });
 }
 
 function attachWorkingDayToggles() {
