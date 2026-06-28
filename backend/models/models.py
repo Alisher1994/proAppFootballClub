@@ -434,6 +434,8 @@ class Expense(db.Model):
     expense_date = db.Column(db.DateTime, default=get_local_datetime)
     created_by = db.Column(db.Integer, db.ForeignKey('users.id'))
     expense_source = db.Column(db.String(50), default='cash')  # cash | bank
+    employee_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    employee_name = db.Column(db.String(200), nullable=True)
     
     def __repr__(self):
         return f'<Expense {self.category} {self.amount}>'

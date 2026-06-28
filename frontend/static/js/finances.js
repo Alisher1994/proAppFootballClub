@@ -161,7 +161,7 @@ let allExpenseData = [];
 let incomeDefaultFilterApplied = false;
 let expenseDefaultFilterApplied = false;
 
-const defaultExpenseCategories = ['Аренда', 'Зарплата', 'Оборудование', 'Коммунальные', 'Ремонт стадиона', 'Дивидент', 'Инкасация', 'Прочее'];
+const defaultExpenseCategories = ['Аренда', 'Зарплата', 'Оборудование', 'Коммунальные', 'Ремонт стадиона', 'Оплата за сайт', 'Дивидент', 'Инкасация', 'Прочее'];
 const expenseCategoryState = { loaded: false, list: [] };
 const expenseCategoryColors = {};
 const expenseColorPalette = [
@@ -201,6 +201,9 @@ async function loadExpenseCategoriesFromSettings() {
     // Гарантируем наличие Инкасации
     if (!expenseCategoryState.list.includes('Инкасация')) {
         expenseCategoryState.list.push('Инкасация');
+    }
+    if (!expenseCategoryState.list.includes('Оплата за сайт')) {
+        expenseCategoryState.list.splice(Math.max(expenseCategoryState.list.indexOf('Ремонт стадиона') + 1, 0), 0, 'Оплата за сайт');
     }
 
     expenseCategoryState.loaded = true;
@@ -428,7 +431,7 @@ function renderExpenseStats(expenses) {
 function renderExpenseTable(expenses) {
     const tbody = document.getElementById('expense-table-body');
     if (!expenses || expenses.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #95a5a6;">Нет расходов</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: #95a5a6;">Нет расходов</td></tr>';
         return;
     }
 
@@ -443,14 +446,16 @@ function renderExpenseTable(expenses) {
                 <td><span style="color: #e74c3c;">${displayCategory}</span></td>
                 <td><strong>${Number(e.amount || 0).toLocaleString('ru-RU')} сум</strong></td>
                 <td><span class="badge" style="background:#eef2ff;color:#4338ca;">${source}</span></td>
-                <td>${e.description || '-'}</td>
+                <td>${e.employee_name ? escapeHtml(e.employee_name) : '-'}</td>
+                <td>${e.description ? escapeHtml(e.description) : '-'}</td>
                 <td>
                     <button class="btn-small btn-info edit-expense-btn" 
                             data-expense-id="${e.id}"
-                            data-category="${e.category}"
+                            data-category="${escapeAttr(e.category)}"
                             data-amount="${e.amount}"
-                            data-description="${e.description || ''}"
-                            data-source="${e.expense_source || 'cash'}">
+                            data-description="${escapeAttr(e.description || '')}"
+                            data-source="${e.expense_source || 'cash'}"
+                            data-employee-id="${e.employee_id || ''}">
                         ${financeEditIcon}
                     </button>
                     <button class="btn-small btn-danger delete-expense-btn" 
@@ -868,6 +873,7 @@ function confirmCloseAddIncomeModal() {
 }
 
 let allStudentsData = {}; // Хранилище данных учеников для доступа к фото
+let financeEmployees = [];
 
 function escapeHtml(value) {
     return String(value ?? '')
@@ -876,6 +882,59 @@ function escapeHtml(value) {
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#039;');
+}
+
+function escapeAttr(value) {
+    return escapeHtml(value).replace(/`/g, '&#096;');
+}
+
+async function loadFinanceEmployees() {
+    if (financeEmployees.length) return financeEmployees;
+    try {
+        const response = await fetch('/api/finances/employees');
+        const data = await response.json();
+        financeEmployees = Array.isArray(data.employees) ? data.employees : [];
+    } catch (error) {
+        console.error('Ошибка загрузки сотрудников:', error);
+        financeEmployees = [];
+    }
+    return financeEmployees;
+}
+
+function populateExpenseEmployeeSelect(selectId, selectedId = '') {
+    const select = document.getElementById(selectId);
+    if (!select) return;
+
+    select.innerHTML = '<option value="">Выберите сотрудника</option>';
+    financeEmployees.forEach((employee) => {
+        const option = document.createElement('option');
+        option.value = String(employee.id);
+        option.textContent = employee.role ? `${employee.name} · ${employee.role}` : employee.name;
+        select.appendChild(option);
+    });
+
+    if (selectedId) {
+        select.value = String(selectedId);
+    }
+    setupSearchableSelect(selectId, 'Поиск по ФИО...');
+}
+
+function toggleSalaryEmployeeField(categorySelectId, groupId, selectId) {
+    const categorySelect = document.getElementById(categorySelectId);
+    const group = document.getElementById(groupId);
+    const employeeSelect = document.getElementById(selectId);
+    if (!categorySelect || !group || !employeeSelect) return;
+
+    const isSalary = categorySelect.value === 'Зарплата';
+    group.style.display = isSalary ? 'block' : 'none';
+    if (isSalary) {
+        employeeSelect.setAttribute('required', 'required');
+        setupSearchableSelect(selectId, 'Поиск по ФИО...');
+    } else {
+        employeeSelect.value = '';
+        employeeSelect.removeAttribute('required');
+        setupSearchableSelect(selectId, 'Поиск по ФИО...');
+    }
 }
 
 function setupSearchableSelect(selectId, placeholder = 'Поиск...') {
@@ -1901,9 +1960,12 @@ const addExpenseForm = document.getElementById('addExpenseForm');
 
 // Открыть модальное окно
 if (addExpenseBtn) {
-    addExpenseBtn.addEventListener('click', () => {
+    addExpenseBtn.addEventListener('click', async () => {
         addExpenseModal.style.display = 'block';
         addExpenseForm.reset();
+        await loadFinanceEmployees();
+        populateExpenseEmployeeSelect('add-expense-employee');
+        toggleSalaryEmployeeField('add-expense-category', 'add-salary-employee-group', 'add-expense-employee');
 
         // Сброс источника на кассу
         const sourceInput = document.getElementById('expense-source');
@@ -1947,12 +2009,14 @@ addExpenseForm.addEventListener('submit', async (e) => {
         category = formData.get('custom_category');
     }
     const expenseSource = (formData.get('expense_source') || 'cash');
+    const employeeId = formData.get('employee_id') || null;
 
     const data = {
         category: category,
         amount: parseFloat(formData.get('amount')),
         description: formData.get('description') || '',
-        expense_source: expenseSource
+        expense_source: expenseSource,
+        employee_id: category === 'Зарплата' ? employeeId : null
     };
 
     try {
@@ -1976,7 +2040,7 @@ addExpenseForm.addEventListener('submit', async (e) => {
             }
         } else {
             const error = await response.json();
-            alert('Ошибка: ' + (error.error || 'Не удалось добавить расход'));
+            alert('Ошибка: ' + (error.message || error.error || 'Не удалось добавить расход'));
         }
     } catch (error) {
         console.error('Error:', error);
@@ -1989,14 +2053,16 @@ const editExpenseModal = document.getElementById('editExpenseModal');
 const editExpenseForm = document.getElementById('editExpenseForm');
 
 // Открыть модальное окно редактирования при клике на кнопку
-document.addEventListener('click', (e) => {
-    if (e.target.classList.contains('edit-expense-btn')) {
-        const btn = e.target;
+document.addEventListener('click', async (e) => {
+    const editBtn = e.target.closest('.edit-expense-btn');
+    if (editBtn) {
+        const btn = editBtn;
         const expenseId = btn.dataset.expenseId;
         let category = btn.dataset.category;
         const amount = btn.dataset.amount;
-            const description = btn.dataset.description;
-            const source = btn.dataset.source || 'cash';
+        const description = btn.dataset.description;
+        const source = btn.dataset.source || 'cash';
+        const employeeId = btn.dataset.employeeId || '';
 
         // Преобразовать Encashment обратно в Инкасация для редактирования
         if (category === 'Encashment') {
@@ -2024,6 +2090,9 @@ document.addEventListener('click', (e) => {
         }
         document.getElementById('edit-amount').value = amount;
         document.getElementById('edit-description').value = description;
+        await loadFinanceEmployees();
+        populateExpenseEmployeeSelect('edit-expense-employee', employeeId);
+        toggleSalaryEmployeeField('edit-category', 'edit-salary-employee-group', 'edit-expense-employee');
 
         // Установить источник
         const editSourceInput = document.getElementById('edit-expense-source');
@@ -2069,12 +2138,14 @@ editExpenseForm.addEventListener('submit', async (e) => {
     const amount = parseFloat(document.getElementById('edit-amount').value);
     const description = document.getElementById('edit-description').value || '';
     const expenseSource = document.getElementById('edit-expense-source').value || 'cash';
+    const employeeId = document.getElementById('edit-expense-employee')?.value || null;
 
     const data = {
         category: category,
         amount: amount,
         description: description,
-        expense_source: expenseSource
+        expense_source: expenseSource,
+        employee_id: category === 'Зарплата' ? employeeId : null
     };
 
     try {
@@ -2099,7 +2170,7 @@ editExpenseForm.addEventListener('submit', async (e) => {
             alert('Расход успешно обновлен!');
         } else {
             const error = await response.json();
-            alert('Ошибка: ' + (error.error || 'Не удалось обновить расход'));
+            alert('Ошибка: ' + (error.message || error.error || 'Не удалось обновить расход'));
         }
     } catch (error) {
         console.error('Error:', error);
@@ -2281,6 +2352,18 @@ function setupCategoryToggle(selectId, customGroupId, inputName) {
 document.addEventListener('DOMContentLoaded', () => {
     setupCategoryToggle('add-expense-category', 'add-custom-category-group', 'custom_category');
     setupCategoryToggle('edit-category', 'edit-custom-category-group', 'custom_category');
+    const addExpenseCategory = document.getElementById('add-expense-category');
+    const editExpenseCategory = document.getElementById('edit-category');
+    if (addExpenseCategory) {
+        addExpenseCategory.addEventListener('change', () => {
+            toggleSalaryEmployeeField('add-expense-category', 'add-salary-employee-group', 'add-expense-employee');
+        });
+    }
+    if (editExpenseCategory) {
+        editExpenseCategory.addEventListener('change', () => {
+            toggleSalaryEmployeeField('edit-category', 'edit-salary-employee-group', 'edit-expense-employee');
+        });
+    }
 
     const enforceIncassoSource = (selectId, hiddenInputId, containerSelector) => {
         const select = document.getElementById(selectId);

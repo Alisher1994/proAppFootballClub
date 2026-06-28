@@ -22,6 +22,7 @@
                     <th>Дата</th>
                     <th>Категория</th>
                     <th>Сумма</th>
+                    <th>Сотрудник</th>
                     <th>Описание</th>
                     <th>Действия</th>
                 </tr>
@@ -32,6 +33,7 @@
                     <td>{{ expense.expense_date.strftime('%d.%m.%Y %H:%M') }}</td>
                     <td>{{ expense.category }}</td>
                     <td>{{ "%.0f"|format(expense.amount) }} сум</td>
+                    <td>{{ expense.employee_name or '-' }}</td>
                     <td>{{ expense.description or '-' }}</td>
                     <td>
                         <button
@@ -40,6 +42,7 @@
                             data-category="{{ expense.category }}"
                             data-amount="{{ expense.amount }}"
                             data-description="{{ expense.description or '' }}"
+                            data-employee-id="{{ expense.employee_id or '' }}"
                         title="Изменить"
                         ><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
                     </td>
@@ -68,7 +71,18 @@
                             <option value="Зарплата">Зарплата</option>
                             <option value="Оборудование">Оборудование</option>
                             <option value="Коммунальные">Коммунальные услуги</option>
+                            <option value="Оплата за сайт">Оплата за сайт</option>
                             <option value="Прочее">Прочее</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group salary-employee-group" style="display: none;">
+                        <label>Сотрудник *</label>
+                        <select name="employee_id" id="addExpenseEmployee">
+                            <option value="">Выберите сотрудника</option>
+                            {% for employee in employees if employee.is_active %}
+                                <option value="{{ employee.id }}">{{ employee.full_name or employee.username }}</option>
+                            {% endfor %}
                         </select>
                     </div>
                     
@@ -107,7 +121,18 @@
                             <option value="Зарплата">Зарплата</option>
                             <option value="Оборудование">Оборудование</option>
                             <option value="Коммунальные">Коммунальные услуги</option>
+                            <option value="Оплата за сайт">Оплата за сайт</option>
                             <option value="Прочее">Прочее</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group salary-employee-group" style="display: none;">
+                        <label>Сотрудник *</label>
+                        <select name="employee_id" id="editExpenseEmployee">
+                            <option value="">Выберите сотрудника</option>
+                            {% for employee in employees if employee.is_active %}
+                                <option value="{{ employee.id }}">{{ employee.full_name or employee.username }}</option>
+                            {% endfor %}
                         </select>
                     </div>
                     

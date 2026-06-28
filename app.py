@@ -1467,6 +1467,32 @@ def ensure_expense_columns():
     with db.engine.begin() as conn:
         if 'expense_source' not in columns:
             conn.execute(db.text("ALTER TABLE expenses ADD COLUMN expense_source VARCHAR(50) DEFAULT 'cash'"))
+        if 'employee_id' not in columns:
+            conn.execute(db.text("ALTER TABLE expenses ADD COLUMN employee_id INTEGER"))
+        if 'employee_name' not in columns:
+            conn.execute(db.text("ALTER TABLE expenses ADD COLUMN employee_name VARCHAR(200)"))
+
+
+def get_salary_expense_employee(data, category):
+    """Возвращает сотрудника для расхода зарплаты или None для других категорий."""
+    if category != 'Зарплата':
+        return None
+
+    raw_employee_id = data.get('employee_id')
+    if not raw_employee_id:
+        raise ValueError('Выберите сотрудника для выплаты зарплаты')
+
+    try:
+        employee_id = int(raw_employee_id)
+    except (TypeError, ValueError):
+        raise ValueError('Некорректный сотрудник для выплаты зарплаты')
+
+    employee = db.session.get(User, employee_id)
+    if not employee:
+        raise ValueError('Сотрудник не найден')
+    if not getattr(employee, 'is_active', True):
+        raise ValueError('Нельзя выплатить зарплату неактивному сотруднику')
+    return employee
 
 
 def ensure_students_columns():
@@ -3927,7 +3953,8 @@ def expenses_page():
 
     ensure_expense_columns()
     expenses = Expense.query.order_by(Expense.expense_date.desc()).limit(50).all()
-    return render_template('expenses.html', expenses=expenses)
+    employees = User.query.order_by(User.full_name.asc(), User.username.asc()).all()
+    return render_template('expenses.html', expenses=expenses, employees=employees)
 
 
 @app.route('/api/expenses/add', methods=['POST'])
@@ -3951,11 +3978,14 @@ def add_expense():
         if is_incasso:
             source = 'cash'
         amount = float(data.get('amount'))
+        employee = get_salary_expense_employee(data, category)
         expense = Expense(
             category=category,
             amount=amount,
             description=data.get('description'),
             expense_source=source,
+            employee_id=employee.id if employee else None,
+            employee_name=(employee.full_name or employee.username) if employee else None,
             created_by=current_user.id
         )
         db.session.add(expense)
@@ -3979,6 +4009,9 @@ def add_expense():
         
         db.session.commit()
         return jsonify({'success': True})
+    except ValueError as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 400
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'message': str(e)}), 500
@@ -4017,6 +4050,14 @@ def update_expense(expense_id):
                 source = 'cash'
             if source in ['cash', 'bank']:
                 expense.expense_source = source
+
+        employee = get_salary_expense_employee(data, expense.category)
+        if employee:
+            expense.employee_id = employee.id
+            expense.employee_name = employee.full_name or employee.username
+        elif expense.category != 'Зарплата':
+            expense.employee_id = None
+            expense.employee_name = None
         
         # Обновить связанный платёж инкассации, если сумма изменилась
         if expense.category == 'Encashment' and new_amount != old_amount:
@@ -4028,6 +4069,9 @@ def update_expense(expense_id):
 
         db.session.commit()
         return jsonify({'success': True})
+    except ValueError as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 400
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'message': str(e)}), 500
@@ -4892,7 +4936,9 @@ def get_expense_stats():
         'category': e.category,
         'amount': e.amount,
         'description': e.description,
-        'expense_source': getattr(e, 'expense_source', 'cash') or 'cash'
+        'expense_source': getattr(e, 'expense_source', 'cash') or 'cash',
+        'employee_id': getattr(e, 'employee_id', None),
+        'employee_name': getattr(e, 'employee_name', None) or ''
     } for e in expenses]
     
     return jsonify({
@@ -4901,6 +4947,25 @@ def get_expense_stats():
         'total': expense_total,
         'expenses': expenses_list
     })
+
+
+@app.route('/api/finances/employees', methods=['GET'])
+@login_required
+def get_finance_employees():
+    """Список сотрудников для выплат зарплаты."""
+    if current_user.role not in ['admin', 'financier']:
+        return jsonify({'success': False, 'message': 'Нет доступа'}), 403
+
+    users = User.query.order_by(User.full_name.asc(), User.username.asc()).all()
+    employees = [{
+        'id': user.id,
+        'name': user.full_name or user.username,
+        'username': user.username,
+        'role': user.role_obj.name if getattr(user, 'role_obj', None) else user.role,
+        'is_active': bool(getattr(user, 'is_active', True))
+    } for user in users if getattr(user, 'is_active', True)]
+
+    return jsonify({'success': True, 'employees': employees})
 
 
 @app.route('/api/finances/analytics', methods=['GET'])
@@ -5053,12 +5118,15 @@ def get_club_settings():
     if not expense_categories:
         expense_categories = [
             'Аренда', 'Зарплата', 'Оборудование', 'Коммунальные услуги',
-            'Ремонт стадиона', 'Дивидент', 'Прочее'
+            'Ремонт стадиона', 'Оплата за сайт', 'Дивидент', 'Прочее'
         ]
     
     # Фильтруем техническую категорию "Encashment" - она не должна показываться пользователю
     # В интерфейсе "Инкасация" добавляется автоматически
     expense_categories = [cat for cat in expense_categories if cat != 'Encashment']
+    if 'Оплата за сайт' not in expense_categories:
+        insert_at = expense_categories.index('Ремонт стадиона') + 1 if 'Ремонт стадиона' in expense_categories else len(expense_categories)
+        expense_categories.insert(insert_at, 'Оплата за сайт')
     if generated_key:
         db.session.commit()
     
