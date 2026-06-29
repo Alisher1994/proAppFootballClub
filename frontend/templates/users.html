@@ -846,6 +846,191 @@
                 grid-template-columns: 1fr;
             }
         }
+
+        @media (max-width: 768px) {
+            .users-page .game-main-content {
+                margin-left: 0 !important;
+                width: 100% !important;
+                min-height: 100dvh;
+                padding-bottom: 76px !important;
+            }
+
+            .users-page .game-layout {
+                height: auto;
+                min-height: 100dvh;
+                overflow: visible;
+                background: #f5f7fb !important;
+            }
+
+            .users-page .game-top-bar {
+                position: sticky;
+                top: 0;
+                z-index: 20;
+                height: auto;
+                min-height: 54px;
+                max-height: none;
+            }
+
+            .users-page .users-tabs {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 6px;
+                padding: 8px 12px;
+            }
+
+            .users-page .users-tab {
+                justify-content: center;
+                height: 42px;
+                padding: 0 10px;
+                border: 1px solid var(--ui-border);
+                border-radius: 10px;
+                background: #fff;
+                font-size: 13px;
+            }
+
+            .users-page .users-tab.active {
+                border-color: #bfdbfe;
+                border-bottom-color: #bfdbfe;
+                background: #eff6ff;
+            }
+
+            .users-page .game-layout>div[style*="overflow-y: auto"] {
+                overflow: visible !important;
+                padding: 14px 12px 96px !important;
+            }
+
+            .users-page #users-tab>div:first-child,
+            .users-page #roles-tab>div:first-child {
+                justify-content: stretch !important;
+                margin-bottom: 12px !important;
+            }
+
+            .users-page #addUserBtn,
+            .users-page #addRoleBtn {
+                width: 100%;
+                justify-content: center;
+                min-height: 44px;
+            }
+
+            .users-page .data-table,
+            .users-page .data-table tbody,
+            .users-page .data-table tr,
+            .users-page .data-table td {
+                display: block;
+                width: 100%;
+            }
+
+            .users-page .data-table {
+                border: none;
+                background: transparent;
+                overflow: visible;
+            }
+
+            .users-page .data-table thead {
+                display: none;
+            }
+
+            .users-page .data-table tr {
+                margin-bottom: 10px;
+                padding: 12px;
+                border: 1px solid var(--ui-border);
+                border-radius: 12px;
+                background: #fff;
+            }
+
+            .users-page .data-table td {
+                display: grid;
+                grid-template-columns: 104px minmax(0, 1fr);
+                align-items: center;
+                gap: 10px;
+                min-height: 34px;
+                padding: 7px 0;
+                border: none;
+                color: #0f172a;
+                font-size: 13px;
+            }
+
+            .users-page .data-table td::before {
+                content: attr(data-label);
+                color: var(--ui-muted);
+                font-size: 12px;
+                font-weight: 700;
+            }
+
+            .users-page .data-table td.info-text {
+                display: block;
+                text-align: center;
+            }
+
+            .users-page .data-table td.info-text::before {
+                content: none;
+            }
+
+            .users-page .data-table td:last-child {
+                grid-template-columns: 1fr;
+                padding-top: 10px;
+            }
+
+            .users-page .data-table td:last-child::before {
+                content: none;
+            }
+
+            .users-page .data-table td:last-child .btn-info,
+            .users-page .data-table td:last-child .btn-danger {
+                width: calc(50% - 6px);
+                min-height: 40px;
+                margin-right: 8px !important;
+            }
+
+            .users-page .modal {
+                align-items: flex-end;
+                padding: 0;
+            }
+
+            .users-page #userModal .modal-content,
+            .users-page #roleModal .modal-content {
+                width: 100% !important;
+                max-width: none !important;
+                max-height: 92dvh;
+                border-radius: 18px 18px 0 0;
+            }
+
+            .users-page .modal-header-fixed {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 12px;
+                padding: 16px;
+            }
+
+            .users-page .modal-header-fixed h2 {
+                font-size: 19px;
+            }
+
+            .users-page .modal-header-actions {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 8px;
+            }
+
+            .users-page .modal-header-actions button {
+                width: 100%;
+                margin: 0 !important;
+            }
+
+            .users-page .modal-body-scrollable {
+                padding: 16px;
+            }
+
+            .users-page .file-picker,
+            .users-page #userForm .form-group div[style*="grid-template-columns:1fr 1fr"] {
+                grid-template-columns: 1fr !important;
+            }
+
+            .permission-toolbar {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+        }
     </style>
 </head>
 

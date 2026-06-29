@@ -99,14 +99,14 @@ function renderUsersTable() {
 
         return `
             <tr>
-                <td>${photoCell}</td>
-                <td>${escapeHtml(user.username)}</td>
-                <td>${escapeHtml(user.full_name || '-')}</td>
-                <td>${escapeHtml(user.role_name || user.role || '-')}</td>
-                <td>${escapeHtml(salaryLabel)}</td>
-                <td>${statusBadge}</td>
-                <td>${createdDate}</td>
-                <td>
+                <td data-label="Фото">${photoCell}</td>
+                <td data-label="Логин">${escapeHtml(user.username)}</td>
+                <td data-label="Полное имя">${escapeHtml(user.full_name || '-')}</td>
+                <td data-label="Роль">${escapeHtml(user.role_name || user.role || '-')}</td>
+                <td data-label="Зарплата">${escapeHtml(salaryLabel)}</td>
+                <td data-label="Статус">${statusBadge}</td>
+                <td data-label="Дата создания">${createdDate}</td>
+                <td data-label="Действия">
                     <button class="btn-info edit-user-btn" data-user-id="${user.id}" style="margin-right: 8px;" title="Изменить">${editIcon}</button>
                     <button class="btn-danger delete-user-btn" data-user-id="${user.id}" title="Удалить">${trashIcon}</button>
                 </td>
@@ -192,10 +192,10 @@ function renderRolesTable() {
             : `<button class="btn-danger delete-role-btn" data-role-id="${role.id}" title="Удалить">${trashIcon}</button>`;
         return `
             <tr>
-                <td>${escapeHtml(role.name)}</td>
-                <td>${escapeHtml(role.description || '-')}</td>
-                <td>${role.users_count || 0}</td>
-                <td>
+                <td data-label="Название">${escapeHtml(role.name)}</td>
+                <td data-label="Описание">${escapeHtml(role.description || '-')}</td>
+                <td data-label="Пользователей">${role.users_count || 0}</td>
+                <td data-label="Действия">
                     <button class="btn-info edit-role-btn" data-role-id="${role.id}" style="margin-right: 8px;" title="Изменить">${editIcon}</button>
                     ${deleteButton}
                 </td>
