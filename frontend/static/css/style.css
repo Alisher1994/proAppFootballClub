@@ -5041,6 +5041,53 @@ body.theme-light .modal-body-scrollable::-webkit-scrollbar-thumb:hover {
     font-size: 13px;
 }
 
+.quick-tournament-card {
+    display: grid;
+    grid-template-columns: minmax(220px, .7fr) minmax(0, 1.3fr);
+    align-items: center;
+    gap: 16px;
+    min-height: 0;
+}
+
+.quick-tournament-copy h2 {
+    margin: 0;
+    color: var(--theme-text-primary);
+    font-size: 17px;
+    line-height: 1.25;
+    font-weight: 600;
+}
+
+.quick-tournament-copy p {
+    margin: 5px 0 0;
+    color: var(--theme-text-secondary);
+    font-size: 13px;
+    line-height: 1.4;
+}
+
+.quick-tournament-form {
+    display: grid;
+    grid-template-columns: minmax(180px, 1.2fr) 130px 170px minmax(150px, 1fr) minmax(150px, 1fr) minmax(150px, 1fr) auto;
+    gap: 8px;
+    align-items: center;
+}
+
+.quick-tournament-form input,
+.quick-tournament-form select {
+    width: 100%;
+    min-height: 38px;
+    min-width: 0;
+    padding: 8px 10px;
+    border: 1px solid var(--theme-border);
+    border-radius: 8px;
+    background: #fff;
+    color: var(--theme-text-primary);
+    font-size: 13px;
+}
+
+.quick-tournament-form .btn-primary {
+    white-space: nowrap;
+}
+
 .tournament-layout {
     display: grid;
     grid-template-columns: 300px 360px minmax(0, 1fr);
@@ -5863,6 +5910,11 @@ body.theme-light .modal-body-scrollable::-webkit-scrollbar-thumb:hover {
 }
 
 @media (max-width: 1280px) {
+    .quick-tournament-card,
+    .quick-tournament-form {
+        grid-template-columns: 1fr;
+    }
+
     .tournament-layout {
         grid-template-columns: 280px minmax(300px, 360px);
     }
@@ -5875,6 +5927,10 @@ body.theme-light .modal-body-scrollable::-webkit-scrollbar-thumb:hover {
 @media (max-width: 860px) {
     .tournaments-page {
         padding: 12px;
+    }
+
+    .quick-tournament-card {
+        gap: 12px;
     }
 
     .tournament-layout,

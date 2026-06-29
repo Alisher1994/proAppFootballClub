@@ -31,6 +31,27 @@
                 </button>
             </header>
 
+            <section class="tournament-panel quick-tournament-card">
+                <div class="quick-tournament-copy">
+                    <h2>Быстрое создание турнира</h2>
+                    <p>Сначала создайте турнир и первый матч. Состав, позиции и события заполните уже внутри матча.</p>
+                </div>
+                <form class="quick-tournament-form" id="quickTournamentForm">
+                    <input id="quickTournamentName" type="text" placeholder="Название турнира" required>
+                    <select id="quickTournamentFormat">
+                        <option value="single">Один матч</option>
+                        <option value="group">Групповой этап</option>
+                        <option value="semifinal">Полуфинал</option>
+                        <option value="final">Финал</option>
+                    </select>
+                    <input id="quickMatchDate" type="datetime-local">
+                    <select id="quickHomeGroup" required></select>
+                    <select id="quickOpponentGroup"></select>
+                    <input id="quickOpponentName" type="text" placeholder="Внешний соперник">
+                    <button class="btn-primary" type="submit">Создать турнир и матч</button>
+                </form>
+            </section>
+
             <div class="tournament-layout">
                 <aside class="tournament-panel tournament-list-panel">
                     <div class="panel-title-row">

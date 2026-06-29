@@ -79,6 +79,17 @@ function groupLabel(group) {
     return `${group.name} · ${count}`;
 }
 
+function groupNameById(groupId) {
+    const group = tournamentState.groups.find((item) => String(item.id) === String(groupId));
+    return group?.name || '';
+}
+
+function roundFromQuickFormat(format) {
+    if (format === 'semifinal') return 'semifinal';
+    if (format === 'final') return 'final';
+    return 'group';
+}
+
 async function loadGroups() {
     const groups = await apiJson('/api/groups');
     tournamentState.groups = Array.isArray(groups) ? groups : (groups.groups || []);
@@ -102,6 +113,19 @@ function renderGroupSelects() {
         `<option value="${group.id}">${escapeHtml(groupLabel(group))}</option>`
     ).join('')}`;
     qs('matchGroup').innerHTML = html;
+
+    const quickHome = qs('quickHomeGroup');
+    const quickOpponent = qs('quickOpponentGroup');
+    if (quickHome) {
+        quickHome.innerHTML = `<option value="">Наша группа</option>${tournamentState.groups.map((group) =>
+            `<option value="${group.id}">${escapeHtml(group.name)}</option>`
+        ).join('')}`;
+    }
+    if (quickOpponent) {
+        quickOpponent.innerHTML = `<option value="">Соперник вручную</option>${tournamentState.groups.map((group) =>
+            `<option value="${group.id}">${escapeHtml(group.name)}</option>`
+        ).join('')}`;
+    }
 }
 
 function renderTournaments() {
@@ -528,7 +552,65 @@ function renderBracket() {
     });
 }
 
+async function createQuickTournament(event) {
+    event.preventDefault();
+
+    const tournamentName = qs('quickTournamentName').value.trim();
+    const homeGroupId = qs('quickHomeGroup').value;
+    const opponentGroupId = qs('quickOpponentGroup').value;
+    const externalOpponent = qs('quickOpponentName').value.trim();
+    const format = qs('quickTournamentFormat').value;
+
+    if (!tournamentName || !homeGroupId) {
+        alert('Укажите название турнира и нашу группу');
+        return;
+    }
+
+    const homeTeam = groupNameById(homeGroupId) || 'Наша команда';
+    const awayTeam = groupNameById(opponentGroupId) || externalOpponent || 'Соперник';
+
+    const tournamentData = await apiJson('/api/tournaments', {
+        method: 'POST',
+        body: JSON.stringify({
+            name: tournamentName,
+            season: '',
+            status: 'active',
+            location: '',
+            start_date: '',
+            end_date: '',
+            notes: `Формат: ${qs('quickTournamentFormat').selectedOptions[0]?.textContent || 'Один матч'}`,
+        }),
+    });
+
+    const matchData = await apiJson(`/api/tournaments/${tournamentData.tournament.id}/matches`, {
+        method: 'POST',
+        body: JSON.stringify({
+            match_date: qs('quickMatchDate').value,
+            group_id: homeGroupId,
+            home_team: homeTeam,
+            away_team: awayTeam,
+            status: 'scheduled',
+            venue: '',
+            round_name: roundFromQuickFormat(format),
+            bracket_side: 'left',
+            bracket_order: '0',
+            formation: '4-3-3',
+            notes: opponentGroupId ? 'Соперник выбран из групп системы' : '',
+        }),
+    });
+
+    qs('quickTournamentForm').reset();
+    tournamentState.selectedTournamentId = tournamentData.tournament.id;
+    tournamentState.selectedMatchId = matchData.match.id;
+    await loadTournaments();
+}
+
 function bindForms() {
+    const quickTournamentForm = qs('quickTournamentForm');
+    if (quickTournamentForm) {
+        quickTournamentForm.addEventListener('submit', createQuickTournament);
+    }
+
     qs('toggleTournamentForm').addEventListener('click', () => {
         qs('tournamentForm').hidden = !qs('tournamentForm').hidden;
     });
