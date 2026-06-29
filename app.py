@@ -5472,6 +5472,133 @@ def get_finances_monthly():
     return jsonify({'months': months})
 
 
+@app.route('/api/finances/payment-status-current', methods=['GET'])
+@login_required
+def get_payment_status_current_month():
+    """Статусы оплат активных учеников за текущий учебный месяц."""
+    today = get_local_date()
+    year = request.args.get('year', default=today.year, type=int)
+    month = request.args.get('month', default=today.month, type=int)
+
+    paid_rows = db.session.query(
+        Payment.student_id,
+        func.coalesce(func.sum(Payment.amount_paid), 0)
+    ).filter(
+        Payment.payment_year == year,
+        Payment.payment_month == month
+    ).group_by(Payment.student_id).all()
+    paid_by_student = {student_id: float(total or 0) for student_id, total in paid_rows}
+
+    groups = Group.query.order_by(Group.name.asc()).all()
+    group_map = {
+        group.id: {
+            'group_id': group.id,
+            'group_name': group.name,
+            'total_students': 0,
+            'paid_count': 0,
+            'partial_count': 0,
+            'unpaid_count': 0,
+            'club_funded_count': 0,
+            'expected_amount': 0.0,
+            'paid_amount': 0.0,
+            'debt_amount': 0.0,
+            'club_expected_amount': 0.0,
+        }
+        for group in groups
+    }
+    no_group_key = 0
+    group_map[no_group_key] = {
+        'group_id': None,
+        'group_name': 'Без группы',
+        'total_students': 0,
+        'paid_count': 0,
+        'partial_count': 0,
+        'unpaid_count': 0,
+        'club_funded_count': 0,
+        'expected_amount': 0.0,
+        'paid_amount': 0.0,
+        'debt_amount': 0.0,
+        'club_expected_amount': 0.0,
+    }
+
+    totals = {
+        'total_students': 0,
+        'paid_count': 0,
+        'partial_count': 0,
+        'unpaid_count': 0,
+        'club_funded_count': 0,
+        'expected_amount': 0.0,
+        'paid_amount': 0.0,
+        'debt_amount': 0.0,
+        'club_expected_amount': 0.0,
+    }
+
+    students = Student.query.filter(Student.status == 'active').options(
+        joinedload(Student.tariff),
+        joinedload(Student.group)
+    ).all()
+
+    for student in students:
+        group_key = student.group_id or no_group_key
+        group_row = group_map.setdefault(group_key, {
+            'group_id': student.group_id,
+            'group_name': student.group.name if student.group else 'Без группы',
+            'total_students': 0,
+            'paid_count': 0,
+            'partial_count': 0,
+            'unpaid_count': 0,
+            'club_funded_count': 0,
+            'expected_amount': 0.0,
+            'paid_amount': 0.0,
+            'debt_amount': 0.0,
+            'club_expected_amount': 0.0,
+        })
+
+        tariff_price = float(student.tariff.price or 0) if student.tariff else 0.0
+        paid_amount = min(float(paid_by_student.get(student.id, 0)), tariff_price) if tariff_price else float(paid_by_student.get(student.id, 0))
+        debt_amount = max(0.0, tariff_price - paid_amount)
+
+        totals['total_students'] += 1
+        group_row['total_students'] += 1
+
+        if student.club_funded:
+            totals['club_funded_count'] += 1
+            group_row['club_funded_count'] += 1
+            totals['club_expected_amount'] += tariff_price
+            group_row['club_expected_amount'] += tariff_price
+            continue
+
+        totals['expected_amount'] += tariff_price
+        totals['paid_amount'] += paid_amount
+        totals['debt_amount'] += debt_amount
+        group_row['expected_amount'] += tariff_price
+        group_row['paid_amount'] += paid_amount
+        group_row['debt_amount'] += debt_amount
+
+        if tariff_price > 0 and paid_amount >= tariff_price:
+            totals['paid_count'] += 1
+            group_row['paid_count'] += 1
+        elif paid_amount > 0:
+            totals['partial_count'] += 1
+            group_row['partial_count'] += 1
+        else:
+            totals['unpaid_count'] += 1
+            group_row['unpaid_count'] += 1
+
+    groups_payload = [
+        row for row in group_map.values()
+        if row['total_students'] > 0
+    ]
+    groups_payload.sort(key=lambda row: (-row['total_students'], row['group_name']))
+
+    return jsonify({
+        'year': year,
+        'month': month,
+        'totals': totals,
+        'groups': groups_payload,
+    })
+
+
 # ===== ГРУППЫ =====
 
 @app.route('/api/groups', methods=['GET'])

@@ -525,6 +525,209 @@
             height: 260px;
         }
 
+        .payment-status-panel {
+            display: grid;
+            grid-template-columns: minmax(220px, 300px) minmax(0, 1fr);
+            gap: 16px;
+            margin-bottom: 16px;
+            align-items: stretch;
+        }
+
+        .payment-status-card,
+        .group-payments-card {
+            background: var(--theme-card-bg);
+            border: 1px solid var(--theme-border);
+            border-radius: 12px;
+            padding: 14px;
+            box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
+            min-width: 0;
+        }
+
+        .payment-status-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .payment-status-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--theme-text-primary);
+            font-size: 15px;
+            font-weight: 500;
+            margin: 0;
+        }
+
+        .payment-status-title svg {
+            width: 17px;
+            height: 17px;
+            color: #2563eb;
+        }
+
+        .payment-period-label {
+            color: var(--theme-text-secondary);
+            font-size: 12px;
+            white-space: nowrap;
+        }
+
+        .payment-donut-wrap {
+            height: 185px;
+            position: relative;
+        }
+
+        .payment-summary-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .payment-summary-item {
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 7px 8px;
+            min-width: 0;
+        }
+
+        .payment-summary-item span {
+            display: block;
+            color: var(--theme-text-secondary);
+            font-size: 10px;
+            line-height: 1.15;
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+        }
+
+        .payment-summary-item b {
+            display: block;
+            color: var(--theme-text-primary);
+            font-size: 13px;
+            font-weight: 500;
+            margin-top: 3px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .group-payments-toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .payment-mode-toggle {
+            display: inline-flex;
+            gap: 4px;
+            padding: 4px;
+            background: #f1f5f9;
+            border: 1px solid #dbe5f1;
+            border-radius: 10px;
+        }
+
+        .payment-mode-toggle button {
+            border: 0;
+            border-radius: 7px;
+            background: transparent;
+            color: #64748b;
+            min-width: 44px;
+            height: 28px;
+            padding: 0 10px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .payment-mode-toggle button.active {
+            background: #2563eb;
+            color: #fff;
+        }
+
+        .group-payment-list {
+            display: grid;
+            gap: 8px;
+            max-height: 245px;
+            overflow: auto;
+            padding-right: 4px;
+            scrollbar-width: thin;
+            scrollbar-color: #cbd5e1 transparent;
+        }
+
+        .group-payment-list::-webkit-scrollbar {
+            width: 5px;
+        }
+
+        .group-payment-list::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 999px;
+        }
+
+        .group-payment-row {
+            display: grid;
+            grid-template-columns: minmax(120px, 190px) minmax(0, 1fr) minmax(80px, auto);
+            gap: 10px;
+            align-items: center;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 8px 10px;
+            background: #fff;
+            min-width: 0;
+        }
+
+        .group-payment-name {
+            min-width: 0;
+            color: var(--theme-text-primary);
+            font-size: 12px;
+            line-height: 1.2;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .group-payment-sub {
+            color: var(--theme-text-secondary);
+            font-size: 10px;
+            margin-top: 3px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .group-payment-track {
+            display: flex;
+            height: 11px;
+            border-radius: 999px;
+            overflow: hidden;
+            background: #e2e8f0;
+            min-width: 0;
+        }
+
+        .group-payment-segment {
+            min-width: 0;
+            height: 100%;
+        }
+
+        .group-payment-value {
+            color: var(--theme-text-primary);
+            font-size: 12px;
+            font-weight: 500;
+            text-align: right;
+            white-space: nowrap;
+        }
+
+        .payment-status-empty {
+            color: var(--theme-text-secondary);
+            font-size: 13px;
+            padding: 18px;
+            border: 1px dashed var(--theme-border);
+            border-radius: 10px;
+            text-align: center;
+        }
+
         /* Отчёт расходов */
         .expense-report-grid {
             display: grid;
@@ -660,6 +863,14 @@
         @media (max-width: 768px) {
             .chart-container {
                 display: none !important;
+            }
+
+            .payment-status-panel {
+                grid-template-columns: 1fr;
+            }
+
+            .group-payment-row {
+                grid-template-columns: 1fr;
             }
         }
     </style>
@@ -841,6 +1052,56 @@
                                 <div style="width: 12px; height: 12px; background: #64748b; border-radius: 3px;"></div>
                                 Ожидание
                             </div>
+                        </div>
+
+                        <div class="payment-status-panel">
+                            <section class="payment-status-card">
+                                <div class="payment-status-head">
+                                    <h3 class="payment-status-title">
+                                        <i data-lucide="circle-dollar-sign"></i>
+                                        Оплаты месяца
+                                    </h3>
+                                    <span id="payment-status-period" class="payment-period-label">Текущий месяц</span>
+                                </div>
+                                <div class="payment-donut-wrap">
+                                    <canvas id="paymentStatusChart"></canvas>
+                                </div>
+                                <div class="payment-summary-grid">
+                                    <div class="payment-summary-item">
+                                        <span>Ожидание</span>
+                                        <b id="payment-expected-total">-</b>
+                                    </div>
+                                    <div class="payment-summary-item">
+                                        <span>Получено</span>
+                                        <b id="payment-paid-total">-</b>
+                                    </div>
+                                    <div class="payment-summary-item">
+                                        <span>Долг</span>
+                                        <b id="payment-debt-total">-</b>
+                                    </div>
+                                    <div class="payment-summary-item">
+                                        <span>За счёт клуба</span>
+                                        <b id="payment-club-total">-</b>
+                                    </div>
+                                </div>
+                            </section>
+
+                            <section class="group-payments-card">
+                                <div class="group-payments-toolbar">
+                                    <h3 class="payment-status-title">
+                                        <i data-lucide="users-round"></i>
+                                        Группы
+                                    </h3>
+                                    <div class="payment-mode-toggle" aria-label="Режим отображения групп">
+                                        <button type="button" class="active" data-payment-mode="percent">%</button>
+                                        <button type="button" data-payment-mode="amount">Сумма</button>
+                                        <button type="button" data-payment-mode="count">Кол-во</button>
+                                    </div>
+                                </div>
+                                <div id="group-payment-list" class="group-payment-list">
+                                    <div class="payment-status-empty">Загрузка...</div>
+                                </div>
+                            </section>
                         </div>
 
                         <div class="month-grid">
@@ -1064,6 +1325,199 @@
                     if (dashboardCharts[key]) dashboardCharts[key].destroy();
                     dashboardCharts[key] = new Chart(canvas, config);
                     return dashboardCharts[key];
+                }
+
+                const paymentStatusColors = {
+                    paid: '#16a34a',
+                    partial: '#2563eb',
+                    unpaid: '#ef4444',
+                    club: '#64748b',
+                };
+                let paymentStatusCache = null;
+                let groupPaymentMode = 'percent';
+
+                function formatMoneyFull(value) {
+                    return `${moneyFormatter.format(Math.round(Number(value || 0)))} сум`;
+                }
+
+                function paymentShare(value, total) {
+                    return total ? Math.round((Number(value || 0) / total) * 100) : 0;
+                }
+
+                function renderPaymentStatusChart(data) {
+                    const canvas = document.getElementById('paymentStatusChart');
+                    if (!canvas || !window.Chart) return;
+                    const totals = data?.totals || {};
+                    const labels = ['Оплачено', 'Частично', 'Не оплачено', 'За счёт клуба'];
+                    const values = [
+                        Number(totals.paid_count || 0),
+                        Number(totals.partial_count || 0),
+                        Number(totals.unpaid_count || 0),
+                        Number(totals.club_funded_count || 0),
+                    ];
+                    const totalPeople = values.reduce((sum, value) => sum + value, 0);
+
+                    replaceChart('paymentStatus', canvas, {
+                        type: 'doughnut',
+                        data: {
+                            labels,
+                            datasets: [{
+                                data: values,
+                                backgroundColor: [
+                                    paymentStatusColors.paid,
+                                    paymentStatusColors.partial,
+                                    paymentStatusColors.unpaid,
+                                    paymentStatusColors.club,
+                                ],
+                                borderColor: '#ffffff',
+                                borderWidth: 2,
+                                hoverOffset: 5,
+                            }],
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            cutout: '62%',
+                            plugins: {
+                                legend: {
+                                    position: 'bottom',
+                                    labels: {
+                                        boxWidth: 10,
+                                        boxHeight: 10,
+                                        padding: 10,
+                                        color: '#475569',
+                                        font: { size: 10, weight: '400' },
+                                    },
+                                },
+                                tooltip: {
+                                    callbacks: {
+                                        label: ctx => {
+                                            const value = Number(ctx.raw || 0);
+                                            return `${ctx.label}: ${value} чел. (${paymentShare(value, totalPeople)}%)`;
+                                        },
+                                    },
+                                },
+                                datalabels: {
+                                    color: '#ffffff',
+                                    font: { size: 10, weight: '600' },
+                                    formatter: value => {
+                                        const share = paymentShare(value, totalPeople);
+                                        return share >= 8 ? `${share}%` : '';
+                                    },
+                                },
+                            },
+                        },
+                        plugins: [{
+                            id: 'paymentCenterText',
+                            afterDraw(chart) {
+                                const { ctx, chartArea } = chart;
+                                if (!chartArea) return;
+                                ctx.save();
+                                ctx.fillStyle = '#0f172a';
+                                ctx.textAlign = 'center';
+                                ctx.textBaseline = 'middle';
+                                ctx.font = '500 22px Inter, Segoe UI, sans-serif';
+                                ctx.fillText(String(totalPeople), (chartArea.left + chartArea.right) / 2, (chartArea.top + chartArea.bottom) / 2 - 6);
+                                ctx.font = '400 11px Inter, Segoe UI, sans-serif';
+                                ctx.fillStyle = '#64748b';
+                                ctx.fillText('учеников', (chartArea.left + chartArea.right) / 2, (chartArea.top + chartArea.bottom) / 2 + 16);
+                                ctx.restore();
+                            },
+                        }],
+                    });
+                }
+
+                function updatePaymentSummary(data) {
+                    const totals = data?.totals || {};
+                    const periodEl = document.getElementById('payment-status-period');
+                    const monthNamesFull = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
+                    if (periodEl && data?.month) {
+                        periodEl.textContent = `${monthNamesFull[data.month - 1]} ${data.year}`;
+                    }
+                    const setText = (id, value) => {
+                        const el = document.getElementById(id);
+                        if (el) el.textContent = value;
+                    };
+                    setText('payment-expected-total', formatMoneyShort(totals.expected_amount || 0));
+                    setText('payment-paid-total', formatMoneyShort(totals.paid_amount || 0));
+                    setText('payment-debt-total', formatMoneyShort(totals.debt_amount || 0));
+                    setText('payment-club-total', formatMoneyShort(totals.club_expected_amount || 0));
+                }
+
+                function getGroupPaymentValue(group) {
+                    const paid = Number(group.paid_count || 0);
+                    const partial = Number(group.partial_count || 0);
+                    const unpaid = Number(group.unpaid_count || 0);
+                    const club = Number(group.club_funded_count || 0);
+                    const total = Math.max(1, Number(group.total_students || 0));
+                    if (groupPaymentMode === 'amount') {
+                        return {
+                            primary: formatMoneyShort(group.paid_amount || 0),
+                            secondary: `долг ${formatMoneyShort(group.debt_amount || 0)}`,
+                            title: `${formatMoneyFull(group.paid_amount || 0)} / ${formatMoneyFull(group.expected_amount || 0)}`,
+                        };
+                    }
+                    if (groupPaymentMode === 'count') {
+                        return {
+                            primary: `${paid + partial}/${group.total_students || 0}`,
+                            secondary: `не оплатили ${unpaid}`,
+                            title: `${paid} оплачено, ${partial} частично, ${unpaid} нет, ${club} клуб`,
+                        };
+                    }
+                    return {
+                        primary: `${paymentShare(paid + partial + club, total)}%`,
+                        secondary: `${paid + partial + club} из ${group.total_students || 0}`,
+                        title: `${paid} оплачено, ${partial} частично, ${unpaid} нет, ${club} клуб`,
+                    };
+                }
+
+                function renderGroupPaymentList(data) {
+                    const list = document.getElementById('group-payment-list');
+                    if (!list) return;
+                    const groups = data?.groups || [];
+                    if (!groups.length) {
+                        list.innerHTML = '<div class="payment-status-empty">Нет активных учеников</div>';
+                        return;
+                    }
+                    list.innerHTML = groups.map(group => {
+                        const total = Math.max(1, Number(group.total_students || 0));
+                        const paidPct = paymentShare(group.paid_count || 0, total);
+                        const partialPct = paymentShare(group.partial_count || 0, total);
+                        const clubPct = paymentShare(group.club_funded_count || 0, total);
+                        const unpaidPct = Math.max(0, 100 - paidPct - partialPct - clubPct);
+                        const value = getGroupPaymentValue(group);
+                        return `
+                            <div class="group-payment-row" title="${escapeHtml(value.title)}">
+                                <div>
+                                    <div class="group-payment-name">${escapeHtml(group.group_name || 'Без группы')}</div>
+                                    <div class="group-payment-sub">${escapeHtml(value.secondary)}</div>
+                                </div>
+                                <div class="group-payment-track" aria-hidden="true">
+                                    <span class="group-payment-segment" style="width:${paidPct}%; background:${paymentStatusColors.paid};"></span>
+                                    <span class="group-payment-segment" style="width:${partialPct}%; background:${paymentStatusColors.partial};"></span>
+                                    <span class="group-payment-segment" style="width:${clubPct}%; background:${paymentStatusColors.club};"></span>
+                                    <span class="group-payment-segment" style="width:${unpaidPct}%; background:${paymentStatusColors.unpaid};"></span>
+                                </div>
+                                <div class="group-payment-value">${escapeHtml(value.primary)}</div>
+                            </div>
+                        `;
+                    }).join('');
+                }
+
+                async function loadPaymentStatus() {
+                    try {
+                        const res = await fetch('/api/finances/payment-status-current');
+                        if (!res.ok) throw new Error('payment status failed');
+                        const data = await res.json();
+                        paymentStatusCache = data;
+                        renderPaymentStatusChart(data);
+                        updatePaymentSummary(data);
+                        renderGroupPaymentList(data);
+                    } catch (e) {
+                        console.warn('Не удалось загрузить статусы оплат', e);
+                        const list = document.getElementById('group-payment-list');
+                        if (list) list.innerHTML = '<div class="payment-status-empty">Не удалось загрузить данные</div>';
+                    }
                 }
 
                 // Функция для получения контейнера с прокруткой
@@ -2048,6 +2502,17 @@
                 // Load initial data
                 loadFinances(currentYear);
                 loadIncomeExpenseChart();
+                loadPaymentStatus();
+
+                document.querySelectorAll('[data-payment-mode]').forEach((button) => {
+                    button.addEventListener('click', () => {
+                        groupPaymentMode = button.dataset.paymentMode || 'percent';
+                        document.querySelectorAll('[data-payment-mode]').forEach((item) => {
+                            item.classList.toggle('active', item === button);
+                        });
+                        renderGroupPaymentList(paymentStatusCache);
+                    });
+                });
 
                 // Reload on year change
                 yearFilter.addEventListener('change', (e) => {
