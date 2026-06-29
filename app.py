@@ -5485,6 +5485,8 @@ def get_finances_monthly():
 @login_required
 def get_payment_status_current_month():
     """Статусы оплат активных учеников за текущий учебный месяц."""
+    from sqlalchemy import extract
+
     today = get_local_date()
     year = request.args.get('year', default=today.year, type=int)
     month = request.args.get('month', default=today.month, type=int)
