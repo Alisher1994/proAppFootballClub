@@ -1224,6 +1224,57 @@
             padding: 12px 14px;
         }
 
+        .native-multi-select {
+            display: none !important;
+        }
+
+        .trainer-checklist {
+            display: grid;
+            gap: 8px;
+            max-height: 168px;
+            overflow-y: auto;
+            padding: 8px;
+            border: 1px solid var(--settings-border);
+            border-radius: 10px;
+            background: #f8fafc;
+        }
+
+        .trainer-check-option {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            min-height: 34px;
+            padding: 7px 9px;
+            border: 1px solid transparent;
+            border-radius: 9px;
+            background: #fff;
+            color: #334155;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .trainer-check-option:has(input:checked) {
+            border-color: #bfdbfe;
+            background: #eff6ff;
+            color: #1d4ed8;
+        }
+
+        .trainer-check-option input {
+            width: 16px !important;
+            height: 16px !important;
+            min-width: 16px !important;
+            margin: 0 !important;
+        }
+
+        .trainer-check-empty {
+            padding: 12px;
+            color: var(--settings-muted);
+            font-size: 13px;
+            text-align: center;
+        }
+
         .hikvision-terminal-heading {
             display: flex;
             align-items: center;
@@ -2618,11 +2669,13 @@
                             <div class="form-card two-col">
                                 <div>
                                     <label class="field-label" for="groupTrainerIds">Основной тренер</label>
-                                    <select id="groupTrainerIds" class="form-input-modern" multiple size="4"></select>
+                                    <select id="groupTrainerIds" class="form-input-modern native-multi-select" multiple size="4"></select>
+                                    <div id="groupTrainerIdsChecklist" class="trainer-checklist"></div>
                                 </div>
                                 <div>
                                     <label class="field-label" for="groupAssistantIds">Помощник / ментор</label>
-                                    <select id="groupAssistantIds" class="form-input-modern" multiple size="4"></select>
+                                    <select id="groupAssistantIds" class="form-input-modern native-multi-select" multiple size="4"></select>
+                                    <div id="groupAssistantIdsChecklist" class="trainer-checklist"></div>
                                 </div>
                             </div>
 
@@ -2726,11 +2779,13 @@
                             <div class="form-card two-col">
                                 <div>
                                     <label class="field-label" for="editGroupTrainerIds">Основной тренер</label>
-                                    <select id="editGroupTrainerIds" class="form-input-modern" multiple size="4"></select>
+                                    <select id="editGroupTrainerIds" class="form-input-modern native-multi-select" multiple size="4"></select>
+                                    <div id="editGroupTrainerIdsChecklist" class="trainer-checklist"></div>
                                 </div>
                                 <div>
                                     <label class="field-label" for="editGroupAssistantIds">Помощник / ментор</label>
-                                    <select id="editGroupAssistantIds" class="form-input-modern" multiple size="4"></select>
+                                    <select id="editGroupAssistantIds" class="form-input-modern native-multi-select" multiple size="4"></select>
+                                    <div id="editGroupAssistantIdsChecklist" class="trainer-checklist"></div>
                                 </div>
                             </div>
 

@@ -63,11 +63,39 @@ function renderTrainerSelect(id, selectedIds = []) {
     const select = document.getElementById(id);
     if (!select) return;
     const selectedSet = new Set((selectedIds || []).map(value => String(value)));
+    select.classList.add('native-multi-select');
     select.innerHTML = allTrainers.map(trainer => `
         <option value="${trainer.id}" ${selectedSet.has(String(trainer.id)) ? 'selected' : ''}>
             ${escapeHtml(trainer.full_name || trainer.username)}
         </option>
     `).join('');
+    renderTrainerChecklist(id);
+}
+
+function renderTrainerChecklist(selectId) {
+    const select = document.getElementById(selectId);
+    const list = document.getElementById(`${selectId}Checklist`);
+    if (!select || !list) return;
+
+    const options = Array.from(select.options);
+    if (!options.length) {
+        list.innerHTML = '<div class="trainer-check-empty">Нет тренеров</div>';
+        return;
+    }
+
+    list.innerHTML = options.map(option => `
+        <label class="trainer-check-option">
+            <input type="checkbox" value="${escapeHtml(option.value)}" ${option.selected ? 'checked' : ''}>
+            <span>${escapeHtml(option.textContent.trim())}</span>
+        </label>
+    `).join('');
+
+    list.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+        checkbox.addEventListener('change', () => {
+            const option = Array.from(select.options).find(item => String(item.value) === String(checkbox.value));
+            if (option) option.selected = checkbox.checked;
+        });
+    });
 }
 
 function refreshTrainerSelects(group = null) {

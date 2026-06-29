@@ -231,11 +231,39 @@ function updateTrainerGroupSelect(selectedIds = []) {
     const select = document.getElementById('user-trainer-groups');
     if (!select) return;
     const selectedSet = new Set((selectedIds || []).map(id => String(id)));
+    select.classList.add('native-multi-select');
     select.innerHTML = allGroups.map(group => `
         <option value="${group.id}" ${selectedSet.has(String(group.id)) ? 'selected' : ''}>
             ${escapeHtml(group.name)}
         </option>
     `).join('');
+    renderTrainerGroupChecklist();
+}
+
+function renderTrainerGroupChecklist() {
+    const select = document.getElementById('user-trainer-groups');
+    const list = document.getElementById('user-trainer-groups-checklist');
+    if (!select || !list) return;
+
+    const options = Array.from(select.options);
+    if (!options.length) {
+        list.innerHTML = '<div class="trainer-check-empty">Группы не найдены</div>';
+        return;
+    }
+
+    list.innerHTML = options.map(option => `
+        <label class="trainer-check-option">
+            <input type="checkbox" value="${escapeHtml(option.value)}" ${option.selected ? 'checked' : ''}>
+            <span>${escapeHtml(option.textContent.trim())}</span>
+        </label>
+    `).join('');
+
+    list.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+        checkbox.addEventListener('change', () => {
+            const option = Array.from(select.options).find(item => String(item.value) === String(checkbox.value));
+            if (option) option.selected = checkbox.checked;
+        });
+    });
 }
 
 function isTrainerRoleSelected() {
@@ -255,6 +283,7 @@ function syncUserTrainerFields(selectedIds = null) {
     if (!visible) {
         const select = document.getElementById('user-trainer-groups');
         if (select) Array.from(select.options).forEach(option => { option.selected = false; });
+        renderTrainerGroupChecklist();
     }
 }
 
