@@ -201,9 +201,40 @@ function renderPlayerSelects() {
         `<option value="${player.id}">${escapeHtml(player.name)}${player.number ? ` (№${escapeHtml(player.number)})` : ''}</option>`
     ).join('');
     const empty = '<option value="">Выберите игрока</option>';
-    qs('lineupPlayer').innerHTML = empty + options;
     qs('eventPlayer').innerHTML = empty + options;
     qs('eventAssist').innerHTML = '<option value="">Без голевого паса</option>' + options;
+    renderLineupPicker();
+}
+
+function renderLineupPicker() {
+    const list = qs('lineupMultiList');
+    if (!list) return;
+    const search = (qs('lineupSearch')?.value || '').trim().toLowerCase();
+    const selectedIds = new Set(tournamentState.lineup
+        .filter((item) => item.team_side === 'home')
+        .map((item) => Number(item.student_id)));
+    const players = tournamentState.players.filter((player) => {
+        const haystack = `${player.name || ''} ${player.number || ''} ${player.group_name || ''}`.toLowerCase();
+        return !selectedIds.has(Number(player.id)) && (!search || haystack.includes(search));
+    });
+
+    if (!players.length) {
+        list.innerHTML = '<div class="empty-state small">Игроков для добавления нет.</div>';
+        return;
+    }
+
+    list.innerHTML = players.map((player) => `
+        <label class="lineup-option">
+            <input type="checkbox" value="${player.id}">
+            ${player.photo_url
+                ? `<img src="${player.photo_url}" alt="">`
+                : `<span class="avatar-fallback">${escapeHtml((player.name || '?').slice(0, 1))}</span>`}
+            <span>
+                <strong>${escapeHtml(player.name)}</strong>
+                <small>${player.number ? `№${escapeHtml(player.number)} · ` : ''}${escapeHtml(player.group_name || 'Без группы')}</small>
+            </span>
+        </label>
+    `).join('');
 }
 
 function hideWorkspace() {
@@ -262,6 +293,7 @@ function renderLineup() {
         button.addEventListener('click', () => {
             tournamentState.lineup.splice(Number(button.dataset.lineupIndex), 1);
             renderLineup();
+            renderLineupPicker();
             renderPitchPoster();
         });
     });
@@ -330,27 +362,32 @@ function renderAnalytics() {
     `).join('') : '<tr><td colspan="7" class="empty-cell">Нет данных</td></tr>';
 }
 
-function addLineupPlayer() {
-    const playerId = Number(qs('lineupPlayer').value);
-    const player = tournamentState.players.find((item) => item.id === playerId);
-    if (!player) return;
-    if (tournamentState.lineup.some((item) => Number(item.student_id) === playerId && item.team_side === 'home')) {
-        alert('Игрок уже есть в составе.');
+function addSelectedLineupPlayers() {
+    const checked = Array.from(qs('lineupMultiList')?.querySelectorAll('input[type="checkbox"]:checked') || []);
+    if (!checked.length) {
+        alert('Выберите игроков для состава.');
         return;
     }
-    tournamentState.lineup.push({
-        student_id: player.id,
-        student_name: player.name,
-        student_number: player.number,
-        photo_url: player.photo_url,
-        team_side: 'home',
-        position: qs('lineupPosition').value || 'Игрок',
-        shirt_number: qs('lineupNumber').value.trim(),
-        is_starter: qs('lineupStarter').checked,
-        sort_order: tournamentState.lineup.length,
+    const position = qs('lineupPosition').value || 'Игрок';
+    const isStarter = qs('lineupStarter').checked;
+    checked.forEach((checkbox) => {
+        const playerId = Number(checkbox.value);
+        const player = tournamentState.players.find((item) => Number(item.id) === playerId);
+        if (!player || tournamentState.lineup.some((item) => Number(item.student_id) === playerId && item.team_side === 'home')) return;
+        tournamentState.lineup.push({
+            student_id: player.id,
+            student_name: player.name,
+            student_number: player.number,
+            photo_url: player.photo_url,
+            team_side: 'home',
+            position,
+            shirt_number: player.number || '',
+            is_starter: isStarter,
+            sort_order: tournamentState.lineup.length,
+        });
     });
-    qs('lineupNumber').value = '';
     renderLineup();
+    renderLineupPicker();
 }
 
 async function saveLineup() {
@@ -362,6 +399,7 @@ async function saveLineup() {
     tournamentState.currentMatch = data.match;
     tournamentState.lineup = data.match.lineups || [];
     showWorkspace();
+    renderLineupPicker();
     await loadAnalytics();
 }
 
@@ -498,7 +536,8 @@ function bindForms() {
         qs('matchForm').hidden = !qs('matchForm').hidden;
     });
     qs('refreshTournamentBtn').addEventListener('click', initTournaments);
-    qs('addLineupBtn').addEventListener('click', addLineupPlayer);
+    qs('addSelectedLineupBtn').addEventListener('click', addSelectedLineupPlayers);
+    qs('lineupSearch').addEventListener('input', renderLineupPicker);
     qs('saveLineupBtn').addEventListener('click', saveLineup);
     qs('saveMatchSettingsBtn').addEventListener('click', saveCurrentMatchSettings);
     qs('eventType').addEventListener('change', toggleEventFields);

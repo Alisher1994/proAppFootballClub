@@ -134,11 +134,13 @@
 
                     <div id="matchWorkspace" hidden>
                         <div class="scoreboard">
-                            <div>
+                            <div class="score-team left" id="scoreHomeTeam">Наша команда</div>
+                            <div class="score-center">
                                 <span id="matchMeta">Матч</span>
-                                <h2><span id="scoreHomeTeam">Наша команда</span> <strong id="matchScore">0 : 0</strong> <span id="scoreAwayTeam">Соперник</span></h2>
+                                <strong id="matchScore">0 : 0</strong>
+                                <span class="status-pill" id="matchStatusLabel">Запланирован</span>
                             </div>
-                            <span class="status-pill" id="matchStatusLabel">Запланирован</span>
+                            <div class="score-team right" id="scoreAwayTeam">Соперник</div>
                         </div>
 
                         <div class="match-settings-bar">
@@ -170,8 +172,8 @@
                                     <h3>Состав и позиции</h3>
                                     <button class="btn-secondary small" id="saveLineupBtn" type="button">Сохранить состав</button>
                                 </div>
-                                <div class="lineup-form">
-                                    <select id="lineupPlayer"></select>
+                                <div class="lineup-picker">
+                                    <input id="lineupSearch" type="search" placeholder="Поиск игрока">
                                     <select id="lineupPosition">
                                         <option>Вратарь</option>
                                         <option>Защитник</option>
@@ -179,10 +181,10 @@
                                         <option>Нападающий</option>
                                         <option>Игрок</option>
                                     </select>
-                                    <input id="lineupNumber" type="text" placeholder="№">
                                     <label class="mini-check"><input id="lineupStarter" type="checkbox" checked> Старт</label>
-                                    <button class="btn-primary small" id="addLineupBtn" type="button">Добавить</button>
+                                    <button class="btn-primary small" id="addSelectedLineupBtn" type="button">Добавить выбранных</button>
                                 </div>
+                                <div class="lineup-multiselect" id="lineupMultiList"></div>
                                 <div class="lineup-board" id="lineupBoard"></div>
                             </section>
 

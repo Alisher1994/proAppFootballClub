@@ -5233,8 +5233,12 @@ body.theme-light .modal-body-scrollable::-webkit-scrollbar-thumb:hover {
     min-width: 0;
 }
 
+.tournaments-page [hidden] {
+    display: none !important;
+}
+
 .workspace-empty {
-    min-height: 330px;
+    min-height: 180px;
     display: grid;
     place-items: center;
     color: var(--theme-text-secondary);
@@ -5243,35 +5247,54 @@ body.theme-light .modal-body-scrollable::-webkit-scrollbar-thumb:hover {
 }
 
 .scoreboard {
-    display: flex;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
     align-items: center;
-    justify-content: space-between;
-    gap: 14px;
+    gap: 18px;
     margin-bottom: 12px;
-    padding: 12px;
+    padding: 16px;
     border-radius: 8px;
     background: #f8fafc;
     border: 1px solid var(--theme-border);
 }
 
-.scoreboard span {
+.score-team {
+    min-width: 0;
+    overflow: hidden;
+    color: var(--theme-text-primary);
+    font-size: 16px;
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.score-team.left {
+    text-align: right;
+}
+
+.score-team.right {
+    text-align: left;
+}
+
+.score-center {
+    min-width: 160px;
+    display: grid;
+    justify-items: center;
+    gap: 5px;
+    text-align: center;
+}
+
+.scoreboard span,
+.score-center span {
     color: var(--theme-text-secondary);
     font-size: 12px;
 }
 
-.scoreboard h2 {
-    margin: 4px 0 0;
-    color: var(--theme-text-primary);
-    font-size: 19px;
-    line-height: 1.25;
-    font-weight: 600;
-}
-
 .scoreboard strong {
-    display: inline-block;
-    margin: 0 10px;
+    display: block;
     color: #2563eb;
-    font-size: 24px;
+    font-size: 42px;
+    line-height: 1;
     font-weight: 700;
 }
 
@@ -5328,12 +5351,24 @@ body.theme-light .modal-body-scrollable::-webkit-scrollbar-thumb:hover {
     background: #fff;
 }
 
-.lineup-form {
+.lineup-picker {
     display: grid;
-    grid-template-columns: minmax(160px, 1fr) 130px 64px 86px auto;
+    grid-template-columns: minmax(170px, 1fr) 140px 86px auto;
     gap: 8px;
     margin-bottom: 12px;
     align-items: center;
+}
+
+.lineup-picker input[type="search"],
+.lineup-picker select {
+    min-width: 0;
+    min-height: 34px;
+    padding: 6px 10px;
+    border: 1px solid var(--theme-border);
+    border-radius: 8px;
+    background: #fff;
+    color: var(--theme-text-primary);
+    font-size: 12px;
 }
 
 .mini-check {
@@ -5348,6 +5383,67 @@ body.theme-light .modal-body-scrollable::-webkit-scrollbar-thumb:hover {
 .mini-check input {
     width: 16px;
     height: 16px;
+}
+
+.lineup-multiselect {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+    gap: 8px;
+    max-height: 190px;
+    margin-bottom: 12px;
+    padding: 8px;
+    overflow: auto;
+    border: 1px solid var(--theme-border);
+    border-radius: 8px;
+    background: #f8fafc;
+}
+
+.lineup-option {
+    display: grid;
+    grid-template-columns: 16px 32px minmax(0, 1fr);
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    padding: 7px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: #fff;
+    cursor: pointer;
+}
+
+.lineup-option input {
+    width: 16px;
+    height: 16px;
+    accent-color: #2563eb;
+}
+
+.lineup-option img,
+.lineup-option .avatar-fallback {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.lineup-option strong,
+.lineup-option small {
+    display: block;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.lineup-option strong {
+    color: var(--theme-text-primary);
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.lineup-option small {
+    margin-top: 2px;
+    color: var(--theme-text-secondary);
+    font-size: 11px;
 }
 
 .lineup-board {
