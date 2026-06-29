@@ -124,8 +124,8 @@ function renderUsersTable() {
                                     </svg>
                                 </button>
                                 <div class="mobile-staff-menu">
-                                    <button type="button" class="edit-user-btn" data-user-id="${user.id}">${editIcon}<span>Редактировать</span></button>
-                                    <button type="button" class="delete-user-btn danger" data-user-id="${user.id}">${trashIcon}<span>Удалить</span></button>
+                                    <button type="button" class="mobile-staff-menu-item mobile-edit-user-btn" data-user-id="${user.id}">${editIcon}<span>Редактировать</span></button>
+                                    <button type="button" class="mobile-staff-menu-item mobile-delete-user-btn danger" data-user-id="${user.id}">${trashIcon}<span>Удалить</span></button>
                                 </div>
                             </div>
                         </div>
@@ -158,17 +158,17 @@ function renderUsersTable() {
         });
     });
 
-    document.querySelectorAll('.edit-user-btn').forEach(btn => {
+    document.querySelectorAll('.edit-user-btn, .mobile-edit-user-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
-            const userId = parseInt(e.target.closest('.edit-user-btn').dataset.userId);
+            const userId = parseInt(e.target.closest('.edit-user-btn, .mobile-edit-user-btn').dataset.userId);
             document.querySelectorAll('.mobile-staff-menu.open').forEach(menu => menu.classList.remove('open'));
             editUser(userId);
         });
     });
 
-    document.querySelectorAll('.delete-user-btn').forEach(btn => {
+    document.querySelectorAll('.delete-user-btn, .mobile-delete-user-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
-            const userId = parseInt(e.target.closest('.delete-user-btn').dataset.userId);
+            const userId = parseInt(e.target.closest('.delete-user-btn, .mobile-delete-user-btn').dataset.userId);
             document.querySelectorAll('.mobile-staff-menu.open').forEach(menu => menu.classList.remove('open'));
             deleteUser(userId);
         });

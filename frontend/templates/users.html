@@ -1041,6 +1041,12 @@
                 align-items: center;
                 gap: 12px;
                 padding: 14px;
+                position: relative;
+                z-index: 1;
+            }
+
+            .users-page .mobile-staff-card:has(.mobile-staff-menu.open) {
+                z-index: 3000;
             }
 
             .users-page .mobile-staff-main {
@@ -1103,6 +1109,7 @@
 
             .users-page .mobile-staff-actions {
                 position: relative;
+                z-index: 20;
             }
 
             .users-page .mobile-staff-more {
@@ -1126,16 +1133,17 @@
 
             .users-page .mobile-staff-menu {
                 position: absolute;
-                top: calc(100% + 8px);
+                top: calc(100% + 10px);
                 right: 0;
-                z-index: 40;
+                z-index: 2000;
                 display: none;
-                min-width: 178px;
-                padding: 6px;
-                border: 1px solid var(--ui-border);
-                border-radius: 12px;
+                width: max-content;
+                min-width: 190px;
+                padding: 8px;
+                border: 1px solid #e4ddd6;
+                border-radius: 14px;
                 background: #fff;
-                box-shadow: 0 18px 40px rgba(15, 23, 42, 0.18);
+                box-shadow: 0 14px 36px rgba(23, 25, 31, 0.16);
             }
 
             .users-page .mobile-staff-menu.open {
@@ -1144,34 +1152,95 @@
             }
 
             .users-page .mobile-staff-menu button {
-                display: flex;
-                align-items: center;
-                gap: 10px;
-                width: 100%;
-                min-height: 38px;
-                padding: 8px 10px;
-                border: 0;
-                border-radius: 9px;
-                background: transparent;
-                color: #0f172a;
-                font-size: 13px;
-                font-weight: 700;
-                text-align: left;
+                display: grid !important;
+                grid-template-columns: 20px minmax(0, 1fr);
+                align-items: center !important;
+                justify-content: start !important;
+                gap: 10px !important;
+                width: 100% !important;
+                min-height: 42px !important;
+                height: 42px !important;
+                padding: 0 12px !important;
+                border: 0 !important;
+                border-radius: 9px !important;
+                background: transparent !important;
+                color: #5f6673 !important;
+                font-size: 13px !important;
+                font-weight: 500 !important;
+                line-height: 1 !important;
+                text-align: left !important;
+                box-shadow: none !important;
+            }
+
+            .users-page .mobile-staff-menu button[type="button"].mobile-staff-menu-item,
+            .users-page .mobile-staff-menu button[type="button"].mobile-edit-user-btn,
+            .users-page .mobile-staff-menu button[type="button"].mobile-delete-user-btn {
+                display: grid !important;
+                grid-template-columns: 20px minmax(0, 1fr) !important;
+                align-items: center !important;
+                justify-content: start !important;
+                width: 100% !important;
+                min-width: 0 !important;
+                max-width: none !important;
+                min-height: 42px !important;
+                height: 42px !important;
+                padding: 0 12px !important;
+                border: 0 !important;
+                border-radius: 9px !important;
+                background: transparent !important;
+                color: #5f6673 !important;
+                box-shadow: none !important;
+            }
+
+            .users-page .mobile-staff-menu button[type="button"].mobile-staff-menu-item:not(.btn-danger):not(.delete-btn):not(.remove-btn):not(.logout-btn) {
+                background: transparent !important;
+                border: 0 !important;
+                color: #5f6673 !important;
+            }
+
+            .users-page .mobile-staff-menu button[type="button"].mobile-delete-user-btn {
+                color: #dc2626 !important;
+            }
+
+            .users-page .mobile-staff-menu button[type="button"].mobile-delete-user-btn.danger:not(.btn-danger):not(.delete-btn):not(.remove-btn):not(.logout-btn) {
+                color: #dc2626 !important;
             }
 
             .users-page .mobile-staff-menu button svg {
-                width: 16px;
-                height: 16px;
-                flex: 0 0 16px;
-                fill: none;
-                stroke: currentColor;
-                stroke-width: 2;
-                stroke-linecap: round;
-                stroke-linejoin: round;
+                width: 18px !important;
+                height: 18px !important;
+                flex: 0 0 18px !important;
+                fill: none !important;
+                stroke: currentColor !important;
+                stroke-width: 2 !important;
+                stroke-linecap: round !important;
+                stroke-linejoin: round !important;
+                border: 0 !important;
+                border-radius: 0 !important;
+                background: transparent !important;
+                box-shadow: none !important;
+            }
+
+            .users-page .mobile-staff-menu button span {
+                min-width: 0;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+
+            .users-page .mobile-staff-menu button:hover {
+                background: #f8f7f6 !important;
             }
 
             .users-page .mobile-staff-menu button.danger {
-                color: #dc2626;
+                color: #dc2626 !important;
+            }
+
+            .users-page #users-table-body,
+            .users-page #users-table-body tr,
+            .users-page #users-table-body td,
+            .users-page .mobile-staff-card {
+                overflow: visible !important;
             }
 
             .users-page .data-table td::before {
