@@ -658,9 +658,73 @@ class Tournament(db.Model):
 
     creator = db.relationship('User', foreign_keys=[created_by])
     matches = db.relationship('TournamentMatch', backref='tournament', lazy=True, cascade='all, delete-orphan')
+    teams = db.relationship('TournamentTeam', backref='tournament', lazy=True, cascade='all, delete-orphan')
 
     def __repr__(self):
         return f'<Tournament {self.name}>'
+
+
+class TournamentTeam(db.Model):
+    """Команда-участник турнира: наша, сборная из групп или внешняя команда"""
+    __tablename__ = 'tournament_teams'
+
+    id = db.Column(db.Integer, primary_key=True)
+    tournament_id = db.Column(db.Integer, db.ForeignKey('tournaments.id'), nullable=False, index=True)
+    name = db.Column(db.String(200), nullable=False)
+    team_type = db.Column(db.String(20), default='internal')  # internal, external
+    notes = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=get_local_datetime)
+    updated_at = db.Column(db.DateTime, default=get_local_datetime, onupdate=get_local_datetime)
+
+    source_groups = db.relationship('TournamentTeamSourceGroup', backref='team', lazy=True, cascade='all, delete-orphan')
+    players = db.relationship('TournamentTeamPlayer', backref='team', lazy=True, cascade='all, delete-orphan')
+    external_players = db.relationship('TournamentExternalPlayer', backref='team', lazy=True, cascade='all, delete-orphan')
+
+    def __repr__(self):
+        return f'<TournamentTeam {self.name}>'
+
+
+class TournamentTeamSourceGroup(db.Model):
+    """Группы-источники, из которых собирается команда турнира"""
+    __tablename__ = 'tournament_team_source_groups'
+    __table_args__ = (
+        db.UniqueConstraint('team_id', 'group_id', name='uq_tournament_team_source_group'),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    team_id = db.Column(db.Integer, db.ForeignKey('tournament_teams.id'), nullable=False, index=True)
+    group_id = db.Column(db.Integer, db.ForeignKey('groups.id'), nullable=False, index=True)
+
+    group = db.relationship('Group', foreign_keys=[group_id])
+
+
+class TournamentTeamPlayer(db.Model):
+    """Игрок из базы школы, заявленный за команду турнира"""
+    __tablename__ = 'tournament_team_players'
+    __table_args__ = (
+        db.UniqueConstraint('team_id', 'student_id', name='uq_tournament_team_player'),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    team_id = db.Column(db.Integer, db.ForeignKey('tournament_teams.id'), nullable=False, index=True)
+    student_id = db.Column(db.Integer, db.ForeignKey('students.id'), nullable=False, index=True)
+    shirt_number = db.Column(db.String(10), nullable=True)
+    position = db.Column(db.String(30), nullable=True)
+    created_at = db.Column(db.DateTime, default=get_local_datetime)
+
+    student = db.relationship('Student', foreign_keys=[student_id])
+
+
+class TournamentExternalPlayer(db.Model):
+    """Игрок внешней команды, существующий только внутри турнира"""
+    __tablename__ = 'tournament_external_players'
+
+    id = db.Column(db.Integer, primary_key=True)
+    team_id = db.Column(db.Integer, db.ForeignKey('tournament_teams.id'), nullable=False, index=True)
+    full_name = db.Column(db.String(200), nullable=False)
+    shirt_number = db.Column(db.String(10), nullable=True)
+    position = db.Column(db.String(30), nullable=True)
+    created_at = db.Column(db.DateTime, default=get_local_datetime)
 
 
 class TournamentMatch(db.Model):
@@ -670,6 +734,8 @@ class TournamentMatch(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     tournament_id = db.Column(db.Integer, db.ForeignKey('tournaments.id'), nullable=False, index=True)
     group_id = db.Column(db.Integer, db.ForeignKey('groups.id'), nullable=True, index=True)
+    home_team_id = db.Column(db.Integer, db.ForeignKey('tournament_teams.id'), nullable=True, index=True)
+    away_team_id = db.Column(db.Integer, db.ForeignKey('tournament_teams.id'), nullable=True, index=True)
     match_date = db.Column(db.DateTime, nullable=True)
     home_team = db.Column(db.String(160), nullable=False, default='Наша команда')
     away_team = db.Column(db.String(160), nullable=False, default='Соперник')
@@ -686,6 +752,8 @@ class TournamentMatch(db.Model):
     updated_at = db.Column(db.DateTime, default=get_local_datetime, onupdate=get_local_datetime)
 
     group = db.relationship('Group', foreign_keys=[group_id])
+    home_team_ref = db.relationship('TournamentTeam', foreign_keys=[home_team_id])
+    away_team_ref = db.relationship('TournamentTeam', foreign_keys=[away_team_id])
     lineups = db.relationship('TournamentLineup', backref='match', lazy=True, cascade='all, delete-orphan')
     events = db.relationship('TournamentEvent', backref='match', lazy=True, cascade='all, delete-orphan')
 
@@ -724,6 +792,8 @@ class TournamentEvent(db.Model):
     match_id = db.Column(db.Integer, db.ForeignKey('tournament_matches.id'), nullable=False, index=True)
     student_id = db.Column(db.Integer, db.ForeignKey('students.id'), nullable=True, index=True)
     assist_student_id = db.Column(db.Integer, db.ForeignKey('students.id'), nullable=True)
+    external_player_id = db.Column(db.Integer, db.ForeignKey('tournament_external_players.id'), nullable=True, index=True)
+    external_assist_player_id = db.Column(db.Integer, db.ForeignKey('tournament_external_players.id'), nullable=True)
     event_type = db.Column(db.String(30), nullable=False)  # goal, card
     team_side = db.Column(db.String(10), default='home')
     half = db.Column(db.Integer, default=1)
@@ -735,6 +805,8 @@ class TournamentEvent(db.Model):
 
     student = db.relationship('Student', foreign_keys=[student_id])
     assist_student = db.relationship('Student', foreign_keys=[assist_student_id])
+    external_player = db.relationship('TournamentExternalPlayer', foreign_keys=[external_player_id])
+    external_assist_player = db.relationship('TournamentExternalPlayer', foreign_keys=[external_assist_player_id])
     creator = db.relationship('User', foreign_keys=[created_by])
 
     def __repr__(self):

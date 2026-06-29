@@ -1,6 +1,7 @@
 const tournamentState = {
     tournaments: [],
     groups: [],
+    teams: [],
     matches: [],
     players: [],
     selectedTournamentId: null,
@@ -8,6 +9,7 @@ const tournamentState = {
     currentMatch: null,
     lineup: [],
     analytics: null,
+    activeTab: 'bracket',
 };
 
 const POSITIONS_ORDER = ['Вратарь', 'Защитник', 'Полузащитник', 'Нападающий', 'Игрок'];
@@ -74,26 +76,36 @@ function formatDateTime(value) {
     });
 }
 
-function groupLabel(group) {
-    const count = `${group.active_student_count ?? group.student_count ?? 0}/${group.max_students || '-'}`;
-    return `${group.name} · ${count}`;
+function selectedTournament() {
+    return tournamentState.tournaments.find((item) => Number(item.id) === Number(tournamentState.selectedTournamentId));
 }
 
-function groupNameById(groupId) {
-    const group = tournamentState.groups.find((item) => String(item.id) === String(groupId));
-    return group?.name || '';
+function teamById(id) {
+    return tournamentState.teams.find((item) => Number(item.id) === Number(id));
 }
 
-function roundFromQuickFormat(format) {
-    if (format === 'semifinal') return 'semifinal';
-    if (format === 'final') return 'final';
-    return 'group';
+function openModal(id) {
+    const modal = qs(id);
+    if (modal) {
+        modal.hidden = false;
+        modal.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+    }
+}
+
+function closeModal(id) {
+    const modal = qs(id);
+    if (modal) {
+        modal.hidden = true;
+        modal.style.display = 'none';
+        document.body.style.overflow = '';
+    }
 }
 
 async function loadGroups() {
     const groups = await apiJson('/api/groups');
     tournamentState.groups = Array.isArray(groups) ? groups : (groups.groups || []);
-    renderGroupSelects();
+    renderGroupControls();
 }
 
 async function loadTournaments() {
@@ -102,67 +114,100 @@ async function loadTournaments() {
     if (!tournamentState.selectedTournamentId && tournamentState.tournaments.length) {
         tournamentState.selectedTournamentId = tournamentState.tournaments[0].id;
     }
-    renderTournaments();
+    renderTournamentSelect();
     if (tournamentState.selectedTournamentId) {
         await selectTournament(tournamentState.selectedTournamentId, false);
+    } else {
+        renderEmptyState();
     }
 }
 
-function renderGroupSelects() {
-    const html = `<option value="">Без группы</option>${tournamentState.groups.map((group) =>
-        `<option value="${group.id}">${escapeHtml(groupLabel(group))}</option>`
-    ).join('')}`;
-    qs('matchGroup').innerHTML = html;
-
-    const quickHome = qs('quickHomeGroup');
-    const quickOpponent = qs('quickOpponentGroup');
-    if (quickHome) {
-        quickHome.innerHTML = `<option value="">Наша группа</option>${tournamentState.groups.map((group) =>
-            `<option value="${group.id}">${escapeHtml(group.name)}</option>`
-        ).join('')}`;
-    }
-    if (quickOpponent) {
-        quickOpponent.innerHTML = `<option value="">Соперник вручную</option>${tournamentState.groups.map((group) =>
-            `<option value="${group.id}">${escapeHtml(group.name)}</option>`
-        ).join('')}`;
-    }
+function renderTournamentSelect() {
+    const select = qs('tournamentSelect');
+    select.innerHTML = '<option value="">Выберите турнир</option>' + tournamentState.tournaments.map((item) => (
+        `<option value="${item.id}" ${Number(item.id) === Number(tournamentState.selectedTournamentId) ? 'selected' : ''}>
+            ${escapeHtml(item.name)} · ${STATUS_LABELS[item.status] || item.status || '-'}
+        </option>`
+    )).join('');
 }
 
-function renderTournaments() {
-    const list = qs('tournamentList');
-    if (!tournamentState.tournaments.length) {
-        list.innerHTML = '<div class="empty-state">Турниров пока нет.</div>';
-        return;
-    }
-    list.innerHTML = tournamentState.tournaments.map((item) => `
-        <button class="entity-item ${item.id === tournamentState.selectedTournamentId ? 'active' : ''}" type="button"
-            data-tournament-id="${item.id}">
-            <span class="entity-title">${escapeHtml(item.name)}</span>
-            <span class="entity-meta">${escapeHtml(item.season || 'Сезон не указан')} · ${formatDate(item.start_date)}</span>
-            <span class="entity-bottom">
-                <span>${STATUS_LABELS[item.status] || item.status || '-'}</span>
-                <span>${item.matches_count || 0} матч.</span>
-            </span>
-        </button>
-    `).join('');
-    list.querySelectorAll('[data-tournament-id]').forEach((button) => {
-        button.addEventListener('click', () => selectTournament(Number(button.dataset.tournamentId)));
-    });
+function renderGroupControls() {
+    const options = tournamentState.groups.map((group) => (
+        `<option value="${group.id}">${escapeHtml(group.name)}</option>`
+    )).join('');
+    qs('teamSourceGroups').innerHTML = options;
+}
+
+function renderTeamSelects() {
+    const empty = '<option value="">Выберите команду</option>';
+    const options = tournamentState.teams.map((team) => (
+        `<option value="${team.id}">${escapeHtml(team.name)}</option>`
+    )).join('');
+    qs('matchHomeTeam').innerHTML = empty + options;
+    qs('matchAwayTeam').innerHTML = empty + options;
 }
 
 async function selectTournament(tournamentId, resetMatch = true) {
-    tournamentState.selectedTournamentId = tournamentId;
+    tournamentState.selectedTournamentId = Number(tournamentId) || null;
     if (resetMatch) {
         tournamentState.selectedMatchId = null;
         tournamentState.currentMatch = null;
+        tournamentState.lineup = [];
     }
-    qs('toggleMatchForm').disabled = false;
-    renderTournaments();
-    await Promise.all([loadMatches(), loadAnalytics()]);
+    qs('openTeamModalBtn').disabled = !tournamentState.selectedTournamentId;
+    qs('openMatchModalBtn').disabled = !tournamentState.selectedTournamentId;
+    renderTournamentSelect();
+    if (!tournamentState.selectedTournamentId) {
+        tournamentState.teams = [];
+        tournamentState.matches = [];
+        tournamentState.analytics = null;
+        renderEmptyState();
+        return;
+    }
+    await Promise.all([loadTeams(), loadMatches(), loadAnalytics()]);
     renderBracket();
+    if (!tournamentState.selectedMatchId) hideWorkspace();
+}
+
+async function loadTeams() {
+    if (!tournamentState.selectedTournamentId) return;
+    const data = await apiJson(`/api/tournaments/${tournamentState.selectedTournamentId}/teams`);
+    tournamentState.teams = data.teams || [];
+    renderTeams();
+    renderTeamSelects();
+}
+
+function renderTeams() {
+    const list = qs('teamList');
+    if (!tournamentState.selectedTournamentId) {
+        list.innerHTML = '<div class="empty-state">Выберите турнир.</div>';
+        return;
+    }
+    if (!tournamentState.teams.length) {
+        list.innerHTML = '<div class="empty-state">Добавьте команды турнира.</div>';
+        return;
+    }
+    list.innerHTML = tournamentState.teams.map((team) => {
+        const groups = (team.source_groups || []).map((item) => item.group_name).filter(Boolean).join(', ');
+        const typeLabel = team.team_type === 'external' ? 'Внешняя команда' : 'Наша команда';
+        const players = [...(team.players || []), ...(team.external_players || [])].slice(0, 6);
+        return `
+            <article class="tournament-team-card">
+                <div>
+                    <strong>${escapeHtml(team.name)}</strong>
+                    <span>${escapeHtml(typeLabel)}${groups ? ` · ${escapeHtml(groups)}` : ''}</span>
+                </div>
+                <div class="team-mini-roster">
+                    ${players.map((player) => `<span>${escapeHtml(player.name)}${player.number ? ` №${escapeHtml(player.number)}` : ''}</span>`).join('')}
+                    ${(team.players_count || 0) > players.length ? `<span>+${(team.players_count || 0) - players.length}</span>` : ''}
+                </div>
+            </article>
+        `;
+    }).join('');
 }
 
 async function loadMatches() {
+    if (!tournamentState.selectedTournamentId) return;
     const data = await apiJson(`/api/tournaments/${tournamentState.selectedTournamentId}/matches`);
     tournamentState.matches = data.matches || [];
     if (!tournamentState.selectedMatchId && tournamentState.matches.length) {
@@ -192,7 +237,7 @@ function renderMatches() {
             <span class="entity-title">${escapeHtml(match.home_team)} <b>${match.home_score}:${match.away_score}</b> ${escapeHtml(match.away_team)}</span>
             <span class="entity-meta">${formatDateTime(match.match_date)}</span>
             <span class="entity-bottom">
-                <span>${escapeHtml(ROUND_LABELS[match.round_name] || match.group_name || 'Без группы')}</span>
+                <span>${escapeHtml(ROUND_LABELS[match.round_name] || 'Матч')}</span>
                 <span>${match.players_count || 0} игрок.</span>
             </span>
         </button>
@@ -207,25 +252,77 @@ async function selectMatch(matchId, rerenderList = true) {
     const data = await apiJson(`/api/tournament-matches/${matchId}`);
     tournamentState.currentMatch = data.match;
     tournamentState.lineup = [...(data.match.lineups || [])];
-    if (rerenderList) renderMatches();
-    await loadPlayers(data.match.group_id);
+    if (rerenderList) {
+        renderMatches();
+        renderBracket();
+    }
+    await loadPlayersForMatch(data.match);
     showWorkspace();
 }
 
-async function loadPlayers(groupId) {
+async function loadPlayersForMatch(match) {
     const url = new URL(`/api/tournaments/${tournamentState.selectedTournamentId}/players`, window.location.origin);
-    if (groupId) url.searchParams.set('group_id', groupId);
+    if (match.home_team_id) {
+        url.searchParams.set('team_id', match.home_team_id);
+    } else if (match.group_id) {
+        url.searchParams.set('group_id', match.group_id);
+    }
     const data = await apiJson(url.pathname + url.search);
     tournamentState.players = data.players || [];
     renderPlayerSelects();
 }
 
+async function loadStudentsForTeamPicker() {
+    const selectedGroupIds = Array.from(qs('teamSourceGroups').selectedOptions).map((option) => Number(option.value));
+    let players = [];
+    if (!selectedGroupIds.length) {
+        qs('teamPlayerPicker').innerHTML = '<div class="empty-state small">Выберите одну или несколько групп-источников.</div>';
+        return;
+    }
+    for (const groupId of selectedGroupIds) {
+        const url = new URL(`/api/tournaments/${tournamentState.selectedTournamentId}/players`, window.location.origin);
+        url.searchParams.set('group_id', groupId);
+        const data = await apiJson(url.pathname + url.search);
+        players = players.concat(data.players || []);
+    }
+    const seen = new Set();
+    players = players.filter((player) => {
+        if (seen.has(player.id)) return false;
+        seen.add(player.id);
+        return true;
+    });
+    qs('teamPlayerPicker').innerHTML = players.length ? players.map((player) => `
+        <label class="team-player-option">
+            <input type="checkbox" value="${player.id}" checked>
+            ${player.photo_url ? `<img src="${player.photo_url}" alt="">` : `<span class="avatar-fallback">${escapeHtml((player.name || '?').slice(0, 1))}</span>`}
+            <span><strong>${escapeHtml(player.name)}</strong><small>${escapeHtml(player.group_name || '')}</small></span>
+        </label>
+    `).join('') : '<div class="empty-state small">В выбранных группах нет игроков.</div>';
+}
+
 function renderPlayerSelects() {
-    const options = tournamentState.players.map((player) =>
-        `<option value="${player.id}">${escapeHtml(player.name)}${player.number ? ` (№${escapeHtml(player.number)})` : ''}</option>`
+    const match = tournamentState.currentMatch;
+    const homeTeam = teamById(match?.home_team_id);
+    const awayTeam = teamById(match?.away_team_id);
+    const eventPlayers = [];
+    tournamentState.players.forEach((player) => {
+        eventPlayers.push({
+            value: `student:${player.id}`,
+            label: `${player.name}${player.number ? ` (№${player.number})` : ''}`,
+        });
+    });
+    [homeTeam, awayTeam].filter(Boolean).forEach((team) => {
+        (team.external_players || []).forEach((player) => {
+            eventPlayers.push({
+                value: `external:${player.id}`,
+                label: `${player.name}${player.number ? ` (№${player.number})` : ''} · ${team.name}`,
+            });
+        });
+    });
+    const options = eventPlayers.map((player) =>
+        `<option value="${escapeHtml(player.value)}">${escapeHtml(player.label)}</option>`
     ).join('');
-    const empty = '<option value="">Выберите игрока</option>';
-    qs('eventPlayer').innerHTML = empty + options;
+    qs('eventPlayer').innerHTML = '<option value="">Выберите игрока</option>' + options;
     qs('eventAssist').innerHTML = '<option value="">Без голевого паса</option>' + options;
     renderLineupPicker();
 }
@@ -234,31 +331,22 @@ function renderLineupPicker() {
     const list = qs('lineupMultiList');
     if (!list) return;
     const search = (qs('lineupSearch')?.value || '').trim().toLowerCase();
-    const selectedIds = new Set(tournamentState.lineup
-        .filter((item) => item.team_side === 'home')
-        .map((item) => Number(item.student_id)));
+    const selectedIds = new Set(tournamentState.lineup.map((item) => Number(item.student_id)));
     const players = tournamentState.players.filter((player) => {
         const haystack = `${player.name || ''} ${player.number || ''} ${player.group_name || ''}`.toLowerCase();
         return !selectedIds.has(Number(player.id)) && (!search || haystack.includes(search));
     });
 
-    if (!players.length) {
-        list.innerHTML = '<div class="empty-state small">Игроков для добавления нет.</div>';
-        return;
-    }
-
-    list.innerHTML = players.map((player) => `
+    list.innerHTML = players.length ? players.map((player) => `
         <label class="lineup-option">
             <input type="checkbox" value="${player.id}">
-            ${player.photo_url
-                ? `<img src="${player.photo_url}" alt="">`
-                : `<span class="avatar-fallback">${escapeHtml((player.name || '?').slice(0, 1))}</span>`}
+            ${player.photo_url ? `<img src="${player.photo_url}" alt="">` : `<span class="avatar-fallback">${escapeHtml((player.name || '?').slice(0, 1))}</span>`}
             <span>
                 <strong>${escapeHtml(player.name)}</strong>
                 <small>${player.number ? `№${escapeHtml(player.number)} · ` : ''}${escapeHtml(player.group_name || 'Без группы')}</small>
             </span>
         </label>
-    `).join('');
+    `).join('') : '<div class="empty-state small">Игроков для добавления нет.</div>';
 }
 
 function hideWorkspace() {
@@ -273,7 +361,7 @@ function showWorkspace() {
     qs('scoreHomeTeam').textContent = match.home_team;
     qs('scoreAwayTeam').textContent = match.away_team;
     qs('matchScore').textContent = `${match.home_score || 0} : ${match.away_score || 0}`;
-    qs('matchMeta').textContent = `${formatDateTime(match.match_date)} · ${match.group_name || 'Без группы'}`;
+    qs('matchMeta').textContent = `${formatDateTime(match.match_date)} · ${ROUND_LABELS[match.round_name] || 'Матч'}`;
     qs('matchStatusLabel').textContent = STATUS_LABELS[match.status] || match.status || '-';
     qs('formationViewSelect').value = match.formation || '4-3-3';
     qs('currentMatchRound').value = match.round_name || 'group';
@@ -284,13 +372,13 @@ function showWorkspace() {
     renderTimeline();
     renderAnalytics();
     renderPitchPoster();
-    renderBracket();
 }
 
 function renderLineup() {
     const board = qs('lineupBoard');
     if (!tournamentState.lineup.length) {
         board.innerHTML = '<div class="empty-state">Состав ещё не заполнен.</div>';
+        renderPitchPoster();
         return;
     }
     board.innerHTML = POSITIONS_ORDER.map((position) => {
@@ -299,7 +387,7 @@ function renderLineup() {
         return `
             <div class="lineup-position">
                 <h4>${escapeHtml(position)}</h4>
-                ${players.map((player, index) => `
+                ${players.map((player) => `
                     <div class="lineup-chip">
                         ${player.photo_url ? `<img src="${player.photo_url}" alt="">` : `<span class="avatar-fallback">${escapeHtml((player.student_name || '?').slice(0, 1))}</span>`}
                         <span>${escapeHtml(player.shirt_number ? `№${player.shirt_number} · ` : '')}${escapeHtml(player.student_name)}</span>
@@ -318,7 +406,6 @@ function renderLineup() {
             tournamentState.lineup.splice(Number(button.dataset.lineupIndex), 1);
             renderLineup();
             renderLineupPicker();
-            renderPitchPoster();
         });
     });
     renderPitchPoster();
@@ -397,7 +484,7 @@ function addSelectedLineupPlayers() {
     checked.forEach((checkbox) => {
         const playerId = Number(checkbox.value);
         const player = tournamentState.players.find((item) => Number(item.id) === playerId);
-        if (!player || tournamentState.lineup.some((item) => Number(item.student_id) === playerId && item.team_side === 'home')) return;
+        if (!player || tournamentState.lineup.some((item) => Number(item.student_id) === playerId)) return;
         tournamentState.lineup.push({
             student_id: player.id,
             student_name: player.name,
@@ -446,6 +533,8 @@ async function saveCurrentMatchSettings() {
         method: 'PUT',
         body: JSON.stringify({
             group_id: match.group_id || '',
+            home_team_id: match.home_team_id || '',
+            away_team_id: match.away_team_id || '',
             match_date: match.match_date || '',
             home_team: match.home_team,
             away_team: match.away_team,
@@ -463,6 +552,7 @@ async function saveCurrentMatchSettings() {
     qs('formationViewSelect').value = data.match.formation || '4-3-3';
     showWorkspace();
     renderMatches();
+    renderBracket();
 }
 
 function lineupForPitch() {
@@ -552,125 +642,141 @@ function renderBracket() {
     });
 }
 
-async function createQuickTournament(event) {
+function switchTournamentTab(tabName) {
+    tournamentState.activeTab = tabName;
+    document.querySelectorAll('.tournament-tab').forEach((button) => {
+        button.classList.toggle('active', button.dataset.tournamentTab === tabName);
+    });
+    document.querySelectorAll('.tournament-tab-panel').forEach((panel) => {
+        panel.classList.toggle('active', panel.id === `tournamentTab-${tabName}`);
+    });
+}
+
+function renderEmptyState() {
+    qs('teamList').innerHTML = '<div class="empty-state">Создайте или выберите турнир.</div>';
+    qs('matchList').innerHTML = '<div class="empty-state">Создайте или выберите турнир.</div>';
+    qs('bracketBoard').innerHTML = '<div class="empty-state">Создайте или выберите турнир.</div>';
+    hideWorkspace();
+}
+
+async function createTournament(event) {
     event.preventDefault();
-
-    const tournamentName = qs('quickTournamentName').value.trim();
-    const homeGroupId = qs('quickHomeGroup').value;
-    const opponentGroupId = qs('quickOpponentGroup').value;
-    const externalOpponent = qs('quickOpponentName').value.trim();
-    const format = qs('quickTournamentFormat').value;
-
-    if (!tournamentName || !homeGroupId) {
-        alert('Укажите название турнира и нашу группу');
-        return;
-    }
-
-    const homeTeam = groupNameById(homeGroupId) || 'Наша команда';
-    const awayTeam = groupNameById(opponentGroupId) || externalOpponent || 'Соперник';
-
-    const tournamentData = await apiJson('/api/tournaments', {
+    const data = await apiJson('/api/tournaments', {
         method: 'POST',
         body: JSON.stringify({
-            name: tournamentName,
-            season: '',
-            status: 'active',
-            location: '',
-            start_date: '',
-            end_date: '',
-            notes: `Формат: ${qs('quickTournamentFormat').selectedOptions[0]?.textContent || 'Один матч'}`,
+            name: qs('tournamentName').value,
+            season: qs('tournamentSeason').value,
+            status: qs('tournamentStatus').value,
+            location: qs('tournamentLocation').value,
+            start_date: qs('tournamentStart').value,
+            end_date: qs('tournamentEnd').value,
+            notes: qs('tournamentNotes').value,
         }),
     });
-
-    const matchData = await apiJson(`/api/tournaments/${tournamentData.tournament.id}/matches`, {
-        method: 'POST',
-        body: JSON.stringify({
-            match_date: qs('quickMatchDate').value,
-            group_id: homeGroupId,
-            home_team: homeTeam,
-            away_team: awayTeam,
-            status: 'scheduled',
-            venue: '',
-            round_name: roundFromQuickFormat(format),
-            bracket_side: 'left',
-            bracket_order: '0',
-            formation: '4-3-3',
-            notes: opponentGroupId ? 'Соперник выбран из групп системы' : '',
-        }),
-    });
-
-    qs('quickTournamentForm').reset();
-    tournamentState.selectedTournamentId = tournamentData.tournament.id;
-    tournamentState.selectedMatchId = matchData.match.id;
+    qs('tournamentForm').reset();
+    closeModal('tournamentModal');
+    tournamentState.selectedTournamentId = data.tournament.id;
     await loadTournaments();
 }
 
-function bindForms() {
-    const quickTournamentForm = qs('quickTournamentForm');
-    if (quickTournamentForm) {
-        quickTournamentForm.addEventListener('submit', createQuickTournament);
-    }
+function parseExternalPlayers(text) {
+    return String(text || '').split('\n').map((line) => {
+        const [fullName, number, position] = line.split(',').map((part) => (part || '').trim());
+        return fullName ? { full_name: fullName, shirt_number: number || '', position: position || '' } : null;
+    }).filter(Boolean);
+}
 
-    qs('toggleTournamentForm').addEventListener('click', () => {
-        qs('tournamentForm').hidden = !qs('tournamentForm').hidden;
+async function createTeam(event) {
+    event.preventDefault();
+    if (!tournamentState.selectedTournamentId) return;
+    const playerIds = Array.from(qs('teamPlayerPicker').querySelectorAll('input[type="checkbox"]:checked')).map((input) => input.value);
+    const groupIds = Array.from(qs('teamSourceGroups').selectedOptions).map((option) => option.value);
+    await apiJson(`/api/tournaments/${tournamentState.selectedTournamentId}/teams`, {
+        method: 'POST',
+        body: JSON.stringify({
+            name: qs('teamName').value,
+            team_type: qs('teamType').value,
+            group_ids: groupIds,
+            player_ids: playerIds,
+            external_players: parseExternalPlayers(qs('teamExternalPlayers').value),
+            notes: qs('teamNotes').value,
+        }),
     });
-    qs('toggleMatchForm').addEventListener('click', () => {
-        qs('matchForm').hidden = !qs('matchForm').hidden;
+    qs('teamForm').reset();
+    qs('teamPlayerPicker').innerHTML = '';
+    closeModal('teamModal');
+    await loadTeams();
+}
+
+async function createMatch(event) {
+    event.preventDefault();
+    if (!tournamentState.selectedTournamentId) return;
+    const homeTeam = teamById(qs('matchHomeTeam').value);
+    const awayTeam = teamById(qs('matchAwayTeam').value);
+    if (!homeTeam || !awayTeam) {
+        alert('Выберите обе команды матча');
+        return;
+    }
+    const data = await apiJson(`/api/tournaments/${tournamentState.selectedTournamentId}/matches`, {
+        method: 'POST',
+        body: JSON.stringify({
+            match_date: qs('matchDate').value,
+            home_team_id: homeTeam.id,
+            away_team_id: awayTeam.id,
+            group_id: (homeTeam.source_group_ids || [])[0] || '',
+            home_team: homeTeam.name,
+            away_team: awayTeam.name,
+            status: qs('matchStatus').value,
+            venue: qs('matchVenue').value,
+            round_name: qs('matchRound').value,
+            bracket_side: qs('matchBracketSide').value,
+            bracket_order: qs('matchBracketOrder').value,
+            formation: qs('matchFormation').value,
+            notes: qs('matchNotes').value,
+        }),
     });
+    qs('matchForm').reset();
+    qs('matchBracketOrder').value = '0';
+    closeModal('matchModal');
+    tournamentState.selectedMatchId = data.match.id;
+    await loadMatches();
+    switchTournamentTab('bracket');
+}
+
+function bindForms() {
     qs('refreshTournamentBtn').addEventListener('click', initTournaments);
+    qs('tournamentSelect').addEventListener('change', (event) => selectTournament(event.target.value));
+    qs('openTournamentModalBtn').addEventListener('click', () => openModal('tournamentModal'));
+    qs('openTeamModalBtn').addEventListener('click', () => openModal('teamModal'));
+    qs('openMatchModalBtn').addEventListener('click', () => openModal('matchModal'));
+    qs('teamSourceGroups').addEventListener('change', loadStudentsForTeamPicker);
+    qs('teamType').addEventListener('change', () => {
+        const external = qs('teamType').value === 'external';
+        qs('teamSourceGroups').style.display = external ? 'none' : '';
+        qs('teamPlayerPicker').style.display = external ? 'none' : '';
+        qs('teamExternalPlayers').style.display = external ? '' : 'none';
+    });
+    document.querySelectorAll('[data-close-modal]').forEach((button) => {
+        button.addEventListener('click', () => closeModal(button.dataset.closeModal));
+    });
+    document.querySelectorAll('.tournament-modal').forEach((modal) => {
+        modal.addEventListener('click', (event) => {
+            if (event.target === modal) closeModal(modal.id);
+        });
+    });
+    document.querySelectorAll('.tournament-tab').forEach((button) => {
+        button.addEventListener('click', () => switchTournamentTab(button.dataset.tournamentTab));
+    });
+
+    qs('tournamentForm').addEventListener('submit', createTournament);
+    qs('teamForm').addEventListener('submit', createTeam);
+    qs('matchForm').addEventListener('submit', createMatch);
     qs('addSelectedLineupBtn').addEventListener('click', addSelectedLineupPlayers);
     qs('lineupSearch').addEventListener('input', renderLineupPicker);
     qs('saveLineupBtn').addEventListener('click', saveLineup);
     qs('saveMatchSettingsBtn').addEventListener('click', saveCurrentMatchSettings);
     qs('eventType').addEventListener('change', toggleEventFields);
-
-    qs('tournamentForm').addEventListener('submit', async (event) => {
-        event.preventDefault();
-        const data = await apiJson('/api/tournaments', {
-            method: 'POST',
-            body: JSON.stringify({
-                name: qs('tournamentName').value,
-                season: qs('tournamentSeason').value,
-                status: qs('tournamentStatus').value,
-                location: qs('tournamentLocation').value,
-                start_date: qs('tournamentStart').value,
-                end_date: qs('tournamentEnd').value,
-                notes: qs('tournamentNotes').value,
-            }),
-        });
-        qs('tournamentForm').reset();
-        qs('tournamentForm').hidden = true;
-        tournamentState.selectedTournamentId = data.tournament.id;
-        await loadTournaments();
-    });
-
-    qs('matchForm').addEventListener('submit', async (event) => {
-        event.preventDefault();
-        const data = await apiJson(`/api/tournaments/${tournamentState.selectedTournamentId}/matches`, {
-            method: 'POST',
-            body: JSON.stringify({
-                match_date: qs('matchDate').value,
-                group_id: qs('matchGroup').value,
-                home_team: qs('homeTeam').value,
-                away_team: qs('awayTeam').value,
-                status: qs('matchStatus').value,
-                venue: qs('matchVenue').value,
-                round_name: qs('matchRound').value,
-                bracket_side: qs('matchBracketSide').value,
-                bracket_order: qs('matchBracketOrder').value,
-                formation: qs('matchFormation').value,
-                notes: qs('matchNotes').value,
-            }),
-        });
-        qs('matchForm').reset();
-        qs('homeTeam').value = 'Наша команда';
-        qs('awayTeam').value = 'Соперник';
-        qs('matchBracketOrder').value = '0';
-        qs('matchForm').hidden = true;
-        tournamentState.selectedMatchId = data.match.id;
-        await loadMatches();
-    });
-
+    qs('formationViewSelect').addEventListener('change', renderPitchPoster);
     qs('eventForm').addEventListener('submit', async (event) => {
         event.preventDefault();
         await apiJson(`/api/tournament-matches/${tournamentState.selectedMatchId}/events`, {
@@ -679,8 +785,8 @@ function bindForms() {
                 event_type: qs('eventType').value,
                 half: qs('eventHalf').value,
                 minute: qs('eventMinute').value,
-                student_id: qs('eventPlayer').value,
-                assist_student_id: qs('eventAssist').value,
+                player_ref: qs('eventPlayer').value,
+                assist_ref: qs('eventAssist').value,
                 card_color: qs('eventCardColor').value,
                 note: qs('eventNote').value,
             }),
@@ -689,8 +795,6 @@ function bindForms() {
         await selectMatch(tournamentState.selectedMatchId);
         await loadAnalytics();
     });
-
-    qs('formationViewSelect').addEventListener('change', renderPitchPoster);
 }
 
 async function initTournaments() {
@@ -698,9 +802,10 @@ async function initTournaments() {
         await loadGroups();
         await loadTournaments();
         toggleEventFields();
+        qs('teamExternalPlayers').style.display = 'none';
     } catch (error) {
         console.error(error);
-        qs('tournamentList').innerHTML = `<div class="empty-state">${escapeHtml(error.message)}</div>`;
+        qs('bracketBoard').innerHTML = `<div class="empty-state">${escapeHtml(error.message)}</div>`;
     }
 }
 
