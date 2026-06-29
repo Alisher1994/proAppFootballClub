@@ -1468,27 +1468,24 @@
                     style="display: flex; gap: 12px; align-items: center; margin-bottom: 20px;">
                     <button id="incomeFilterToggleBtn" class="btn-secondary"
                         style="display: flex; align-items: center; gap: 8px;">
-                        <span>🔍</span>
                         <span id="incomeFilterToggleText">Фильтр</span>
                     </button>
-                    <button id="addIncomeBtn" class="btn-primary">➕ Добавить</button>
+                    <button id="addIncomeBtn" class="btn-primary"><span class="btn-plus" aria-hidden="true">+</span> Добавить</button>
                 </div>
                 <div id="expenses-tab-buttons"
                     style="display: none; gap: 12px; align-items: center; margin-bottom: 20px;">
                     <button id="expenseFilterToggleBtn" class="btn-secondary"
                         style="display: flex; align-items: center; gap: 8px;">
-                        <span>🔍</span>
                         <span id="expenseFilterToggleText">Фильтр</span>
                     </button>
-                    <button id="addExpenseBtn" class="btn-primary">➕ Добавить</button>
+                    <button id="addExpenseBtn" class="btn-primary"><span class="btn-plus" aria-hidden="true">+</span> Добавить</button>
                 </div>
                 <div id="cash-tab-buttons" style="display: none; gap: 12px; align-items: center; margin-bottom: 20px;">
                     <button id="cashFilterToggleBtn" class="btn-secondary"
                         style="display: flex; align-items: center; gap: 8px;">
-                        <span>🔍</span>
                         <span id="cashFilterToggleText">Фильтр</span>
                     </button>
-                    <button id="addTransferBtn" class="btn-primary">➕ Добавить</button>
+                    <button id="addTransferBtn" class="btn-primary"><span class="btn-plus" aria-hidden="true">+</span> Добавить</button>
                 </div>
 
                 <!-- Приход -->
@@ -1508,11 +1505,11 @@
                                     </select>
                                 </div>
                                 <div class="filter-group">
-                                    <label>📅 От даты</label>
+                                    <label>От даты</label>
                                     <input type="date" id="income-date-from" class="form-input-modern">
                                 </div>
                                 <div class="filter-group">
-                                    <label>📅 До даты</label>
+                                    <label>До даты</label>
                                     <input type="date" id="income-date-to" class="form-input-modern">
                                 </div>
                                 <div class="filter-group">
@@ -1529,8 +1526,7 @@
                                 </div>
                             </div>
                             <div class="filter-actions">
-                                <button type="button" onclick="resetIncomeFilters()" class="btn-secondary">🔄
-                                    Сбросить</button>
+                                <button type="button" onclick="resetIncomeFilters()" class="btn-secondary">Сбросить</button>
                                 <button type="button" onclick="filterIncome()" class="btn-primary">✓ Применить</button>
                             </div>
                         </div>
@@ -1591,11 +1587,11 @@
                                     </select>
                                 </div>
                                 <div class="filter-group">
-                                    <label>📅 От даты</label>
+                                    <label>От даты</label>
                                     <input type="date" id="expense-date-from" class="form-input-modern">
                                 </div>
                                 <div class="filter-group">
-                                    <label>📅 До даты</label>
+                                    <label>До даты</label>
                                     <input type="date" id="expense-date-to" class="form-input-modern">
                                 </div>
                                 <div class="filter-group">
@@ -1613,8 +1609,7 @@
                                 </div>
                             </div>
                             <div class="filter-actions">
-                                <button type="button" onclick="resetExpenseFilters()" class="btn-secondary">🔄
-                                    Сбросить</button>
+                                <button type="button" onclick="resetExpenseFilters()" class="btn-secondary">Сбросить</button>
                                 <button type="button" onclick="filterExpenses()" class="btn-primary">✓
                                     Применить</button>
                             </div>
@@ -1654,22 +1649,21 @@
                                     </select>
                                 </div>
                                 <div class="filter-group">
-                                    <label>📅 От даты</label>
+                                    <label>От даты</label>
                                     <input type="date" id="cash-date-from" class="form-input-modern">
                                 </div>
                                 <div class="filter-group">
-                                    <label>📅 До даты</label>
+                                    <label>До даты</label>
                                     <input type="date" id="cash-date-to" class="form-input-modern">
                                 </div>
                                 <div class="filter-group">
-                                    <label>👤 Управляющий</label>
+                                    <label>Управляющий</label>
                                     <input type="text" id="cash-recipient-filter" placeholder="Поиск по имени..."
                                         class="form-input-modern">
                                 </div>
                             </div>
                             <div class="filter-actions">
-                                <button type="button" onclick="resetCashFilters()" class="btn-secondary">🔄
-                                    Сбросить</button>
+                                <button type="button" onclick="resetCashFilters()" class="btn-secondary">Сбросить</button>
                                 <button type="button" onclick="applyCashFilters()" class="btn-primary">✓
                                     Применить</button>
                             </div>
@@ -2087,7 +2081,7 @@
                             <input type="hidden" id="edit-transfer-id">
 
                             <div class="form-group">
-                                <label>💰 Остаток кассы</label>
+                                <label>Остаток кассы</label>
                                 <input type="text" id="transfer-balance" class="form-input-modern" readonly
                                     style="background: #f5f5f5;">
                                 <small style="color: #666; font-size: 12px;">Автоматически рассчитанная сумма
@@ -2101,13 +2095,13 @@
                             </div>
 
                             <div class="form-group">
-                                <label>👤 Управляющий *</label>
+                                <label>Управляющий *</label>
                                 <input type="text" id="transfer-recipient" class="form-input-modern" required
                                     placeholder="Введите имя управляющего">
                             </div>
 
                             <div class="form-group">
-                                <label>📅 Дата передачи</label>
+                                <label>Дата передачи</label>
                                 <input type="date" id="transfer-date" class="form-input-modern" required>
                             </div>
 

@@ -1326,7 +1326,7 @@ document.addEventListener('click', async (e) => {
                 const photoPath = student.photo_path.replace('frontend/static/', '').replace(/\\/g, '/');
                 preview.innerHTML = `
                         <img src="/static/${photoPath}" alt="Current photo">
-                        <button type="button" class="photo-delete-btn" onclick="deletePhoto('edit-photo-upload', 'edit_photo', 'edit-photo-preview', 'edit-photo-area', 'edit-photo-select-btn')">🗑️ Удалить фото</button>
+                        <button type="button" class="photo-delete-btn" onclick="deletePhoto('edit-photo-upload', 'edit_photo', 'edit-photo-preview', 'edit-photo-area', 'edit-photo-select-btn')">Удалить фото</button>
                     `;
             } else {
                 preview.innerHTML = `
@@ -1536,7 +1536,7 @@ function initPhotoUpload(containerId, inputId, previewId, areaId, selectBtnId) {
 
             preview.innerHTML = `
                 <img src="${objectUrl}" alt="Preview" onload="URL.revokeObjectURL('${objectUrl}')">
-                <button type="button" class="photo-delete-btn" onclick="deletePhoto('${containerId}', '${inputId}', '${previewId}', '${areaId}', '${selectBtnId}')">🗑️ Удалить фото</button>
+                <button type="button" class="photo-delete-btn" onclick="deletePhoto('${containerId}', '${inputId}', '${previewId}', '${areaId}', '${selectBtnId}')">Удалить фото</button>
             `;
 
             // Обновляем input.files
@@ -1549,7 +1549,7 @@ function initPhotoUpload(containerId, inputId, previewId, areaId, selectBtnId) {
             const objectUrl = URL.createObjectURL(file);
             preview.innerHTML = `
                 <img src="${objectUrl}" alt="Preview" onload="URL.revokeObjectURL('${objectUrl}')">
-                <button type="button" class="photo-delete-btn" onclick="deletePhoto('${containerId}', '${inputId}', '${previewId}', '${areaId}', '${selectBtnId}')">🗑️ Удалить фото</button>
+                <button type="button" class="photo-delete-btn" onclick="deletePhoto('${containerId}', '${inputId}', '${previewId}', '${areaId}', '${selectBtnId}')">Удалить фото</button>
             `;
             const dataTransfer = new DataTransfer();
             dataTransfer.items.add(file);

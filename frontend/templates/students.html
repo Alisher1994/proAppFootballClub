@@ -3308,23 +3308,23 @@
         <div id="filterPanel" class="game-filter-panel" style="display: none;">
             <div class="game-filter-content">
                 <div class="game-filter-header">
-                    <h3>🔍 Фильтры</h3>
+                    <h3>Фильтры</h3>
                     <button type="button" id="closeFilterPanel" class="game-filter-close">✕</button>
                 </div>
                 <div class="game-filter-body">
                     <div class="game-filter-row">
                         <div class="game-filter-group">
-                            <label>🔍 Поиск по имени</label>
+                            <label>Поиск по имени</label>
                             <input type="text" id="filterName" placeholder="Введите имя или фамилию...">
                         </div>
                         <div class="game-filter-group">
-                            <label>👨‍👩‍👦 Группа</label>
+                            <label>Группа</label>
                             <select id="filterGroup">
                                 <option value="">Все группы</option>
                             </select>
                         </div>
                         <div class="game-filter-group">
-                            <label>📊 Статус</label>
+                            <label>Статус</label>
                             <select id="filterStatus">
                                 <option value="">Все статусы</option>
                                 <option value="active">Активен</option>
@@ -3333,7 +3333,7 @@
                             </select>
                         </div>
                         <div class="game-filter-group">
-                            <label>💰 Баланс</label>
+                            <label>Баланс</label>
                             <select id="filterBalance">
                                 <option value="">Все</option>
                                 <option value="low">Мало занятий (≤2)</option>
@@ -3343,10 +3343,8 @@
                         </div>
                     </div>
                     <div class="game-filter-actions">
-                        <button type="button" id="clearFiltersBtn" class="game-btn game-btn-secondary">🔄
-                            Сбросить</button>
-                        <button type="button" id="applyFiltersBtn" class="game-btn game-btn-primary">✓
-                            Применить</button>
+                        <button type="button" id="clearFiltersBtn" class="game-btn game-btn-secondary">Сбросить</button>
+                        <button type="button" id="applyFiltersBtn" class="game-btn game-btn-primary">Применить</button>
                     </div>
                 </div>
             </div>
@@ -3445,7 +3443,7 @@
         <!-- Секция 2: Параметры ученика -->
         <div class="student-details-panel" id="studentDetailsPanel">
             <div class="student-details-placeholder">
-                <div class="placeholder-icon">👆</div>
+                <div class="placeholder-icon" aria-hidden="true">+</div>
                 <p>Выберите ученика из списка</p>
             </div>
 
@@ -3685,7 +3683,7 @@
                                     </div>
 
                                     <div class="info-group">
-                                        <h4 class="info-group-title">📱 Telegram</h4>
+                                        <h4 class="info-group-title">Telegram</h4>
                                         <div class="info-group-content">
                                             <div class="info-item">
                                                 <span class="info-item-label">Telegram:</span>
@@ -3738,7 +3736,7 @@
                                         </h4>
                                         <button class="game-btn game-btn-primary add-payment-btn"
                                             data-student-id="{{ student.id }}">
-                                            <span>➕</span>
+                                            <span class="btn-plus" aria-hidden="true">+</span>
                                             <span>Добавить оплату</span>
                                         </button>
                                     </div>
@@ -3838,7 +3836,7 @@
         <!-- Секция 3: Фото ученика (фиксированное) -->
         <div class="student-photo-panel">
             <div class="student-photo-placeholder-main">
-                <div class="placeholder-icon">👆</div>
+                <div class="placeholder-icon" aria-hidden="true">+</div>
                 <p>Выберите ученика</p>
             </div>
 
@@ -4354,12 +4352,12 @@
 
                     <!-- Вкладки формы -->
                     <div class="form-tabs">
-                        <button type="button" class="form-tab active" data-tab="basic">👤 Основная информация</button>
-                        <button type="button" class="form-tab" data-tab="academic">📌 Учебные данные</button>
-                        <button type="button" class="form-tab" data-tab="parameters">📏 Параметры ученика</button>
-                        <button type="button" class="form-tab" data-tab="address">📍 Адрес</button>
-                        <button type="button" class="form-tab" data-tab="passport">🆔 Паспорт</button>
-                        <button type="button" class="form-tab" data-tab="history">📜 История</button>
+                        <button type="button" class="form-tab active" data-tab="basic">Основная информация</button>
+                        <button type="button" class="form-tab" data-tab="academic">Учебные данные</button>
+                        <button type="button" class="form-tab" data-tab="parameters">Параметры ученика</button>
+                        <button type="button" class="form-tab" data-tab="address">Адрес</button>
+                        <button type="button" class="form-tab" data-tab="passport">Паспорт</button>
+                        <button type="button" class="form-tab" data-tab="history">История</button>
                     </div>
 
                     <!-- Содержимое вкладок -->
@@ -5458,7 +5456,7 @@
                                             </div>
                                         </div>
                                         <div class="info-group">
-                                            <h4 class="info-group-title">📱 Telegram</h4>
+                                            <h4 class="info-group-title">Telegram</h4>
                                             <div class="info-group-content">
                                                 <div class="info-item"><span class="info-item-label">Telegram:</span><span class="info-item-text" id="telegram_code_${id}" style="font-family:monospace;font-size:16px;font-weight:600;color:#ff8a00;">${escapeHtml(student.telegram_link_code || 'Генерируется...')}</span></div>
                                                 <div class="info-item"><span class="info-item-label">Статус:</span><span class="info-item-text" id="telegram_status_${id}">${linkedTelegram ? '<span style="color:#10b981;">✅ Привязан</span>' : '<span style="color:#94a3b8;">⏳ Не привязан</span>'}</span></div>
@@ -5471,7 +5469,7 @@
                                 <div class="payments-content"><div class="history-section">
                                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
                                         <h4 class="history-section-title" style="margin:0;">💳 История оплат</h4>
-                                        <button class="game-btn game-btn-primary add-payment-btn" data-student-id="${id}"><span>➕</span><span>Добавить оплату</span></button>
+                                        <button class="game-btn game-btn-primary add-payment-btn" data-student-id="${id}"><span class="btn-plus" aria-hidden="true">+</span><span>Добавить оплату</span></button>
                                     </div>
                                     <div id="payments-history-${id}" class="history-list"><p style="color:#94a3b8;text-align:center;padding:20px;">Загрузка...</p></div>
                                 </div></div>

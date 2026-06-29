@@ -1309,7 +1309,7 @@
                     <!-- Кнопка действий для вкладки Пользователи -->
                     <div
                         style="display: flex; gap: 12px; align-items: center; margin-bottom: 20px; justify-content: flex-end;">
-                        <button id="addUserBtn" class="btn-primary">➕ Добавить сотрудника</button>
+                        <button id="addUserBtn" class="btn-primary"><span class="btn-plus" aria-hidden="true">+</span> Добавить сотрудника</button>
                     </div>
 
                     <table class="data-table">
@@ -1392,19 +1392,19 @@
                             <input type="hidden" id="remove-user-photo" value="false">
 
                             <div class="form-group">
-                                <label>👤 Имя пользователя *</label>
+                                <label>Имя пользователя *</label>
                                 <input type="text" id="user-username" class="form-input-modern" required
                                     placeholder="Введите имя пользователя">
                             </div>
 
                             <div class="form-group">
-                                <label>📝 Полное имя</label>
+                                <label>Полное имя</label>
                                 <input type="text" id="user-full-name" class="form-input-modern"
                                     placeholder="Введите полное имя">
                             </div>
 
                             <div class="form-group">
-                                <label>📷 Фото для турникета</label>
+                                <label>Фото для турникета</label>
                                 <div class="file-picker">
                                     <label class="file-picker-button" for="user-photo">
                                         <svg viewBox="0 0 24 24" width="16" height="16" fill="none"
@@ -1428,7 +1428,7 @@
                             </div>
 
                             <div class="form-group">
-                                <label>🔑 Пароль <span id="password-required">*</span></label>
+                                <label>Пароль <span id="password-required">*</span></label>
                                 <input type="password" id="user-password" class="form-input-modern"
                                     placeholder="Введите пароль (минимум 4 символа)">
                                 <small style="color: #666; font-size: 12px;" id="password-hint">Оставьте пустым, чтобы
@@ -1436,7 +1436,7 @@
                             </div>
 
                             <div class="form-group">
-                                <label>🎭 Роль</label>
+                                <label>Роль</label>
                                 <select id="user-role-id" class="form-input-modern">
                                     <option value="">Выберите роль</option>
                                 </select>
@@ -1487,20 +1487,20 @@
                             <input type="hidden" id="edit-role-id">
 
                             <div class="form-group">
-                                <label>🎭 Название роли *</label>
+                                <label>Название роли *</label>
                                 <input type="text" id="role-name" class="form-input-modern" required
                                     placeholder="Введите название роли">
                             </div>
 
                             <div class="form-group">
-                                <label>📝 Описание</label>
+                                <label>Описание</label>
                                 <textarea id="role-description" class="form-input-modern" rows="2"
                                     placeholder="Описание роли"></textarea>
                             </div>
 
                             <div class="form-group">
                                 <label
-                                    style="margin-bottom: 16px; display: block; font-weight: 600; color: var(--theme-text-primary);">🔐
+                                    style="margin-bottom: 16px; display: block; font-weight: 600; color: var(--theme-text-primary);">
                                     Права доступа к разделам:</label>
                                 <div class="permission-toolbar">
                                     <label class="permission-checkbox-label">
