@@ -4826,7 +4826,7 @@ def calculate_month_debt_total(year, month):
 
 
 def calculate_month_student_expectation(year, month):
-    """Ожидаемая сумма и численность учеников на конец месяца."""
+    """Ожидаемая сумма от родителей и численность учеников на конец месяца."""
     from calendar import monthrange
     from datetime import date
 
@@ -4840,10 +4840,17 @@ def calculate_month_student_expectation(year, month):
 
     expected = 0
     student_count = 0
+    club_funded_count = 0
+    club_expected = 0
     for student in active_students:
         student_count += 1
+        tariff_price = float(student.tariff.price or 0) if student.tariff and student.tariff.price else 0
+        if student.club_funded:
+            club_funded_count += 1
+            club_expected += tariff_price
+            continue
         if student.tariff and student.tariff.price:
-            expected += float(student.tariff.price or 0)
+            expected += tariff_price
 
     new_student_count = Student.query.filter(
         Student.status == 'active',
@@ -4855,6 +4862,8 @@ def calculate_month_student_expectation(year, month):
     return {
         'expected': float(expected),
         'student_count': int(student_count),
+        'club_funded_count': int(club_funded_count),
+        'club_expected': float(club_expected),
         'new_student_count': int(new_student_count),
     }
 
@@ -5591,11 +5600,30 @@ def get_payment_status_current_month():
     ]
     groups_payload.sort(key=lambda row: (-row['total_students'], row['group_name']))
 
+    expense_rows = db.session.query(
+        Expense.category,
+        func.coalesce(func.sum(Expense.amount), 0)
+    ).filter(
+        extract('year', Expense.expense_date) == year,
+        extract('month', Expense.expense_date) == month
+    ).group_by(Expense.category).all()
+    expense_total = sum(float(total or 0) for _, total in expense_rows)
+    expenses_payload = [{
+        'category': category or 'Без категории',
+        'amount': float(total or 0),
+        'share': round((float(total or 0) / expense_total) * 100) if expense_total else 0,
+    } for category, total in expense_rows]
+    expenses_payload.sort(key=lambda row: (-row['amount'], row['category']))
+
     return jsonify({
         'year': year,
         'month': month,
         'totals': totals,
         'groups': groups_payload,
+        'expenses': {
+            'total': expense_total,
+            'categories': expenses_payload,
+        },
     })
 
 

@@ -10,65 +10,56 @@
     <style>
         /* Скроллбары */
         .tab-content-container::-webkit-scrollbar {
-            width: 8px !important;
-            height: 8px !important;
+            width: 6px !important;
+            height: 6px !important;
         }
 
         .tab-content-container::-webkit-scrollbar-thumb {
-            background-color: #667eea !important;
-            border-radius: 10px !important;
+            background-color: #cbd5e1 !important;
+            border-radius: 999px !important;
         }
 
         .tab-content-container::-webkit-scrollbar-track {
-            background: rgba(0, 0, 0, 0.05) !important;
+            background: transparent !important;
         }
 
-        /* Темная тема - скроллбар */
         .tab-content-container::-webkit-scrollbar-track {
-            background: rgba(30, 41, 59, 0.5) !important;
-            border-radius: 12px !important;
-            border: 1px solid rgba(51, 65, 85, 0.5) !important;
-            margin: 8px 4px !important;
+            background: transparent !important;
+            border-radius: 999px !important;
+            border: 0 !important;
+            margin: 6px 3px !important;
         }
 
         .tab-content-container::-webkit-scrollbar-thumb {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
-            border-radius: 12px !important;
-            border: 2px solid rgba(30, 41, 59, 0.5) !important;
+            background: #cbd5e1 !important;
+            border-radius: 999px !important;
+            border: 0 !important;
             min-height: 40px !important;
-            box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.2), 0 2px 4px rgba(0, 0, 0, 0.1) !important;
-            transition: all 0.3s ease !important;
+            box-shadow: none !important;
         }
 
         .tab-content-container::-webkit-scrollbar-thumb:hover {
-            background: linear-gradient(135deg, #5568d3 0%, #6a3f91 100%) !important;
-            border-color: rgba(51, 65, 85, 0.7) !important;
-            box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.3), 0 3px 6px rgba(0, 0, 0, 0.15) !important;
-            transform: scale(1.05) !important;
+            background: #94a3b8 !important;
         }
 
         /* Светлая тема - скроллбар */
         body.theme-light .tab-content-container::-webkit-scrollbar-track {
-            background: #e5e7eb !important;
-            border-radius: 12px !important;
-            border: 1px solid #d1d5db !important;
-            margin: 8px 4px !important;
+            background: transparent !important;
+            border-radius: 999px !important;
+            border: 0 !important;
+            margin: 6px 3px !important;
         }
 
         body.theme-light .tab-content-container::-webkit-scrollbar-thumb {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
-            border-radius: 12px !important;
-            border: 2px solid #e5e7eb !important;
+            background: #cbd5e1 !important;
+            border-radius: 999px !important;
+            border: 0 !important;
             min-height: 40px !important;
-            box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.1), 0 2px 4px rgba(0, 0, 0, 0.1) !important;
-            transition: all 0.3s ease !important;
+            box-shadow: none !important;
         }
 
         body.theme-light .tab-content-container::-webkit-scrollbar-thumb:hover {
-            background: linear-gradient(135deg, #5568d3 0%, #6a3f91 100%) !important;
-            border-color: #cbd5e1 !important;
-            box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.2), 0 3px 6px rgba(0, 0, 0, 0.15) !important;
-            transform: scale(1.05) !important;
+            background: #94a3b8 !important;
         }
 
         /* Global Mobile Fixes */
@@ -87,7 +78,7 @@
         /* Скрываем скроллбар только для form-block, для страницы оставляем тонким */
         .tab-content-container {
             scrollbar-width: thin !important;
-            scrollbar-color: rgba(0, 0, 0, 0.2) transparent !important;
+            scrollbar-color: #cbd5e1 transparent !important;
         }
 
         .tab-content-container::-webkit-scrollbar-corner {
@@ -527,13 +518,14 @@
 
         .payment-status-panel {
             display: grid;
-            grid-template-columns: minmax(220px, 300px) minmax(0, 1fr);
+            grid-template-columns: minmax(220px, 300px) minmax(240px, 320px) minmax(0, 1fr);
             gap: 16px;
             margin-bottom: 16px;
             align-items: stretch;
         }
 
         .payment-status-card,
+        .payment-expenses-card,
         .group-payments-card {
             background: var(--theme-card-bg);
             border: 1px solid var(--theme-border);
@@ -726,6 +718,106 @@
             border: 1px dashed var(--theme-border);
             border-radius: 10px;
             text-align: center;
+        }
+
+        .payment-expense-list {
+            display: grid;
+            gap: 9px;
+            max-height: 250px;
+            overflow: auto;
+            padding-right: 3px;
+            scrollbar-width: thin;
+            scrollbar-color: #dbe4ef transparent;
+        }
+
+        .payment-expense-list::-webkit-scrollbar,
+        .group-payment-list::-webkit-scrollbar {
+            width: 5px;
+        }
+
+        .payment-expense-list::-webkit-scrollbar-thumb,
+        .group-payment-list::-webkit-scrollbar-thumb {
+            background: #dbe4ef;
+            border-radius: 999px;
+        }
+
+        .payment-expense-row {
+            display: grid;
+            gap: 6px;
+            min-width: 0;
+        }
+
+        .payment-expense-top {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 8px;
+            align-items: center;
+            font-size: 12px;
+            color: var(--theme-text-primary);
+        }
+
+        .payment-expense-name {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            min-width: 0;
+            line-height: 1.2;
+        }
+
+        .payment-expense-name span:last-child {
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .payment-expense-dot {
+            width: 9px;
+            height: 9px;
+            border-radius: 999px;
+            flex: 0 0 auto;
+        }
+
+        .payment-expense-value {
+            text-align: right;
+            white-space: nowrap;
+            font-size: 11px;
+            color: #0f172a;
+        }
+
+        .payment-expense-track {
+            height: 7px;
+            background: #e2e8f0;
+            border-radius: 999px;
+            overflow: hidden;
+        }
+
+        .payment-expense-fill {
+            height: 100%;
+            border-radius: inherit;
+        }
+
+        .common-legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px 14px;
+            margin: 10px 0 0;
+            justify-content: center;
+            color: var(--theme-text-secondary);
+        }
+
+        .common-legend div {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 11px;
+            font-weight: 400;
+        }
+
+        .common-legend div div {
+            width: 8px !important;
+            height: 8px !important;
+            border-radius: 999px !important;
         }
 
         /* Отчёт расходов */
@@ -1025,35 +1117,6 @@
                             </div>
                         </div>
 
-                        <div class="common-legend"
-                            style="display: flex; gap: 20px; margin-bottom: 20px; padding: 12px; background: var(--theme-bg-secondary); border-radius: 10px; border: 1px solid var(--theme-border); justify-content: center;">
-                            <div
-                                style="display: flex; align-items: center; gap: 8px; font-size: 0.9rem; font-weight: 600; color: var(--theme-text-secondary);">
-                                <div style="width: 12px; height: 12px; background: #27ae60; border-radius: 3px;"></div>
-                                Приход
-                            </div>
-                            <div
-                                style="display: flex; align-items: center; gap: 8px; font-size: 0.9rem; font-weight: 600; color: var(--theme-text-secondary);">
-                                <div style="width: 12px; height: 12px; background: #e74c3c; border-radius: 3px;"></div>
-                                Расход
-                            </div>
-                            <div
-                                style="display: flex; align-items: center; gap: 8px; font-size: 0.9rem; font-weight: 600; color: var(--theme-text-secondary);">
-                                <div style="width: 12px; height: 12px; background: #3498db; border-radius: 3px;"></div>
-                                Остаток
-                            </div>
-                            <div
-                                style="display: flex; align-items: center; gap: 8px; font-size: 0.9rem; font-weight: 600; color: var(--theme-text-secondary);">
-                                <div style="width: 12px; height: 12px; background: #f59e0b; border-radius: 3px;"></div>
-                                Долг
-                            </div>
-                            <div
-                                style="display: flex; align-items: center; gap: 8px; font-size: 0.9rem; font-weight: 600; color: var(--theme-text-secondary);">
-                                <div style="width: 12px; height: 12px; background: #64748b; border-radius: 3px;"></div>
-                                Ожидание
-                            </div>
-                        </div>
-
                         <div class="payment-status-panel">
                             <section class="payment-status-card">
                                 <div class="payment-status-head">
@@ -1083,6 +1146,19 @@
                                         <span>За счёт клуба</span>
                                         <b id="payment-club-total">-</b>
                                     </div>
+                                </div>
+                            </section>
+
+                            <section class="payment-expenses-card">
+                                <div class="payment-status-head">
+                                    <h3 class="payment-status-title">
+                                        <i data-lucide="receipt-text"></i>
+                                        Расходы месяца
+                                    </h3>
+                                    <span id="payment-expense-total" class="payment-period-label">-</span>
+                                </div>
+                                <div id="payment-expense-list" class="payment-expense-list">
+                                    <div class="payment-status-empty">Загрузка...</div>
                                 </div>
                             </section>
 
@@ -1144,6 +1220,29 @@
 
                         <div class="chart-container main-income-expense-chart">
                             <canvas id="incomeExpenseChart" width="400" height="180"></canvas>
+                        </div>
+
+                        <div class="common-legend">
+                            <div>
+                                <div style="width: 12px; height: 12px; background: #27ae60; border-radius: 3px;"></div>
+                                Приход
+                            </div>
+                            <div>
+                                <div style="width: 12px; height: 12px; background: #e74c3c; border-radius: 3px;"></div>
+                                Расход
+                            </div>
+                            <div>
+                                <div style="width: 12px; height: 12px; background: #3498db; border-radius: 3px;"></div>
+                                Остаток
+                            </div>
+                            <div>
+                                <div style="width: 12px; height: 12px; background: #f59e0b; border-radius: 3px;"></div>
+                                Долг
+                            </div>
+                            <div>
+                                <div style="width: 12px; height: 12px; background: #64748b; border-radius: 3px;"></div>
+                                Ожидание
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1504,6 +1603,39 @@
                     }).join('');
                 }
 
+                function renderPaymentExpenseList(data) {
+                    const totalEl = document.getElementById('payment-expense-total');
+                    const list = document.getElementById('payment-expense-list');
+                    if (!list) return;
+                    const expenseData = data?.expenses || {};
+                    const total = Number(expenseData.total || 0);
+                    const categories = Array.isArray(expenseData.categories) ? expenseData.categories : [];
+                    if (totalEl) totalEl.textContent = total ? formatMoneyShort(total) : '0 сум';
+                    if (!categories.length) {
+                        list.innerHTML = '<div class="payment-status-empty">Нет расходов</div>';
+                        return;
+                    }
+                    list.innerHTML = categories.slice(0, 6).map((item) => {
+                        const amount = Number(item.amount || 0);
+                        const share = total ? Math.round((amount / total) * 100) : 0;
+                        const color = getExpenseCategoryColor(item.category || 'Прочее');
+                        return `
+                            <div class="payment-expense-row" title="${escapeHtml(formatMoneyFull(amount))}">
+                                <div class="payment-expense-top">
+                                    <div class="payment-expense-name">
+                                        <span class="payment-expense-dot" style="background:${color};"></span>
+                                        <span>${escapeHtml(item.category || 'Без категории')}</span>
+                                    </div>
+                                    <div class="payment-expense-value">${escapeHtml(formatMoneyFull(amount))} · ${share}%</div>
+                                </div>
+                                <div class="payment-expense-track" aria-hidden="true">
+                                    <div class="payment-expense-fill" style="width:${share}%; background:${color};"></div>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                }
+
                 async function loadPaymentStatus() {
                     try {
                         const res = await fetch('/api/finances/payment-status-current');
@@ -1512,11 +1644,14 @@
                         paymentStatusCache = data;
                         renderPaymentStatusChart(data);
                         updatePaymentSummary(data);
+                        renderPaymentExpenseList(data);
                         renderGroupPaymentList(data);
                     } catch (e) {
                         console.warn('Не удалось загрузить статусы оплат', e);
                         const list = document.getElementById('group-payment-list');
                         if (list) list.innerHTML = '<div class="payment-status-empty">Не удалось загрузить данные</div>';
+                        const expenseList = document.getElementById('payment-expense-list');
+                        if (expenseList) expenseList.innerHTML = '<div class="payment-status-empty">Не удалось загрузить данные</div>';
                     }
                 }
 
@@ -1542,21 +1677,11 @@
                         document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
                         document.querySelectorAll('.tab-content').forEach(tc => tc.classList.remove('active'));
 
-                        // Управление прокруткой: отключаем для вкладки finances, включаем для остальных
+                        // Управление прокруткой
                         const scrollContainer = getScrollContainer();
                         if (scrollContainer) {
-                            if (tabName === 'finances') {
-                                if (window.innerWidth < 768) {
-                                    scrollContainer.style.overflowY = 'auto';
-                                    scrollContainer.style.overflow = 'auto';
-                                } else {
-                                    scrollContainer.style.overflowY = 'hidden';
-                                    scrollContainer.style.overflow = 'hidden';
-                                }
-                            } else {
-                                scrollContainer.style.overflowY = 'auto';
-                                scrollContainer.style.overflow = 'auto';
-                            }
+                            scrollContainer.style.overflowY = 'auto';
+                            scrollContainer.style.overflowX = 'hidden';
                         }
 
                         // Активировать выбранную вкладку
@@ -1613,15 +1738,8 @@
                         if (activeTab) {
                             const tabName = activeTab.getAttribute('data-tab');
                             updateStatsVisibility(tabName);
-                            if (tabName === 'finances') {
-                                if (window.innerWidth < 768) {
-                                    scrollContainer.style.overflowY = 'auto';
-                                    scrollContainer.style.overflow = 'auto';
-                                } else {
-                                    scrollContainer.style.overflowY = 'hidden';
-                                    scrollContainer.style.overflow = 'hidden';
-                                }
-                            }
+                            scrollContainer.style.overflowY = 'auto';
+                            scrollContainer.style.overflowX = 'hidden';
                         }
                     }
                 });
