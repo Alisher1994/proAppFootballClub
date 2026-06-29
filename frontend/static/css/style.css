@@ -7351,3 +7351,210 @@ table tbody tr:hover {
         padding: 14px 16px 18px !important;
     }
 }
+
+/* Visual audit fixes: keep legacy layouts readable after the global cleanup. */
+:root,
+body.theme-light {
+    --ui-accent: #c94f00 !important;
+    --ui-accent-hover: #a93f00 !important;
+    --ui-accent-soft: #fff1e6 !important;
+}
+
+.btn-primary,
+.btn-success,
+.btn-info,
+.game-btn-primary,
+.submit-btn,
+.save-btn,
+.add-btn,
+button[type="submit"],
+button.primary {
+    background: var(--ui-accent) !important;
+    border-color: var(--ui-accent) !important;
+    color: #fff !important;
+}
+
+.tabs button.active,
+.tab.active,
+.tab-button.active,
+.nav-tab.active,
+.settings-tab.active,
+.tournament-tabs button.active,
+.segmented-control button.active {
+    background: var(--ui-accent-soft) !important;
+    border-color: #ffd0a6 !important;
+    color: #8f3600 !important;
+}
+
+.game-top-bar {
+    max-width: 100% !important;
+    overflow: hidden !important;
+}
+
+.game-top-bar .tabs,
+.game-top-bar .settings-tabs,
+.settings-tabs,
+.tabs {
+    max-width: 100% !important;
+    min-width: 0 !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    white-space: nowrap !important;
+    scrollbar-width: thin !important;
+}
+
+.game-top-bar .tabs,
+.game-top-bar .settings-tabs {
+    flex-wrap: nowrap !important;
+}
+
+table thead,
+table thead tr,
+.data-table thead,
+.data-table thead tr,
+.tournament-table thead,
+.tournament-table thead tr,
+.access-table thead,
+.access-table thead tr {
+    color: var(--theme-text-secondary) !important;
+}
+
+.student-details-placeholder .placeholder-icon,
+.student-photo-placeholder-main .placeholder-icon {
+    font-size: 42px !important;
+    line-height: 1 !important;
+}
+
+.student-group-schedule-chips,
+.group-schedule-chip,
+.group-schedule-chip span,
+.group-schedule-chip strong {
+    color: var(--theme-text-secondary) !important;
+    font-size: 10px !important;
+    font-weight: 500 !important;
+}
+
+.group-schedule-chip {
+    background: #f8f7f6 !important;
+    border: 1px solid var(--theme-border) !important;
+}
+
+.camera-dashboard {
+    grid-template-columns: minmax(0, 1fr) 380px !important;
+    width: 100% !important;
+    max-width: 1800px !important;
+    min-width: 0 !important;
+}
+
+.camera-dashboard .video-section,
+.camera-dashboard .video-card,
+.camera-dashboard .result-card,
+.camera-dashboard .sidebar-section {
+    min-width: 0 !important;
+}
+
+.camera-dashboard .video-card {
+    width: 100% !important;
+    aspect-ratio: 16 / 9 !important;
+    background: #000 !important;
+}
+
+.camera-dashboard .video-controls-overlay {
+    max-width: calc(100% - 40px) !important;
+    overflow-x: auto !important;
+}
+
+@media (max-width: 900px) {
+    .camera-dashboard {
+        grid-template-columns: 1fr !important;
+        height: auto !important;
+        min-height: calc(100vh - 78px) !important;
+        padding: 12px !important;
+        gap: 12px !important;
+    }
+
+    .camera-dashboard .video-card {
+        min-height: 220px !important;
+    }
+
+    .camera-dashboard .video-controls-overlay {
+        position: static !important;
+        display: flex !important;
+        flex-wrap: wrap !important;
+        gap: 8px !important;
+        max-width: none !important;
+        margin-top: 10px !important;
+        background: #17191f !important;
+        opacity: 1 !important;
+    }
+
+    .camera-dashboard .quality-group {
+        flex-wrap: wrap !important;
+    }
+
+    .camera-dashboard .sidebar-section {
+        min-height: 260px !important;
+    }
+}
+
+@media (max-width: 760px) {
+    .main-content > table,
+    #groupsTable {
+        display: block !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        overflow-x: auto !important;
+        white-space: nowrap !important;
+    }
+
+    .page-header {
+        align-items: flex-start !important;
+        flex-direction: column !important;
+        gap: 12px !important;
+    }
+
+    .page-header .btn-primary,
+    .page-header .btn-success,
+    .page-header button {
+        width: 100% !important;
+    }
+
+    .staff-timesheet-header {
+        display: grid !important;
+        grid-template-columns: 1fr !important;
+        gap: 10px !important;
+    }
+
+    .staff-timesheet-header select,
+    .staff-timesheet-header button {
+        width: 100% !important;
+    }
+}
+
+#addStudentModal input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]),
+#addStudentModal select,
+#addStudentModal textarea,
+#editStudentModal input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]),
+#editStudentModal select,
+#editStudentModal textarea {
+    height: auto !important;
+    min-height: 38px !important;
+    font-size: 13px !important;
+}
+
+.balance-badge,
+.counter-badge,
+.success-text,
+.student-count,
+tbody#groupsTableBody td span {
+    color: #1f7a45 !important;
+}
+
+.empty-state,
+.empty-message,
+.salary-muted,
+#todayList > div,
+#ratingContent > div,
+#recognitionResult {
+    color: #6f7785 !important;
+}
