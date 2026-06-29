@@ -165,7 +165,7 @@ const defaultExpenseCategories = ['Аренда', 'Зарплата', 'Обор�
 const expenseCategoryState = { loaded: false, list: [] };
 const expenseCategoryColors = {};
 const expenseColorPalette = [
-    '#ff7700', '#e86600', '#EC4899', '#F59E0B', '#10B981', '#0EA5E9', '#F97316', '#14B8A6', '#84CC16', '#E11D48'
+    '#ff8a00', '#d96f00', '#EC4899', '#ff8a00', '#10B981', '#0EA5E9', '#ff8a00', '#14B8A6', '#84CC16', '#E11D48'
 ];
 
 function normalizeExpenseCategories(list) {
@@ -1115,9 +1115,9 @@ function resetIncomeForm() {
     const cashBtn = document.querySelector('.finances-payment-type-btn[data-payment-type="cash"]');
     if (cashBtn) {
         cashBtn.classList.add('active');
-        cashBtn.style.border = '2px solid #ff7700';
-        cashBtn.style.background = 'linear-gradient(135deg, rgba(255, 119, 0, 0.1) 0%, rgba(232, 102, 0, 0.1) 100%)';
-        cashBtn.style.color = '#ff7700';
+        cashBtn.style.border = '2px solid #ff8a00';
+        cashBtn.style.background = 'linear-gradient(135deg, rgba(255, 138, 0, 0.1) 0%, rgba(217, 111, 0, 0.1) 100%)';
+        cashBtn.style.color = '#ff8a00';
     }
 
     document.getElementById('student-photo-container').style.display = 'none';
@@ -1534,7 +1534,7 @@ function updateMonthDebtInfo() {
 
         if (remainder > 0) {
             debtInfo.style.display = 'block';
-            debtInfo.style.color = '#f39c12';
+            debtInfo.style.color = '#ff8a00';
             debtInfo.textContent = `Долг: ${remainder.toLocaleString('ru-RU')} сум (Оплачено: ${paid.toLocaleString('ru-RU')} / Тариф: ${tariffPrice.toLocaleString('ru-RU')} сум)`;
 
             // Показать поля для даты, способа оплаты и суммы
@@ -1667,9 +1667,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Активировать выбранную кнопку
             this.classList.add('active');
-            this.style.border = '2px solid #ff7700';
-            this.style.background = 'linear-gradient(135deg, rgba(255, 119, 0, 0.1) 0%, rgba(232, 102, 0, 0.1) 100%)';
-            this.style.color = '#ff7700';
+            this.style.border = '2px solid #ff8a00';
+            this.style.background = 'linear-gradient(135deg, rgba(255, 138, 0, 0.1) 0%, rgba(217, 111, 0, 0.1) 100%)';
+            this.style.color = '#ff8a00';
 
             // Обновить скрытое поле
             const paymentType = this.getAttribute('data-payment-type');
@@ -1679,7 +1679,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Обновить стили неактивных кнопок для светлой темы
             document.querySelectorAll('.finances-payment-type-btn:not(.active)').forEach(b => {
                 if (document.body.classList.contains('theme-light')) {
-                    b.style.border = '2px solid #e2e8f0';
+                    b.style.border = '2px solid #e4ddd6';
                     b.style.background = 'white';
                     b.style.color = '#4a5568';
                 } else {
@@ -2005,9 +2005,9 @@ if (addExpenseBtn) {
         sourceButtons.forEach(btn => {
             const isActive = btn.dataset.source === 'cash';
             btn.classList.toggle('active', isActive);
-            btn.style.border = isActive ? '2px solid #ff7700' : '2px solid #e2e8f0';
-            btn.style.background = isActive ? 'linear-gradient(135deg, rgba(255, 119, 0, 0.1) 0%, rgba(232, 102, 0, 0.1) 100%)' : 'white';
-            btn.style.color = isActive ? '#ff7700' : '#4a5568';
+            btn.style.border = isActive ? '2px solid #ff8a00' : '2px solid #e4ddd6';
+            btn.style.background = isActive ? 'linear-gradient(135deg, rgba(255, 138, 0, 0.1) 0%, rgba(217, 111, 0, 0.1) 100%)' : 'white';
+            btn.style.color = isActive ? '#ff8a00' : '#4a5568';
         });
 
         // Показать текущий остаток наличных
@@ -2139,9 +2139,9 @@ document.addEventListener('click', async (e) => {
         sourceButtons.forEach(btn => {
             const isActive = btn.dataset.source === source;
             btn.classList.toggle('active', isActive);
-            btn.style.border = isActive ? '2px solid #ff7700' : '2px solid #e2e8f0';
-            btn.style.background = isActive ? 'linear-gradient(135deg, rgba(255, 119, 0, 0.1) 0%, rgba(232, 102, 0, 0.1) 100%)' : 'white';
-            btn.style.color = isActive ? '#ff7700' : '#4a5568';
+            btn.style.border = isActive ? '2px solid #ff8a00' : '2px solid #e4ddd6';
+            btn.style.background = isActive ? 'linear-gradient(135deg, rgba(255, 138, 0, 0.1) 0%, rgba(217, 111, 0, 0.1) 100%)' : 'white';
+            btn.style.color = isActive ? '#ff8a00' : '#4a5568';
         });
 
         // Показать модальное окно
@@ -2419,9 +2419,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 container.querySelectorAll('.expense-source-btn').forEach(btn => {
                     const isCash = btn.dataset.source === 'cash';
                     btn.classList.toggle('active', isCash);
-                    btn.style.border = isCash ? '2px solid #ff7700' : '2px solid #e2e8f0';
-                    btn.style.background = isCash ? 'linear-gradient(135deg, rgba(255, 119, 0, 0.1) 0%, rgba(232, 102, 0, 0.1) 100%)' : 'white';
-                    btn.style.color = isCash ? '#ff7700' : '#4a5568';
+                    btn.style.border = isCash ? '2px solid #ff8a00' : '2px solid #e4ddd6';
+                    btn.style.background = isCash ? 'linear-gradient(135deg, rgba(255, 138, 0, 0.1) 0%, rgba(217, 111, 0, 0.1) 100%)' : 'white';
+                    btn.style.color = isCash ? '#ff8a00' : '#4a5568';
                     btn.disabled = !isCash;
                     btn.style.opacity = isCash ? '1' : '0.5';
                 });
@@ -2451,9 +2451,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 container.querySelectorAll('.expense-source-btn').forEach(b => {
                     const isActive = b === btn;
                     b.classList.toggle('active', isActive);
-                    b.style.border = isActive ? '2px solid #ff7700' : '2px solid #e2e8f0';
-                    b.style.background = isActive ? 'linear-gradient(135deg, rgba(255, 119, 0, 0.1) 0%, rgba(232, 102, 0, 0.1) 100%)' : 'white';
-                    b.style.color = isActive ? '#ff7700' : '#4a5568';
+                    b.style.border = isActive ? '2px solid #ff8a00' : '2px solid #e4ddd6';
+                    b.style.background = isActive ? 'linear-gradient(135deg, rgba(255, 138, 0, 0.1) 0%, rgba(217, 111, 0, 0.1) 100%)' : 'white';
+                    b.style.color = isActive ? '#ff8a00' : '#4a5568';
                 });
             });
         });

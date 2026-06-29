@@ -813,12 +813,12 @@ async function loadSyncHistory() {
             // 4. Статус
             const tdStatus = document.createElement('td');
             let statusText = 'В очереди';
-            let statusColor = '#e2e8f0';
+            let statusColor = '#e4ddd6';
             let textColor = '#475569';
 
             if (cmd.status === 'processing') {
                 statusText = 'В процессе';
-                statusColor = '#ffedd5';
+                statusColor = '#ffe1b8';
                 textColor = '#1e40af';
             } else if (cmd.status === 'done') {
                 statusText = 'Выполнено';
@@ -919,7 +919,7 @@ async function loadBridgeStatus() {
         banner.style.borderColor = online ? (legacy ? '#fde68a' : '#bbf7d0') : '#fecaca';
         banner.style.background = online ? (legacy ? '#fffbeb' : '#f0fdf4') : '#fff1f2';
         const dot = online ? '●' : '●';
-        const dotColor = online ? (legacy ? '#d97706' : '#16a34a') : '#dc2626';
+        const dotColor = online ? (legacy ? '#d96f00' : '#16a34a') : '#dc2626';
         const seenText = bridge.seconds_since_seen == null ? 'нет данных' : `${bridge.seconds_since_seen} сек назад`;
         const action = bridge.current_action && bridge.current_action !== 'idle' ? bridge.current_action : 'ожидает задачи';
         banner.innerHTML = `
@@ -1147,7 +1147,7 @@ function updateBridgeProgress(progress) {
     const bar = document.getElementById('bridgeProgressBar');
     if (bar) {
         bar.style.width = `${percent}%`;
-        bar.style.background = stage === 'error' || stage === 'stopped' ? '#dc2626' : (stage === 'done' ? '#16a34a' : (progress.paused ? '#f59e0b' : '#ff7700'));
+        bar.style.background = stage === 'error' || stage === 'stopped' ? '#dc2626' : (stage === 'done' ? '#16a34a' : (progress.paused ? '#ff8a00' : '#ff8a00'));
     }
 
     const status = progress.status_text || progress.current || 'Выполняется задача';
@@ -1191,8 +1191,8 @@ function renderBridgeDeviceProgress(progress) {
     grid.innerHTML = devices.map(device => {
         const percent = Math.max(0, Math.min(100, Number(device.percent || 0)));
         const isEntry = device.name === 'entry';
-        const accent = isEntry ? '#ff7700' : '#e86600';
-        const bg = isEntry ? '#fff7ed' : '#fff7ed';
+        const accent = isEntry ? '#ff8a00' : '#d96f00';
+        const bg = isEntry ? '#f7f4f1' : '#f7f4f1';
         const status = device.status === 'waiting' ? 'ожидает' : (device.status_text || 'выполняется');
         return `
             <div style="border:1px solid ${accent}33; background:${bg}; border-radius:8px; padding:10px;">
@@ -1309,7 +1309,7 @@ function bridgeLogColor(level, message) {
     if (/УСПЕШНО|успешно|Записан/i.test(message)) return '#bbf7d0';
     if (/Доступ закрыт|Отклонено|отклонено/i.test(message)) return '#fde68a';
     if (/\[Выход|Выход \(/i.test(message)) return '#ddd6fe';
-    if (/\[Вход|Вход \(/i.test(message)) return '#bfdbfe';
+    if (/\[Вход|Вход \(/i.test(message)) return '#ffe1b8';
     return '#e5eefb';
 }
 

@@ -172,7 +172,7 @@ window.showRewardsHistory = async function(studentId) {
                                 ${dateStr} • Выдал: ${r.issuer_name}
                             </div>
                         </div>
-                        <span style="color: #f39c12; font-weight: bold; font-size: 18px;">+${r.points}</span>
+                        <span style="color: #ff8a00; font-weight: bold; font-size: 18px;">+${r.points}</span>
                     </div>
                 `;
             }).join('');

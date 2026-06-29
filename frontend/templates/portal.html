@@ -84,7 +84,7 @@
             gap:12px; 
             font-size:0.95rem;
             padding:12px;
-            background:#f8fafc;
+            background:#f8f7f6;
             border-radius:12px;
         }
         .portal-item-label {
@@ -97,7 +97,7 @@
             font-weight:600;
         }
         .portal-badge { 
-            background: linear-gradient(135deg, #ff7700, #e86600);
+            background: linear-gradient(135deg, #ff8a00, #d96f00);
             color:#fff; 
             padding:6px 12px; 
             border-radius:12px; 
@@ -106,14 +106,14 @@
             white-space:nowrap;
         }
         .portal-badge.success { background: linear-gradient(135deg, #10b981, #059669); }
-        .portal-badge.warning { background: linear-gradient(135deg, #f59e0b, #d97706); }
+        .portal-badge.warning { background: linear-gradient(135deg, #ff8a00, #d96f00); }
         .portal-badge.danger { background: linear-gradient(135deg, #ef4444, #dc2626); }
-        .portal-badge.info { background: linear-gradient(135deg, #ff7700, #ff7700); }
+        .portal-badge.info { background: linear-gradient(135deg, #ff8a00, #ff8a00); }
         
         .portal-profile-header {
             text-align:center;
             padding:24px 0;
-            border-bottom:1px solid #e2e8f0;
+            border-bottom:1px solid #e4ddd6;
             margin-bottom:20px;
         }
         .portal-profile-name {
@@ -136,7 +136,7 @@
         .portal-schedule-day {
             padding:5px 7px;
             border-radius:10px;
-            background:#f1f5f9;
+            background:#f4f1ee;
             color:#6b7280;
             font-size:0.8rem;
             min-width:30px;
@@ -144,9 +144,9 @@
             font-weight:600;
         }
         .portal-schedule-day.active {
-            background:rgba(255,119,0,0.12);
-            color:#e86600;
-            border:1px solid rgba(255,119,0,0.25);
+            background:rgba(255,138,0,0.12);
+            color:#d96f00;
+            border:1px solid rgba(255,138,0,0.25);
         }
         .portal-schedule-info {
             text-align:center;
@@ -185,7 +185,7 @@
             margin-top:16px;
         }
         .portal-stat {
-            background:#f1f5f9;
+            background:#f4f1ee;
             padding:12px;
             border-radius:16px;
             text-align:center;
@@ -232,8 +232,8 @@
             transition:all 0.18s ease;
             padding:10px 6px;
             border-radius:12px;
-            border:1px solid #e2e8f0;
-            background:#f8fafc;
+            border:1px solid #e4ddd6;
+            background:#f8f7f6;
             color:#0f172a;
             font-weight:600;
             min-width:0;
@@ -243,10 +243,10 @@
             transform:scale(0.98);
         }
         .portal-tab-btn.active {
-            color:#e86600;
-            border-color:#ff7700;
-            background:linear-gradient(180deg, #fff7ed, #fff1e6);
-            box-shadow: 0 0 0 1px rgba(255,119,0,0.12), 0 6px 14px rgba(255,119,0,0.12);
+            color:#d96f00;
+            border-color:#ff8a00;
+            background:linear-gradient(180deg, #f7f4f1, #fff3e3);
+            box-shadow: 0 0 0 1px rgba(255,138,0,0.12), 0 6px 14px rgba(255,138,0,0.12);
             font-weight:700;
         }
         /* Make bottom nav look like admin bar: flat icons+labels, no card outline */
@@ -264,7 +264,7 @@
             transform:translateY(1px);
         }
         .portal-bottom-nav .portal-tab-btn.active {
-            color:#ff7700;
+            color:#ff8a00;
             background:transparent;
             box-shadow:none;
         }
@@ -327,7 +327,7 @@
             text-transform:capitalize;
         }
         .portal-badge { 
-            background: #e2e8f0;
+            background: #e4ddd6;
             color:#0f172a; 
             padding:6px 12px; 
             border-radius:12px; 
@@ -338,7 +338,7 @@
         .portal-badge.success { background: #d1fae5; color:#065f46; }
         .portal-badge.warning { background: #fef3c7; color:#92400e; }
         .portal-badge.danger { background: #fee2e2; color:#991b1b; }
-        .portal-badge.info { background: #ffedd5; color:#e86600; }
+        .portal-badge.info { background: #ffe1b8; color:#d96f00; }
         .portal-cal-row.week { margin-top:0; }
         .portal-cal-day {
             height:32px;
@@ -347,7 +347,7 @@
             align-items:center;
             justify-content:center;
             font-size:0.9rem;
-            background:#e2e8f0;
+            background:#e4ddd6;
             color:#0f172a;
         }
         .portal-cal-day.head {
@@ -358,7 +358,7 @@
         }
         .portal-cal-day.present { background:#34d399; color:#0f172a; font-weight:700; }
         .portal-cal-day.absent { background:#f87171; color:#0f172a; font-weight:700; }
-        .portal-cal-day.neutral { background:#e2e8f0; color:#94a3b8; }
+        .portal-cal-day.neutral { background:#e4ddd6; color:#94a3b8; }
         .portal-cal-day.empty { background:transparent; }
     </style>
 </head>
@@ -374,7 +374,7 @@
         <div id="portal-profile" class="portal-section active">
             <div class="portal-card">
                 <div class="portal-profile-header" style="display:flex; gap:14px; align-items:center;">
-                    <div style="width:76px; height:76px; border-radius:50%; background:#e2e8f0; overflow:hidden; flex-shrink:0; display:flex; align-items:center; justify-content:center; position:relative;">
+                    <div style="width:76px; height:76px; border-radius:50%; background:#e4ddd6; overflow:hidden; flex-shrink:0; display:flex; align-items:center; justify-content:center; position:relative;">
                         <img id="portal-student-photo" src="" alt="photo" style="width:100%; height:100%; object-fit:cover; display:none;">
                         <span id="portal-student-photo-fallback" style="color:#475569; font-weight:700;">👤</span>
                     </div>
@@ -700,7 +700,7 @@
                     <div class="portal-item">
                         <div style="display:flex; flex-direction:column; gap:4px;">
                             <div class="portal-item-label" style="display:flex; align-items:center; gap:8px;">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ff7700" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M8 4h8v5a4 4 0 1 1-8 0Z" fill="#fff1e6" stroke="none"/><path d="M10 15h4v6l-2-1-2 1Z" fill="#ff7700" stroke="none"/></svg>
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ff8a00" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M8 4h8v5a4 4 0 1 1-8 0Z" fill="#fff3e3" stroke="none"/><path d="M10 15h4v6l-2-1-2 1Z" fill="#ff8a00" stroke="none"/></svg>
                                 <span>${r.name}</span>
                             </div>
                             <div class="portal-muted" style="font-size:0.8rem;">${date}</div>
@@ -728,7 +728,7 @@
             const slice = cardsData.slice(0, cardsVisible);
             cardsEl.innerHTML = slice.map(c => {
                 const badgeClass = c.is_active ? 'success' : 'danger';
-                const cardColor = c.card_type === 'red' ? '#ef4444' : c.card_type === 'yellow' ? '#f59e0b' : '#0f172a';
+                const cardColor = c.card_type === 'red' ? '#ef4444' : c.card_type === 'yellow' ? '#ff8a00' : '#0f172a';
                 const date = c.issued_at ? new Date(c.issued_at).toLocaleDateString('ru-RU', {day:'2-digit', month:'short', year:'numeric'}) : '—';
                 return `
                     <div class="portal-item">

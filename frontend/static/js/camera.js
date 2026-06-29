@@ -143,7 +143,7 @@ function showNotification(name, oldBalance, newBalance, type) {
         `;
     } else if (type === 'already') {
         resultDiv.innerHTML = `
-            <div style="background: #ff7700; color: white; padding: 20px; border-radius: 8px; text-align: center; animation: slideIn 0.3s ease;">
+            <div style="background: #ff8a00; color: white; padding: 20px; border-radius: 8px; text-align: center; animation: slideIn 0.3s ease;">
                 <h2 style="margin: 0; font-size: 2rem;">👤 ${name}</h2>
                 <p style="font-size: 1.3rem; margin: 10px 0; font-weight: bold;">Вы уже отмечены!</p>
                 <p style="margin: 0; font-size: 1.1rem;">Хорошей тренировки!</p>

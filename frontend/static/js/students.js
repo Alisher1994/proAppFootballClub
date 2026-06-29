@@ -662,16 +662,16 @@ document.addEventListener('click', async function (e) {
     // Сбросить кнопки типов оплаты на "Наличные"
     document.querySelectorAll('.payment-type-btn').forEach(btn => {
         btn.classList.remove('active');
-        btn.style.border = '2px solid #e2e8f0';
+        btn.style.border = '2px solid #e4ddd6';
         btn.style.background = 'white';
         btn.style.color = '#4a5568';
     });
     const cashBtn = document.querySelector('.payment-type-btn[data-payment-type="cash"]');
     if (cashBtn) {
         cashBtn.classList.add('active');
-        cashBtn.style.border = '2px solid #ff7700';
-        cashBtn.style.background = 'linear-gradient(135deg, rgba(255, 119, 0, 0.1) 0%, rgba(232, 102, 0, 0.1) 100%)';
-        cashBtn.style.color = '#ff7700';
+        cashBtn.style.border = '2px solid #ff8a00';
+        cashBtn.style.background = 'linear-gradient(135deg, rgba(255, 138, 0, 0.1) 0%, rgba(217, 111, 0, 0.1) 100%)';
+        cashBtn.style.color = '#ff8a00';
     }
     document.getElementById('selected_payment_type').value = 'cash';
 
@@ -904,7 +904,7 @@ function renderMonthlyGrid(tariffPrice) {
         } else {
             statusIcon = '⏳';
             statusText = 'Не оплачено';
-            statusColor = '#f59e0b';
+            statusColor = '#ff8a00';
         }
 
         monthCard.innerHTML = `
@@ -927,7 +927,7 @@ function renderMonthlyGrid(tariffPrice) {
                     </div>
                 </div>
             </div>
-            <div style="font-size: 20px; color: #cbd5e1; margin-left: 16px;">
+            <div style="font-size: 20px; color: #d8d0c8; margin-left: 16px;">
                 →
             </div>
         `;
@@ -977,16 +977,16 @@ function showPaymentInput(monthName, monthData, tariffPrice) {
     // Сбросить кнопки типов оплаты на "Наличные"
     document.querySelectorAll('.payment-type-btn').forEach(btn => {
         btn.classList.remove('active');
-        btn.style.border = '2px solid #e2e8f0';
+        btn.style.border = '2px solid #e4ddd6';
         btn.style.background = 'white';
         btn.style.color = '#4a5568';
     });
     const cashBtn = document.querySelector('.payment-type-btn[data-payment-type="cash"]');
     if (cashBtn) {
         cashBtn.classList.add('active');
-        cashBtn.style.border = '2px solid #ff7700';
-        cashBtn.style.background = 'linear-gradient(135deg, rgba(255, 119, 0, 0.1) 0%, rgba(232, 102, 0, 0.1) 100%)';
-        cashBtn.style.color = '#ff7700';
+        cashBtn.style.border = '2px solid #ff8a00';
+        cashBtn.style.background = 'linear-gradient(135deg, rgba(255, 138, 0, 0.1) 0%, rgba(217, 111, 0, 0.1) 100%)';
+        cashBtn.style.color = '#ff8a00';
     }
     const selectedPaymentType = document.getElementById('selected_payment_type');
     if (selectedPaymentType) selectedPaymentType.value = 'cash';
@@ -995,7 +995,7 @@ function showPaymentInput(monthName, monthData, tariffPrice) {
     const historyDiv = document.getElementById('partialPaymentsHistory');
     if (existingPayments.length > 0) {
         historyDiv.innerHTML = `
-            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 2px solid #e2e8f0;">
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 2px solid #e4ddd6;">
                 <span style="font-size: 18px;">📋</span>
                 <h4 style="margin: 0; font-size: 15px; font-weight: 600; color: #1e293b;">История оплат</h4>
             </div>
@@ -1007,7 +1007,7 @@ function showPaymentInput(monthName, monthData, tariffPrice) {
                                 <span style="font-size: 14px; color: #64748b;">📅</span>
                                 <strong style="color: #1e293b; font-size: 14px;">${p.date ? new Date(p.date).toLocaleDateString('ru-RU') : '—'}</strong>
                                 <span style="color: #64748b;">•</span>
-                                <strong style="color: #ff7700; font-size: 15px; font-weight: 700;">${p.amount.toLocaleString('ru-RU')} сум</strong>
+                                <strong style="color: #ff8a00; font-size: 15px; font-weight: 700;">${p.amount.toLocaleString('ru-RU')} сум</strong>
                             </div>
                             ${p.notes ? `<div style="margin-top: 6px; padding-left: 28px;"><small style="color: #64748b; font-size: 12px;">${p.notes}</small></div>` : ''}
                         </div>
@@ -1154,16 +1154,16 @@ document.addEventListener('click', function (e) {
     // Убрать активный класс со всех кнопок
     document.querySelectorAll('.payment-type-btn').forEach(b => {
         b.classList.remove('active');
-        b.style.border = '2px solid #e2e8f0';
+        b.style.border = '2px solid #e4ddd6';
         b.style.background = 'white';
         b.style.color = '#4a5568';
     });
 
     // Добавить активный класс к выбранной кнопке
     btn.classList.add('active');
-    btn.style.border = '2px solid #ff7700';
-    btn.style.background = 'linear-gradient(135deg, rgba(255, 119, 0, 0.1) 0%, rgba(232, 102, 0, 0.1) 100%)';
-    btn.style.color = '#ff7700';
+    btn.style.border = '2px solid #ff8a00';
+    btn.style.background = 'linear-gradient(135deg, rgba(255, 138, 0, 0.1) 0%, rgba(217, 111, 0, 0.1) 100%)';
+    btn.style.color = '#ff8a00';
 
     // Установить значение в скрытое поле
     document.getElementById('selected_payment_type').value = paymentType;

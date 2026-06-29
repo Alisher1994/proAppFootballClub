@@ -30,7 +30,7 @@
                 border-radius: 16px;
                 padding: 20px;
                 background: rgba(15, 23, 42, 0.94);
-                color: #f8fafc;
+                color: #f8f7f6;
                 border: 1px solid rgba(148, 163, 184, 0.25);
                 box-shadow: 0 20px 50px rgba(2, 6, 23, 0.45);
                 text-align: center;
@@ -55,7 +55,7 @@
                 margin: 0;
                 font-size: 15px;
                 line-height: 1.5;
-                color: #ffedd5;
+                color: #ffe1b8;
             }
             .service-lock-phone {
                 margin-top: 12px;

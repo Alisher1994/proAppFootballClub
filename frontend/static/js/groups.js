@@ -373,7 +373,7 @@ async function loadGroups() {
             let studentsDisplay = group.active_student_count || group.student_count || 0;
             if (group.max_students) {
                 const isFull = group.is_full;
-                const color = isFull ? '#e74c3c' : (group.active_student_count / group.max_students > 0.8 ? '#f39c12' : '#27ae60');
+                const color = isFull ? '#e74c3c' : (group.active_student_count / group.max_students > 0.8 ? '#ff8a00' : '#27ae60');
                 studentsDisplay = `<span style="color: ${color}; font-weight: bold;">${group.active_student_count}/${group.max_students}</span>`;
             }
             
