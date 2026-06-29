@@ -4308,6 +4308,7 @@ def get_groups_attendance_statistics():
             'schedule_time': group.schedule_time if group.schedule_time else None,
             'total_students': len(students_list),
             'attended_count': sum(1 for s in students_list if s['has_attended']),
+            **group_trainer_payload(group),
             'students': students_list
         })
     

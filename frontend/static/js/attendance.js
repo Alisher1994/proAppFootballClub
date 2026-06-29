@@ -5,6 +5,16 @@ let selectedGroup = null;
 
 const DAY_LABELS = { 1: 'Пн', 2: 'Вт', 3: 'Ср', 4: 'Чт', 5: 'Пт', 6: 'Сб', 7: 'Вс' };
 
+function escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, (char) => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+    }[char]));
+}
+
 // Функция для форматирования времени группы
 function formatGroupTime(scheduleTime) {
     if (!scheduleTime) return 'Время не указано';
@@ -145,11 +155,22 @@ function renderGroups() {
         card.onclick = () => openGroup(group);
 
         const formattedTime = formatGroupTime(group.schedule_time);
+        const trainer = [...(group.trainers || []), ...(group.assistants || [])][0];
+        const trainerName = trainer ? (trainer.full_name || trainer.username || 'Тренер') : 'Тренер не назначен';
+        const trainerAvatar = trainer?.photo_url
+            ? `<img class="group-trainer-avatar" src="${escapeHtml(trainer.photo_url)}" alt="">`
+            : `<span class="group-trainer-avatar">${escapeHtml((trainerName || '?').trim().slice(0, 1).toUpperCase())}</span>`;
 
         card.innerHTML = `
             <div class="group-header">
-                <div class="group-name">${group.group_name}</div>
-                <div class="group-time">${formattedTime}</div>
+                <div class="group-main">
+                    ${trainerAvatar}
+                    <div class="group-title-stack">
+                        <div class="group-name">${escapeHtml(group.group_name)}</div>
+                        <div class="group-trainer-name">${escapeHtml(trainerName)}</div>
+                    </div>
+                </div>
+                <div class="group-time">${escapeHtml(formattedTime)}</div>
             </div>
             <div class="group-stats">
                 <div class="stat-item">

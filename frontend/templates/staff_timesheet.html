@@ -13,7 +13,7 @@
         }
 
         .staff-timesheet-shell {
-            padding: 22px;
+            padding: 22px 18px;
         }
 
         .staff-timesheet-panel {
@@ -35,21 +35,21 @@
             display: flex;
             align-items: center;
             gap: 10px;
-            color: #2563eb;
-            font-size: 22px;
+            color: #0f172a;
+            font-size: 24px;
             font-weight: 700;
             margin: 0;
         }
 
         .staff-timesheet-title svg {
-            width: 22px;
-            height: 22px;
+            width: 20px;
+            height: 20px;
             color: #2563eb;
         }
 
         .staff-timesheet-filters {
             display: grid;
-            grid-template-columns: minmax(220px, 320px) 150px 120px auto;
+            grid-template-columns: minmax(180px, 320px) 150px 120px auto auto;
             gap: 10px;
             align-items: center;
         }
@@ -76,11 +76,32 @@
             cursor: pointer;
         }
 
+        .staff-timesheet-filters .btn-export {
+            background: #f8fafc;
+            color: #334155;
+        }
+
         .staff-timesheet-scroll {
             overflow: auto;
             border: 1px solid #d8e2ef;
             border-radius: 8px;
             max-height: calc(100vh - 175px);
+            scrollbar-width: thin;
+            scrollbar-color: #cbd5e1 #f8fafc;
+        }
+
+        .staff-timesheet-scroll::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        .staff-timesheet-scroll::-webkit-scrollbar-track {
+            background: #f8fafc;
+        }
+
+        .staff-timesheet-scroll::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 999px;
         }
 
         .staff-timesheet-table {
@@ -88,7 +109,7 @@
             min-width: 100%;
             border-collapse: separate;
             border-spacing: 0;
-            font-size: 12px;
+            font-size: 11px;
             color: #17233a;
         }
 
@@ -100,8 +121,8 @@
             color: #fff;
             border-right: 1px solid rgba(255, 255, 255, 0.28);
             border-bottom: 1px solid #d8e2ef;
-            padding: 7px 8px;
-            font-weight: 600;
+            padding: 6px 5px;
+            font-weight: 500;
             text-align: center;
             white-space: nowrap;
         }
@@ -110,7 +131,7 @@
             background: #fff;
             border-right: 1px solid #e1e8f2;
             border-bottom: 1px solid #e1e8f2;
-            padding: 7px 8px;
+            padding: 5px 6px;
             vertical-align: middle;
             font-weight: 400;
         }
@@ -128,33 +149,33 @@
 
         .staff-timesheet-table .col-index {
             left: 0;
-            width: 46px;
-            min-width: 46px;
+            width: 34px;
+            min-width: 34px;
             text-align: center;
         }
 
         .staff-timesheet-table .col-photo {
-            left: 46px;
-            width: 58px;
-            min-width: 58px;
+            left: 34px;
+            width: 36px;
+            min-width: 36px;
             text-align: center;
         }
 
         .staff-timesheet-table .col-name {
-            left: 104px;
-            width: 210px;
-            min-width: 210px;
+            left: 70px;
+            width: 132px;
+            min-width: 132px;
         }
 
         .staff-timesheet-table .col-role {
-            left: 314px;
-            width: 150px;
-            min-width: 150px;
+            left: 202px;
+            width: 78px;
+            min-width: 78px;
         }
 
         .staff-photo {
-            width: 34px;
-            height: 34px;
+            width: 22px;
+            height: 22px;
             border-radius: 50%;
             object-fit: cover;
             background: #eef3f9;
@@ -162,26 +183,30 @@
             align-items: center;
             justify-content: center;
             color: #64748b;
-            font-weight: 700;
+            font-weight: 500;
+            font-size: 11px;
         }
 
         .staff-name {
-            font-size: 13px;
-            font-weight: 500;
+            font-size: 11px;
+            font-weight: 400;
             color: #0f1f37;
             line-height: 1.25;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .staff-sub {
             color: #718198;
-            font-size: 11px;
+            font-size: 10px;
             margin-top: 2px;
         }
 
         .day-cell {
-            width: 64px;
-            min-width: 64px;
-            height: 56px;
+            width: 32px;
+            min-width: 32px;
+            height: 38px;
             text-align: center;
             background: #fde2e2 !important;
         }
@@ -198,31 +223,33 @@
             display: block;
             color: #0f1f37;
             line-height: 1.2;
+            font-size: 9px;
         }
 
         .day-cell .hours {
             display: inline-block;
             margin-top: 3px;
             color: #2563eb;
-            font-size: 11px;
+            font-size: 9px;
         }
 
         .summary-cell {
-            min-width: 88px;
+            min-width: 58px;
             text-align: center;
             color: #0f1f37;
-            font-weight: 500 !important;
+            font-weight: 400 !important;
         }
 
         .salary-cell {
-            min-width: 155px;
+            min-width: 108px;
             color: #0f1f37;
             white-space: nowrap;
+            font-size: 10px;
         }
 
         .salary-paid {
             color: #159447;
-            font-weight: 600;
+            font-weight: 400;
         }
 
         .salary-muted {
@@ -270,6 +297,7 @@
                         <select id="staff-timesheet-month"></select>
                         <select id="staff-timesheet-year"></select>
                         <button id="staff-timesheet-refresh" type="button">Обновить</button>
+                        <button id="staff-timesheet-export" class="btn-export" type="button">Скачать XLS</button>
                     </div>
                 </div>
 

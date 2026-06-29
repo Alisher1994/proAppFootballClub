@@ -4,6 +4,7 @@
     const monthSelect = document.getElementById('staff-timesheet-month');
     const yearSelect = document.getElementById('staff-timesheet-year');
     const refreshBtn = document.getElementById('staff-timesheet-refresh');
+    const exportBtn = document.getElementById('staff-timesheet-export');
     const table = document.getElementById('staff-timesheet-table');
     const thead = table?.querySelector('thead');
     const tbody = table?.querySelector('tbody');
@@ -75,6 +76,8 @@
             if (day.hours_label) content.push(`<span class="hours">${escapeHtml(day.hours_label)}</span>`);
         } else if (day.entry || day.exit || day.single) {
             content.push(`<span class="time">${escapeHtml(day.entry || day.exit || day.single)}</span>`);
+        } else {
+            content.push('<span class="time empty-mark">-</span>');
         }
         return `<td class="${classes.join(' ')}">${content.join('')}</td>`;
     }
@@ -103,14 +106,38 @@
                 <td class="sticky-col col-photo">${renderPhoto(row)}</td>
                 <td class="sticky-col col-name">
                     <div class="staff-name">${escapeHtml(row.full_name)}</div>
-                    <div class="staff-sub">${escapeHtml(row.employee_no)}</div>
+                    <div class="staff-sub">${escapeHtml(row.employee_no || '-')}</div>
                 </td>
                 <td class="sticky-col col-role">${escapeHtml(row.role || '-')}</td>
                 ${(row.days || []).map(renderDayCell).join('')}
-                <td class="summary-cell">${escapeHtml(row.total_hours_label || '0 мин')}</td>
+                <td class="summary-cell">${escapeHtml(row.total_hours_label || '-')}</td>
                 <td class="salary-cell">${renderSalary(row)}</td>
             </tr>
         `).join('');
+    }
+
+    function downloadTimesheetXls() {
+        if (!table) return;
+        const monthName = monthSelect?.selectedOptions?.[0]?.textContent || '';
+        const year = yearSelect?.value || '';
+        const html = `
+            <html>
+            <head><meta charset="UTF-8"></head>
+            <body>
+                <h3>Табель сотрудников ${escapeHtml(monthName)} ${escapeHtml(year)}</h3>
+                ${table.outerHTML}
+            </body>
+            </html>
+        `;
+        const blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `tabel_sotrudnikov_${year}_${String(monthSelect?.value || '').padStart(2, '0')}.xls`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
     }
 
     async function loadTimesheet() {
@@ -141,6 +168,7 @@
         loadTimesheet();
 
         refreshBtn?.addEventListener('click', loadTimesheet);
+        exportBtn?.addEventListener('click', downloadTimesheetXls);
         monthSelect?.addEventListener('change', loadTimesheet);
         yearSelect?.addEventListener('change', loadTimesheet);
         searchInput?.addEventListener('input', () => {
