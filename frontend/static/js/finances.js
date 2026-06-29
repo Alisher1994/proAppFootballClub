@@ -165,7 +165,7 @@ const defaultExpenseCategories = ['Аренда', 'Зарплата', 'Обор�
 const expenseCategoryState = { loaded: false, list: [] };
 const expenseCategoryColors = {};
 const expenseColorPalette = [
-    '#6366F1', '#8B5CF6', '#EC4899', '#F59E0B', '#10B981', '#0EA5E9', '#F97316', '#14B8A6', '#84CC16', '#E11D48'
+    '#ff7700', '#e86600', '#EC4899', '#F59E0B', '#10B981', '#0EA5E9', '#F97316', '#14B8A6', '#84CC16', '#E11D48'
 ];
 
 function normalizeExpenseCategories(list) {
@@ -1115,9 +1115,9 @@ function resetIncomeForm() {
     const cashBtn = document.querySelector('.finances-payment-type-btn[data-payment-type="cash"]');
     if (cashBtn) {
         cashBtn.classList.add('active');
-        cashBtn.style.border = '2px solid #667eea';
-        cashBtn.style.background = 'linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%)';
-        cashBtn.style.color = '#667eea';
+        cashBtn.style.border = '2px solid #ff7700';
+        cashBtn.style.background = 'linear-gradient(135deg, rgba(255, 119, 0, 0.1) 0%, rgba(232, 102, 0, 0.1) 100%)';
+        cashBtn.style.color = '#ff7700';
     }
 
     document.getElementById('student-photo-container').style.display = 'none';
@@ -1667,9 +1667,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Активировать выбранную кнопку
             this.classList.add('active');
-            this.style.border = '2px solid #667eea';
-            this.style.background = 'linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%)';
-            this.style.color = '#667eea';
+            this.style.border = '2px solid #ff7700';
+            this.style.background = 'linear-gradient(135deg, rgba(255, 119, 0, 0.1) 0%, rgba(232, 102, 0, 0.1) 100%)';
+            this.style.color = '#ff7700';
 
             // Обновить скрытое поле
             const paymentType = this.getAttribute('data-payment-type');
@@ -2005,9 +2005,9 @@ if (addExpenseBtn) {
         sourceButtons.forEach(btn => {
             const isActive = btn.dataset.source === 'cash';
             btn.classList.toggle('active', isActive);
-            btn.style.border = isActive ? '2px solid #667eea' : '2px solid #e2e8f0';
-            btn.style.background = isActive ? 'linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%)' : 'white';
-            btn.style.color = isActive ? '#667eea' : '#4a5568';
+            btn.style.border = isActive ? '2px solid #ff7700' : '2px solid #e2e8f0';
+            btn.style.background = isActive ? 'linear-gradient(135deg, rgba(255, 119, 0, 0.1) 0%, rgba(232, 102, 0, 0.1) 100%)' : 'white';
+            btn.style.color = isActive ? '#ff7700' : '#4a5568';
         });
 
         // Показать текущий остаток наличных
@@ -2139,9 +2139,9 @@ document.addEventListener('click', async (e) => {
         sourceButtons.forEach(btn => {
             const isActive = btn.dataset.source === source;
             btn.classList.toggle('active', isActive);
-            btn.style.border = isActive ? '2px solid #667eea' : '2px solid #e2e8f0';
-            btn.style.background = isActive ? 'linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%)' : 'white';
-            btn.style.color = isActive ? '#667eea' : '#4a5568';
+            btn.style.border = isActive ? '2px solid #ff7700' : '2px solid #e2e8f0';
+            btn.style.background = isActive ? 'linear-gradient(135deg, rgba(255, 119, 0, 0.1) 0%, rgba(232, 102, 0, 0.1) 100%)' : 'white';
+            btn.style.color = isActive ? '#ff7700' : '#4a5568';
         });
 
         // Показать модальное окно
@@ -2419,9 +2419,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 container.querySelectorAll('.expense-source-btn').forEach(btn => {
                     const isCash = btn.dataset.source === 'cash';
                     btn.classList.toggle('active', isCash);
-                    btn.style.border = isCash ? '2px solid #667eea' : '2px solid #e2e8f0';
-                    btn.style.background = isCash ? 'linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%)' : 'white';
-                    btn.style.color = isCash ? '#667eea' : '#4a5568';
+                    btn.style.border = isCash ? '2px solid #ff7700' : '2px solid #e2e8f0';
+                    btn.style.background = isCash ? 'linear-gradient(135deg, rgba(255, 119, 0, 0.1) 0%, rgba(232, 102, 0, 0.1) 100%)' : 'white';
+                    btn.style.color = isCash ? '#ff7700' : '#4a5568';
                     btn.disabled = !isCash;
                     btn.style.opacity = isCash ? '1' : '0.5';
                 });
@@ -2451,9 +2451,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 container.querySelectorAll('.expense-source-btn').forEach(b => {
                     const isActive = b === btn;
                     b.classList.toggle('active', isActive);
-                    b.style.border = isActive ? '2px solid #667eea' : '2px solid #e2e8f0';
-                    b.style.background = isActive ? 'linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%)' : 'white';
-                    b.style.color = isActive ? '#667eea' : '#4a5568';
+                    b.style.border = isActive ? '2px solid #ff7700' : '2px solid #e2e8f0';
+                    b.style.background = isActive ? 'linear-gradient(135deg, rgba(255, 119, 0, 0.1) 0%, rgba(232, 102, 0, 0.1) 100%)' : 'white';
+                    b.style.color = isActive ? '#ff7700' : '#4a5568';
                 });
             });
         });

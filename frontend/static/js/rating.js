@@ -140,7 +140,7 @@ function triggerParticlesAnimation() {
     canvas.height = window.innerHeight;
     
     const particles = [];
-    const colors = ['#f093fb', '#f5576c', '#4facfe', '#00f2fe', '#43e97b', '#38f9d7', '#667eea', '#764ba2', '#f39c12', '#e74c3c'];
+    const colors = ['#f093fb', '#f5576c', '#4facfe', '#00f2fe', '#43e97b', '#38f9d7', '#ff7700', '#e86600', '#f39c12', '#e74c3c'];
     
     // Создать несколько взрывов по всей площади экрана
     const burstCount = 5; // Увеличено количество взрывов

@@ -55,7 +55,7 @@
                 margin: 0;
                 font-size: 15px;
                 line-height: 1.5;
-                color: #dbeafe;
+                color: #ffedd5;
             }
             .service-lock-phone {
                 margin-top: 12px;

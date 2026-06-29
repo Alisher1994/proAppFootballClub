@@ -818,7 +818,7 @@ async function loadSyncHistory() {
 
             if (cmd.status === 'processing') {
                 statusText = 'В процессе';
-                statusColor = '#dbeafe';
+                statusColor = '#ffedd5';
                 textColor = '#1e40af';
             } else if (cmd.status === 'done') {
                 statusText = 'Выполнено';
@@ -1147,7 +1147,7 @@ function updateBridgeProgress(progress) {
     const bar = document.getElementById('bridgeProgressBar');
     if (bar) {
         bar.style.width = `${percent}%`;
-        bar.style.background = stage === 'error' || stage === 'stopped' ? '#dc2626' : (stage === 'done' ? '#16a34a' : (progress.paused ? '#f59e0b' : '#2563eb'));
+        bar.style.background = stage === 'error' || stage === 'stopped' ? '#dc2626' : (stage === 'done' ? '#16a34a' : (progress.paused ? '#f59e0b' : '#ff7700'));
     }
 
     const status = progress.status_text || progress.current || 'Выполняется задача';
@@ -1191,8 +1191,8 @@ function renderBridgeDeviceProgress(progress) {
     grid.innerHTML = devices.map(device => {
         const percent = Math.max(0, Math.min(100, Number(device.percent || 0)));
         const isEntry = device.name === 'entry';
-        const accent = isEntry ? '#2563eb' : '#7c3aed';
-        const bg = isEntry ? '#eff6ff' : '#f5f3ff';
+        const accent = isEntry ? '#ff7700' : '#e86600';
+        const bg = isEntry ? '#fff7ed' : '#fff7ed';
         const status = device.status === 'waiting' ? 'ожидает' : (device.status_text || 'выполняется');
         return `
             <div style="border:1px solid ${accent}33; background:${bg}; border-radius:8px; padding:10px;">

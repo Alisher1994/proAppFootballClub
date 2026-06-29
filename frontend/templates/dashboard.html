@@ -181,7 +181,7 @@
         }
 
         .tab.active {
-            color: #667eea;
+            color: #ff7700;
             background: var(--theme-bg-secondary);
             font-weight: 600;
         }
@@ -365,7 +365,7 @@
 
         .group-accordion-header {
             padding: 18px 24px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #ff7700 0%, #e86600 100%);
             color: white;
             cursor: pointer;
             display: flex;
@@ -375,11 +375,11 @@
         }
 
         .group-accordion-header:hover {
-            background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+            background: linear-gradient(135deg, #e86600 0%, #ff7700 100%);
         }
 
         .group-accordion-header.active {
-            background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+            background: linear-gradient(135deg, #e86600 0%, #ff7700 100%);
         }
 
         .group-header-info {
@@ -459,7 +459,7 @@
             object-fit: cover;
             margin: 0 auto 8px;
             display: block;
-            border: 2px solid #3498db;
+            border: 2px solid #ff7700;
         }
 
         .student-card.attended .student-photo {
@@ -556,7 +556,7 @@
         .payment-status-title svg {
             width: 17px;
             height: 17px;
-            color: #2563eb;
+            color: #ff7700;
         }
 
         .payment-period-label {
@@ -635,7 +635,7 @@
         }
 
         .payment-mode-toggle button.active {
-            background: #2563eb;
+            background: #ff7700;
             color: #fff;
         }
 
@@ -1232,7 +1232,7 @@
                                 Расход
                             </div>
                             <div>
-                                <div style="width: 12px; height: 12px; background: #3498db; border-radius: 3px;"></div>
+                                <div style="width: 12px; height: 12px; background: #ff7700; border-radius: 3px;"></div>
                                 Остаток
                             </div>
                             <div>
@@ -1278,7 +1278,7 @@
                 <div id="expense-report-tab" class="tab-content">
                     <div style="display:flex; align-items:center; gap:10px; margin-bottom:14px;">
                         <div
-                            style="width:36px; height:36px; display:flex; align-items:center; justify-content:center; border-radius:10px; background: linear-gradient(135deg, rgba(102,126,234,0.12) 0%, rgba(118,75,162,0.12) 100%); border:1px solid var(--theme-border);">
+                            style="width:36px; height:36px; display:flex; align-items:center; justify-content:center; border-radius:10px; background: linear-gradient(135deg, rgba(255,119,0,0.12) 0%, rgba(232,102,0,0.12) 100%); border:1px solid var(--theme-border);">
                             <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24"
                                 fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"
                                 stroke-linejoin="round">
@@ -1428,7 +1428,7 @@
 
                 const paymentStatusColors = {
                     paid: '#16a34a',
-                    partial: '#2563eb',
+                    partial: '#ff7700',
                     unpaid: '#ef4444',
                     club: '#64748b',
                 };
@@ -1909,9 +1909,9 @@
                                 {
                                     label: 'Остаток',
                                     data: months.map(m => Number(m.balance ?? ((m.income || 0) - (m.expense || 0)))),
-                                    borderColor: '#2563eb',
-                                    backgroundColor: 'rgba(37, 99, 235, 0.08)',
-                                    pointBackgroundColor: '#2563eb',
+                                    borderColor: '#ff7700',
+                                    backgroundColor: 'rgba(255, 119, 0, 0.08)',
+                                    pointBackgroundColor: '#ff7700',
                                     fill: false,
                                     tension: 0.32,
                                 },
@@ -2034,7 +2034,7 @@
                     const series = [
                         { key: 'income', color: '#10b981' },
                         { key: 'expense', color: '#ef4444' },
-                        { key: 'balance', color: '#2563eb', get: (m) => m.balance ?? ((m.income || 0) - (m.expense || 0)) },
+                        { key: 'balance', color: '#ff7700', get: (m) => m.balance ?? ((m.income || 0) - (m.expense || 0)) },
                         { key: 'debt', color: '#f59e0b' },
                         { key: 'expected', color: '#64748b' }
                     ];
@@ -2192,7 +2192,7 @@
                 let expenseReportCache = null;
                 const expenseCategoryColors = {};
                 const expenseColorPalette = [
-                    '#6366F1', '#8B5CF6', '#EC4899', '#F59E0B', '#10B981', '#0EA5E9', '#F97316', '#14B8A6', '#84CC16', '#E11D48'
+                    '#ff7700', '#e86600', '#EC4899', '#F59E0B', '#10B981', '#0EA5E9', '#F97316', '#14B8A6', '#84CC16', '#E11D48'
                 ];
 
                 async function loadIncomeExpenseChart() {
@@ -2355,7 +2355,7 @@
                         expenseInterp.forEach(p => ctx.lineTo(p.x, p.y));
                         ctx.stroke();
 
-                        ctx.strokeStyle = '#2563eb';
+                        ctx.strokeStyle = '#ff7700';
                         ctx.beginPath();
                         ctx.moveTo(balanceInterp[0].x, balanceInterp[0].y);
                         balanceInterp.forEach(p => ctx.lineTo(p.x, p.y));
@@ -2935,7 +2935,7 @@
                                     <button class="mark-attendance-btn" 
                                             onclick="confirmMarkAttendance(${student.id}, '${escapeJsString(student.full_name)}', ${year}, ${month}, ${day}, ${group.group_id})"
                                             style="
-                                                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                                                background: linear-gradient(135deg, #ff7700 0%, #e86600 100%);
                                                 color: white;
                                                 border: none;
                                                 border-radius: 8px;
@@ -2947,7 +2947,7 @@
                                                 width: 100%;
                                                 margin-top: 4px;
                                             "
-                                            onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(102, 126, 234, 0.4)';"
+                                            onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(255, 119, 0, 0.4)';"
                                             onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none';">
                                         ✓ Отметить
                                     </button>
@@ -3248,7 +3248,7 @@
                     Нет
                 </button>
                 <button id="attendance-confirm-yes" style="
-                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    background: linear-gradient(135deg, #ff7700 0%, #e86600 100%);
                     color: white;
                     border: none;
                     border-radius: 8px;
@@ -3257,7 +3257,7 @@
                     font-weight: 600;
                     cursor: pointer;
                     transition: all 0.2s ease;
-                " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(102, 126, 234, 0.4)';"
+                " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(255, 119, 0, 0.4)';"
                     onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none';">
                     Да
                 </button>
