@@ -5283,6 +5283,29 @@ body.theme-light .modal-body-scrollable::-webkit-scrollbar-thumb:hover {
     border: 1px solid #bfdbfe;
 }
 
+.match-settings-bar {
+    display: grid;
+    grid-template-columns: 1fr 1fr 72px 110px auto;
+    gap: 8px;
+    margin-bottom: 12px;
+    padding: 10px;
+    border: 1px solid var(--theme-border);
+    border-radius: 8px;
+    background: #f8fafc;
+}
+
+.match-settings-bar select,
+.match-settings-bar input {
+    min-width: 0;
+    min-height: 34px;
+    padding: 6px 9px;
+    border: 1px solid var(--theme-border);
+    border-radius: 8px;
+    background: #fff;
+    color: var(--theme-text-primary);
+    font-size: 12px;
+}
+
 .workspace-grid {
     display: grid;
     grid-template-columns: minmax(0, 1.25fr) minmax(280px, .75fr);
@@ -5291,6 +5314,10 @@ body.theme-light .modal-body-scrollable::-webkit-scrollbar-thumb:hover {
 
 .workspace-grid.lower {
     margin-top: 12px;
+}
+
+.workspace-grid.visual-row {
+    grid-template-columns: minmax(420px, 1fr) minmax(360px, .9fr);
 }
 
 .workspace-card {
@@ -5495,6 +5522,244 @@ body.theme-light .modal-body-scrollable::-webkit-scrollbar-thumb:hover {
     color: var(--theme-text-secondary);
 }
 
+.compact-select {
+    min-height: 34px;
+    padding: 6px 10px;
+    border: 1px solid var(--theme-border);
+    border-radius: 8px;
+    background: #fff;
+    color: var(--theme-text-primary);
+    font-size: 12px;
+}
+
+.pitch-poster {
+    min-height: 560px;
+    border-radius: 10px;
+    overflow: hidden;
+    background:
+        radial-gradient(circle at 50% 50%, rgba(59, 130, 246, .24), transparent 34%),
+        linear-gradient(160deg, #06172f 0%, #0b2444 48%, #071426 100%);
+    color: #fff;
+    border: 1px solid #1e3a5f;
+    position: relative;
+}
+
+.pitch-empty {
+    min-height: 560px;
+    display: grid;
+    place-items: center;
+    color: rgba(255, 255, 255, .68);
+    font-size: 13px;
+}
+
+.pitch-title {
+    height: 58px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 0 18px;
+    background: rgba(15, 23, 42, .72);
+    border-bottom: 1px solid rgba(125, 211, 252, .22);
+}
+
+.pitch-title span,
+.pitch-title strong {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.pitch-title span {
+    font-size: 13px;
+    color: rgba(255, 255, 255, .72);
+}
+
+.pitch-title strong {
+    color: #38bdf8;
+    font-size: 18px;
+    letter-spacing: .08em;
+}
+
+.pitch-lines {
+    min-height: 502px;
+    display: flex;
+    flex-direction: column-reverse;
+    justify-content: space-around;
+    gap: 8px;
+    padding: 24px 18px;
+    position: relative;
+    background:
+        linear-gradient(rgba(125, 211, 252, .18) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(125, 211, 252, .18) 1px, transparent 1px);
+    background-size: 100% 50%, 50% 100%;
+}
+
+.pitch-lines::before,
+.pitch-lines::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 42%;
+    height: 72px;
+    border: 1px solid rgba(125, 211, 252, .22);
+    pointer-events: none;
+}
+
+.pitch-lines::before {
+    bottom: 0;
+    border-bottom: 0;
+}
+
+.pitch-lines::after {
+    top: 0;
+    border-top: 0;
+}
+
+.pitch-center-circle {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 120px;
+    height: 120px;
+    transform: translate(-50%, -50%);
+    border: 1px solid rgba(125, 211, 252, .2);
+    border-radius: 50%;
+}
+
+.pitch-row {
+    display: grid;
+    gap: 12px;
+    align-items: center;
+    justify-items: center;
+    position: relative;
+    z-index: 1;
+}
+
+.pitch-player {
+    width: min(112px, 100%);
+    display: grid;
+    justify-items: center;
+    gap: 5px;
+    text-align: center;
+}
+
+.pitch-player img,
+.pitch-avatar {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid rgba(56, 189, 248, .75);
+    background: #e2e8f0;
+}
+
+.pitch-avatar {
+    display: grid;
+    place-items: center;
+    color: #0f172a;
+    font-size: 18px;
+    font-weight: 700;
+}
+
+.pitch-player strong {
+    max-width: 100%;
+    padding: 4px 7px;
+    border-radius: 6px;
+    background: rgba(248, 250, 252, .92);
+    color: #0f172a;
+    font-size: 11px;
+    line-height: 1.15;
+    font-weight: 700;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.pitch-player span {
+    color: rgba(255, 255, 255, .72);
+    font-size: 10px;
+    line-height: 1.2;
+}
+
+.bracket-board {
+    min-height: 560px;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(150px, 1fr));
+    gap: 10px;
+    overflow: auto;
+    padding-bottom: 6px;
+}
+
+.bracket-column {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 14px;
+    min-width: 150px;
+}
+
+.bracket-column h4 {
+    margin: 0;
+    color: var(--theme-text-secondary);
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+}
+
+.bracket-match {
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 42px;
+    gap: 4px 8px;
+    align-items: center;
+    padding: 9px 10px;
+    border: 1px solid var(--theme-border);
+    border-radius: 8px;
+    background: #f8fafc;
+    color: var(--theme-text-primary);
+    cursor: pointer;
+    text-align: left;
+}
+
+.bracket-match::after {
+    content: "";
+    position: absolute;
+    right: -11px;
+    top: 50%;
+    width: 10px;
+    border-top: 1px solid #cbd5e1;
+}
+
+.bracket-column:last-child .bracket-match::after {
+    display: none;
+}
+
+.bracket-match.active {
+    border-color: #2563eb;
+    background: #eff6ff;
+}
+
+.bracket-match span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 12px;
+}
+
+.bracket-match strong {
+    grid-row: 1 / span 2;
+    grid-column: 2;
+    color: #2563eb;
+    font-size: 15px;
+    font-weight: 700;
+    text-align: right;
+}
+
 @media (max-width: 1280px) {
     .tournament-layout {
         grid-template-columns: 280px minmax(300px, 360px);
@@ -5512,6 +5777,8 @@ body.theme-light .modal-body-scrollable::-webkit-scrollbar-thumb:hover {
 
     .tournament-layout,
     .workspace-grid,
+    .workspace-grid.visual-row,
+    .match-settings-bar,
     .form-grid-2,
     .form-grid-3,
     .lineup-form {

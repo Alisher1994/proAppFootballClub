@@ -676,6 +676,10 @@ class TournamentMatch(db.Model):
     home_score = db.Column(db.Integer, default=0)
     away_score = db.Column(db.Integer, default=0)
     status = db.Column(db.String(30), default='scheduled')  # scheduled, live, finished
+    round_name = db.Column(db.String(80), nullable=True)  # group, quarterfinal, semifinal, final
+    bracket_side = db.Column(db.String(20), nullable=True)  # left, right, center
+    bracket_order = db.Column(db.Integer, default=0)
+    formation = db.Column(db.String(20), default='4-3-3')
     venue = db.Column(db.String(200), nullable=True)
     notes = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime, default=get_local_datetime)

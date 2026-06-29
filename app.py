@@ -1232,6 +1232,18 @@ def ensure_tournament_tables():
         if not required.issubset(set(tables)):
             db.create_all()
             print("✓ Созданы таблицы турниров")
+            return
+
+        match_columns = {col['name'] for col in inspector.get_columns('tournament_matches')}
+        with db.engine.begin() as conn:
+            if 'round_name' not in match_columns:
+                conn.execute(db.text("ALTER TABLE tournament_matches ADD COLUMN round_name VARCHAR(80)"))
+            if 'bracket_side' not in match_columns:
+                conn.execute(db.text("ALTER TABLE tournament_matches ADD COLUMN bracket_side VARCHAR(20)"))
+            if 'bracket_order' not in match_columns:
+                conn.execute(db.text("ALTER TABLE tournament_matches ADD COLUMN bracket_order INTEGER DEFAULT 0"))
+            if 'formation' not in match_columns:
+                conn.execute(db.text("ALTER TABLE tournament_matches ADD COLUMN formation VARCHAR(20) DEFAULT '4-3-3'"))
     except Exception as e:
         print(f"Ошибка при проверке таблиц турниров: {e}")
 
@@ -3445,6 +3457,10 @@ def serialize_tournament_match(match, include_details=False):
         'home_score': match.home_score or 0,
         'away_score': match.away_score or 0,
         'status': match.status,
+        'round_name': match.round_name,
+        'bracket_side': match.bracket_side,
+        'bracket_order': match.bracket_order or 0,
+        'formation': match.formation or '4-3-3',
         'venue': match.venue,
         'notes': match.notes,
         'events_count': len(match.events or []),
@@ -3579,6 +3595,10 @@ def tournament_matches_api(tournament_id):
         home_team=(data.get('home_team') or 'Наша команда').strip(),
         away_team=(data.get('away_team') or 'Соперник').strip(),
         status=(data.get('status') or 'scheduled').strip(),
+        round_name=(data.get('round_name') or 'group').strip(),
+        bracket_side=(data.get('bracket_side') or 'left').strip(),
+        bracket_order=int(data.get('bracket_order') or 0),
+        formation=(data.get('formation') or '4-3-3').strip(),
         venue=(data.get('venue') or '').strip() or None,
         notes=(data.get('notes') or '').strip() or None,
     )
@@ -3620,6 +3640,10 @@ def tournament_match_detail_api(match_id):
     match.home_team = (data.get('home_team') or match.home_team).strip()
     match.away_team = (data.get('away_team') or match.away_team).strip()
     match.status = (data.get('status') or match.status or 'scheduled').strip()
+    match.round_name = (data.get('round_name') or match.round_name or 'group').strip()
+    match.bracket_side = (data.get('bracket_side') or match.bracket_side or 'left').strip()
+    match.bracket_order = int(data.get('bracket_order') or match.bracket_order or 0)
+    match.formation = (data.get('formation') or match.formation or '4-3-3').strip()
     match.venue = (data.get('venue') or '').strip() or None
     match.notes = (data.get('notes') or '').strip() or None
     db.session.commit()

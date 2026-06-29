@@ -97,6 +97,27 @@
                             </select>
                             <input id="matchVenue" type="text" placeholder="Поле / стадион">
                         </div>
+                        <div class="form-grid-3">
+                            <select id="matchRound">
+                                <option value="group">Групповой этап</option>
+                                <option value="quarterfinal">1/4 финала</option>
+                                <option value="semifinal">Полуфинал</option>
+                                <option value="final">Финал</option>
+                            </select>
+                            <select id="matchBracketSide">
+                                <option value="left">Левая сетка</option>
+                                <option value="right">Правая сетка</option>
+                                <option value="center">Центр</option>
+                            </select>
+                            <input id="matchBracketOrder" type="number" min="0" value="0" placeholder="№">
+                        </div>
+                        <select id="matchFormation">
+                            <option value="4-3-3">Схема 4-3-3</option>
+                            <option value="4-4-2">Схема 4-4-2</option>
+                            <option value="3-5-2">Схема 3-5-2</option>
+                            <option value="5-3-2">Схема 5-3-2</option>
+                            <option value="4-2-3-1">Схема 4-2-3-1</option>
+                        </select>
                         <textarea id="matchNotes" rows="2" placeholder="Примечание к матчу"></textarea>
                         <button class="btn-primary" type="submit">Сохранить матч</button>
                     </form>
@@ -118,6 +139,29 @@
                                 <h2><span id="scoreHomeTeam">Наша команда</span> <strong id="matchScore">0 : 0</strong> <span id="scoreAwayTeam">Соперник</span></h2>
                             </div>
                             <span class="status-pill" id="matchStatusLabel">Запланирован</span>
+                        </div>
+
+                        <div class="match-settings-bar">
+                            <select id="currentMatchRound">
+                                <option value="group">Групповой этап</option>
+                                <option value="quarterfinal">1/4 финала</option>
+                                <option value="semifinal">Полуфинал</option>
+                                <option value="final">Финал</option>
+                            </select>
+                            <select id="currentMatchSide">
+                                <option value="left">Левая сетка</option>
+                                <option value="right">Правая сетка</option>
+                                <option value="center">Центр</option>
+                            </select>
+                            <input id="currentMatchOrder" type="number" min="0" value="0" title="Порядок в сетке">
+                            <select id="currentMatchFormation">
+                                <option value="4-3-3">4-3-3</option>
+                                <option value="4-4-2">4-4-2</option>
+                                <option value="3-5-2">3-5-2</option>
+                                <option value="5-3-2">5-3-2</option>
+                                <option value="4-2-3-1">4-2-3-1</option>
+                            </select>
+                            <button class="btn-secondary small" id="saveMatchSettingsBtn" type="button">Обновить матч</button>
                         </div>
 
                         <div class="workspace-grid">
@@ -196,6 +240,27 @@
                                         </tbody>
                                     </table>
                                 </div>
+                            </section>
+                        </div>
+
+                        <div class="workspace-grid lower visual-row">
+                            <section class="workspace-card">
+                                <div class="panel-title-row">
+                                    <h3>Схема состава</h3>
+                                    <select id="formationViewSelect" class="compact-select">
+                                        <option value="4-3-3">4-3-3</option>
+                                        <option value="4-4-2">4-4-2</option>
+                                        <option value="3-5-2">3-5-2</option>
+                                        <option value="5-3-2">5-3-2</option>
+                                        <option value="4-2-3-1">4-2-3-1</option>
+                                    </select>
+                                </div>
+                                <div class="pitch-poster" id="pitchPoster"></div>
+                            </section>
+
+                            <section class="workspace-card">
+                                <h3>Сетка турнира</h3>
+                                <div class="bracket-board" id="bracketBoard"></div>
                             </section>
                         </div>
                     </div>
