@@ -89,6 +89,21 @@
         </a>
         {% endif %}
 
+        {% if current_user.has_permission('tournaments', 'view') or current_user.has_permission('attendance', 'view') %}
+        <a href="{{ url_for('tournaments_page') }}" {% if request.endpoint=='tournaments_page' %}class="active"
+            {% endif %} data-tooltip="Турниры">
+            <svg xmlns="http://www.w3.org/2000/svg" class="sidebar-icon lucide lucide-trophy" width="24"
+                height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path d="M10 14.66v1.626a2 2 0 0 1-.976 1.696A5 5 0 0 0 7 21h10a5 5 0 0 0-2.024-3.018A2 2 0 0 1 14 16.286V14.66" />
+                <path d="M18 9h1.5a1.5 1.5 0 0 0 0-3H18" />
+                <path d="M6 9H4.5a1.5 1.5 0 0 1 0-3H6" />
+                <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" />
+            </svg>
+            <span>Турниры</span>
+        </a>
+        {% endif %}
+
         {#
         {% if current_user.has_permission('camera', 'view') %}
         <a href="{{ url_for('camera_page') }}" {% if request.endpoint=='camera_page' %}class="active" {% endif %}

@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Турниры</title>
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='uploads/favicon.png') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+
+<body>
+    {% include '_sidebar.html' %}
+
+    <main class="main-content tournaments-page">
+        <section class="tournament-shell">
+            <header class="tournament-header">
+                <div>
+                    <h1>Турниры</h1>
+                    <p>Матчи, составы, голы, карточки и статистика игроков.</p>
+                </div>
+                <button class="btn-primary tournament-refresh" id="refreshTournamentBtn" type="button">
+                    <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor"
+                        stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
+                        <path d="M3 21v-5h5" />
+                        <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+                        <path d="M16 8h5V3" />
+                    </svg>
+                    Обновить
+                </button>
+            </header>
+
+            <div class="tournament-layout">
+                <aside class="tournament-panel tournament-list-panel">
+                    <div class="panel-title-row">
+                        <h2>Список турниров</h2>
+                        <button class="icon-btn" id="toggleTournamentForm" type="button" title="Добавить турнир">
+                            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
+                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M5 12h14" />
+                                <path d="M12 5v14" />
+                            </svg>
+                        </button>
+                    </div>
+
+                    <form class="compact-form" id="tournamentForm" hidden>
+                        <input id="tournamentName" type="text" placeholder="Название турнира" required>
+                        <div class="form-grid-2">
+                            <input id="tournamentSeason" type="text" placeholder="Сезон">
+                            <select id="tournamentStatus">
+                                <option value="planned">Запланирован</option>
+                                <option value="active">Идёт</option>
+                                <option value="finished">Завершён</option>
+                            </select>
+                        </div>
+                        <input id="tournamentLocation" type="text" placeholder="Место проведения">
+                        <div class="form-grid-2">
+                            <input id="tournamentStart" type="date">
+                            <input id="tournamentEnd" type="date">
+                        </div>
+                        <textarea id="tournamentNotes" rows="2" placeholder="Примечание"></textarea>
+                        <button class="btn-primary" type="submit">Сохранить турнир</button>
+                    </form>
+
+                    <div class="entity-list" id="tournamentList">
+                        <div class="empty-state">Загрузка...</div>
+                    </div>
+                </aside>
+
+                <section class="tournament-panel match-list-panel">
+                    <div class="panel-title-row">
+                        <h2>Матчи</h2>
+                        <button class="icon-btn" id="toggleMatchForm" type="button" title="Добавить матч" disabled>
+                            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
+                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M5 12h14" />
+                                <path d="M12 5v14" />
+                            </svg>
+                        </button>
+                    </div>
+
+                    <form class="compact-form" id="matchForm" hidden>
+                        <div class="form-grid-2">
+                            <input id="matchDate" type="datetime-local">
+                            <select id="matchGroup"></select>
+                        </div>
+                        <div class="form-grid-2">
+                            <input id="homeTeam" type="text" placeholder="Наша команда" value="Наша команда">
+                            <input id="awayTeam" type="text" placeholder="Соперник" value="Соперник">
+                        </div>
+                        <div class="form-grid-2">
+                            <select id="matchStatus">
+                                <option value="scheduled">Запланирован</option>
+                                <option value="live">Идёт</option>
+                                <option value="finished">Завершён</option>
+                            </select>
+                            <input id="matchVenue" type="text" placeholder="Поле / стадион">
+                        </div>
+                        <textarea id="matchNotes" rows="2" placeholder="Примечание к матчу"></textarea>
+                        <button class="btn-primary" type="submit">Сохранить матч</button>
+                    </form>
+
+                    <div class="entity-list" id="matchList">
+                        <div class="empty-state">Выберите турнир.</div>
+                    </div>
+                </section>
+
+                <section class="tournament-panel match-workspace">
+                    <div id="matchWorkspaceEmpty" class="workspace-empty">
+                        Выберите матч, чтобы заполнить состав и события.
+                    </div>
+
+                    <div id="matchWorkspace" hidden>
+                        <div class="scoreboard">
+                            <div>
+                                <span id="matchMeta">Матч</span>
+                                <h2><span id="scoreHomeTeam">Наша команда</span> <strong id="matchScore">0 : 0</strong> <span id="scoreAwayTeam">Соперник</span></h2>
+                            </div>
+                            <span class="status-pill" id="matchStatusLabel">Запланирован</span>
+                        </div>
+
+                        <div class="workspace-grid">
+                            <section class="workspace-card">
+                                <div class="panel-title-row">
+                                    <h3>Состав и позиции</h3>
+                                    <button class="btn-secondary small" id="saveLineupBtn" type="button">Сохранить состав</button>
+                                </div>
+                                <div class="lineup-form">
+                                    <select id="lineupPlayer"></select>
+                                    <select id="lineupPosition">
+                                        <option>Вратарь</option>
+                                        <option>Защитник</option>
+                                        <option>Полузащитник</option>
+                                        <option>Нападающий</option>
+                                        <option>Игрок</option>
+                                    </select>
+                                    <input id="lineupNumber" type="text" placeholder="№">
+                                    <label class="mini-check"><input id="lineupStarter" type="checkbox" checked> Старт</label>
+                                    <button class="btn-primary small" id="addLineupBtn" type="button">Добавить</button>
+                                </div>
+                                <div class="lineup-board" id="lineupBoard"></div>
+                            </section>
+
+                            <section class="workspace-card">
+                                <h3>Событие матча</h3>
+                                <form class="event-form" id="eventForm">
+                                    <div class="form-grid-3">
+                                        <select id="eventType">
+                                            <option value="goal">Гол</option>
+                                            <option value="card">Карточка</option>
+                                        </select>
+                                        <select id="eventHalf">
+                                            <option value="1">1 тайм</option>
+                                            <option value="2">2 тайм</option>
+                                            <option value="3">Доп.</option>
+                                        </select>
+                                        <input id="eventMinute" type="number" min="1" max="130" value="1" placeholder="Минута">
+                                    </div>
+                                    <select id="eventPlayer"></select>
+                                    <select id="eventAssist"></select>
+                                    <select id="eventCardColor">
+                                        <option value="yellow">Жёлтая</option>
+                                        <option value="red">Красная</option>
+                                    </select>
+                                    <textarea id="eventNote" rows="2" placeholder="Комментарий"></textarea>
+                                    <button class="btn-primary" type="submit">Записать событие</button>
+                                </form>
+                            </section>
+                        </div>
+
+                        <div class="workspace-grid lower">
+                            <section class="workspace-card">
+                                <h3>Хронология</h3>
+                                <div class="event-timeline" id="eventTimeline"></div>
+                            </section>
+
+                            <section class="workspace-card">
+                                <h3>Аналитика игроков</h3>
+                                <div class="analytics-summary" id="tournamentSummary"></div>
+                                <div class="table-scroll">
+                                    <table class="tournament-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Игрок</th>
+                                                <th>Матчи</th>
+                                                <th>Голы</th>
+                                                <th>Пасы</th>
+                                                <th>ЖК</th>
+                                                <th>КК</th>
+                                                <th>Рейтинг</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="playerAnalyticsBody">
+                                            <tr><td colspan="7" class="empty-cell">Нет данных</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </section>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </section>
+    </main>
+
+    <script src="{{ url_for('static', filename='js/tournaments.js') }}"></script>
+</body>
+
+</html>

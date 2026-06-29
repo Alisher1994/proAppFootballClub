@@ -14,6 +14,7 @@ const sections = [
     { key: 'tariffs', name: 'Тарифы' },
     { key: 'finances', name: 'Финансы' },
     { key: 'attendance', name: 'Посещаемость' },
+    { key: 'tournaments', name: 'Турниры' },
     { key: 'camera', name: 'Камера' },
     { key: 'rewards', name: 'Вознаграждения' },
     { key: 'rating', name: 'Рейтинг учеников' },

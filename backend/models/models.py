@@ -640,6 +640,103 @@ class StudentCard(db.Model):
         return f'<StudentCard Student {self.student_id}: {self.card_type.name} - {"Active" if self.is_active else "Removed"}>'
 
 
+class Tournament(db.Model):
+    """Турниры и внутренние соревнования клуба"""
+    __tablename__ = 'tournaments'
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(200), nullable=False)
+    season = db.Column(db.String(80), nullable=True)
+    location = db.Column(db.String(200), nullable=True)
+    start_date = db.Column(db.Date, nullable=True)
+    end_date = db.Column(db.Date, nullable=True)
+    status = db.Column(db.String(30), default='planned')  # planned, active, finished
+    notes = db.Column(db.Text, nullable=True)
+    created_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    created_at = db.Column(db.DateTime, default=get_local_datetime)
+    updated_at = db.Column(db.DateTime, default=get_local_datetime, onupdate=get_local_datetime)
+
+    creator = db.relationship('User', foreign_keys=[created_by])
+    matches = db.relationship('TournamentMatch', backref='tournament', lazy=True, cascade='all, delete-orphan')
+
+    def __repr__(self):
+        return f'<Tournament {self.name}>'
+
+
+class TournamentMatch(db.Model):
+    """Матчи в рамках турнира"""
+    __tablename__ = 'tournament_matches'
+
+    id = db.Column(db.Integer, primary_key=True)
+    tournament_id = db.Column(db.Integer, db.ForeignKey('tournaments.id'), nullable=False, index=True)
+    group_id = db.Column(db.Integer, db.ForeignKey('groups.id'), nullable=True, index=True)
+    match_date = db.Column(db.DateTime, nullable=True)
+    home_team = db.Column(db.String(160), nullable=False, default='Наша команда')
+    away_team = db.Column(db.String(160), nullable=False, default='Соперник')
+    home_score = db.Column(db.Integer, default=0)
+    away_score = db.Column(db.Integer, default=0)
+    status = db.Column(db.String(30), default='scheduled')  # scheduled, live, finished
+    venue = db.Column(db.String(200), nullable=True)
+    notes = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=get_local_datetime)
+    updated_at = db.Column(db.DateTime, default=get_local_datetime, onupdate=get_local_datetime)
+
+    group = db.relationship('Group', foreign_keys=[group_id])
+    lineups = db.relationship('TournamentLineup', backref='match', lazy=True, cascade='all, delete-orphan')
+    events = db.relationship('TournamentEvent', backref='match', lazy=True, cascade='all, delete-orphan')
+
+    def __repr__(self):
+        return f'<TournamentMatch {self.home_team} - {self.away_team}>'
+
+
+class TournamentLineup(db.Model):
+    """Расстановка игроков по позициям на матч"""
+    __tablename__ = 'tournament_lineups'
+    __table_args__ = (
+        db.UniqueConstraint('match_id', 'student_id', 'team_side', name='uq_tournament_lineup_player_side'),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    match_id = db.Column(db.Integer, db.ForeignKey('tournament_matches.id'), nullable=False, index=True)
+    student_id = db.Column(db.Integer, db.ForeignKey('students.id'), nullable=False, index=True)
+    team_side = db.Column(db.String(10), default='home')  # home, away
+    position = db.Column(db.String(30), nullable=False, default='Игрок')
+    shirt_number = db.Column(db.String(10), nullable=True)
+    is_starter = db.Column(db.Boolean, default=True)
+    sort_order = db.Column(db.Integer, default=0)
+    created_at = db.Column(db.DateTime, default=get_local_datetime)
+
+    student = db.relationship('Student', foreign_keys=[student_id])
+
+    def __repr__(self):
+        return f'<TournamentLineup match={self.match_id} student={self.student_id}>'
+
+
+class TournamentEvent(db.Model):
+    """События матча: голы, карточки, заметки"""
+    __tablename__ = 'tournament_events'
+
+    id = db.Column(db.Integer, primary_key=True)
+    match_id = db.Column(db.Integer, db.ForeignKey('tournament_matches.id'), nullable=False, index=True)
+    student_id = db.Column(db.Integer, db.ForeignKey('students.id'), nullable=True, index=True)
+    assist_student_id = db.Column(db.Integer, db.ForeignKey('students.id'), nullable=True)
+    event_type = db.Column(db.String(30), nullable=False)  # goal, card
+    team_side = db.Column(db.String(10), default='home')
+    half = db.Column(db.Integer, default=1)
+    minute = db.Column(db.Integer, nullable=False, default=1)
+    card_color = db.Column(db.String(20), nullable=True)  # yellow, red
+    note = db.Column(db.Text, nullable=True)
+    created_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    created_at = db.Column(db.DateTime, default=get_local_datetime)
+
+    student = db.relationship('Student', foreign_keys=[student_id])
+    assist_student = db.relationship('Student', foreign_keys=[assist_student_id])
+    creator = db.relationship('User', foreign_keys=[created_by])
+
+    def __repr__(self):
+        return f'<TournamentEvent {self.event_type} {self.minute}>'
+
+
 class CashTransfer(db.Model):
     """Передача денег из кассы управляющему"""
     __tablename__ = 'cash_transfers'
