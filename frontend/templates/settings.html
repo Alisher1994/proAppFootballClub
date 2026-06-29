@@ -2477,6 +2477,7 @@
                                 <th>Название</th>
                                 <th>Дни</th>
                                 <th>Время занятия</th>
+                                <th>Тренеры</th>
                                 <th>Опоздание (мин)</th>
                                 <th>Учеников</th>
                                 <th>Примечания</th>
@@ -2485,7 +2486,7 @@
                         </thead>
                         <tbody id="groupsTableBody">
                             <tr>
-                                <td colspan="7">Загрузка...</td>
+                                <td colspan="8">Загрузка...</td>
                             </tr>
                         </tbody>
                     </table>
@@ -2614,6 +2615,17 @@
                                 </div>
                             </div>
 
+                            <div class="form-card two-col">
+                                <div>
+                                    <label class="field-label" for="groupTrainerIds">Основной тренер</label>
+                                    <select id="groupTrainerIds" class="form-input-modern" multiple size="4"></select>
+                                </div>
+                                <div>
+                                    <label class="field-label" for="groupAssistantIds">Помощник / ментор</label>
+                                    <select id="groupAssistantIds" class="form-input-modern" multiple size="4"></select>
+                                </div>
+                            </div>
+
                             <div class="form-card">
                                 <label class="field-label" for="notes">Примечания</label>
                                 <textarea id="notes" rows="3" placeholder="Дополнительная информация..."></textarea>
@@ -2708,6 +2720,17 @@
                                 <div>
                                     <label class="field-label" for="editMaxStudents">Макс. учеников</label>
                                     <input type="number" id="editMaxStudents" placeholder="Без ограничений" min="1">
+                                </div>
+                            </div>
+
+                            <div class="form-card two-col">
+                                <div>
+                                    <label class="field-label" for="editGroupTrainerIds">Основной тренер</label>
+                                    <select id="editGroupTrainerIds" class="form-input-modern" multiple size="4"></select>
+                                </div>
+                                <div>
+                                    <label class="field-label" for="editGroupAssistantIds">Помощник / ментор</label>
+                                    <select id="editGroupAssistantIds" class="form-input-modern" multiple size="4"></select>
                                 </div>
                             </div>
 

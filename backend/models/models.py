@@ -108,6 +108,7 @@ class Group(db.Model):
     
     # Связи
     students = db.relationship('Student', backref='group', lazy=True)
+    trainer_links = db.relationship('GroupTrainer', backref='group', lazy=True, cascade='all, delete-orphan')
     
     def get_schedule_days_list(self):
         """Получить список дней недели (1=Пн, 7=Вс)"""
@@ -179,6 +180,25 @@ class Group(db.Model):
     
     def __repr__(self):
         return f'<Group {self.name} at {self.schedule_time}>'
+
+
+class GroupTrainer(db.Model):
+    """Закрепление тренеров и помощников за группами"""
+    __tablename__ = 'group_trainers'
+    __table_args__ = (
+        db.UniqueConstraint('group_id', 'user_id', name='uq_group_trainer_user'),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    group_id = db.Column(db.Integer, db.ForeignKey('groups.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    role = db.Column(db.String(20), nullable=False, default='primary')  # primary | assistant
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    user = db.relationship('User', backref=db.backref('trainer_group_links', lazy=True, cascade='all, delete-orphan'))
+
+    def __repr__(self):
+        return f'<GroupTrainer group={self.group_id} user={self.user_id} role={self.role}>'
 
 
 class Tariff(db.Model):

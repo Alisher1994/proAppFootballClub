@@ -54,7 +54,7 @@ os.environ['FFMPEG_LOG_LEVEL'] = 'quiet'
 # Форсируем использование CUDA/TensorRT в ONNX
 os.environ['ORT_TENSORRT_FP16_ENABLE'] = '1'
 
-from backend.models.models import db, User, Student, Payment, Attendance, AccessLog, Expense, Group, Tariff, ClubSettings, RewardType, StudentReward, CashTransfer, Role, RolePermission, CardType, StudentCard, DeviceCommand, BridgeStatus
+from backend.models.models import db, User, Student, Payment, Attendance, AccessLog, Expense, Group, GroupTrainer, Tariff, ClubSettings, RewardType, StudentReward, CashTransfer, Role, RolePermission, CardType, StudentCard, DeviceCommand, BridgeStatus
 # Face recognition permanently disabled per client; keep dummy service only.
 USE_FACE = False
 from backend.services.face_stub import DummyFaceService as FaceService
@@ -1211,9 +1211,22 @@ def ensure_roles_tables():
         print(f"Ошибка при проверке таблиц ролей: {e}")
 
 
+def ensure_group_trainers_table():
+    """Проверяет и создает таблицу закрепления тренеров за группами"""
+    try:
+        inspector = db.inspect(db.engine)
+        tables = inspector.get_table_names()
+        if 'group_trainers' not in tables:
+            db.create_all()
+            print("✓ Создана таблица group_trainers")
+    except Exception as e:
+        print(f"Ошибка при проверке таблицы group_trainers: {e}")
+
+
 ROLE_SECTIONS = ['dashboard', 'students', 'groups', 'tariffs', 'finances', 'attendance', 'camera', 'rewards', 'rating', 'users', 'cash', 'settings']
 STAFF_EXCLUDED_ROLE_NAMES = {'Гость'}
 SYSTEM_ROLE_NAMES = {'Администратор', 'Администратор системы', 'Superadministrator', 'Учитель (тренер)', 'Директор', 'Кассир', 'Бухгалтер', 'Гость'}
+TRAINER_ROLE_NAMES = {'Учитель (тренер)', 'teacher', 'Тренер'}
 
 
 def upsert_system_role(name, description, editable_sections=None, view_sections=None, full_access=False):
@@ -3433,6 +3446,10 @@ def user_role_name(user):
     return user.role_obj.name if getattr(user, 'role_obj', None) else user.role
 
 
+def is_trainer_role(user):
+    return user_role_name(user) in TRAINER_ROLE_NAMES
+
+
 def is_guest_role(user):
     return user_role_name(user) in STAFF_EXCLUDED_ROLE_NAMES
 
@@ -3444,6 +3461,102 @@ def is_guest_role_id(role_id):
     return bool(role and role.name in STAFF_EXCLUDED_ROLE_NAMES)
 
 
+def is_trainer_role_id(role_id):
+    if not role_id:
+        return False
+    role = db.session.get(Role, int(role_id))
+    return bool(role and role.name in TRAINER_ROLE_NAMES)
+
+
+def parse_int_list_payload(data, key):
+    if hasattr(data, 'getlist'):
+        raw_values = data.getlist(key)
+        if not raw_values and data.get(key):
+            raw_values = [data.get(key)]
+    else:
+        raw_values = data.get(key, []) if isinstance(data, dict) else []
+
+    if raw_values in (None, ''):
+        return []
+    if isinstance(raw_values, str):
+        try:
+            decoded = json.loads(raw_values)
+            raw_values = decoded if isinstance(decoded, list) else raw_values.split(',')
+        except Exception:
+            raw_values = raw_values.split(',')
+    if not isinstance(raw_values, (list, tuple, set)):
+        raw_values = [raw_values]
+
+    ids = []
+    for value in raw_values:
+        try:
+            parsed = int(value)
+            if parsed > 0 and parsed not in ids:
+                ids.append(parsed)
+        except (TypeError, ValueError):
+            continue
+    return ids
+
+
+def serialize_group_trainer_link(link):
+    user = link.user
+    if not user:
+        return None
+    display_name = user.full_name or user.username
+    initials = ''.join(part[:1] for part in display_name.split()[:2]).upper() or 'T'
+    return {
+        'id': user.id,
+        'username': user.username,
+        'full_name': display_name,
+        'role': link.role,
+        'photo_url': build_photo_url(user.photo_path),
+        'initials': initials
+    }
+
+
+def group_trainer_payload(group):
+    links = sorted(group.trainer_links, key=lambda link: ((link.role != 'primary'), (link.user.full_name or link.user.username) if link.user else ''))
+    primary = [serialize_group_trainer_link(link) for link in links if link.role == 'primary']
+    assistants = [serialize_group_trainer_link(link) for link in links if link.role == 'assistant']
+    primary = [item for item in primary if item]
+    assistants = [item for item in assistants if item]
+    return {
+        'trainers': primary,
+        'assistants': assistants,
+        'trainer_ids': [item['id'] for item in primary],
+        'assistant_ids': [item['id'] for item in assistants]
+    }
+
+
+def sync_group_trainers(group_id, trainer_ids=None, assistant_ids=None):
+    ensure_group_trainers_table()
+    trainer_ids = trainer_ids or []
+    assistant_ids = [user_id for user_id in (assistant_ids or []) if user_id not in trainer_ids]
+
+    GroupTrainer.query.filter_by(group_id=group_id).delete()
+    for user_id in trainer_ids:
+        db.session.add(GroupTrainer(group_id=group_id, user_id=user_id, role='primary'))
+    for user_id in assistant_ids:
+        db.session.add(GroupTrainer(group_id=group_id, user_id=user_id, role='assistant'))
+
+
+def sync_user_primary_trainer_groups(user, group_ids):
+    ensure_group_trainers_table()
+    GroupTrainer.query.filter_by(user_id=user.id, role='primary').delete()
+    if is_trainer_role_id(user.role_id) or user.role in TRAINER_ROLE_NAMES:
+        for group_id in group_ids:
+            existing = GroupTrainer.query.filter_by(group_id=group_id, user_id=user.id).first()
+            if existing:
+                existing.role = 'primary'
+            else:
+                db.session.add(GroupTrainer(group_id=group_id, user_id=user.id, role='primary'))
+
+
+def clear_user_trainer_groups(user):
+    ensure_group_trainers_table()
+    GroupTrainer.query.filter_by(user_id=user.id).delete()
+
+
 @app.route('/api/staff-timesheet', methods=['GET'])
 @login_required
 def staff_timesheet_data():
@@ -3451,6 +3564,7 @@ def staff_timesheet_data():
         return jsonify({'success': False, 'message': 'Доступ запрещен'}), 403
 
     ensure_users_table_columns()
+    ensure_group_trainers_table()
     ensure_access_logs_table()
     ensure_expense_columns()
 
@@ -5363,7 +5477,10 @@ def get_finances_monthly():
 @login_required
 def get_groups():
     """Получить список всех групп"""
-    groups = Group.query.order_by(Group.name.asc()).all()
+    ensure_group_trainers_table()
+    groups = Group.query.options(
+        joinedload(Group.trainer_links).joinedload(GroupTrainer.user)
+    ).order_by(Group.name.asc()).all()
     total_counts = dict(
         db.session.query(Student.group_id, func.count(Student.id))
         .filter(Student.group_id.isnot(None))
@@ -5377,22 +5494,51 @@ def get_groups():
         .all()
     )
 
+    result = []
+    for g in groups:
+        trainer_data = group_trainer_payload(g)
+        result.append({
+            'id': g.id,
+            'name': g.name,
+            'schedule_time': g.schedule_time if g.schedule_time else '--:--',
+            'duration_minutes': g.duration_minutes or 60,
+            'field_blocks': g.field_blocks or 1,
+            'field_block_indices': g.get_field_block_indices(),
+            'late_threshold': g.late_threshold,
+            'max_students': g.max_students,
+            'notes': g.notes,
+            'schedule_days': g.get_schedule_days_list(),
+            'schedule_days_label': g.get_schedule_days_display(),
+            'student_count': total_counts.get(g.id, 0),
+            'active_student_count': active_counts.get(g.id, 0),
+            'is_full': bool(g.max_students and active_counts.get(g.id, 0) >= g.max_students),
+            **trainer_data
+        })
+    return jsonify(result)
+
+
+@app.route('/api/trainers', methods=['GET'])
+@login_required
+def get_trainers():
+    """Получить активных сотрудников-тренеров для закрепления за группами"""
+    if not (
+        current_user.has_permission('groups', 'view')
+        or current_user.has_permission('users', 'view')
+        or current_user.has_permission('settings', 'view')
+    ):
+        return jsonify({'error': 'Доступ запрещен'}), 403
+
+    ensure_users_table_columns()
+    trainers = [
+        user for user in User.query.options(joinedload(User.role_obj)).filter_by(is_active=True).order_by(User.full_name.asc(), User.username.asc()).all()
+        if is_trainer_role(user)
+    ]
     return jsonify([{
-        'id': g.id,
-        'name': g.name,
-        'schedule_time': g.schedule_time if g.schedule_time else '--:--',
-        'duration_minutes': g.duration_minutes or 60,
-        'field_blocks': g.field_blocks or 1,
-        'field_block_indices': g.get_field_block_indices(),
-        'late_threshold': g.late_threshold,
-        'max_students': g.max_students,
-        'notes': g.notes,
-        'schedule_days': g.get_schedule_days_list(),
-        'schedule_days_label': g.get_schedule_days_display(),
-        'student_count': total_counts.get(g.id, 0),
-        'active_student_count': active_counts.get(g.id, 0),
-        'is_full': bool(g.max_students and active_counts.get(g.id, 0) >= g.max_students)
-    } for g in groups])
+        'id': user.id,
+        'username': user.username,
+        'full_name': user.full_name or user.username,
+        'photo_url': build_photo_url(user.photo_path)
+    } for user in trainers])
 
 
 @app.route('/api/club-settings', methods=['GET'])
@@ -5711,6 +5857,7 @@ def reset_club_logo():
 def add_group():
     """Добавить новую группу"""
     try:
+        ensure_group_trainers_table()
         data = request.get_json()
         name = data.get('name')
         schedule_time_str = data.get('schedule_time')  # "13:00"
@@ -5752,6 +5899,12 @@ def add_group():
             group.set_field_block_indices(list(range(field_blocks)))
         group.set_schedule_days_list(schedule_days)
         db.session.add(group)
+        db.session.flush()
+        sync_group_trainers(
+            group.id,
+            parse_int_list_payload(data, 'trainer_ids'),
+            parse_int_list_payload(data, 'assistant_ids')
+        )
         db.session.commit()
         
         return jsonify({'success': True, 'group_id': group.id})
@@ -5765,6 +5918,7 @@ def add_group():
 def update_group(group_id):
     """Обновить группу"""
     try:
+        ensure_group_trainers_table()
         group = db.session.get(Group, group_id)
         if not group:
             return jsonify({'success': False, 'message': 'Группа не найдена'}), 404
@@ -5814,6 +5968,12 @@ def update_group(group_id):
         if new_schedule_days:
             group.set_schedule_days_list(new_schedule_days)
         group.schedule_time = new_schedule_time
+        if 'trainer_ids' in data or 'assistant_ids' in data:
+            sync_group_trainers(
+                group.id,
+                parse_int_list_payload(data, 'trainer_ids'),
+                parse_int_list_payload(data, 'assistant_ids')
+            )
         
         db.session.commit()
         return jsonify({'success': True})
@@ -6887,10 +7047,19 @@ def get_users():
     if not current_user.has_permission('users', 'view'):
         return jsonify({'error': 'Доступ запрещен'}), 403
     
-    users = User.query.all()
+    ensure_group_trainers_table()
+    users = User.query.options(joinedload(User.trainer_group_links)).all()
     users_list = []
     for user in users:
         role_name = user.role_obj.name if user.role_obj else user.role
+        primary_group_ids = sorted([
+            link.group_id for link in getattr(user, 'trainer_group_links', [])
+            if link.role == 'primary'
+        ])
+        assistant_group_ids = sorted([
+            link.group_id for link in getattr(user, 'trainer_group_links', [])
+            if link.role == 'assistant'
+        ])
         users_list.append({
             'id': user.id,
             'username': user.username,
@@ -6903,6 +7072,8 @@ def get_users():
             'photo_url': build_photo_url(user.photo_path),
             'salary_type': getattr(user, 'salary_type', 'fixed') or 'fixed',
             'fixed_salary': getattr(user, 'fixed_salary', None),
+            'trainer_group_ids': primary_group_ids,
+            'assistant_group_ids': assistant_group_ids,
             'created_at': user.created_at.isoformat() if user.created_at else None
         })
     
@@ -6917,6 +7088,7 @@ def create_user():
         return jsonify({'success': False, 'message': 'Доступ запрещен'}), 403
     
     try:
+        ensure_group_trainers_table()
         data = request.form if request.form else (request.get_json(silent=True) or {})
         username = data.get('username', '').strip()
         password = data.get('password', '').strip()
@@ -6954,6 +7126,7 @@ def create_user():
         photo = request.files.get('photo') if request.files else None
         if photo and photo.filename:
             user.photo_path = save_user_photo(photo, user.id)
+        sync_user_primary_trainer_groups(user, parse_int_list_payload(data, 'trainer_group_ids'))
         queue_hikvision_person('staff', user.id, 'staff_created')
         db.session.commit()
         
@@ -6985,6 +7158,7 @@ def update_user(user_id):
         return jsonify({'success': False, 'message': 'Доступ запрещен'}), 403
     
     try:
+        ensure_group_trainers_table()
         user = db.session.get(User, user_id)
         if not user:
             return jsonify({'success': False, 'message': 'Пользователь не найден'}), 404
@@ -7042,6 +7216,11 @@ def update_user(user_id):
                     os.remove(old_path)
             except Exception as photo_error:
                 print(f"Ошибка при удалении старого фото сотрудника: {photo_error}")
+
+        if is_trainer_role_id(user.role_id) or user.role in TRAINER_ROLE_NAMES:
+            sync_user_primary_trainer_groups(user, parse_int_list_payload(data, 'trainer_group_ids'))
+        else:
+            clear_user_trainer_groups(user)
         
         queue_hikvision_person('staff', user.id, 'staff_updated')
         db.session.commit()

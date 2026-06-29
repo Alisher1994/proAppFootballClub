@@ -1,6 +1,7 @@
 // Хранилище данных
 let allUsers = [];
 let allRoles = [];
+let allGroups = [];
 
 const editIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
 const trashIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v5"/><path d="M14 11v5"/></svg>';
@@ -53,6 +54,19 @@ async function loadRoles() {
         if (tbody) {
             tbody.innerHTML = '<tr><td colspan="4" class="info-text">Ошибка загрузки данных</td></tr>';
         }
+    }
+}
+
+async function loadGroupsForUsers() {
+    try {
+        const response = await fetch('/api/groups');
+        if (!response.ok) throw new Error('Ошибка загрузки групп');
+        allGroups = await response.json();
+        updateTrainerGroupSelect();
+    } catch (error) {
+        console.error('Ошибка загрузки групп для тренеров:', error);
+        allGroups = [];
+        updateTrainerGroupSelect();
     }
 }
 
@@ -213,6 +227,37 @@ function updateRoleSelect() {
         allRoles.map(role => `<option value="${role.id}">${role.name}</option>`).join('');
 }
 
+function updateTrainerGroupSelect(selectedIds = []) {
+    const select = document.getElementById('user-trainer-groups');
+    if (!select) return;
+    const selectedSet = new Set((selectedIds || []).map(id => String(id)));
+    select.innerHTML = allGroups.map(group => `
+        <option value="${group.id}" ${selectedSet.has(String(group.id)) ? 'selected' : ''}>
+            ${escapeHtml(group.name)}
+        </option>
+    `).join('');
+}
+
+function isTrainerRoleSelected() {
+    const roleSelect = document.getElementById('user-role-id');
+    const roleName = roleSelect?.selectedOptions?.[0]?.textContent?.trim() || '';
+    return roleName === 'Учитель (тренер)' || roleName === 'Тренер';
+}
+
+function syncUserTrainerFields(selectedIds = null) {
+    const wrapper = document.getElementById('user-trainer-groups-wrap');
+    if (!wrapper) return;
+    const visible = isTrainerRoleSelected();
+    wrapper.style.display = visible ? 'block' : 'none';
+    if (selectedIds) {
+        updateTrainerGroupSelect(selectedIds);
+    }
+    if (!visible) {
+        const select = document.getElementById('user-trainer-groups');
+        if (select) Array.from(select.options).forEach(option => { option.selected = false; });
+    }
+}
+
 // Открыть модальное окно для добавления пользователя
 function openAddUserModal() {
     const modal = document.getElementById('userModal');
@@ -235,6 +280,7 @@ function openAddUserModal() {
         document.getElementById('user-salary-type').value = 'fixed';
         document.getElementById('user-fixed-salary').value = '';
         syncUserSalaryFields();
+        syncUserTrainerFields([]);
 
         modal.style.display = 'flex';
     }
@@ -262,6 +308,8 @@ async function editUser(userId) {
         document.getElementById('user-salary-type').value = user.salary_type || 'fixed';
         document.getElementById('user-fixed-salary').value = user.fixed_salary || '';
         syncUserSalaryFields();
+        updateTrainerGroupSelect(user.trainer_group_ids || []);
+        syncUserTrainerFields(user.trainer_group_ids || []);
         document.getElementById('user-is-active').checked = user.is_active !== false;
         document.getElementById('remove-user-photo').value = 'false';
         document.getElementById('user-photo').value = '';
@@ -305,6 +353,10 @@ async function saveUser(event) {
     const isActive = document.getElementById('user-is-active').checked;
     const photo = document.getElementById('user-photo').files[0];
     const removePhoto = document.getElementById('remove-user-photo').value === 'true';
+    const trainerGroupSelect = document.getElementById('user-trainer-groups');
+    const trainerGroupIds = trainerGroupSelect
+        ? Array.from(trainerGroupSelect.selectedOptions).map(option => option.value)
+        : [];
 
     if (!username) {
         alert('Введите логин сотрудника');
@@ -326,6 +378,7 @@ async function saveUser(event) {
         data.append('fixed_salary', salaryType === 'fixed' ? (fixedSalary || '') : '');
         data.append('is_active', isActive ? 'true' : 'false');
         data.append('remove_photo', removePhoto ? 'true' : 'false');
+        trainerGroupIds.forEach(groupId => data.append('trainer_group_ids', groupId));
 
         if (password) {
             data.append('password', password);
@@ -612,6 +665,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Загрузить данные
     loadUsers();
     loadRoles();
+    loadGroupsForUsers();
 
     // Обработчики событий для вкладок
     document.querySelectorAll('.users-tab').forEach(tab => {
@@ -644,7 +698,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const userRoleSelect = document.getElementById('user-role-id');
     if (userRoleSelect) {
-        userRoleSelect.addEventListener('change', syncUserSalaryFields);
+        userRoleSelect.addEventListener('change', () => {
+            syncUserSalaryFields();
+            syncUserTrainerFields();
+        });
     }
 
     const userPhotoInput = document.getElementById('user-photo');

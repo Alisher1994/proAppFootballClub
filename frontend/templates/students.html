@@ -2980,28 +2980,103 @@
         }
 
         .student-group-header {
-            padding: 8px 12px;
-            font-size: 11px;
-            font-weight: 700;
-            text-transform: uppercase;
+            padding: 10px 12px;
+            font-size: 12px;
+            font-weight: 600;
             color: #94a3b8;
             background: #1e293b;
-            border-radius: 6px;
+            border-radius: 8px;
             margin: 0;
-            letter-spacing: 0.5px;
+            letter-spacing: 0;
             position: relative;
             z-index: 1;
             cursor: pointer;
             display: flex;
             justify-content: space-between;
-            align-items: center;
+            align-items: flex-start;
+            gap: 10px;
             user-select: none;
             box-shadow: none;
+        }
+
+        .student-group-summary {
+            display: flex;
+            flex-direction: column;
+            gap: 7px;
+            min-width: 0;
+            flex: 1;
+        }
+
+        .student-group-title-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            min-width: 0;
+        }
+
+        .student-group-title {
+            color: #0f172a;
+            font-size: 13px;
+            line-height: 1.2;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .student-group-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px 10px;
+            color: #64748b;
+            font-size: 11px;
+            font-weight: 400;
+            line-height: 1.2;
+        }
+
+        .student-group-meta-item,
+        .student-group-teachers {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            min-width: 0;
+        }
+
+        .student-group-meta svg {
+            width: 12px;
+            height: 12px;
+            flex: 0 0 12px;
+        }
+
+        .student-group-teacher-avatars {
+            display: inline-flex;
+            align-items: center;
+        }
+
+        .student-group-teacher-avatar {
+            width: 22px;
+            height: 22px;
+            border-radius: 999px;
+            object-fit: cover;
+            background: #e2e8f0;
+            color: #475569;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 9px;
+            font-weight: 700;
+            border: 2px solid #fff;
+            margin-left: -6px;
+        }
+
+        .student-group-teacher-avatar:first-child {
+            margin-left: 0;
         }
 
         .student-group-header .group-chevron {
             transition: transform 0.2s ease;
             font-size: 10px;
+            color: #64748b;
+            padding-top: 2px;
         }
 
         .student-group-section.collapsed .group-chevron {
@@ -4826,6 +4901,51 @@
             }, new Map());
         }
 
+        function buildGroupTeacherAvatars(group) {
+            const people = [...(group.trainers || []), ...(group.assistants || [])].slice(0, 3);
+            if (!people.length) {
+                return '<span class="student-group-teacher-avatar">?</span>';
+            }
+            return people.map(person => {
+                const name = escapeHtml(person.full_name || person.username || 'Тренер');
+                if (person.photo_url) {
+                    return `<img class="student-group-teacher-avatar" src="${escapeHtml(person.photo_url)}" alt="${name}" title="${name}">`;
+                }
+                return `<span class="student-group-teacher-avatar" title="${name}">${escapeHtml(person.initials || 'T')}</span>`;
+            }).join('');
+        }
+
+        function buildGroupHeaderHtml(group) {
+            const active = Number(group.active_student_count || group.student_count || 0);
+            const capacity = group.max_students ? `${active}/${group.max_students}` : `${active}`;
+            const days = group.schedule_days_label || 'Дни не указаны';
+            const teacherNames = [...(group.trainers || []), ...(group.assistants || [])]
+                .map(person => person.full_name || person.username)
+                .filter(Boolean)
+                .join(', ') || 'Тренер не назначен';
+
+            return `
+                <div class="student-group-summary">
+                    <div class="student-group-title-row">
+                        <span class="student-group-title">${escapeHtml(group.name)}</span>
+                    </div>
+                    <div class="student-group-meta">
+                        <span class="student-group-meta-item" title="Ученики">
+                            <i data-lucide="users-round"></i>${escapeHtml(capacity)}
+                        </span>
+                        <span class="student-group-meta-item" title="Дни занятий">
+                            <i data-lucide="calendar-days"></i>${escapeHtml(days)}
+                        </span>
+                        <span class="student-group-teachers" title="${escapeHtml(teacherNames)}">
+                            <i data-lucide="graduation-cap"></i>
+                            <span class="student-group-teacher-avatars">${buildGroupTeacherAvatars(group)}</span>
+                        </span>
+                    </div>
+                </div>
+                <span class="group-chevron">▼</span>
+            `;
+        }
+
         function renderStudentGroups(groups) {
             const listContent = document.getElementById('studentListContent');
             if (!listContent) return;
@@ -4838,12 +4958,14 @@
             listContent.innerHTML = groups.map(group => `
                 <div class="student-group-section collapsed" data-group-id="${escapeHtml(group.id)}" data-group-name="${escapeHtml(group.name)}">
                     <div class="student-group-header" onclick="toggleGroup(this.parentElement)">
-                        <span>${escapeHtml(group.name)}</span>
-                        <span class="group-chevron">▼</span>
+                        ${buildGroupHeaderHtml(group)}
                     </div>
                     <div class="student-group-items"></div>
                 </div>
             `).join('');
+            if (window.lucide) {
+                lucide.createIcons();
+            }
         }
 
         async function loadStudentGroupsSidebar() {

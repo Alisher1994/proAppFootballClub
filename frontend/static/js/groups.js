@@ -9,6 +9,7 @@ let clubSettings = {
     max_groups_per_slot: 4
 };
 let allGroups = [];
+let allTrainers = [];
 
 // Для блоков стадиона
 let selectedFieldBlocks = [];
@@ -50,6 +51,43 @@ function formatGroupScheduleTime(scheduleTime) {
 function describeDays(days) {
     if (!days || days.length === 0) return '-';
     return days.map(day => DAY_LABELS[day] || day).join(', ');
+}
+
+function getMultiSelectValues(id) {
+    const select = document.getElementById(id);
+    if (!select) return [];
+    return Array.from(select.selectedOptions).map(option => parseInt(option.value)).filter(Boolean);
+}
+
+function renderTrainerSelect(id, selectedIds = []) {
+    const select = document.getElementById(id);
+    if (!select) return;
+    const selectedSet = new Set((selectedIds || []).map(value => String(value)));
+    select.innerHTML = allTrainers.map(trainer => `
+        <option value="${trainer.id}" ${selectedSet.has(String(trainer.id)) ? 'selected' : ''}>
+            ${escapeHtml(trainer.full_name || trainer.username)}
+        </option>
+    `).join('');
+}
+
+function refreshTrainerSelects(group = null) {
+    renderTrainerSelect('groupTrainerIds', group?.trainer_ids || []);
+    renderTrainerSelect('groupAssistantIds', group?.assistant_ids || []);
+    renderTrainerSelect('editGroupTrainerIds', group?.trainer_ids || []);
+    renderTrainerSelect('editGroupAssistantIds', group?.assistant_ids || []);
+}
+
+async function loadTrainers() {
+    try {
+        const response = await fetch('/api/trainers');
+        if (!response.ok) throw new Error('Ошибка загрузки тренеров');
+        allTrainers = await response.json();
+        refreshTrainerSelects();
+    } catch (error) {
+        console.error('Ошибка загрузки тренеров:', error);
+        allTrainers = [];
+        refreshTrainerSelects();
+    }
 }
 
 function setWeekdaySelection(target, days) {
@@ -299,7 +337,7 @@ async function loadGroups() {
         const tbody = document.getElementById('groupsTableBody');
         
         if (!groups.length) {
-            tbody.innerHTML = '<tr><td colspan="7">Нет групп</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="8">Нет групп</td></tr>';
             return;
         }
         
@@ -312,12 +350,17 @@ async function loadGroups() {
             }
             
             const formattedTime = formatGroupScheduleTime(group.schedule_time);
+            const trainerNames = [
+                ...(group.trainers || []).map(trainer => trainer.full_name),
+                ...(group.assistants || []).map(trainer => `${trainer.full_name} (пом.)`)
+            ].filter(Boolean).join(', ') || '-';
             
             return `
             <tr>
                 <td><strong>${group.name}</strong></td>
                 <td>${group.schedule_days_label || describeDays(group.schedule_days)}</td>
                 <td>${formattedTime}</td>
+                <td><small style="color:#64748b;">${trainerNames}</small></td>
                 <td>${group.late_threshold}</td>
                 <td>${studentsDisplay}</td>
                 <td>${group.notes || '-'}</td>
@@ -342,6 +385,7 @@ function showAddGroupModal() {
     document.getElementById('scheduleDays').value = '';
     document.getElementById('fieldBlocks').value = '';
     document.getElementById('slotValidationMessage').style.display = 'none';
+    refreshTrainerSelects();
     document.getElementById('addGroupModal').style.display = 'block';
     updateSelectedSlotsDisplay();
     renderScheduleVisualization();
@@ -390,6 +434,8 @@ document.getElementById('addGroupForm').addEventListener('submit', async (e) => 
         schedule_time: document.getElementById('scheduleTime').value,
         late_threshold: document.getElementById('lateThreshold').value,
         max_students: document.getElementById('maxStudents').value || null,
+        trainer_ids: getMultiSelectValues('groupTrainerIds'),
+        assistant_ids: getMultiSelectValues('groupAssistantIds'),
         notes: document.getElementById('notes').value,
         schedule_days: JSON.parse(document.getElementById('scheduleDays').value)
     };
@@ -614,6 +660,7 @@ async function editGroup(groupId) {
         document.getElementById('editLateThreshold').value = group.late_threshold;
         document.getElementById('editMaxStudents').value = group.max_students || '';
         document.getElementById('editNotes').value = group.notes || '';
+        refreshTrainerSelects(group);
         
         // Загружаем выбранные слоты
         editSelectedSlots = [];
@@ -709,6 +756,8 @@ document.getElementById('editGroupForm').addEventListener('submit', async (e) =>
         schedule_time: scheduleTimeValue,
         late_threshold: document.getElementById('editLateThreshold').value,
         max_students: document.getElementById('editMaxStudents').value || null,
+        trainer_ids: getMultiSelectValues('editGroupTrainerIds'),
+        assistant_ids: getMultiSelectValues('editGroupAssistantIds'),
         notes: document.getElementById('editNotes').value,
         schedule_days: JSON.parse(scheduleDaysValue)
     };
@@ -1154,4 +1203,4 @@ async function sendGroupNotification(groupId, groupName) {
     }
 }
 
-loadClubSettings().then(loadGroups);
+Promise.all([loadClubSettings(), loadTrainers()]).then(loadGroups);
