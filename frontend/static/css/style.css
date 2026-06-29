@@ -6873,9 +6873,7 @@ small,
 .video-card,
 .cash-card,
 .expense-card,
-.tariff-card,
-[class*="panel"],
-[class*="card"] {
+.tariff-card {
     background: var(--theme-card-bg) !important;
     border: 1px solid var(--theme-border) !important;
     border-radius: var(--ui-radius) !important;
@@ -6900,8 +6898,7 @@ small,
 .modal,
 .modal-overlay,
 .filter-modal-overlay,
-[id$="Modal"],
-[class*="overlay"] {
+[id$="Modal"] {
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
 }
@@ -6998,7 +6995,7 @@ button[aria-label="Закрыть"] {
     transform: none !important;
 }
 
-input,
+input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]),
 select,
 textarea,
 .form-input,
@@ -7035,7 +7032,7 @@ textarea::placeholder {
     color: var(--theme-text-tertiary) !important;
 }
 
-input:focus,
+input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]):focus,
 select:focus,
 textarea:focus,
 .form-input-modern:focus,
@@ -7557,4 +7554,143 @@ tbody#groupsTableBody td span {
 #ratingContent > div,
 #recognitionResult {
     color: #6f7785 !important;
+}
+
+/* Repair over-broad cleanup: native controls and nested headers stay compact. */
+input[type="checkbox"],
+input[type="radio"] {
+    appearance: auto !important;
+    -webkit-appearance: auto !important;
+    width: 16px !important;
+    height: 16px !important;
+    min-width: 16px !important;
+    min-height: 16px !important;
+    max-width: 16px !important;
+    max-height: 16px !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border-radius: 3px !important;
+    background: initial !important;
+    color: initial !important;
+    box-shadow: none !important;
+    accent-color: #c94f00 !important;
+    flex: 0 0 auto !important;
+}
+
+.settings-card-header,
+.settings-section-header,
+.card-header,
+.panel-header,
+.section-header,
+.form-section-header {
+    background: transparent !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+}
+
+.settings-section,
+.form-section,
+.settings-card,
+.card,
+.workspace-card,
+.dashboard-card {
+    border-radius: 10px !important;
+}
+
+.settings-card-title,
+.settings-section-title,
+.card-title,
+.panel-title,
+.section-title,
+.workspace-card h3 {
+    font-size: 15px !important;
+    line-height: 1.35 !important;
+    font-weight: 600 !important;
+    color: #17191f !important;
+}
+
+.settings-card-subtitle,
+.settings-section-subtitle,
+.card-subtitle,
+.section-subtitle,
+.modal-subtitle,
+.description {
+    font-size: 13px !important;
+    line-height: 1.4 !important;
+    color: #5f6673 !important;
+}
+
+.settings-card-icon,
+.settings-section-icon,
+.card-icon,
+.section-icon {
+    width: 36px !important;
+    height: 36px !important;
+    min-width: 36px !important;
+    border: 1px solid var(--theme-border) !important;
+    border-radius: 10px !important;
+    background: #fff !important;
+    color: #17191f !important;
+    box-shadow: none !important;
+}
+
+.tabs,
+.settings-tabs,
+.tournament-tabs,
+.users-tabs,
+.nav-tabs,
+.segmented-control {
+    min-height: 40px !important;
+}
+
+.tabs button,
+.tab,
+.settings-tab,
+.tournament-tabs button,
+.users-tab,
+.nav-tab,
+.tab-button,
+.segmented-control button {
+    min-height: 38px !important;
+    padding: 0 14px !important;
+    border-radius: 8px !important;
+    font-size: 13px !important;
+    line-height: 1 !important;
+    font-weight: 500 !important;
+}
+
+.game-top-bar {
+    height: auto !important;
+    min-height: 56px !important;
+    max-height: none !important;
+}
+
+.game-top-bar .tabs button,
+.game-top-bar .tab,
+.game-top-bar .settings-tab,
+.game-top-bar .nav-tab {
+    height: 40px !important;
+    min-height: 40px !important;
+    max-height: 40px !important;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+}
+
+#main-settings-tab input[type="checkbox"],
+.settings-tab-content input[type="checkbox"],
+.settings-form .checkbox-label input[type="checkbox"],
+.settings-section-content .checkbox-label input[type="checkbox"],
+#settingsForm .checkbox-label input[type="checkbox"] {
+    appearance: auto !important;
+    -webkit-appearance: auto !important;
+    width: 16px !important;
+    height: 16px !important;
+    min-width: 16px !important;
+    min-height: 16px !important;
+    max-width: 16px !important;
+    max-height: 16px !important;
+    padding: 0 !important;
+    border-radius: 3px !important;
+    accent-color: #c94f00 !important;
 }
