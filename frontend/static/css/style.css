@@ -5043,10 +5043,11 @@ body.theme-light .modal-body-scrollable::-webkit-scrollbar-thumb:hover {
 
 .quick-tournament-card {
     display: grid;
-    grid-template-columns: minmax(220px, .7fr) minmax(0, 1.3fr);
-    align-items: center;
-    gap: 16px;
-    min-height: 0;
+    grid-template-columns: minmax(260px, 320px) minmax(0, 1fr);
+    align-items: start;
+    gap: 18px;
+    min-height: 0 !important;
+    padding: 16px;
 }
 
 .quick-tournament-copy h2 {
@@ -5066,7 +5067,7 @@ body.theme-light .modal-body-scrollable::-webkit-scrollbar-thumb:hover {
 
 .quick-tournament-form {
     display: grid;
-    grid-template-columns: minmax(180px, 1.2fr) 130px 170px minmax(150px, 1fr) minmax(150px, 1fr) minmax(150px, 1fr) auto;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
     gap: 8px;
     align-items: center;
 }
@@ -5085,6 +5086,8 @@ body.theme-light .modal-body-scrollable::-webkit-scrollbar-thumb:hover {
 }
 
 .quick-tournament-form .btn-primary {
+    width: 100%;
+    min-width: 180px;
     white-space: nowrap;
 }
 
@@ -5910,8 +5913,7 @@ body.theme-light .modal-body-scrollable::-webkit-scrollbar-thumb:hover {
 }
 
 @media (max-width: 1280px) {
-    .quick-tournament-card,
-    .quick-tournament-form {
+    .quick-tournament-card {
         grid-template-columns: 1fr;
     }
 
