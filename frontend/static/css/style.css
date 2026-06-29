@@ -5340,7 +5340,7 @@ body.theme-light .modal-body-scrollable::-webkit-scrollbar-thumb:hover {
 }
 
 .workspace-grid.visual-row {
-    grid-template-columns: minmax(420px, 1fr) minmax(360px, .9fr);
+    grid-template-columns: minmax(0, 1fr);
 }
 
 .workspace-card {
@@ -5629,7 +5629,7 @@ body.theme-light .modal-body-scrollable::-webkit-scrollbar-thumb:hover {
 }
 
 .pitch-poster {
-    min-height: 560px;
+    min-height: 520px;
     border-radius: 10px;
     overflow: hidden;
     background:
@@ -5641,7 +5641,7 @@ body.theme-light .modal-body-scrollable::-webkit-scrollbar-thumb:hover {
 }
 
 .pitch-empty {
-    min-height: 560px;
+    min-height: 520px;
     display: grid;
     place-items: center;
     color: rgba(255, 255, 255, .68);
@@ -5679,7 +5679,7 @@ body.theme-light .modal-body-scrollable::-webkit-scrollbar-thumb:hover {
 }
 
 .pitch-lines {
-    min-height: 502px;
+    min-height: 462px;
     display: flex;
     flex-direction: column-reverse;
     justify-content: space-around;
@@ -5781,20 +5781,21 @@ body.theme-light .modal-body-scrollable::-webkit-scrollbar-thumb:hover {
 }
 
 .bracket-board {
-    min-height: 560px;
+    min-height: 300px;
     display: grid;
-    grid-template-columns: repeat(4, minmax(150px, 1fr));
-    gap: 10px;
-    overflow: auto;
-    padding-bottom: 6px;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 4px 2px 10px;
 }
 
 .bracket-column {
     display: flex;
     flex-direction: column;
     justify-content: center;
-    gap: 14px;
-    min-width: 150px;
+    gap: 12px;
+    min-width: 0;
 }
 
 .bracket-column h4 {
@@ -5812,6 +5813,7 @@ body.theme-light .modal-body-scrollable::-webkit-scrollbar-thumb:hover {
     grid-template-columns: minmax(0, 1fr) 42px;
     gap: 4px 8px;
     align-items: center;
+    min-height: 58px;
     padding: 9px 10px;
     border: 1px solid var(--theme-border);
     border-radius: 8px;
@@ -5819,6 +5821,10 @@ body.theme-light .modal-body-scrollable::-webkit-scrollbar-thumb:hover {
     color: var(--theme-text-primary);
     cursor: pointer;
     text-align: left;
+}
+
+.bracket-card {
+    margin-top: 12px;
 }
 
 .bracket-match::after {

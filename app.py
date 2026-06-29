@@ -3418,7 +3418,7 @@ def serialize_tournament_lineup(lineup):
         'student_id': lineup.student_id,
         'student_name': student.full_name if student else '-',
         'student_number': student.student_number if student else None,
-        'photo_url': url_for('static', filename=student.photo_path) if student and student.photo_path else None,
+        'photo_url': build_photo_url(student.photo_path) if student and student.photo_path else None,
         'team_side': lineup.team_side,
         'position': lineup.position,
         'shirt_number': lineup.shirt_number,
@@ -3756,7 +3756,7 @@ def tournament_players_api(tournament_id):
             'number': student.student_number,
             'group_id': student.group_id,
             'group_name': student.group.name if student.group else None,
-            'photo_url': url_for('static', filename=student.photo_path) if student.photo_path else None,
+            'photo_url': build_photo_url(student.photo_path) if student.photo_path else None,
         } for student in students]
     })
 
