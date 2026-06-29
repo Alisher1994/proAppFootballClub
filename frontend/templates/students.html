@@ -3023,6 +3023,11 @@
             white-space: nowrap;
         }
 
+        .student-group-teacher-avatars-leading {
+            flex: 0 0 auto;
+            padding-top: 1px;
+        }
+
         .student-group-meta {
             display: flex;
             flex-wrap: wrap;
@@ -3068,6 +3073,12 @@
             margin-left: -6px;
         }
 
+        .student-group-teacher-avatars-leading .student-group-teacher-avatar {
+            width: 28px;
+            height: 28px;
+            font-size: 10px;
+        }
+
         .student-group-teacher-avatar:first-child {
             margin-left: 0;
         }
@@ -3099,6 +3110,172 @@
 
         body.theme-dark .student-group-header {
             box-shadow: none;
+        }
+
+        .native-group-select {
+            display: none !important;
+        }
+
+        .group-picker {
+            position: relative;
+            width: 100%;
+        }
+
+        .group-picker-field {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .group-picker-field svg {
+            position: absolute;
+            right: 14px;
+            width: 16px;
+            height: 16px;
+            color: #64748b;
+            pointer-events: none;
+        }
+
+        .group-picker-input {
+            width: 100%;
+            height: 42px;
+            border: 1px solid #cbd5e1;
+            border-radius: 10px;
+            padding: 0 42px 0 14px;
+            background: #fff;
+            color: #0f172a;
+            font-size: 14px;
+            outline: none;
+        }
+
+        .group-picker-input:focus {
+            border-color: #2563eb;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+        }
+
+        .group-picker-menu {
+            display: none;
+            position: absolute;
+            z-index: 90;
+            top: calc(100% + 6px);
+            left: 0;
+            right: 0;
+            max-height: 320px;
+            overflow-y: auto;
+            padding: 6px;
+            border: 1px solid #dbe3ef;
+            border-radius: 12px;
+            background: #fff;
+            box-shadow: 0 18px 42px rgba(15, 23, 42, 0.16);
+        }
+
+        .group-picker.open .group-picker-menu {
+            display: block;
+        }
+
+        .group-picker-option {
+            width: 100%;
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 9px;
+            border: 0;
+            border-radius: 10px;
+            background: transparent;
+            color: #0f172a;
+            text-align: left;
+            cursor: pointer;
+        }
+
+        .group-picker-option:hover,
+        .group-picker-option.active {
+            background: #eff6ff;
+        }
+
+        .group-picker-avatar {
+            width: 30px;
+            height: 30px;
+            flex: 0 0 30px;
+            border-radius: 8px;
+            object-fit: cover;
+            background: #e2e8f0;
+        }
+
+        .group-picker-avatar.placeholder {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: #64748b;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .group-picker-option-body {
+            display: flex;
+            min-width: 0;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .group-picker-option-title {
+            font-size: 13px;
+            font-weight: 600;
+            line-height: 1.25;
+            color: #0f172a;
+        }
+
+        .group-picker-schedule,
+        .student-group-schedule-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            min-width: 0;
+        }
+
+        .group-schedule-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            max-width: 100%;
+            padding: 2px 6px;
+            border-radius: 999px;
+            background: #eef2ff;
+            color: #1e40af;
+            font-size: 10px;
+            font-weight: 500;
+            line-height: 1.35;
+            white-space: nowrap;
+        }
+
+        .group-schedule-chip strong {
+            font-size: 10px;
+            font-weight: 600;
+        }
+
+        .group-schedule-chip.muted {
+            background: #f1f5f9;
+            color: #64748b;
+        }
+
+        .group-picker-option-sub {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            color: #64748b;
+            font-size: 11px;
+            line-height: 1.2;
+        }
+
+        .group-picker-option-sub svg {
+            width: 12px;
+            height: 12px;
+        }
+
+        .group-picker-empty {
+            padding: 14px;
+            color: #64748b;
+            font-size: 13px;
+            text-align: center;
         }
 
         .student-list-content {
@@ -3989,7 +4166,7 @@
                                 </div>
                                 <div class="form-group">
                                     <label>Группа</label>
-                                    <select name="group_id" id="groupSelect">
+                                    <select name="group_id" id="groupSelect" class="native-group-select">
                                         <option value="">Без группы</option>
                                     </select>
                                 </div>
@@ -4252,7 +4429,7 @@
                                 </div>
                                 <div class="form-group">
                                     <label>Группа</label>
-                                    <select id="edit_groupSelect" name="group_id">
+                                    <select id="edit_groupSelect" name="group_id" class="native-group-select">
                                         <option value="">Без группы</option>
                                     </select>
                                 </div>
@@ -4918,27 +5095,29 @@
         function buildGroupHeaderHtml(group) {
             const active = Number(group.active_student_count || group.student_count || 0);
             const capacity = group.max_students ? `${active}/${group.max_students}` : `${active}`;
-            const days = group.schedule_days_label || 'Дни не указаны';
             const teacherNames = [...(group.trainers || []), ...(group.assistants || [])]
                 .map(person => person.full_name || person.username)
                 .filter(Boolean)
                 .join(', ') || 'Тренер не назначен';
+            const scheduleHtml = typeof buildGroupScheduleChips === 'function'
+                ? buildGroupScheduleChips(group)
+                : `<span class="group-schedule-chip muted">${escapeHtml(group.schedule_days_label || 'Расписание не указано')}</span>`;
 
             return `
+                <span class="student-group-teacher-avatars student-group-teacher-avatars-leading" title="${escapeHtml(teacherNames)}">
+                    ${buildGroupTeacherAvatars(group)}
+                </span>
                 <div class="student-group-summary">
                     <div class="student-group-title-row">
                         <span class="student-group-title">${escapeHtml(group.name)}</span>
                     </div>
                     <div class="student-group-meta">
                         <span class="student-group-meta-item" title="Ученики">
-                            <i data-lucide="users-round"></i>${escapeHtml(capacity)}
+                            <i data-lucide="users"></i>${escapeHtml(capacity)}
                         </span>
-                        <span class="student-group-meta-item" title="Дни занятий">
-                            <i data-lucide="calendar-days"></i>${escapeHtml(days)}
-                        </span>
-                        <span class="student-group-teachers" title="${escapeHtml(teacherNames)}">
-                            <i data-lucide="graduation-cap"></i>
-                            <span class="student-group-teacher-avatars">${buildGroupTeacherAvatars(group)}</span>
+                        <span class="student-group-meta-item" title="Расписание">
+                            <i data-lucide="calendar-clock"></i>
+                            <span class="student-group-schedule-chips">${scheduleHtml}</span>
                         </span>
                     </div>
                 </div>

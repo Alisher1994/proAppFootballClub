@@ -114,6 +114,176 @@ function formatScheduleTimeLabel(scheduleTime) {
     return scheduleTime;
 }
 
+function getGroupScheduleEntries(group) {
+    const days = Array.isArray(group?.schedule_days) ? group.schedule_days : [];
+    const fallbackTime = group?.schedule_time || '--:--';
+    let timeMap = null;
+
+    if (typeof fallbackTime === 'string' && fallbackTime.trim().startsWith('{')) {
+        try {
+            timeMap = JSON.parse(fallbackTime);
+        } catch {
+            timeMap = null;
+        }
+    }
+
+    if (days.length) {
+        return days.map(day => ({
+            day: DAY_LABELS[day] || day,
+            time: timeMap ? (timeMap[String(day)] || Object.values(timeMap)[0] || '--:--') : fallbackTime
+        }));
+    }
+
+    if (timeMap) {
+        return Object.entries(timeMap).map(([day, time]) => ({
+            day: DAY_LABELS[day] || day,
+            time
+        }));
+    }
+
+    return fallbackTime && fallbackTime !== '--:--'
+        ? [{ day: 'Время', time: fallbackTime }]
+        : [];
+}
+
+function buildGroupScheduleChips(group) {
+    const entries = getGroupScheduleEntries(group);
+    if (!entries.length) {
+        return '<span class="group-schedule-chip muted">Расписание не указано</span>';
+    }
+    return entries.map(entry => `
+        <span class="group-schedule-chip">
+            <span>${escapeHtml(entry.day)}</span>
+            <strong>${escapeHtml(entry.time)}</strong>
+        </span>
+    `).join('');
+}
+
+function buildGroupTeacherAvatar(group) {
+    const teacher = [...(group?.trainers || []), ...(group?.assistants || [])][0];
+    if (!teacher) {
+        return '<span class="group-picker-avatar placeholder">?</span>';
+    }
+    const name = escapeHtml(teacher.full_name || teacher.username || 'Тренер');
+    if (teacher.photo_url) {
+        return `<img class="group-picker-avatar" src="${escapeHtml(teacher.photo_url)}" alt="${name}" title="${name}">`;
+    }
+    return `<span class="group-picker-avatar placeholder" title="${name}">${escapeHtml(teacher.initials || 'T')}</span>`;
+}
+
+function buildGroupSearchText(group) {
+    const teachers = [...(group?.trainers || []), ...(group?.assistants || [])]
+        .map(person => `${person.full_name || ''} ${person.username || ''}`)
+        .join(' ');
+    const schedule = getGroupScheduleEntries(group).map(entry => `${entry.day} ${entry.time}`).join(' ');
+    return normalizeStudentSearch(`${group?.name || ''} ${teachers} ${schedule}`);
+}
+
+function syncGroupPickerValue(selectId) {
+    const select = document.getElementById(selectId);
+    const picker = document.querySelector(`.group-picker[data-select-id="${selectId}"]`);
+    if (!select || !picker) return;
+    const input = picker.querySelector('.group-picker-input');
+    const selectedOption = select.options[select.selectedIndex];
+    if (input) {
+        input.value = selectedOption ? selectedOption.dataset.name || selectedOption.textContent.trim() : 'Без группы';
+    }
+}
+
+function initGroupPicker(selectId, groups) {
+    const select = document.getElementById(selectId);
+    if (!select) return;
+
+    select.classList.add('native-group-select');
+    let picker = document.querySelector(`.group-picker[data-select-id="${selectId}"]`);
+    if (!picker) {
+        picker = document.createElement('div');
+        picker.className = 'group-picker';
+        picker.dataset.selectId = selectId;
+        picker.innerHTML = `
+            <div class="group-picker-field">
+                <input type="text" class="group-picker-input" placeholder="Поиск группы...">
+                <i data-lucide="search"></i>
+            </div>
+            <div class="group-picker-menu"></div>
+        `;
+        select.insertAdjacentElement('afterend', picker);
+    }
+
+    const input = picker.querySelector('.group-picker-input');
+    const menu = picker.querySelector('.group-picker-menu');
+
+    function renderOptions(query = '') {
+        const normalizedQuery = normalizeStudentSearch(query);
+        const visibleGroups = groups.filter(group => !normalizedQuery || buildGroupSearchText(group).includes(normalizedQuery));
+        const noGroupActive = !select.value;
+        menu.innerHTML = `
+            <button type="button" class="group-picker-option ${noGroupActive ? 'active' : ''}" data-value="">
+                <span class="group-picker-avatar placeholder">-</span>
+                <span class="group-picker-option-body">
+                    <span class="group-picker-option-title">Без группы</span>
+                    <span class="group-picker-option-sub">Ученик пока не закреплен</span>
+                </span>
+            </button>
+            ${visibleGroups.map(group => {
+                const count = `${group.active_student_count || 0}/${group.max_students || '∞'}`;
+                const active = String(select.value || '') === String(group.id);
+                return `
+                    <button type="button" class="group-picker-option ${active ? 'active' : ''}" data-value="${group.id}">
+                        ${buildGroupTeacherAvatar(group)}
+                        <span class="group-picker-option-body">
+                            <span class="group-picker-option-title">${escapeHtml(group.name)}</span>
+                            <span class="group-picker-schedule">${buildGroupScheduleChips(group)}</span>
+                            <span class="group-picker-option-sub"><i data-lucide="users"></i>${escapeHtml(count)}</span>
+                        </span>
+                    </button>
+                `;
+            }).join('') || '<div class="group-picker-empty">Группа не найдена</div>'}
+        `;
+        menu.querySelectorAll('.group-picker-option').forEach(option => {
+            option.addEventListener('mousedown', event => {
+                event.preventDefault();
+                select.value = option.dataset.value || '';
+                select.dispatchEvent(new Event('change', { bubbles: true }));
+                syncGroupPickerValue(selectId);
+                picker.classList.remove('open');
+                renderOptions('');
+            });
+        });
+        if (window.lucide) lucide.createIcons();
+    }
+
+    input.onfocus = () => {
+        picker.classList.add('open');
+        input.select();
+        renderOptions(input.value);
+    };
+    input.onclick = () => {
+        picker.classList.add('open');
+        renderOptions(input.value);
+    };
+    input.oninput = () => {
+        picker.classList.add('open');
+        renderOptions(input.value);
+    };
+    if (!select.dataset.groupPickerBound) {
+        select.addEventListener('change', () => syncGroupPickerValue(selectId));
+        select.dataset.groupPickerBound = 'true';
+    }
+
+    if (!picker.dataset.outsideBound) {
+        document.addEventListener('click', event => {
+            if (!picker.contains(event.target)) {
+                picker.classList.remove('open');
+                syncGroupPickerValue(selectId);
+            }
+        });
+        picker.dataset.outsideBound = 'true';
+    }
+    renderOptions('');
+    syncGroupPickerValue(selectId);
+}
+
 // Загрузка списков при открытии формы
 async function loadFormData() {
     // Загрузить города
@@ -139,8 +309,9 @@ async function loadFormData() {
                 const currentCount = g.active_student_count || 0;
                 const maxCount = g.max_students || '∞';
                 const timeStr = formatScheduleTimeLabel(g.schedule_time);
-                return `<option value="${g.id}">${g.name} - ${timeStr} - ${currentCount}/${maxCount}</option>`;
+                return `<option value="${g.id}" data-name="${escapeHtml(g.name)}">${escapeHtml(g.name)} - ${escapeHtml(timeStr)} - ${currentCount}/${maxCount}</option>`;
             }).join('');
+        initGroupPicker('groupSelect', groups);
     } catch (error) {
         console.error('Ошибка загрузки групп:', error);
     }
@@ -206,8 +377,9 @@ async function loadEditFormData() {
                 const currentCount = g.active_student_count || 0;
                 const maxCount = g.max_students || '∞';
                 const timeStr = formatScheduleTimeLabel(g.schedule_time);
-                return `<option value="${g.id}">${g.name} - ${timeStr} - ${currentCount}/${maxCount}</option>`;
+                return `<option value="${g.id}" data-name="${escapeHtml(g.name)}">${escapeHtml(g.name)} - ${escapeHtml(timeStr)} - ${currentCount}/${maxCount}</option>`;
             }).join('');
+        initGroupPicker('edit_groupSelect', groups);
     } catch (error) {
         console.error('Ошибка загрузки групп:', error);
     }
@@ -1135,6 +1307,7 @@ document.addEventListener('click', async (e) => {
         if (student.group_id) {
             document.getElementById('edit_groupSelect').value = student.group_id;
         }
+        syncGroupPickerValue('edit_groupSelect');
 
         // Установить тариф
         if (student.tariff_id) {
