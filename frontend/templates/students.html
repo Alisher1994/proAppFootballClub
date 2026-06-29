@@ -2980,7 +2980,8 @@
         }
 
         .student-group-header {
-            padding: 10px 12px;
+            min-height: 74px;
+            padding: 9px 10px;
             font-size: 12px;
             font-weight: 600;
             color: #94a3b8;
@@ -2994,7 +2995,7 @@
             display: flex;
             justify-content: space-between;
             align-items: flex-start;
-            gap: 10px;
+            gap: 8px;
             user-select: none;
             box-shadow: none;
         }
@@ -3002,7 +3003,7 @@
         .student-group-summary {
             display: flex;
             flex-direction: column;
-            gap: 7px;
+            gap: 6px;
             min-width: 0;
             flex: 1;
         }
@@ -3029,13 +3030,17 @@
         }
 
         .student-group-meta {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px 10px;
+            display: grid;
+            grid-template-rows: auto 1fr;
+            gap: 4px;
             color: #64748b;
-            font-size: 11px;
+            font-size: 10px;
             font-weight: 400;
             line-height: 1.2;
+        }
+
+        .student-group-count {
+            height: 14px;
         }
 
         .student-group-meta-item,
@@ -3074,8 +3079,8 @@
         }
 
         .student-group-teacher-avatars-leading .student-group-teacher-avatar {
-            width: 28px;
-            height: 28px;
+            width: 26px;
+            height: 26px;
             font-size: 10px;
         }
 
@@ -3226,29 +3231,34 @@
 
         .group-picker-schedule,
         .student-group-schedule-chips {
-            display: flex;
-            flex-wrap: wrap;
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, max-content));
             gap: 4px;
             min-width: 0;
+        }
+
+        .student-group-schedule-chips {
+            min-height: 32px;
+            align-content: start;
         }
 
         .group-schedule-chip {
             display: inline-flex;
             align-items: center;
-            gap: 4px;
+            gap: 3px;
             max-width: 100%;
-            padding: 2px 6px;
+            padding: 1px 5px;
             border-radius: 999px;
             background: #eef2ff;
             color: #1e40af;
-            font-size: 10px;
+            font-size: 9px;
             font-weight: 500;
             line-height: 1.35;
             white-space: nowrap;
         }
 
         .group-schedule-chip strong {
-            font-size: 10px;
+            font-size: 9px;
             font-weight: 600;
         }
 
@@ -5112,7 +5122,7 @@
                         <span class="student-group-title">${escapeHtml(group.name)}</span>
                     </div>
                     <div class="student-group-meta">
-                        <span class="student-group-meta-item" title="Ученики">
+                        <span class="student-group-meta-item student-group-count" title="Ученики">
                             <i data-lucide="users"></i>${escapeHtml(capacity)}
                         </span>
                         <span class="student-group-meta-item" title="Расписание">
