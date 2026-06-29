@@ -83,10 +83,12 @@ function renderUsersTable() {
 
     tbody.innerHTML = allUsers.map(user => {
         const statusBadge = user.is_active
-            ? '<span style="color: #27ae60; font-weight: 600;">✓ Активен</span>'
-            : '<span style="color: #e74c3c; font-weight: 600;">✗ Неактивен</span>';
+            ? '<span class="user-status-badge active">Активен</span>'
+            : '<span class="user-status-badge inactive">Неактивен</span>';
 
         const createdDate = user.created_at ? new Date(user.created_at).toLocaleDateString('ru-RU') : '-';
+        const displayName = user.full_name || user.username;
+        const roleName = user.role_name || user.role || '-';
         const isGuest = (user.role_name || user.role || '') === 'Гость';
         const salaryLabel = isGuest
             ? 'Не используется'
@@ -94,19 +96,49 @@ function renderUsersTable() {
             ? 'Плавающая'
             : (user.fixed_salary ? Number(user.fixed_salary).toLocaleString('ru-RU') + ' сум' : 'Фиксированная');
         const photoCell = user.photo_url
-            ? `<img src="${escapeHtml(user.photo_url)}" alt="${escapeHtml(user.full_name || user.username)}" style="width:42px;height:42px;object-fit:cover;border-radius:8px;border:1px solid var(--theme-border);">`
+            ? `<img src="${escapeHtml(user.photo_url)}" alt="${escapeHtml(displayName)}" style="width:42px;height:42px;object-fit:cover;border-radius:8px;border:1px solid var(--theme-border);">`
             : '<span style="color:#94a3b8;font-size:12px;">Нет фото</span>';
+        const mobilePhoto = user.photo_url
+            ? `<img class="mobile-staff-photo" src="${escapeHtml(user.photo_url)}" alt="${escapeHtml(displayName)}">`
+            : `<span class="mobile-staff-photo mobile-staff-photo-placeholder">${escapeHtml((displayName || 'С').trim().charAt(0).toUpperCase())}</span>`;
 
         return `
             <tr>
-                <td data-label="Фото">${photoCell}</td>
-                <td data-label="Логин">${escapeHtml(user.username)}</td>
-                <td data-label="Полное имя">${escapeHtml(user.full_name || '-')}</td>
-                <td data-label="Роль">${escapeHtml(user.role_name || user.role || '-')}</td>
-                <td data-label="Зарплата">${escapeHtml(salaryLabel)}</td>
-                <td data-label="Статус">${statusBadge}</td>
-                <td data-label="Дата создания">${createdDate}</td>
-                <td data-label="Действия">
+                <td class="mobile-staff-card-cell" colspan="8">
+                    <div class="mobile-staff-card">
+                        <div class="mobile-staff-main">
+                            ${mobilePhoto}
+                            <div class="mobile-staff-info">
+                                <div class="mobile-staff-name">${escapeHtml(displayName)}</div>
+                                <div class="mobile-staff-role">${escapeHtml(roleName)}</div>
+                            </div>
+                        </div>
+                        <div class="mobile-staff-side">
+                            ${statusBadge}
+                            <div class="mobile-staff-actions">
+                                <button type="button" class="mobile-staff-more user-actions-toggle" aria-label="Действия сотрудника">
+                                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                                        <circle cx="12" cy="5" r="1.8"></circle>
+                                        <circle cx="12" cy="12" r="1.8"></circle>
+                                        <circle cx="12" cy="19" r="1.8"></circle>
+                                    </svg>
+                                </button>
+                                <div class="mobile-staff-menu">
+                                    <button type="button" class="edit-user-btn" data-user-id="${user.id}">${editIcon}<span>Редактировать</span></button>
+                                    <button type="button" class="delete-user-btn danger" data-user-id="${user.id}">${trashIcon}<span>Удалить</span></button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </td>
+                <td class="desktop-user-cell" data-label="Фото">${photoCell}</td>
+                <td class="desktop-user-cell" data-label="Логин">${escapeHtml(user.username)}</td>
+                <td class="desktop-user-cell" data-label="Полное имя">${escapeHtml(displayName)}</td>
+                <td class="desktop-user-cell" data-label="Роль">${escapeHtml(roleName)}</td>
+                <td class="desktop-user-cell" data-label="Зарплата">${escapeHtml(salaryLabel)}</td>
+                <td class="desktop-user-cell" data-label="Статус">${statusBadge}</td>
+                <td class="desktop-user-cell" data-label="Дата создания">${createdDate}</td>
+                <td class="desktop-user-cell" data-label="Действия">
                     <button class="btn-info edit-user-btn" data-user-id="${user.id}" style="margin-right: 8px;" title="Изменить">${editIcon}</button>
                     <button class="btn-danger delete-user-btn" data-user-id="${user.id}" title="Удалить">${trashIcon}</button>
                 </td>
@@ -115,9 +147,21 @@ function renderUsersTable() {
     }).join('');
 
     // Добавить обработчики событий
+    document.querySelectorAll('.user-actions-toggle').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const menu = e.target.closest('.mobile-staff-actions')?.querySelector('.mobile-staff-menu');
+            document.querySelectorAll('.mobile-staff-menu.open').forEach(openMenu => {
+                if (openMenu !== menu) openMenu.classList.remove('open');
+            });
+            if (menu) menu.classList.toggle('open');
+        });
+    });
+
     document.querySelectorAll('.edit-user-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
             const userId = parseInt(e.target.closest('.edit-user-btn').dataset.userId);
+            document.querySelectorAll('.mobile-staff-menu.open').forEach(menu => menu.classList.remove('open'));
             editUser(userId);
         });
     });
@@ -125,6 +169,7 @@ function renderUsersTable() {
     document.querySelectorAll('.delete-user-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
             const userId = parseInt(e.target.closest('.delete-user-btn').dataset.userId);
+            document.querySelectorAll('.mobile-staff-menu.open').forEach(menu => menu.classList.remove('open'));
             deleteUser(userId);
         });
     });
@@ -770,5 +815,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
         }
+    });
+
+    document.addEventListener('click', () => {
+        document.querySelectorAll('.mobile-staff-menu.open').forEach(menu => menu.classList.remove('open'));
     });
 });
