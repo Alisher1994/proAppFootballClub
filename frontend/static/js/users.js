@@ -358,6 +358,7 @@ function openAddUserModal() {
         syncUserTrainerFields([]);
 
         modal.style.display = 'flex';
+        document.body.classList.add('user-modal-open');
     }
 }
 
@@ -397,6 +398,7 @@ async function editUser(userId) {
         document.getElementById('user-password').value = '';
 
         modal.style.display = 'flex';
+        document.body.classList.add('user-modal-open');
     }
 }
 
@@ -405,6 +407,7 @@ function closeUserModal() {
     const modal = document.getElementById('userModal');
     if (modal) {
         modal.style.display = 'none';
+        document.body.classList.remove('user-modal-open');
         const form = document.getElementById('userForm');
         if (form) {
             form.reset();
@@ -753,6 +756,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const addUserBtn = document.getElementById('addUserBtn');
     if (addUserBtn) {
         addUserBtn.addEventListener('click', openAddUserModal);
+    }
+
+    const mobileAddUserFab = document.getElementById('mobileAddUserFab');
+    if (mobileAddUserFab) {
+        mobileAddUserFab.addEventListener('click', openAddUserModal);
     }
 
     const addRoleBtn = document.getElementById('addRoleBtn');

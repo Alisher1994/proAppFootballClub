@@ -868,6 +868,10 @@
             font-weight: 700;
         }
 
+        .users-page .mobile-add-user-fab {
+            display: none;
+        }
+
         @media (max-width: 900px) {
             .users-page #permissions-grid {
                 grid-template-columns: 1fr;
@@ -932,11 +936,50 @@
                 margin-bottom: 12px !important;
             }
 
-            .users-page #addUserBtn,
+            .users-page #users-tab>div:first-child {
+                display: none !important;
+            }
+
             .users-page #addRoleBtn {
                 width: 100%;
                 justify-content: center;
                 min-height: 44px;
+            }
+
+            .users-page .mobile-add-user-fab {
+                position: fixed;
+                right: 18px;
+                bottom: 90px;
+                z-index: 2100;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                width: 58px;
+                height: 58px;
+                border: 0;
+                border-radius: 50%;
+                background: #2563eb;
+                color: #fff;
+                box-shadow: 0 16px 34px rgba(37, 99, 235, 0.35);
+                cursor: pointer;
+            }
+
+            .users-page .mobile-add-user-fab svg {
+                width: 26px;
+                height: 26px;
+                stroke: currentColor;
+                stroke-width: 2.4;
+                stroke-linecap: round;
+                stroke-linejoin: round;
+            }
+
+            body.user-modal-open .mobile-add-user-fab,
+            body.user-modal-open .mobile-nav {
+                display: none !important;
+            }
+
+            body.user-modal-open {
+                overflow: hidden;
             }
 
             .users-page .data-table,
@@ -1166,17 +1209,23 @@
             .users-page .modal {
                 align-items: flex-end;
                 padding: 0;
+                overflow: hidden;
             }
 
             .users-page #userModal .modal-content,
             .users-page #roleModal .modal-content {
+                display: flex;
+                flex-direction: column;
                 width: 100% !important;
                 max-width: none !important;
+                height: 92dvh;
                 max-height: 92dvh;
                 border-radius: 18px 18px 0 0;
+                overflow: hidden;
             }
 
             .users-page .modal-header-fixed {
+                flex: 0 0 auto;
                 flex-direction: column;
                 align-items: stretch;
                 gap: 12px;
@@ -1199,7 +1248,12 @@
             }
 
             .users-page .modal-body-scrollable {
+                flex: 1 1 auto;
+                min-height: 0;
+                overflow-y: auto !important;
+                -webkit-overflow-scrolling: touch;
                 padding: 16px;
+                padding-bottom: calc(24px + env(safe-area-inset-bottom));
             }
 
             .users-page .file-picker,
@@ -1277,6 +1331,13 @@
                             </tr>
                         </tbody>
                     </table>
+
+                    <button id="mobileAddUserFab" class="mobile-add-user-fab" type="button" aria-label="Добавить сотрудника">
+                        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                            <path d="M12 5v14" />
+                            <path d="M5 12h14" />
+                        </svg>
+                    </button>
                 </div>
 
                 <!-- Вкладка Роли -->
