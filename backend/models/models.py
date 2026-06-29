@@ -57,8 +57,8 @@ class User(UserMixin, db.Model):
             
             if role_result:
                 role_name = role_result[0]
-                # Если роль называется "Администратор", даем все права
-                if role_name == 'Администратор':
+                # Системные администраторы имеют полный доступ.
+                if role_name in {'Администратор', 'Администратор системы', 'Superadministrator'}:
                     return True
                 
                 # Проверяем права роли через прямой SQL запрос

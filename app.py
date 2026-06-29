@@ -1206,29 +1206,75 @@ def ensure_roles_tables():
         
         if 'roles' not in tables or 'role_permissions' not in tables:
             db.create_all()
-            # Создать стандартные роли, если их нет
-            create_default_roles()
+        create_default_roles()
     except Exception as e:
         print(f"Ошибка при проверке таблиц ролей: {e}")
+
+
+ROLE_SECTIONS = ['dashboard', 'students', 'groups', 'tariffs', 'finances', 'attendance', 'camera', 'rewards', 'rating', 'users', 'cash', 'settings']
+STAFF_EXCLUDED_ROLE_NAMES = {'Гость'}
+SYSTEM_ROLE_NAMES = {'Администратор', 'Администратор системы', 'Superadministrator', 'Учитель (тренер)', 'Директор', 'Кассир', 'Бухгалтер', 'Гость'}
+
+
+def upsert_system_role(name, description, editable_sections=None, view_sections=None, full_access=False):
+    role = Role.query.filter_by(name=name).first()
+    if not role:
+        role = Role(name=name, description=description)
+        db.session.add(role)
+        db.session.flush()
+    else:
+        role.description = description
+
+    if full_access:
+        editable_sections = set(ROLE_SECTIONS)
+        view_sections = set(ROLE_SECTIONS)
+    else:
+        editable_sections = set(editable_sections or [])
+        view_sections = set(view_sections or []) | editable_sections
+
+    for section in ROLE_SECTIONS:
+        permission = RolePermission.query.filter_by(role_id=role.id, section=section).first()
+        if not permission:
+            permission = RolePermission(role_id=role.id, section=section)
+            db.session.add(permission)
+        permission.can_view = section in view_sections
+        permission.can_edit = section in editable_sections
+
+    return role
 
 
 def create_default_roles():
     """Создать стандартные роли с правами доступа"""
     try:
-        # Роль "Администратор" - все права
-        admin_role = Role.query.filter_by(name='Администратор').first()
-        if not admin_role:
-            admin_role = Role(name='Администратор', description='Полный доступ ко всем разделам')
-            db.session.add(admin_role)
-            db.session.flush()
-            
-            sections = ['dashboard', 'students', 'groups', 'tariffs', 'finances', 'attendance', 'camera', 'rewards', 'rating', 'users', 'cash']
-            for section in sections:
-                perm = RolePermission(role_id=admin_role.id, section=section, can_view=True, can_edit=True)
-                db.session.add(perm)
-            
-            db.session.commit()
-            print("✓ Создана роль 'Администратор'")
+        upsert_system_role('Администратор', 'Полный доступ ко всем разделам', full_access=True)
+        upsert_system_role('Администратор системы', 'Полный доступ ко всем разделам', full_access=True)
+        upsert_system_role(
+            'Учитель (тренер)',
+            'Тренер: посещаемость и базовая работа с учениками',
+            editable_sections={'attendance'},
+            view_sections={'dashboard', 'students', 'groups', 'attendance', 'rating'}
+        )
+        upsert_system_role(
+            'Директор',
+            'Управление клубом без технических настроек',
+            editable_sections={'dashboard', 'students', 'groups', 'tariffs', 'finances', 'attendance', 'rewards', 'rating', 'users', 'cash'},
+            view_sections={'camera'}
+        )
+        upsert_system_role(
+            'Кассир',
+            'Касса и оплаты без доступа к настройкам',
+            editable_sections={'finances', 'cash'},
+            view_sections={'dashboard', 'students', 'groups'}
+        )
+        upsert_system_role(
+            'Бухгалтер',
+            'Финансы и отчеты без доступа к настройкам',
+            editable_sections={'finances', 'cash'},
+            view_sections={'dashboard', 'students', 'groups', 'tariffs'}
+        )
+        upsert_system_role('Гость', 'Только пропуск через Face ID, без доступа к системе')
+        db.session.commit()
+        print("✓ Проверены системные роли")
     except Exception as e:
         db.session.rollback()
         print(f"Ошибка при создании стандартных ролей: {e}")
@@ -2173,6 +2219,8 @@ def login():
         user = User.query.filter_by(username=username).first()
         
         if user and bcrypt.check_password_hash(user.password_hash, password):
+            if is_guest_role(user):
+                return jsonify({'success': False, 'message': 'Эта роль предназначена только для прохода через Face ID'}), 403
             login_user(user)
             # Перенаправление в зависимости от роли
             if user.role == 'payment_admin':
@@ -3381,6 +3429,21 @@ def format_minutes(minutes):
     return f"{rest} мин"
 
 
+def user_role_name(user):
+    return user.role_obj.name if getattr(user, 'role_obj', None) else user.role
+
+
+def is_guest_role(user):
+    return user_role_name(user) in STAFF_EXCLUDED_ROLE_NAMES
+
+
+def is_guest_role_id(role_id):
+    if not role_id:
+        return False
+    role = db.session.get(Role, int(role_id))
+    return bool(role and role.name in STAFF_EXCLUDED_ROLE_NAMES)
+
+
 @app.route('/api/staff-timesheet', methods=['GET'])
 @login_required
 def staff_timesheet_data():
@@ -3404,7 +3467,10 @@ def staff_timesheet_data():
     start_dt = datetime.combine(start_date, dt_time.min)
     end_dt = datetime.combine(end_date + timedelta(days=1), dt_time.min)
 
-    users = User.query.order_by(User.full_name.asc(), User.username.asc()).all()
+    users = [
+        user for user in User.query.order_by(User.full_name.asc(), User.username.asc()).all()
+        if not is_guest_role(user)
+    ]
     if search:
         users = [
             user for user in users
@@ -3491,7 +3557,7 @@ def staff_timesheet_data():
             'employee_no': staff_employee_no(user.id),
             'full_name': user.full_name or user.username,
             'username': user.username,
-            'role': user.role_obj.name if getattr(user, 'role_obj', None) else user.role,
+            'role': user_role_name(user),
             'photo_url': build_photo_url(user.photo_path),
             'salary_type': getattr(user, 'salary_type', 'fixed') or 'fixed',
             'fixed_salary': float(user.fixed_salary or 0) if getattr(user, 'fixed_salary', None) is not None else None,
@@ -4167,7 +4233,7 @@ def delete_attendance(attendance_id):
 @app.route('/expenses')
 @login_required
 def expenses_page():
-    if current_user.role not in ['admin', 'financier']:
+    if not current_user.has_permission('finances', 'view'):
         return redirect(url_for('dashboard'))
 
     ensure_expense_columns()
@@ -4179,7 +4245,7 @@ def expenses_page():
 @app.route('/api/expenses/add', methods=['POST'])
 @login_required
 def add_expense():
-    if current_user.role not in ['admin', 'financier']:
+    if not current_user.has_permission('finances', 'edit'):
         return jsonify({'success': False, 'message': 'Нет доступа'}), 403
 
     ensure_expense_columns()
@@ -4242,7 +4308,7 @@ def add_expense():
 @app.route('/api/expenses/<int:expense_id>', methods=['PUT'])
 @login_required
 def update_expense(expense_id):
-    if current_user.role not in ['admin', 'financier']:
+    if not current_user.has_permission('finances', 'edit'):
         return jsonify({'success': False, 'message': 'Нет доступа'}), 403
 
     ensure_expense_columns()
@@ -4308,7 +4374,7 @@ def update_expense(expense_id):
 @login_required
 def delete_expense(expense_id):
     """Удалить расход"""
-    if current_user.role not in ['admin', 'financier']:
+    if not current_user.has_permission('finances', 'edit'):
         return jsonify({'success': False, 'message': 'Нет доступа'}), 403
 
     try:
@@ -4345,7 +4411,7 @@ def finances_page():
 @login_required
 def club_settings_page():
     """Страница настроек клуба"""
-    if getattr(current_user, 'role', None) not in ['admin', 'financier']:
+    if not current_user.has_permission('settings', 'view'):
         return redirect(url_for('dashboard'))
     ensure_club_settings_columns()
     return render_template('settings.html')
@@ -5182,7 +5248,7 @@ def get_expense_stats():
 @login_required
 def get_finance_employees():
     """Список сотрудников для выплат зарплаты."""
-    if current_user.role not in ['admin', 'financier']:
+    if not current_user.has_permission('finances', 'view'):
         return jsonify({'success': False, 'message': 'Нет доступа'}), 403
 
     users = User.query.order_by(User.full_name.asc(), User.username.asc()).all()
@@ -5190,11 +5256,11 @@ def get_finance_employees():
         'id': user.id,
         'name': user.full_name or user.username,
         'username': user.username,
-        'role': user.role_obj.name if getattr(user, 'role_obj', None) else user.role,
+        'role': user_role_name(user),
         'salary_type': getattr(user, 'salary_type', 'fixed') or 'fixed',
         'fixed_salary': getattr(user, 'fixed_salary', None),
         'is_active': bool(getattr(user, 'is_active', True))
-    } for user in users if getattr(user, 'is_active', True)]
+    } for user in users if getattr(user, 'is_active', True) and not is_guest_role(user)]
 
     return jsonify({'success': True, 'employees': employees})
 
@@ -5878,7 +5944,7 @@ def delete_tariff(tariff_id):
 @login_required
 def rewards_page():
     """Страница управления вознаграждениями"""
-    if current_user.role != 'admin':
+    if not current_user.has_permission('rewards', 'view'):
         return redirect(url_for('dashboard'))
     return render_template('rewards.html')
 
@@ -5887,7 +5953,7 @@ def rewards_page():
 @login_required
 def get_rewards():
     """Получить список всех типов вознаграждений"""
-    if current_user.role != 'admin':
+    if not current_user.has_permission('rewards', 'view'):
         return jsonify({'error': 'Доступ запрещен'}), 403
     
     rewards = RewardType.query.order_by(RewardType.created_at.desc()).all()
@@ -5905,7 +5971,7 @@ def get_rewards():
 @login_required
 def add_reward():
     """Добавить новый тип вознаграждения"""
-    if current_user.role != 'admin':
+    if not current_user.has_permission('rewards', 'edit'):
         return jsonify({'success': False, 'message': 'Доступ запрещен'}), 403
     
     try:
@@ -5950,7 +6016,7 @@ def add_reward():
 @login_required
 def update_reward(reward_id):
     """Обновить тип вознаграждения"""
-    if current_user.role != 'admin':
+    if not current_user.has_permission('rewards', 'edit'):
         return jsonify({'success': False, 'message': 'Доступ запрещен'}), 403
     
     try:
@@ -5998,7 +6064,7 @@ def update_reward(reward_id):
 @login_required
 def delete_reward(reward_id):
     """Удалить тип вознаграждения"""
-    if current_user.role != 'admin':
+    if not current_user.has_permission('rewards', 'edit'):
         return jsonify({'success': False, 'message': 'Доступ запрещен'}), 403
     
     try:
@@ -6858,6 +6924,8 @@ def create_user():
         role_id = data.get('role_id') or None
         is_active = str(data.get('is_active', 'true')).lower() in ('true', '1', 'on', 'yes')
         salary_type, fixed_salary = parse_user_salary_fields(data)
+        if is_guest_role_id(role_id):
+            salary_type, fixed_salary = 'fixed', None
         
         if not username:
             return jsonify({'success': False, 'message': 'Введите имя пользователя'}), 400
@@ -6929,6 +6997,8 @@ def update_user(user_id):
         is_active = data.get('is_active')
         remove_photo = str(data.get('remove_photo', '')).lower() in ('true', '1', 'on', 'yes')
         salary_type, fixed_salary = parse_user_salary_fields(data)
+        if is_guest_role_id(role_id if role_id is not None else user.role_id):
+            salary_type, fixed_salary = 'fixed', None
         
         if username and username != user.username:
             if User.query.filter_by(username=username).first():
@@ -7039,7 +7109,7 @@ def get_roles():
     if not current_user.has_permission('users', 'view'):
         return jsonify({'error': 'Доступ запрещен'}), 403
     
-    roles = Role.query.all()
+    roles = Role.query.order_by(Role.name.asc()).all()
     roles_list = []
     for role in roles:
         permissions_dict = {}
@@ -7054,7 +7124,8 @@ def get_roles():
             'name': role.name,
             'description': role.description,
             'permissions': permissions_dict,
-            'users_count': len(role.users)
+            'users_count': len(role.users),
+            'is_system': role.name in SYSTEM_ROLE_NAMES
         })
     
     return jsonify(roles_list)
@@ -7086,8 +7157,7 @@ def create_role():
         db.session.flush()  # Получить ID роли
         
         # Добавление прав доступа
-        sections = ['dashboard', 'students', 'groups', 'tariffs', 'finances', 'attendance', 'camera', 'rewards', 'rating', 'users', 'cash']
-        for section in sections:
+        for section in ROLE_SECTIONS:
             perm_data = permissions.get(section, {})
             permission = RolePermission(
                 role_id=role.id,
@@ -7123,7 +7193,7 @@ def update_role(role_id):
         role = db.session.get(Role, role_id)
         if not role:
             return jsonify({'success': False, 'message': 'Роль не найдена'}), 404
-        
+
         data = request.json
         name = data.get('name')
         description = data.get('description')
@@ -7139,8 +7209,7 @@ def update_role(role_id):
         
         # Обновление прав доступа
         if permissions:
-            sections = ['dashboard', 'students', 'groups', 'tariffs', 'finances', 'attendance', 'camera', 'rewards', 'rating', 'users', 'cash']
-            for section in sections:
+            for section in ROLE_SECTIONS:
                 perm_data = permissions.get(section, {})
                 permission = RolePermission.query.filter_by(role_id=role.id, section=section).first()
                 
@@ -7178,6 +7247,9 @@ def delete_role(role_id):
         role = db.session.get(Role, role_id)
         if not role:
             return jsonify({'success': False, 'message': 'Роль не найдена'}), 404
+
+        if role.name in SYSTEM_ROLE_NAMES:
+            return jsonify({'success': False, 'message': 'Системную роль нельзя удалить'}), 400
         
         # Проверка, используется ли роль
         if len(role.users) > 0:

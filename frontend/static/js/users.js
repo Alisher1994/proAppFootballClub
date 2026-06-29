@@ -72,7 +72,10 @@ function renderUsersTable() {
             : '<span style="color: #e74c3c; font-weight: 600;">✗ Неактивен</span>';
 
         const createdDate = user.created_at ? new Date(user.created_at).toLocaleDateString('ru-RU') : '-';
-        const salaryLabel = user.salary_type === 'floating'
+        const isGuest = (user.role_name || user.role || '') === 'Гость';
+        const salaryLabel = isGuest
+            ? 'Не используется'
+            : user.salary_type === 'floating'
             ? 'Плавающая'
             : (user.fixed_salary ? Number(user.fixed_salary).toLocaleString('ru-RU') + ' сум' : 'Фиксированная');
         const photoCell = user.photo_url
@@ -137,7 +140,19 @@ function setUserPhotoFileName(name) {
 function syncUserSalaryFields() {
     const typeSelect = document.getElementById('user-salary-type');
     const salaryInput = document.getElementById('user-fixed-salary');
+    const roleSelect = document.getElementById('user-role-id');
     if (!typeSelect || !salaryInput) return;
+    const selectedRole = roleSelect?.selectedOptions?.[0]?.textContent?.trim() || '';
+    const isGuest = selectedRole === 'Гость';
+    if (isGuest) {
+        typeSelect.value = 'fixed';
+        typeSelect.disabled = true;
+        salaryInput.value = '';
+        salaryInput.disabled = true;
+        salaryInput.placeholder = 'Для гостя не используется';
+        return;
+    }
+    typeSelect.disabled = false;
     const isFixed = typeSelect.value !== 'floating';
     salaryInput.disabled = !isFixed;
     salaryInput.placeholder = isFixed ? 'Сумма' : 'Расчет позже';
@@ -157,14 +172,17 @@ function renderRolesTable() {
     }
 
     tbody.innerHTML = allRoles.map(role => {
+        const deleteButton = role.is_system
+            ? `<button class="btn-danger" disabled title="Системную роль нельзя удалить" style="opacity:.45;cursor:not-allowed;">${trashIcon}</button>`
+            : `<button class="btn-danger delete-role-btn" data-role-id="${role.id}" title="Удалить">${trashIcon}</button>`;
         return `
             <tr>
-                <td><strong>${escapeHtml(role.name)}</strong></td>
+                <td>${escapeHtml(role.name)}</td>
                 <td>${escapeHtml(role.description || '-')}</td>
                 <td>${role.users_count || 0}</td>
                 <td>
                     <button class="btn-info edit-role-btn" data-role-id="${role.id}" style="margin-right: 8px;" title="Изменить">${editIcon}</button>
-                    <button class="btn-danger delete-role-btn" data-role-id="${role.id}" title="Удалить">${trashIcon}</button>
+                    ${deleteButton}
                 </td>
             </tr>
         `;
@@ -622,6 +640,11 @@ document.addEventListener('DOMContentLoaded', () => {
     if (salaryTypeSelect) {
         salaryTypeSelect.addEventListener('change', syncUserSalaryFields);
         syncUserSalaryFields();
+    }
+
+    const userRoleSelect = document.getElementById('user-role-id');
+    if (userRoleSelect) {
+        userRoleSelect.addEventListener('change', syncUserSalaryFields);
     }
 
     const userPhotoInput = document.getElementById('user-photo');
