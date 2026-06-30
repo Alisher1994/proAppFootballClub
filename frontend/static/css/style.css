@@ -6410,12 +6410,24 @@ textarea:focus,
     height: 40px;
     min-height: 40px;
     padding: 0 12px;
-    border: 1px solid rgba(255, 255, 255, .22);
+    border: 1px solid rgba(125, 211, 252, .2);
     border-radius: 8px;
-    background: rgba(255, 255, 255, .94);
-    color: var(--theme-text-primary);
+    background: rgba(11, 31, 58, .82);
+    color: rgba(255, 255, 255, .88);
     font-size: 12px;
     line-height: 40px;
+}
+
+.pitch-title-controls input::placeholder {
+    color: rgba(255, 255, 255, .48);
+}
+
+.pitch-title-controls input:focus,
+.pitch-title-controls select:focus {
+    border-color: rgba(255, 138, 0, .72);
+    background: rgba(13, 37, 70, .94);
+    box-shadow: 0 0 0 2px rgba(255, 138, 0, .12);
+    outline: none;
 }
 
 .pitch-icon-button {
@@ -6741,6 +6753,8 @@ textarea:focus,
     flex: 0 0 14px;
     border: 0 !important;
     border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
     object-fit: contain;
 }
 
