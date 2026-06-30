@@ -8382,6 +8382,48 @@ button.primary svg {
     box-shadow: none !important;
 }
 
+.settings-page .day-toggle-group {
+    gap: 8px !important;
+}
+
+.settings-page .day-toggle,
+.settings-page .day-toggle[type="button"]:not(.btn-danger):not(.delete-btn):not(.remove-btn):not(.logout-btn) {
+    min-height: 38px !important;
+    height: 38px !important;
+    padding: 0 10px !important;
+    border: 1px solid #d8d0c8 !important;
+    border-radius: 8px !important;
+    background: #fff !important;
+    color: #5f6673 !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    line-height: 38px !important;
+    box-shadow: none !important;
+    transform: none !important;
+}
+
+.settings-page .day-toggle:hover,
+.settings-page .day-toggle[type="button"]:not(.btn-danger):not(.delete-btn):not(.remove-btn):not(.logout-btn):hover {
+    border-color: #ff8a00 !important;
+    color: #ff8a00 !important;
+    background: #fff8ef !important;
+}
+
+.settings-page .day-toggle.active,
+.settings-page .day-toggle[type="button"].active:not(.btn-danger):not(.delete-btn):not(.remove-btn):not(.logout-btn) {
+    border-color: #ff8a00 !important;
+    background: #ff8a00 !important;
+    color: #fff !important;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .28) !important;
+}
+
+.settings-page .day-toggle.active:hover,
+.settings-page .day-toggle[type="button"].active:not(.btn-danger):not(.delete-btn):not(.remove-btn):not(.logout-btn):hover {
+    background: #d96f00 !important;
+    border-color: #d96f00 !important;
+    color: #fff !important;
+}
+
 .mobile-more-overlay .mobile-more-menu {
     left: 50% !important;
     width: calc(100% - 24px) !important;

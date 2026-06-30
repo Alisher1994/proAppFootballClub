@@ -141,6 +141,7 @@ function attachWorkingDayToggles() {
         const btn = e.target.closest('.day-toggle');
         if (!btn) return;
         btn.classList.toggle('active');
+        btn.setAttribute('aria-pressed', btn.classList.contains('active') ? 'true' : 'false');
         updateSettingsFormDirtyState(document.getElementById('settingsForm'));
     });
 }
@@ -159,6 +160,7 @@ function setWorkingDays(days) {
         } else {
             btn.classList.remove('active');
         }
+        btn.setAttribute('aria-pressed', btn.classList.contains('active') ? 'true' : 'false');
     });
 }
 
