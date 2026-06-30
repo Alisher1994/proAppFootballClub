@@ -546,7 +546,7 @@ function renderLineup() {
                                 const summary = player ? eventSummary.get(Number(player.student_id)) || {} : {};
                                 const isEventActive = Number(tournamentState.activeEventSlot) === slot.order;
                                 return `
-                                    <div class="lineup-slot ${player ? 'filled' : 'empty'} ${Number(tournamentState.activeLineupSlot) === slot.order || isEventActive ? 'active' : ''}" data-lineup-slot="${slot.order}" role="button" tabindex="0">
+                                    <div class="lineup-slot ${player ? 'filled' : 'empty'} ${slot.rowIndex <= 1 ? 'panel-up' : ''} ${Number(tournamentState.activeLineupSlot) === slot.order || isEventActive ? 'active' : ''}" data-lineup-slot="${slot.order}" role="button" tabindex="0">
                                         ${player ? `
                                             <div class="lineup-avatar-wrap">
                                                 ${player.photo_url ? `<img src="${player.photo_url}" alt="">` : `<span class="pitch-avatar">${escapeHtml((player.student_name || '?').slice(0, 1))}</span>`}
