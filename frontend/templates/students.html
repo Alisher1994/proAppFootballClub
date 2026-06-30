@@ -2728,12 +2728,52 @@
             font-weight: 500;
         }
 
-        /* Force 5 columns in one row for parameters on mobile if needed */
+        .dominant-side-toggle {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+            padding: 4px;
+            min-height: 40px;
+            background: var(--theme-bg-secondary);
+            border: 1px solid var(--theme-border);
+            border-radius: 10px;
+        }
+
+        .dominant-side-toggle input {
+            position: absolute;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .dominant-side-toggle label {
+            display: block;
+            margin: 0;
+        }
+
+        .dominant-side-toggle span {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 30px;
+            border-radius: 8px;
+            color: var(--theme-text-secondary);
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: color .2s ease, background .2s ease;
+        }
+
+        .dominant-side-toggle input:checked + span {
+            background: #ff8a00;
+            color: #fff;
+        }
+
+        /* Force compact columns in one row for parameters on mobile if needed */
         @media (max-width: 768px) {
             .params-mobile-row-container {
                 display: grid !important;
-                grid-template-columns: repeat(5, 1fr) !important;
-                gap: 5px !important;
+                grid-template-columns: repeat(6, 1fr) !important;
+                gap: 4px !important;
                 width: 100% !important;
             }
 
@@ -2749,10 +2789,22 @@
             }
 
             .params-mobile-row-container input,
-            .params-mobile-row-container select {
+            .params-mobile-row-container select,
+            .params-mobile-row-container .dominant-side-toggle {
                 padding: 4px !important;
                 font-size: 11px !important;
                 height: 32px !important;
+            }
+
+            .params-mobile-row-container .dominant-side-toggle {
+                gap: 2px !important;
+                min-height: 32px !important;
+            }
+
+            .params-mobile-row-container .dominant-side-toggle span {
+                min-height: 22px !important;
+                border-radius: 6px !important;
+                font-size: 10px !important;
             }
         }
     </style>
@@ -3995,6 +4047,11 @@
                                 <span class="param-value">{% if student.height %}{{ student.height }} см{% else
                                     %}-{% endif %}</span>
                             </div>
+                            <div class="student-param-item">
+                                <span class="param-icon">⚽</span>
+                                <span class="param-name">Нога:</span>
+                                <span class="param-value">{% if student.dominant_side == 'left' %}Левша{% elif student.dominant_side == 'right' %}Правша{% else %}-{% endif %}</span>
+                            </div>
                             <!-- Размер футболки -->
                             <div class="student-param-item">
                                 <span class="param-icon">👕</span>
@@ -4309,6 +4366,19 @@
                             <div class="form-group">
                                 <label>Вес (кг)</label>
                                 <input type="number" name="weight" min="10" max="200" step="0.1" placeholder="65.5">
+                            </div>
+                            <div class="form-group">
+                                <label>Нога</label>
+                                <div class="dominant-side-toggle" role="radiogroup" aria-label="Ведущая нога">
+                                    <label>
+                                        <input type="radio" name="dominant_side" value="right" checked>
+                                        <span>Правша</span>
+                                    </label>
+                                    <label>
+                                        <input type="radio" name="dominant_side" value="left">
+                                        <span>Левша</span>
+                                    </label>
+                                </div>
                             </div>
                             <div class="form-group">
                                 <label>Футболка</label>
@@ -4634,6 +4704,19 @@
                                 <label>Вес (кг)</label>
                                 <input type="number" id="edit_weight" name="weight" min="10" max="200" step="0.1"
                                     placeholder="65.5">
+                            </div>
+                            <div class="form-group">
+                                <label>Нога</label>
+                                <div class="dominant-side-toggle" role="radiogroup" aria-label="Ведущая нога">
+                                    <label>
+                                        <input type="radio" id="edit_dominant_side_right" name="dominant_side" value="right">
+                                        <span>Правша</span>
+                                    </label>
+                                    <label>
+                                        <input type="radio" id="edit_dominant_side_left" name="dominant_side" value="left">
+                                        <span>Левша</span>
+                                    </label>
+                                </div>
                             </div>
                             <div class="form-group">
                                 <label>Футболка</label>
@@ -5705,6 +5788,7 @@
                                 <div class="student-param-item"><span class="param-icon">🎂</span><span class="param-name">Возраст:</span><span class="param-value">${escapeHtml(age)}</span></div>
                                 <div class="student-param-item"><span class="param-icon">⚖️</span><span class="param-name">Вес:</span><span class="param-value">${student.weight ? `${escapeHtml(student.weight)} кг` : '-'}</span></div>
                                 <div class="student-param-item"><span class="param-icon">📏</span><span class="param-name">Рост:</span><span class="param-value">${student.height ? `${escapeHtml(student.height)} см` : '-'}</span></div>
+                                <div class="student-param-item"><span class="param-icon">⚽</span><span class="param-name">Нога:</span><span class="param-value">${student.dominant_side === 'left' ? 'Левша' : student.dominant_side === 'right' ? 'Правша' : '-'}</span></div>
                                 <div class="student-param-item"><span class="param-icon">👕</span><span class="param-name">Размер футболки:</span><span class="param-value">${escapeHtml(student.jersey_size || '-')}</span></div>
                                 <div class="student-param-item"><span class="param-icon">🩳</span><span class="param-name">Размер шорт:</span><span class="param-value">${escapeHtml(student.shorts_size || '-')}</span></div>
                                 <div class="student-param-item"><span class="param-icon">👟</span><span class="param-name">Размер бутс:</span><span class="param-value">${escapeHtml(student.boots_size || '-')}</span></div>

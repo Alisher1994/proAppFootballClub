@@ -1748,6 +1748,10 @@ def ensure_students_columns():
                 try:
                     conn.execute(db.text("ALTER TABLE students ADD COLUMN weight FLOAT"))
                 except Exception: pass
+            if 'dominant_side' not in student_columns:
+                try:
+                    conn.execute(db.text("ALTER TABLE students ADD COLUMN dominant_side VARCHAR(10)"))
+                except Exception: pass
             if 'jersey_size' not in student_columns:
                 try:
                     conn.execute(db.text("ALTER TABLE students ADD COLUMN jersey_size VARCHAR(20)"))
@@ -2584,6 +2588,7 @@ def portal_me():
             'passport_expiry_date': student.passport_expiry_date.isoformat() if student.passport_expiry_date else None,
             'height': student.height,
             'weight': student.weight,
+            'dominant_side': getattr(student, 'dominant_side', None),
             'jersey_size': student.jersey_size,
             'shorts_size': student.shorts_size,
             'boots_size': student.boots_size,
@@ -2896,6 +2901,7 @@ def add_student():
         # Параметры ученика
         height = request.form.get('height')
         weight = request.form.get('weight')
+        dominant_side = request.form.get('dominant_side') if request.form.get('dominant_side') in {'left', 'right'} else None
         jersey_size = request.form.get('jersey_size')
         shorts_size = request.form.get('shorts_size')
         boots_size = request.form.get('boots_size')
@@ -2937,6 +2943,7 @@ def add_student():
             club_funded=club_funded,
             height=safe_int(height),
             weight=safe_float(weight),
+            dominant_side=dominant_side,
             jersey_size=jersey_size,
             shorts_size=shorts_size,
             boots_size=boots_size,
@@ -3055,6 +3062,7 @@ def get_student(student_id):
         'photo_url': photo_url,
         'height': student.height,
         'weight': student.weight,
+        'dominant_side': getattr(student, 'dominant_side', None),
         'jersey_size': student.jersey_size,
         'shorts_size': student.shorts_size,
         'boots_size': student.boots_size,
@@ -3181,6 +3189,8 @@ def update_student(student_id):
             student.height = safe_int(request.form['height'])
         if 'weight' in request.form:
             student.weight = safe_float(request.form['weight'])
+        if 'dominant_side' in request.form:
+            student.dominant_side = request.form['dominant_side'] if request.form['dominant_side'] in {'left', 'right'} else None
         if 'jersey_size' in request.form:
             student.jersey_size = request.form['jersey_size'] or None
         if 'shorts_size' in request.form:

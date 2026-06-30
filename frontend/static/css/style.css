@@ -7844,10 +7844,16 @@ body.settings-page .card.settings-main-card {
 
 .sidebar-menu a.active,
 .sidebar-menu button.active,
-.mobile-nav-item.active,
 .bottom-nav-item.active {
     color: #17191f !important;
     background: #f2efec !important;
+    font-weight: 600 !important;
+}
+
+.mobile-nav-item.active,
+.mobile-nav-item.active svg {
+    color: #ff8a00 !important;
+    background: transparent !important;
     font-weight: 600 !important;
 }
 

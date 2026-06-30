@@ -466,6 +466,8 @@ addStudentBtn.addEventListener('click', () => {
     document.getElementById('first_name').value = '';
     document.getElementById('middle_name').value = '';
     document.getElementById('full_name_hidden').value = '';
+    const defaultDominantSide = document.querySelector('#addStudentForm input[name="dominant_side"][value="right"]');
+    if (defaultDominantSide) defaultDominantSide.checked = true;
     const admissionInput = document.getElementById('admission_date');
     if (admissionInput) {
         admissionInput.value = new Date().toISOString().split('T')[0];
@@ -1299,6 +1301,14 @@ document.addEventListener('click', async (e) => {
         document.getElementById('edit_club_funded').checked = student.club_funded || false;
         document.getElementById('edit_statusSelect').value = student.status || 'active';
         document.getElementById('edit_blacklist_reason').value = student.blacklist_reason || '';
+        document.getElementById('edit_height').value = student.height || '';
+        document.getElementById('edit_weight').value = student.weight || '';
+        document.getElementById('edit_jersey_size').value = student.jersey_size || '';
+        document.getElementById('edit_shorts_size').value = student.shorts_size || '';
+        document.getElementById('edit_boots_size').value = student.boots_size || '';
+        const dominantSide = student.dominant_side === 'left' ? 'left' : 'right';
+        const dominantSideInput = document.getElementById(`edit_dominant_side_${dominantSide}`);
+        if (dominantSideInput) dominantSideInput.checked = true;
 
         // Загрузить города и группы
         await loadEditFormData();

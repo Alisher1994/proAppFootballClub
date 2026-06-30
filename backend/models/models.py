@@ -264,6 +264,7 @@ class Student(db.Model):
     # Физические параметры
     height = db.Column(db.Integer)  # Рост в см
     weight = db.Column(db.Float)  # Вес в кг
+    dominant_side = db.Column(db.String(10))  # Ведущая сторона: right/left
     jersey_size = db.Column(db.String(20))  # Размер футболки (XS, S, M, L, XL и т.д.)
     shorts_size = db.Column(db.String(20))  # Размер шорт
     boots_size = db.Column(db.String(20))  # Размер бутс
