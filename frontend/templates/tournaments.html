@@ -35,67 +35,78 @@
                 </div>
             </header>
 
-            <nav class="tournament-tabs" aria-label="Разделы турнира">
-                <button class="tournament-tab active" type="button" data-tournament-tab="bracket">Сетка</button>
-                <button class="tournament-tab" type="button" data-tournament-tab="matches">Матчи</button>
-                <button class="tournament-tab" type="button" data-tournament-tab="teams">Участники</button>
-                <button class="tournament-tab" type="button" data-tournament-tab="stats">Статистика</button>
-            </nav>
+            <div class="tournament-layout">
+                <aside class="tournament-sidebar-panel">
+                    <div class="panel-title-row">
+                        <h2>Список турниров</h2>
+                    </div>
+                    <div class="tournament-list" id="tournamentList">
+                        <div class="empty-state small">Загрузка...</div>
+                    </div>
+                </aside>
 
-            <section class="tournament-panel tournament-tab-panel active" id="tournamentTab-bracket">
-                <div class="panel-title-row">
-                    <h2>Сетка турнира</h2>
-                    <button class="btn-secondary" id="openTournamentModalBtn" type="button">+ Турнир</button>
-                </div>
-                <div class="bracket-board tournament-main-bracket" id="bracketBoard"></div>
-            </section>
+                <div class="tournament-content">
+                    <nav class="tournament-tabs" aria-label="Разделы турнира">
+                        <button class="tournament-tab active" type="button" data-tournament-tab="bracket">Сетка</button>
+                        <button class="tournament-tab" type="button" data-tournament-tab="matches">Матчи</button>
+                        <button class="tournament-tab" type="button" data-tournament-tab="teams">Участники</button>
+                        <button class="tournament-tab" type="button" data-tournament-tab="stats">Статистика</button>
+                    </nav>
 
-            <section class="tournament-panel tournament-tab-panel" id="tournamentTab-matches">
-                <div class="panel-title-row">
-                    <h2>Матчи</h2>
-                    <button class="btn-primary" id="openMatchModalBtn" type="button" disabled>+ Матч</button>
-                </div>
-                <div class="entity-list tournament-match-list" id="matchList">
-                    <div class="empty-state">Выберите турнир.</div>
-                </div>
-            </section>
+                    <section class="tournament-panel tournament-tab-panel active" id="tournamentTab-bracket">
+                        <div class="panel-title-row">
+                            <h2>Сетка турнира</h2>
+                            <button class="btn-secondary" id="openTournamentModalBtn" type="button">+ Турнир</button>
+                        </div>
+                        <div class="bracket-board tournament-main-bracket" id="bracketBoard"></div>
+                    </section>
 
-            <section class="tournament-panel tournament-tab-panel" id="tournamentTab-teams">
-                <div class="panel-title-row">
-                    <h2>Участники</h2>
-                    <button class="btn-secondary" id="openTeamModalBtn" type="button" disabled>+ Команда</button>
-                </div>
-                <div class="tournament-teams-grid" id="teamList">
-                    <div class="empty-state">Выберите турнир.</div>
-                </div>
-            </section>
+                    <section class="tournament-panel tournament-tab-panel" id="tournamentTab-matches">
+                        <div class="panel-title-row">
+                            <h2>Матчи</h2>
+                            <button class="btn-primary" id="openMatchModalBtn" type="button" disabled>+ Матч</button>
+                        </div>
+                        <div class="entity-list tournament-match-list" id="matchList">
+                            <div class="empty-state">Выберите турнир.</div>
+                        </div>
+                    </section>
 
-            <section class="tournament-panel tournament-tab-panel" id="tournamentTab-stats">
-                <div class="panel-title-row">
-                    <h2>Статистика турнира</h2>
-                </div>
-                <div class="analytics-summary" id="tournamentSummary"></div>
-                <div class="table-scroll">
-                    <table class="tournament-table">
-                        <thead>
-                            <tr>
-                                <th>Игрок</th>
-                                <th>Матчи</th>
-                                <th>Голы</th>
-                                <th>Пасы</th>
-                                <th>ЖК</th>
-                                <th>КК</th>
-                                <th>Рейтинг</th>
-                            </tr>
-                        </thead>
-                        <tbody id="playerAnalyticsBody">
-                            <tr><td colspan="7" class="empty-cell">Нет данных</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </section>
+                    <section class="tournament-panel tournament-tab-panel" id="tournamentTab-teams">
+                        <div class="panel-title-row">
+                            <h2>Участники</h2>
+                            <button class="btn-secondary" id="openTeamModalBtn" type="button" disabled>+ Команда</button>
+                        </div>
+                        <div class="tournament-teams-grid" id="teamList">
+                            <div class="empty-state">Выберите турнир.</div>
+                        </div>
+                    </section>
 
-            <section class="tournament-panel match-workspace" id="matchWorkspacePanel">
+                    <section class="tournament-panel tournament-tab-panel" id="tournamentTab-stats">
+                        <div class="panel-title-row">
+                            <h2>Статистика турнира</h2>
+                        </div>
+                        <div class="analytics-summary" id="tournamentSummary"></div>
+                        <div class="table-scroll">
+                            <table class="tournament-table">
+                                <thead>
+                                    <tr>
+                                        <th>Игрок</th>
+                                        <th>Матчи</th>
+                                        <th>Голы</th>
+                                        <th>Пасы</th>
+                                        <th>ЖК</th>
+                                        <th>КК</th>
+                                        <th>Рейтинг</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="playerAnalyticsBody">
+                                    <tr><td colspan="7" class="empty-cell">Нет данных</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </section>
+
+                    <section class="tournament-panel match-workspace" id="matchWorkspacePanel">
                 <div id="matchWorkspaceEmpty" class="workspace-empty">
                     Выберите матч в сетке или списке, чтобы открыть счет, события и состав.
                 </div>
@@ -204,7 +215,9 @@
                         </section>
                     </div>
                 </div>
-            </section>
+                    </section>
+                </div>
+            </div>
         </section>
     </main>
 

@@ -137,6 +137,40 @@ function renderTournamentSelect() {
             ${escapeHtml(item.name)} · ${STATUS_LABELS[item.status] || item.status || '-'}
         </option>`
     )).join('');
+    renderTournamentList();
+}
+
+function renderTournamentList() {
+    const list = qs('tournamentList');
+    if (!list) return;
+    if (!tournamentState.tournaments.length) {
+        list.innerHTML = '<div class="empty-state small">Турниров пока нет.</div>';
+        return;
+    }
+
+    list.innerHTML = tournamentState.tournaments.map((item) => {
+        const isActive = Number(item.id) === Number(tournamentState.selectedTournamentId);
+        const status = STATUS_LABELS[item.status] || item.status || '-';
+        const startDate = formatDate(item.start_date);
+        const endDate = formatDate(item.end_date);
+        const dates = [startDate, endDate].filter((value) => value && value !== '-').join(' - ');
+        const matchesCount = Number(item.matches_count || item.match_count || item.matches?.length || 0);
+        return `
+            <button class="tournament-list-item ${isActive ? 'active' : ''}" type="button" data-tournament-id="${item.id}">
+                <span class="tournament-list-title">${escapeHtml(item.name || 'Без названия')}</span>
+                <span class="tournament-list-status">${escapeHtml(status)}</span>
+                <span class="tournament-list-meta">
+                    <span>${escapeHtml(item.season || 'Без сезона')}</span>
+                    ${dates ? `<span>${escapeHtml(dates)}</span>` : ''}
+                </span>
+                <span class="tournament-list-count">${matchesCount} матч.</span>
+            </button>
+        `;
+    }).join('');
+
+    list.querySelectorAll('[data-tournament-id]').forEach((button) => {
+        button.addEventListener('click', () => selectTournament(button.dataset.tournamentId));
+    });
 }
 
 function renderGroupControls() {
