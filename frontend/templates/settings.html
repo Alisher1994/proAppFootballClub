@@ -293,11 +293,16 @@
             display: inline-flex !important;
             align-items: center !important;
             gap: 8px !important;
+            position: relative;
         }
 
         .access-policy-info {
-            width: 18px;
-            height: 18px;
+            width: 20px !important;
+            height: 20px !important;
+            min-width: 20px !important;
+            max-width: 20px !important;
+            min-height: 20px !important;
+            max-height: 20px !important;
             border: 1px solid #d8d0c8;
             border-radius: 50%;
             background: #fff;
@@ -307,7 +312,10 @@
             justify-content: center;
             font: 600 12px/1 Onest, Arial, sans-serif;
             cursor: pointer;
-            padding: 0;
+            padding: 0 !important;
+            box-sizing: border-box;
+            flex: 0 0 20px;
+            appearance: none;
         }
 
         .access-policy-info:hover,
@@ -317,14 +325,44 @@
         }
 
         .access-policy-help-card {
-            margin-top: 10px;
+            position: absolute;
+            left: calc(100% + 10px);
+            top: 50%;
+            z-index: 100;
+            width: min(360px, 70vw);
             padding: 12px 14px;
             border: 1px solid #e4ddd6;
             border-radius: 10px;
-            background: #fffaf5;
+            background: #ffffff;
             color: #5f6673;
             font-size: 13px;
             line-height: 1.5;
+            box-shadow: 0 14px 32px rgba(31, 35, 42, 0.14);
+            transform: translateY(-50%);
+            pointer-events: none;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.16s ease, visibility 0.16s ease;
+        }
+
+        .access-policy-help-card::before {
+            content: "";
+            position: absolute;
+            left: -6px;
+            top: 50%;
+            width: 10px;
+            height: 10px;
+            background: #ffffff;
+            border-left: 1px solid #e4ddd6;
+            border-bottom: 1px solid #e4ddd6;
+            transform: translateY(-50%) rotate(45deg);
+        }
+
+        .access-policy-label:hover .access-policy-help-card,
+        .access-policy-help-card.is-open {
+            opacity: 1;
+            visibility: visible;
+            pointer-events: auto;
         }
 
         .access-policy-help-card strong {
@@ -332,9 +370,35 @@
             font-weight: 600;
         }
 
-        .access-policy-help-card.is-hidden,
+        .access-policy-example {
+            display: block;
+            margin-top: 6px;
+            color: #7b6475;
+        }
+
         #accessDebtMonthsGroup.is-hidden {
             display: none;
+        }
+
+        #accessPaymentPolicyHelp {
+            color: #7b6475;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        @media (max-width: 900px) {
+            .access-policy-help-card {
+                left: 0;
+                top: calc(100% + 8px);
+                transform: none;
+                width: min(360px, calc(100vw - 48px));
+            }
+
+            .access-policy-help-card::before {
+                left: 172px;
+                top: -6px;
+                transform: rotate(135deg);
+            }
         }
 
         /* Стили для рабочих дней */
@@ -2771,6 +2835,7 @@
                                             <button type="button" class="access-policy-info" id="accessPolicyInfoButton" aria-label="Показать логику выбранного правила">
                                                 i
                                             </button>
+                                            <span class="access-policy-help-card" id="accessPolicyDetails" role="tooltip"></span>
                                         </label>
                                         <select id="access_payment_policy" class="form-input-modern">
                                             <option value="full_current_month">Только 100% оплата текущего месяца</option>

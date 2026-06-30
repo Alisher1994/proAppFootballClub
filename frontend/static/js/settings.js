@@ -8,15 +8,18 @@ const settingsFormSnapshots = new Map();
 const ACCESS_POLICY_INFO = {
     full_current_month: {
         short: 'Пропускаем только если текущий месяц оплачен полностью.',
-        details: 'Ученик проходит через терминал только после 100% оплаты текущего месяца. Частичная оплата текущего месяца не допускает к проходу.'
+        details: 'Ученик проходит через терминал только после 100% оплаты текущего месяца. Частичная оплата текущего месяца не допускает к проходу.',
+        example: 'Пример: тариф 500 000, оплачено 250 000 за июль - проход закрыт. Оплачено 500 000 - проход открыт.'
     },
     partial_current_month: {
         short: 'Нужна любая оплата за текущий месяц, старых долгов быть не должно.',
-        details: 'Ученик проходит, если за текущий месяц есть оплата. Долги за прошлые месяцы блокируют проход.'
+        details: 'Ученик проходит, если за текущий месяц есть оплата. Долги за прошлые месяцы блокируют проход.',
+        example: 'Пример: за июль оплачено 100 000 и старых долгов нет - проход открыт. Есть долг за июнь - проход закрыт.'
     },
     any_payment_this_month: {
         short: 'Нужна оплата за текущий месяц, старые долги разрешены в пределах лимита.',
-        details: 'Ученик проходит, если за текущий месяц есть оплата, а старый долг не превышает выбранное количество месяцев.'
+        details: 'Ученик проходит, если за текущий месяц есть оплата, а старый долг не превышает выбранное количество месяцев.',
+        example: 'Пример: лимит 1 месяц, есть долг за июнь и оплата за июль - проход открыт. Долг за май и июнь - проход закрыт.'
     }
 };
 
@@ -163,7 +166,7 @@ function updateAccessPaymentPolicyUI() {
     if (debtGroup) debtGroup.classList.toggle('is-hidden', !showDebtLimit);
     if (help) help.textContent = info.short;
     if (infoCard) {
-        infoCard.innerHTML = `<strong>${help?.textContent || ''}</strong><br>${info.details}`;
+        infoCard.innerHTML = `<strong>${info.short}</strong><br>${info.details}<span class="access-policy-example">${info.example}</span>`;
     }
     if (showDebtLimit) normalizeAccessDebtMonths();
 }
@@ -172,14 +175,6 @@ function attachAccessPaymentPolicyControls() {
     const policySelect = document.getElementById('access_payment_policy');
     const infoButton = document.getElementById('accessPolicyInfoButton');
     const debtInput = document.getElementById('access_max_debt_months');
-    const help = document.getElementById('accessPaymentPolicyHelp');
-
-    if (help && !document.getElementById('accessPolicyDetails')) {
-        const infoCard = document.createElement('div');
-        infoCard.id = 'accessPolicyDetails';
-        infoCard.className = 'access-policy-help-card is-hidden';
-        help.insertAdjacentElement('afterend', infoCard);
-    }
 
     if (policySelect) {
         policySelect.addEventListener('change', updateAccessPaymentPolicyUI);
@@ -192,10 +187,17 @@ function attachAccessPaymentPolicyControls() {
         infoButton.addEventListener('click', () => {
             const infoCard = document.getElementById('accessPolicyDetails');
             if (!infoCard) return;
-            const isHidden = infoCard.classList.toggle('is-hidden');
-            infoButton.classList.toggle('is-open', !isHidden);
+            const isOpen = infoCard.classList.toggle('is-open');
+            infoButton.classList.toggle('is-open', isOpen);
         });
     }
+    document.addEventListener('click', (event) => {
+        const infoCard = document.getElementById('accessPolicyDetails');
+        if (!infoButton || !infoCard || !infoCard.classList.contains('is-open')) return;
+        if (event.target.closest('.access-policy-label')) return;
+        infoCard.classList.remove('is-open');
+        infoButton.classList.remove('is-open');
+    });
     updateAccessPaymentPolicyUI();
 }
 
