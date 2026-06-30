@@ -5521,6 +5521,14 @@ textarea:focus,
     height: 42px;
 }
 
+.score-team-logo {
+    width: 54px;
+    height: 54px;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+}
+
 .tournament-team-card strong,
 .tournament-team-card span {
     display: block;
