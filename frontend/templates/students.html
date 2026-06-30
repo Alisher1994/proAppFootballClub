@@ -3189,10 +3189,14 @@
 
         #addStudentModal .group-picker.open .group-picker-menu,
         #editStudentModal .group-picker.open .group-picker-menu {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
             position: relative;
             top: 4px;
             z-index: 2;
-            max-height: 260px;
+            max-height: 300px;
+            padding: 8px;
             box-shadow: none;
         }
 
@@ -3201,18 +3205,21 @@
             display: flex;
             align-items: flex-start;
             gap: 10px;
-            padding: 9px;
-            border: 0;
+            min-height: 58px;
+            padding: 10px 12px;
+            border: 1px solid #e4ddd6;
             border-radius: 10px;
-            background: transparent;
+            background: #fff;
             color: #0f172a;
             text-align: left;
             cursor: pointer;
+            box-shadow: none;
         }
 
         .group-picker-option:hover,
         .group-picker-option.active {
-            background: #f7f4f1;
+            border-color: #f0cda8;
+            background: #fffaf5;
         }
 
         .group-picker-avatar {
