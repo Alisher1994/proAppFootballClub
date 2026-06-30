@@ -1580,6 +1580,231 @@
                 grid-template-columns: 1fr;
             }
         }
+
+        #addGroupModal .modern-modal,
+        #editGroupModal .modern-modal {
+            width: min(900px, calc(100vw - 32px)) !important;
+        }
+
+        #addGroupModal .modal-form,
+        #editGroupModal .modal-form {
+            gap: 14px !important;
+        }
+
+        #addGroupModal .form-card,
+        #editGroupModal .form-card {
+            display: flex !important;
+            flex-direction: column !important;
+            gap: 6px !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            background: transparent !important;
+            border: 0 !important;
+            border-radius: 0 !important;
+            box-shadow: none !important;
+        }
+
+        #addGroupModal .form-card.two-col,
+        #editGroupModal .form-card.two-col {
+            display: grid !important;
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+            gap: 14px !important;
+        }
+
+        #addGroupModal .field-label,
+        #editGroupModal .field-label,
+        #addGroupModal .form-card label,
+        #editGroupModal .form-card label {
+            color: #5f6673 !important;
+            font-size: 13px !important;
+            line-height: 16px !important;
+            font-weight: 600 !important;
+            margin: 0 !important;
+        }
+
+        #addGroupModal .field-hint,
+        #editGroupModal .field-hint,
+        #addGroupModal .form-card small,
+        #editGroupModal .form-card small {
+            color: #8a9099 !important;
+            font-size: 12px !important;
+            line-height: 16px !important;
+            margin: 0 !important;
+        }
+
+        #addGroupModal .form-card input,
+        #addGroupModal .form-card select,
+        #addGroupModal .form-card textarea,
+        #editGroupModal .form-card input,
+        #editGroupModal .form-card select,
+        #editGroupModal .form-card textarea {
+            min-height: 38px !important;
+            height: 38px !important;
+            padding: 0 12px !important;
+            border: 1px solid #d8d0c8 !important;
+            border-radius: 8px !important;
+            background-color: #fff !important;
+            color: #17191f !important;
+            font-size: 13px !important;
+            line-height: 18px !important;
+            font-weight: 400 !important;
+            box-shadow: none !important;
+        }
+
+        #addGroupModal .form-card textarea,
+        #editGroupModal .form-card textarea {
+            height: auto !important;
+            min-height: 82px !important;
+            padding-top: 10px !important;
+        }
+
+        #addGroupModal .selected-slots-display,
+        #editGroupModal .selected-slots-display,
+        #editSelectedSlotsDisplay {
+            min-height: 42px !important;
+            padding: 8px !important;
+            gap: 8px !important;
+            background: #f8f7f6 !important;
+            border: 1px solid #e4ddd6 !important;
+            border-radius: 8px !important;
+            box-shadow: none !important;
+        }
+
+        #addGroupModal .selected-slot-badge,
+        #editGroupModal .selected-slot-badge,
+        #editSelectedSlotsDisplay .slot-badge {
+            min-height: 32px !important;
+            padding: 0 8px 0 10px !important;
+            gap: 8px !important;
+            border: 1px solid #e4ddd6 !important;
+            border-radius: 8px !important;
+            background: #fff !important;
+            color: #17191f !important;
+            font-size: 13px !important;
+            font-weight: 600 !important;
+            box-shadow: none !important;
+        }
+
+        #addGroupModal .selected-slot-badge .remove-slot,
+        #editGroupModal .selected-slot-badge .remove-slot,
+        #editSelectedSlotsDisplay .slot-badge-remove {
+            width: 22px !important;
+            height: 22px !important;
+            min-width: 22px !important;
+            border: 1px solid #e4ddd6 !important;
+            border-radius: 7px !important;
+            background: #f8f7f6 !important;
+            color: #5f6673 !important;
+            box-shadow: none !important;
+        }
+
+        #addGroupModal .schedule-visualization,
+        #editGroupModal .schedule-visualization {
+            padding: 10px !important;
+            min-height: 160px !important;
+            background: #f8f7f6 !important;
+            border: 1px solid #e4ddd6 !important;
+            border-radius: 8px !important;
+        }
+
+        #addGroupModal .schedule-grid,
+        #editGroupModal .schedule-grid {
+            grid-template-columns: 70px repeat(7, minmax(88px, 1fr)) !important;
+            gap: 3px !important;
+        }
+
+        #addGroupModal .schedule-header,
+        #editGroupModal .schedule-header {
+            padding: 7px 4px !important;
+            border-radius: 6px !important;
+            background: #ebe6e1 !important;
+            color: #5f6673 !important;
+            font-size: 12px !important;
+            line-height: 14px !important;
+            font-weight: 600 !important;
+        }
+
+        #addGroupModal .schedule-time-label,
+        #editGroupModal .schedule-time-label {
+            padding: 8px 4px !important;
+            color: #5f6673 !important;
+            font-size: 12px !important;
+            line-height: 14px !important;
+            font-weight: 500 !important;
+        }
+
+        #addGroupModal .schedule-slot,
+        #editGroupModal .schedule-slot {
+            min-height: 34px !important;
+            padding: 5px 4px !important;
+            border-width: 1px !important;
+            border-radius: 6px !important;
+            font-size: 11px !important;
+            line-height: 14px !important;
+            font-weight: 500 !important;
+            box-shadow: none !important;
+            transform: none !important;
+        }
+
+        #addGroupModal .schedule-slot.free,
+        #editGroupModal .schedule-slot.free {
+            background: #f3fff7 !important;
+            border-color: #8fe3ae !important;
+            color: #047844 !important;
+        }
+
+        #addGroupModal .schedule-slot.partial,
+        #editGroupModal .schedule-slot.partial {
+            background: #fff9e8 !important;
+            border-color: #f0c36a !important;
+            color: #8a4b00 !important;
+        }
+
+        #addGroupModal .schedule-slot.occupied,
+        #editGroupModal .schedule-slot.occupied {
+            background: #fff1f1 !important;
+            border-color: #f2a4a4 !important;
+            color: #b42318 !important;
+        }
+
+        #addGroupModal .schedule-slot.disabled,
+        #addGroupModal .schedule-slot.inactive,
+        #editGroupModal .schedule-slot.disabled,
+        #editGroupModal .schedule-slot.inactive {
+            background: #f4f1ee !important;
+            border-color: #e4ddd6 !important;
+            color: #b7c0cc !important;
+            opacity: 1 !important;
+        }
+
+        #addGroupModal .schedule-slot.selected,
+        #editGroupModal .schedule-slot.selected {
+            background: #fff3e3 !important;
+            border-color: #ff8a00 !important;
+            color: #d96f00 !important;
+            font-weight: 600 !important;
+        }
+
+        #addGroupModal .schedule-legend,
+        #editGroupModal .schedule-legend {
+            gap: 12px !important;
+            margin-top: 10px !important;
+        }
+
+        #addGroupModal .schedule-legend-item,
+        #editGroupModal .schedule-legend-item {
+            color: #5f6673 !important;
+            font-size: 12px !important;
+            line-height: 14px !important;
+        }
+
+        #addGroupModal .schedule-legend-box,
+        #editGroupModal .schedule-legend-box {
+            width: 12px !important;
+            height: 12px !important;
+            border-width: 1px !important;
+            border-radius: 4px !important;
+        }
     </style>
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 </head>
@@ -2655,7 +2880,7 @@
                             </div>
 
                             <div class="form-card">
-                                <label class="field-label">📅 Выберите дни и время занятий</label>
+                                <label class="field-label">Выберите дни и время занятий</label>
                                 <small class="field-hint">Кликните на свободные или частично занятые ячейки. Можно
                                     выбрать разное время для разных дней.</small>
                                 <div id="selectedSlotsDisplay" class="selected-slots-display"
@@ -2668,7 +2893,7 @@
                             </div>
 
                             <div class="form-card">
-                                <label class="field-label">🏟️ Размер группы на поле</label>
+                                <label class="field-label">Размер группы на поле</label>
                                 <small class="field-hint">Выберите, сколько блоков стадиона будет занимать эта группа.
                                     Кликайте на соседние блоки для выбора нескольких.</small>
                                 <div id="fieldBlocksVisualization" class="field-blocks-container">
@@ -2765,7 +2990,7 @@
                             </div>
 
                             <div class="form-card">
-                                <label class="field-label">📅 Выберите дни и время занятий</label>
+                                <label class="field-label">Выберите дни и время занятий</label>
                                 <small class="field-hint">Кликните на свободные или частично занятые ячейки. Можно
                                     выбрать разное время для разных дней.</small>
                                 <div id="editSelectedSlotsDisplay" class="selected-slots-display"
@@ -2778,7 +3003,7 @@
                             </div>
 
                             <div class="form-card">
-                                <label class="field-label">🏟️ Размер группы на поле</label>
+                                <label class="field-label">Размер группы на поле</label>
                                 <small class="field-hint">Выберите, сколько блоков стадиона будет занимать эта группа.
                                     Кликайте на соседние блоки для выбора нескольких.</small>
                                 <div id="editFieldBlocksVisualization" class="field-blocks-container">
