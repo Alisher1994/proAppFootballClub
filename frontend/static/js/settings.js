@@ -633,8 +633,6 @@ function setSystemLogoPreview(url, isCustom) {
         status.textContent = isCustom ? 'Горизонтальный · загружен' : 'Горизонтальный · системный';
     }
 
-    const resetBtn = document.getElementById('resetLogoBtn');
-    if (resetBtn) resetBtn.disabled = !isCustom;
     const fileName = document.getElementById('logo_file_name');
     if (fileName && !isCustom) fileName.textContent = '';
 
@@ -648,8 +646,6 @@ function setSystemSquareLogoPreview(url, isCustom) {
     const status = document.getElementById('square_logo_status_text');
     if (status) status.textContent = isCustom ? 'Квадратный · загружен' : 'Квадратный · системный';
 
-    const resetBtn = document.getElementById('resetSquareLogoBtn');
-    if (resetBtn) resetBtn.disabled = !isCustom;
     const fileName = document.getElementById('square_logo_file_name');
     if (fileName && !isCustom) fileName.textContent = '';
 }

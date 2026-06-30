@@ -1775,19 +1775,19 @@
         }
 
         .logo-upload-overlay {
-            left: 50%;
-            top: 50%;
-            transform: translate(-50%, -42%);
+            left: 50% !important;
+            top: 50% !important;
+            transform: translate(-50%, -50%) !important;
             max-width: calc(100% - 24px);
             min-height: 34px;
             padding: 0 12px;
-            border: 1px solid rgba(255, 255, 255, 0.9);
-            border-radius: 999px;
-            background: rgba(31, 35, 42, 0.72);
-            color: #fff;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
+            border: 1px solid rgba(255, 255, 255, 0.9) !important;
+            border-radius: 999px !important;
+            background: rgba(31, 35, 42, 0.72) !important;
+            color: #fff !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
             gap: 6px;
             font: 500 12px/1 Onest, Arial, sans-serif;
             white-space: nowrap;
@@ -1797,7 +1797,7 @@
         }
 
         .logo-card:hover .logo-upload-overlay {
-            transform: translate(-50%, -50%);
+            transform: translate(-50%, -50%) !important;
         }
 
         .logo-upload-overlay svg {
@@ -1808,26 +1808,28 @@
         .logo-reset-overlay {
             right: 8px;
             top: 8px;
-            width: 26px;
-            height: 26px;
-            border: 0;
-            border-radius: 50%;
-            background: rgba(31, 35, 42, 0.72);
-            color: #fff;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
+            width: 28px !important;
+            height: 28px !important;
+            min-width: 28px !important;
+            max-width: 28px !important;
+            min-height: 28px !important;
+            max-height: 28px !important;
+            aspect-ratio: 1 / 1;
+            padding: 0 !important;
+            border: 0 !important;
+            border-radius: 999px !important;
+            background: rgba(31, 35, 42, 0.72) !important;
+            color: #fff !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
             cursor: pointer;
+            box-shadow: 0 8px 18px rgba(31, 35, 42, 0.16);
         }
 
         .logo-reset-overlay:disabled {
-            opacity: 0;
-            cursor: default;
-            pointer-events: none;
-        }
-
-        .logo-card:hover .logo-reset-overlay:disabled {
-            opacity: 0.38;
+            cursor: pointer;
+            pointer-events: auto;
         }
 
         .logo-reset-overlay svg {
