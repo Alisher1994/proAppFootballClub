@@ -50,7 +50,6 @@
                 <th class="sticky-col col-index">№</th>
                 <th class="sticky-col col-photo">Фото</th>
                 <th class="sticky-col col-name">ФИО</th>
-                <th class="sticky-col col-role">Роль</th>
                 ${dayHeaders}
                 <th>Итого</th>
                 <th>Зарплата</th>
@@ -96,7 +95,7 @@
 
     function renderRows(rows, daysCount) {
         if (!rows.length) {
-            tbody.innerHTML = `<tr><td class="timesheet-empty" colspan="${daysCount + 6}">Сотрудники не найдены</td></tr>`;
+            tbody.innerHTML = `<tr><td class="timesheet-empty" colspan="${daysCount + 5}">Сотрудники не найдены</td></tr>`;
             return;
         }
 
@@ -106,9 +105,9 @@
                 <td class="sticky-col col-photo">${renderPhoto(row)}</td>
                 <td class="sticky-col col-name">
                     <div class="staff-name">${escapeHtml(row.full_name)}</div>
+                    <div class="staff-sub staff-role-sub">${escapeHtml(row.role || '-')}</div>
                     <div class="staff-sub">${escapeHtml(row.employee_no || '-')}</div>
                 </td>
-                <td class="sticky-col col-role">${escapeHtml(row.role || '-')}</td>
                 ${(row.days || []).map(renderDayCell).join('')}
                 <td class="summary-cell">${escapeHtml(row.total_hours_label || '-')}</td>
                 <td class="salary-cell">${renderSalary(row)}</td>

@@ -34,17 +34,19 @@
         .staff-timesheet-title {
             display: flex;
             align-items: center;
-            gap: 10px;
-            color: #0f172a;
-            font-size: 22px;
-            font-weight: 400;
-            margin: 0;
+            gap: 8px !important;
+            color: #5f6673 !important;
+            font-size: 18px !important;
+            font-weight: 600 !important;
+            line-height: 22px !important;
+            margin: 0 !important;
         }
 
         .staff-timesheet-title svg {
-            width: 20px;
-            height: 20px;
-            color: #ff8a00;
+            width: 18px !important;
+            height: 18px !important;
+            color: #5f6673 !important;
+            stroke: currentColor !important;
         }
 
         .staff-timesheet-filters {
@@ -79,6 +81,20 @@
         .staff-timesheet-filters .btn-export {
             background: #f8f7f6;
             color: #334155;
+        }
+
+        .staff-timesheet-filters .btn-icon {
+            width: 40px;
+            min-width: 40px;
+            padding: 0;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .staff-timesheet-filters .btn-icon svg {
+            width: 16px;
+            height: 16px;
         }
 
         .staff-timesheet-scroll {
@@ -117,12 +133,12 @@
             position: sticky;
             top: 0;
             z-index: 3;
-            background: #ff8a00;
-            color: #fff;
-            border-right: 1px solid rgba(255, 255, 255, 0.28);
+            background: #f8f7f6;
+            color: #5f6673;
+            border-right: 1px solid #e4ddd6;
             border-bottom: 1px solid #d8e2ef;
             padding: 6px 5px;
-            font-weight: 500;
+            font-weight: 600;
             text-align: center;
             white-space: nowrap;
         }
@@ -144,7 +160,7 @@
 
         .staff-timesheet-table th.sticky-col {
             z-index: 4;
-            background: #ff8a00;
+            background: #f8f7f6;
         }
 
         .staff-timesheet-table .col-index {
@@ -163,14 +179,8 @@
 
         .staff-timesheet-table .col-name {
             left: 70px;
-            width: 132px;
-            min-width: 132px;
-        }
-
-        .staff-timesheet-table .col-role {
-            left: 202px;
-            width: 78px;
-            min-width: 78px;
+            width: 150px;
+            min-width: 150px;
         }
 
         .staff-photo {
@@ -201,6 +211,12 @@
             color: #718198;
             font-size: 10px;
             margin-top: 2px;
+        }
+
+        .staff-role-sub {
+            color: #8a9099;
+            font-size: 10px;
+            line-height: 1.2;
         }
 
         .day-cell {
@@ -296,7 +312,16 @@
                         <input id="staff-timesheet-search" type="search" placeholder="ФИО...">
                         <select id="staff-timesheet-month"></select>
                         <select id="staff-timesheet-year"></select>
-                        <button id="staff-timesheet-refresh" type="button">Обновить</button>
+                        <button id="staff-timesheet-refresh" class="btn-icon" type="button" title="Обновить" aria-label="Обновить">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                                aria-hidden="true">
+                                <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
+                                <path d="M3 21v-5h5" />
+                                <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+                                <path d="M16 8h5V3" />
+                            </svg>
+                        </button>
                         <button id="staff-timesheet-export" class="btn-export" type="button">Скачать XLS</button>
                     </div>
                 </div>

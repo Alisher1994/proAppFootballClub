@@ -1090,34 +1090,48 @@
         }
 
         .finances-page .balance-card-minimal {
-            padding: 16px 20px !important;
+            padding: 14px 16px !important;
             margin-bottom: 18px !important;
-            border-radius: 12px !important;
+            border-radius: 8px !important;
             box-shadow: none !important;
         }
 
         .finances-page .balance-card-minimal>div {
-            gap: 12px !important;
+            gap: 10px !important;
+            align-items: flex-start !important;
         }
 
         .finances-page .balance-card-minimal>div>div:first-child {
-            padding: 10px !important;
-            border-radius: 10px !important;
-            background: #1e293b !important;
+            width: 18px !important;
+            height: 18px !important;
+            min-width: 18px !important;
+            padding: 0 !important;
+            border: 0 !important;
+            border-radius: 0 !important;
+            background: transparent !important;
+            color: #5f6673 !important;
         }
 
         .finances-page .balance-card-minimal svg {
-            width: 22px;
-            height: 22px;
+            width: 18px !important;
+            height: 18px !important;
+            stroke: currentColor !important;
         }
 
         .finances-page .balance-label-minimal {
-            font-size: 12px !important;
+            color: #5f6673 !important;
+            font-size: 13px !important;
+            line-height: 16px !important;
+            font-weight: 500 !important;
         }
 
         .finances-page .balance-value-minimal,
         .finances-page #cumulativeBalance {
-            font-size: 26px !important;
+            color: #111827 !important;
+            font-family: Arial, "Helvetica Neue", Helvetica, sans-serif !important;
+            font-size: 22px !important;
+            line-height: 26px !important;
+            font-weight: 600 !important;
             letter-spacing: 0 !important;
         }
 
@@ -1468,7 +1482,14 @@
                     style="display: flex; gap: 12px; align-items: center; margin-bottom: 20px;">
                     <button id="incomeFilterToggleBtn" class="btn-secondary"
                         style="display: flex; align-items: center; gap: 8px;">
-                        <span id="incomeFilterToggleText">Фильтр</span>
+                        <svg class="filter-toggle-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                            fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"
+                            stroke-linejoin="round" aria-hidden="true">
+                            <path d="M3 5h18" />
+                            <path d="M6 12h12" />
+                            <path d="M10 19h4" />
+                        </svg>
+                        <span id="incomeFilterToggleText" class="visually-hidden">Фильтр</span>
                     </button>
                     <button id="addIncomeBtn" class="btn-primary"><span class="btn-plus" aria-hidden="true">+</span> Добавить</button>
                 </div>
@@ -1476,14 +1497,28 @@
                     style="display: none; gap: 12px; align-items: center; margin-bottom: 20px;">
                     <button id="expenseFilterToggleBtn" class="btn-secondary"
                         style="display: flex; align-items: center; gap: 8px;">
-                        <span id="expenseFilterToggleText">Фильтр</span>
+                        <svg class="filter-toggle-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                            fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"
+                            stroke-linejoin="round" aria-hidden="true">
+                            <path d="M3 5h18" />
+                            <path d="M6 12h12" />
+                            <path d="M10 19h4" />
+                        </svg>
+                        <span id="expenseFilterToggleText" class="visually-hidden">Фильтр</span>
                     </button>
                     <button id="addExpenseBtn" class="btn-primary"><span class="btn-plus" aria-hidden="true">+</span> Добавить</button>
                 </div>
                 <div id="cash-tab-buttons" style="display: none; gap: 12px; align-items: center; margin-bottom: 20px;">
                     <button id="cashFilterToggleBtn" class="btn-secondary"
                         style="display: flex; align-items: center; gap: 8px;">
-                        <span id="cashFilterToggleText">Фильтр</span>
+                        <svg class="filter-toggle-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                            fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"
+                            stroke-linejoin="round" aria-hidden="true">
+                            <path d="M3 5h18" />
+                            <path d="M6 12h12" />
+                            <path d="M10 19h4" />
+                        </svg>
+                        <span id="cashFilterToggleText" class="visually-hidden">Фильтр</span>
                     </button>
                     <button id="addTransferBtn" class="btn-primary"><span class="btn-plus" aria-hidden="true">+</span> Добавить</button>
                 </div>
@@ -2089,9 +2124,9 @@
                             </div>
 
                             <div class="form-group">
-                                <label>💵 Сумма передачи *</label>
-                                <input type="number" id="transfer-amount" class="form-input-modern" step="0.01"
-                                    min="0.01" required>
+                                <label>Сумма передачи *</label>
+                                <input type="text" id="transfer-amount" class="form-input-modern" inputmode="decimal"
+                                    autocomplete="off" required>
                             </div>
 
                             <div class="form-group">
@@ -2106,7 +2141,7 @@
                             </div>
 
                             <div class="form-group">
-                                <label>📝 Примечание</label>
+                                <label>Примечание</label>
                                 <textarea id="transfer-notes" class="form-input-modern" rows="3"
                                     placeholder="Дополнительная информация"></textarea>
                             </div>

@@ -8666,6 +8666,130 @@ body,
     font-weight: 400 !important;
 }
 
+.visually-hidden {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    padding: 0 !important;
+    margin: -1px !important;
+    overflow: hidden !important;
+    clip: rect(0 0 0 0) !important;
+    white-space: nowrap !important;
+    border: 0 !important;
+}
+
+.modal-header-fixed h2,
+.modal-content h2,
+.simple-modal h2,
+.filter-bottom-sheet-header h3,
+.game-filter-header h3 {
+    color: #5f6673 !important;
+    font-family: Arial, "Helvetica Neue", Helvetica, sans-serif !important;
+    font-size: 18px !important;
+    line-height: 22px !important;
+    font-weight: 600 !important;
+    letter-spacing: 0 !important;
+}
+
+#incomeFilterToggleBtn,
+#expenseFilterToggleBtn,
+#cashFilterToggleBtn,
+button[id$="FilterToggleBtn"] {
+    width: 40px !important;
+    min-width: 40px !important;
+    height: 38px !important;
+    padding: 0 !important;
+    justify-content: center !important;
+    gap: 0 !important;
+}
+
+.filter-toggle-icon {
+    width: 16px !important;
+    height: 16px !important;
+    color: currentColor !important;
+    stroke: currentColor !important;
+}
+
+.finances-page .balance-card-minimal {
+    padding: 14px 16px !important;
+    margin-bottom: 18px !important;
+    border-color: #e4ddd6 !important;
+    border-radius: 8px !important;
+    box-shadow: none !important;
+}
+
+.finances-page .balance-card-minimal>div {
+    gap: 10px !important;
+    align-items: flex-start !important;
+}
+
+.finances-page .balance-card-minimal>div>div:first-child {
+    width: 18px !important;
+    height: 18px !important;
+    min-width: 18px !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    color: #5f6673 !important;
+}
+
+.finances-page .balance-card-minimal svg {
+    width: 18px !important;
+    height: 18px !important;
+    stroke: currentColor !important;
+}
+
+.finances-page .balance-card-minimal svg * {
+    stroke: currentColor !important;
+}
+
+.finances-page .balance-label-minimal {
+    color: #5f6673 !important;
+    font-size: 13px !important;
+    line-height: 16px !important;
+    font-weight: 500 !important;
+    margin-bottom: 3px !important;
+}
+
+.finances-page .balance-value-minimal,
+.finances-page #cumulativeBalance {
+    color: #111827 !important;
+    font-family: Arial, "Helvetica Neue", Helvetica, sans-serif !important;
+    font-size: 22px !important;
+    line-height: 26px !important;
+    font-weight: 600 !important;
+    letter-spacing: 0 !important;
+}
+
+.finances-page .balance-breakdown {
+    color: #5f6673 !important;
+    font-size: 12px !important;
+    line-height: 16px !important;
+}
+
+.finances-page #debtors-tab h2 {
+    color: #5f6673 !important;
+    font-size: 18px !important;
+    line-height: 22px !important;
+    font-weight: 600 !important;
+}
+
+.finances-page .stat-card h3 {
+    color: #5f6673 !important;
+    font-size: 13px !important;
+    line-height: 16px !important;
+    font-weight: 600 !important;
+    text-transform: none !important;
+}
+
+.finances-page .stat-card .value {
+    color: #4f5867 !important;
+    font-size: 16px !important;
+    line-height: 20px !important;
+    font-weight: 400 !important;
+}
+
 *:not(#app-scrollbar-override) {
     scrollbar-color: rgba(216, 208, 200, .46) transparent !important;
     scrollbar-width: thin !important;

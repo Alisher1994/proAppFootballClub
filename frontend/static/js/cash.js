@@ -5,6 +5,42 @@ const cashTrashIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6
 let currentBalance = 0;
 let cashDefaultFilterApplied = false;
 
+function parseCashAmount(value) {
+    const normalized = String(value || '')
+        .replace(/\s/g, '')
+        .replace(',', '.')
+        .replace(/[^0-9.-]/g, '');
+    const parsed = parseFloat(normalized);
+    return Number.isNaN(parsed) ? 0 : parsed;
+}
+
+function formatCashAmount(value) {
+    const amount = typeof value === 'number' ? value : parseCashAmount(value);
+    if (!amount) return '';
+    return amount.toLocaleString('ru-RU', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    });
+}
+
+function formatCashAmountInput(inputEl) {
+    if (!inputEl) return;
+    inputEl.value = formatCashAmount(inputEl.value);
+}
+
+function attachCashAmountFormatting() {
+    const amountInput = document.getElementById('transfer-amount');
+    if (!amountInput || amountInput.dataset.amountFormattingAttached === '1') return;
+    amountInput.dataset.amountFormattingAttached = '1';
+    amountInput.addEventListener('input', () => {
+        const cursorAtEnd = amountInput.selectionStart === amountInput.value.length;
+        const raw = amountInput.value.replace(/[^\d,.-]/g, '');
+        amountInput.value = raw;
+        if (cursorAtEnd) amountInput.setSelectionRange(amountInput.value.length, amountInput.value.length);
+    });
+    amountInput.addEventListener('blur', () => formatCashAmountInput(amountInput));
+}
+
 // Загрузка баланса кассы
 async function loadCashBalance() {
     try {
@@ -22,7 +58,7 @@ async function loadCashBalance() {
         // Автоматически подставить остаток в поле суммы при открытии модального окна
         const amountInput = document.getElementById('transfer-amount');
         if (amountInput && !amountInput.value) {
-            amountInput.value = currentBalance.toFixed(2);
+            amountInput.value = formatCashAmount(currentBalance);
         }
         
         return data;
@@ -151,7 +187,7 @@ function openAddTransferModal() {
         loadCashBalance().then(() => {
             const amountInput = document.getElementById('transfer-amount');
             if (amountInput) {
-                amountInput.value = currentBalance.toFixed(2);
+                amountInput.value = formatCashAmount(currentBalance);
             }
         });
         
@@ -174,7 +210,7 @@ async function editTransfer(transferId) {
         editId.value = transferId;
         
         // Заполнить форму данными
-        document.getElementById('transfer-amount').value = transfer.amount;
+        document.getElementById('transfer-amount').value = formatCashAmount(transfer.amount);
         document.getElementById('transfer-recipient').value = transfer.recipient;
         
         const transferDate = new Date(transfer.transfer_date);
@@ -206,7 +242,7 @@ async function saveTransfer(event) {
     event.preventDefault();
     
     const editId = document.getElementById('edit-transfer-id').value;
-    const amount = parseFloat(document.getElementById('transfer-amount').value);
+    const amount = parseCashAmount(document.getElementById('transfer-amount').value);
     const recipient = document.getElementById('transfer-recipient').value.trim();
     const transferDate = document.getElementById('transfer-date').value;
     const notes = document.getElementById('transfer-notes').value.trim();
@@ -355,6 +391,7 @@ function escapeHtml(text) {
 
 // Инициализация при загрузке страницы
 document.addEventListener('DOMContentLoaded', () => {
+    attachCashAmountFormatting();
     // Загрузить данные
     if (!cashDefaultFilterApplied) {
         const todayDate = new Date();
