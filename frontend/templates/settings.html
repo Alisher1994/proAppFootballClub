@@ -386,6 +386,108 @@
             line-height: 1.5;
         }
 
+        .access-policy-select-native {
+            position: absolute !important;
+            width: 1px !important;
+            height: 1px !important;
+            opacity: 0 !important;
+            pointer-events: none !important;
+        }
+
+        .access-policy-dropdown {
+            position: relative;
+            width: 100%;
+        }
+
+        .access-policy-trigger {
+            width: 100%;
+            min-height: 42px;
+            padding: 10px 42px 10px 14px;
+            border: 1px solid #d8d0c8;
+            border-radius: 9px;
+            background: #fff;
+            color: #1f2633;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            text-align: left;
+            font: 400 14px/1.35 Onest, Arial, sans-serif;
+            cursor: pointer;
+        }
+
+        .access-policy-trigger::after {
+            content: "";
+            position: absolute;
+            right: 16px;
+            top: 50%;
+            width: 8px;
+            height: 8px;
+            border-right: 1.5px solid #7b6475;
+            border-bottom: 1.5px solid #7b6475;
+            transform: translateY(-65%) rotate(45deg);
+            transition: transform 0.16s ease;
+        }
+
+        .access-policy-dropdown.is-open .access-policy-trigger {
+            border-color: #ff8a00;
+            box-shadow: 0 0 0 3px rgba(255, 138, 0, 0.1);
+        }
+
+        .access-policy-dropdown.is-open .access-policy-trigger::after {
+            transform: translateY(-25%) rotate(225deg);
+        }
+
+        .access-policy-menu {
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: calc(100% + 6px);
+            z-index: 90;
+            padding: 6px;
+            border: 1px solid #d8d0c8;
+            border-radius: 10px;
+            background: #fff;
+            box-shadow: 0 14px 30px rgba(31, 35, 42, 0.12);
+            display: none;
+        }
+
+        .access-policy-dropdown.is-open .access-policy-menu {
+            display: block;
+        }
+
+        .access-policy-option {
+            width: 100%;
+            padding: 9px 10px;
+            border: 0;
+            border-radius: 8px;
+            background: transparent;
+            color: #293241;
+            display: block;
+            text-align: left;
+            cursor: pointer;
+        }
+
+        .access-policy-option:hover,
+        .access-policy-option.is-active {
+            background: #fff4e8;
+        }
+
+        .access-policy-option-title {
+            display: block;
+            font-size: 14px;
+            line-height: 1.35;
+            font-weight: 500;
+        }
+
+        .access-policy-option-description {
+            display: block;
+            margin-top: 3px;
+            color: #8b7280;
+            font-size: 12px;
+            line-height: 1.35;
+            font-weight: 400;
+        }
+
         @media (max-width: 900px) {
             .access-policy-help-card {
                 left: 0;
@@ -2837,11 +2939,17 @@
                                             </button>
                                             <span class="access-policy-help-card" id="accessPolicyDetails" role="tooltip"></span>
                                         </label>
-                                        <select id="access_payment_policy" class="form-input-modern">
+                                        <select id="access_payment_policy" class="form-input-modern access-policy-select-native" tabindex="-1" aria-hidden="true">
                                             <option value="full_current_month">Только 100% оплата текущего месяца</option>
                                             <option value="partial_current_month">Частичная оплата текущего месяца, без старых долгов</option>
                                             <option value="any_payment_this_month">Частичная оплата текущего месяца, разрешить старые долги</option>
                                         </select>
+                                        <div class="access-policy-dropdown" id="accessPolicyDropdown">
+                                            <button type="button" class="access-policy-trigger" id="accessPolicyTrigger" aria-haspopup="listbox" aria-expanded="false">
+                                                Выберите правило
+                                            </button>
+                                            <div class="access-policy-menu" id="accessPolicyMenu" role="listbox" aria-label="Правило допуска по оплате"></div>
+                                        </div>
                                         <small id="accessPaymentPolicyHelp">
                                             Выберите правило допуска для терминала.
                                         </small>

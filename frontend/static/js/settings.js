@@ -7,16 +7,19 @@ let settingsDirtyTrackingReady = false;
 const settingsFormSnapshots = new Map();
 const ACCESS_POLICY_INFO = {
     full_current_month: {
+        title: 'Только 100% оплата текущего месяца',
         short: 'Пропускаем только если текущий месяц оплачен полностью.',
         details: 'Ученик проходит через терминал только после 100% оплаты текущего месяца. Частичная оплата текущего месяца не допускает к проходу.',
         example: 'Пример: тариф 500 000, оплачено 250 000 за июль - проход закрыт. Оплачено 500 000 - проход открыт.'
     },
     partial_current_month: {
+        title: 'Частичная оплата текущего месяца, без старых долгов',
         short: 'Нужна любая оплата за текущий месяц, старых долгов быть не должно.',
         details: 'Ученик проходит, если за текущий месяц есть оплата. Долги за прошлые месяцы блокируют проход.',
         example: 'Пример: за июль оплачено 100 000 и старых долгов нет - проход открыт. Есть долг за июнь - проход закрыт.'
     },
     any_payment_this_month: {
+        title: 'Частичная оплата текущего месяца, разрешить старые долги',
         short: 'Нужна оплата за текущий месяц, старые долги разрешены в пределах лимита.',
         details: 'Ученик проходит, если за текущий месяц есть оплата, а старый долг не превышает выбранное количество месяцев.',
         example: 'Пример: лимит 1 месяц, есть долг за июнь и оплата за июль - проход открыт. Долг за май и июнь - проход закрыт.'
@@ -161,10 +164,20 @@ function updateAccessPaymentPolicyUI() {
     const debtGroup = document.getElementById('accessDebtMonthsGroup');
     const help = document.getElementById('accessPaymentPolicyHelp');
     const infoCard = document.getElementById('accessPolicyDetails');
+    const trigger = document.getElementById('accessPolicyTrigger');
+    const menu = document.getElementById('accessPolicyMenu');
     const showDebtLimit = policy === 'any_payment_this_month';
 
     if (debtGroup) debtGroup.classList.toggle('is-hidden', !showDebtLimit);
     if (help) help.textContent = info.short;
+    if (trigger) trigger.textContent = info.title;
+    if (menu) {
+        menu.querySelectorAll('.access-policy-option').forEach((option) => {
+            const isActive = option.dataset.value === policy;
+            option.classList.toggle('is-active', isActive);
+            option.setAttribute('aria-selected', isActive ? 'true' : 'false');
+        });
+    }
     if (infoCard) {
         infoCard.innerHTML = `<strong>${info.short}</strong><br>${info.details}<span class="access-policy-example">${info.example}</span>`;
     }
@@ -175,9 +188,38 @@ function attachAccessPaymentPolicyControls() {
     const policySelect = document.getElementById('access_payment_policy');
     const infoButton = document.getElementById('accessPolicyInfoButton');
     const debtInput = document.getElementById('access_max_debt_months');
+    const dropdown = document.getElementById('accessPolicyDropdown');
+    const trigger = document.getElementById('accessPolicyTrigger');
+    const menu = document.getElementById('accessPolicyMenu');
+
+    if (menu && policySelect && !menu.dataset.ready) {
+        menu.innerHTML = Object.entries(ACCESS_POLICY_INFO).map(([value, info]) => `
+            <button type="button" class="access-policy-option" role="option" data-value="${value}">
+                <span class="access-policy-option-title">${info.title}</span>
+                <span class="access-policy-option-description">${info.short}</span>
+            </button>
+        `).join('');
+        menu.dataset.ready = 'true';
+    }
 
     if (policySelect) {
         policySelect.addEventListener('change', updateAccessPaymentPolicyUI);
+    }
+    if (trigger && dropdown) {
+        trigger.addEventListener('click', () => {
+            const isOpen = dropdown.classList.toggle('is-open');
+            trigger.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+        });
+    }
+    if (menu && policySelect && dropdown && trigger) {
+        menu.addEventListener('click', (event) => {
+            const option = event.target.closest('.access-policy-option');
+            if (!option) return;
+            policySelect.value = option.dataset.value || 'partial_current_month';
+            policySelect.dispatchEvent(new Event('change', { bubbles: true }));
+            dropdown.classList.remove('is-open');
+            trigger.setAttribute('aria-expanded', 'false');
+        });
     }
     if (debtInput) {
         debtInput.addEventListener('change', normalizeAccessDebtMonths);
@@ -197,6 +239,12 @@ function attachAccessPaymentPolicyControls() {
         if (event.target.closest('.access-policy-label')) return;
         infoCard.classList.remove('is-open');
         infoButton.classList.remove('is-open');
+    });
+    document.addEventListener('click', (event) => {
+        if (!dropdown || !trigger || !dropdown.classList.contains('is-open')) return;
+        if (event.target.closest('#accessPolicyDropdown')) return;
+        dropdown.classList.remove('is-open');
+        trigger.setAttribute('aria-expanded', 'false');
     });
     updateAccessPaymentPolicyUI();
 }
