@@ -1548,7 +1548,7 @@
 
         .terminal-ip-row .form-input-modern {
             min-height: 42px;
-            padding-right: 84px;
+            padding-right: 76px !important;
         }
 
         .terminal-icon-button {
@@ -1573,11 +1573,75 @@
         }
 
         .terminal-icon-button[data-open-hikvision-door] {
-            right: 42px;
+            right: 38px;
         }
 
         .terminal-icon-button[data-clear-hikvision-device] {
             right: 8px;
+        }
+
+        .bridge-status-banner {
+            margin-bottom: 14px;
+            padding: 12px 14px;
+            border-radius: 8px;
+            border: 1px solid var(--theme-border);
+            background: var(--theme-bg-secondary);
+            color: var(--theme-text-primary);
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .bridge-status-main {
+            min-width: 0;
+        }
+
+        .bridge-status-actions {
+            display: inline-flex;
+            gap: 6px;
+            flex: 0 0 auto;
+        }
+
+        .bridge-status-icon-btn {
+            width: 34px;
+            height: 34px;
+            border: 0;
+            border-radius: 9px;
+            background: rgba(255, 255, 255, 0.72);
+            color: var(--settings-muted);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: none;
+        }
+
+        .bridge-status-icon-btn:hover {
+            background: #fff;
+            color: #ff8a00;
+        }
+
+        .bridge-status-icon-btn.is-loading,
+        .terminal-icon-button.is-loading {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+
+        .bridge-status-icon-btn.is-loading svg,
+        .terminal-icon-button.is-loading svg {
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .bridge-status-icon-btn svg {
+            width: 17px;
+            height: 17px;
         }
 
         .terminal-icon-button svg {
@@ -3063,7 +3127,6 @@
                             </div>
 
                             <div style="display:flex; justify-content:flex-end; gap: 12px; margin-top: 24px; flex-wrap: wrap;">
-                                <button type="button" id="hikvisionManualSyncBtn" class="btn-secondary"><i data-lucide="refresh-cw"></i> Синхронизировать сейчас</button>
                                 <button type="submit" class="btn-primary"><i data-lucide="save"></i> Сохранить Hikvision</button>
                             </div>
                         </form>
@@ -3075,11 +3138,18 @@
                                     <span class="settings-section-icon"><i data-lucide="activity"></i></span>
                                     <h3 class="settings-section-title">Bridge сейчас</h3>
                                 </div>
-                                <button type="button" id="bridgeStatusRefreshBtn" class="btn-secondary" style="padding: 8px 12px;"><i data-lucide="refresh-cw"></i> Обновить</button>
                             </div>
                             <div class="settings-section-content">
-                                <div id="bridgeStatusBanner" style="margin-bottom: 14px; padding: 12px 14px; border-radius: 8px; border: 1px solid var(--theme-border); background: var(--theme-bg-secondary); color: var(--theme-text-primary);">
-                                    Загрузка состояния bridge...
+                                <div id="bridgeStatusBanner" class="bridge-status-banner">
+                                    <div>Загрузка состояния bridge...</div>
+                                    <div class="bridge-status-actions">
+                                        <button type="button" id="hikvisionManualSyncBtn" class="bridge-status-icon-btn" title="Синхронизировать сейчас" aria-label="Синхронизировать сейчас">
+                                            <i data-lucide="rotate-3d"></i>
+                                        </button>
+                                        <button type="button" id="bridgeStatusRefreshBtn" class="bridge-status-icon-btn" title="Обновить статус" aria-label="Обновить статус">
+                                            <i data-lucide="refresh-cw"></i>
+                                        </button>
+                                    </div>
                                 </div>
                                 <div id="bridgeProgressPanel" style="display:none; margin-bottom:14px; padding:12px; border:1px solid var(--theme-border); border-radius:8px; background:var(--theme-bg-secondary);">
                                     <div style="display:flex; justify-content:space-between; gap:12px; align-items:center; flex-wrap:wrap; margin-bottom:8px;">
@@ -3092,7 +3162,7 @@
                                     <div id="bridgeProgressText" style="font-size:13px; color:var(--theme-text-secondary);">Ожидание задачи</div>
                                     <div style="display:flex; justify-content:space-between; gap:12px; align-items:center; flex-wrap:wrap; margin-top:6px;">
                                         <div id="bridgeProgressStats" style="font-size:12px; color:var(--theme-text-secondary);"></div>
-                                        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                                        <div id="bridgeProgressControls" style="display:none; gap:8px; flex-wrap:wrap;">
                                             <button type="button" id="bridgePauseBtn" class="btn-secondary" style="padding:6px 10px;">⏸️ Пауза записи</button>
                                             <button type="button" id="bridgeStopBtn" class="btn-secondary" style="padding:6px 10px; color:#b91c1c; border-color:#fecaca;">⛔ Остановить запись</button>
                                             <button type="button" id="bridgeResultsBtn" class="btn-secondary" style="padding:6px 10px; display:none;">Списки записей</button>

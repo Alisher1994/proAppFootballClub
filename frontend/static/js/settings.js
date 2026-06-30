@@ -492,7 +492,7 @@ async function requestHikvisionSync() {
     const btn = document.getElementById('hikvisionManualSyncBtn');
     if (btn) {
         btn.disabled = true;
-        btn.textContent = '⏳ Команда отправляется...';
+        btn.classList.add('is-loading');
     }
     try {
         const resp = await fetch('/api/hikvision/sync', { method: 'POST' });
@@ -511,7 +511,7 @@ async function requestHikvisionSync() {
     } finally {
         if (btn) {
             btn.disabled = false;
-            btn.textContent = '🔄 Синхронизировать сейчас';
+            btn.classList.remove('is-loading');
         }
     }
 }
@@ -520,10 +520,9 @@ async function requestHikvisionDoorOpen(deviceName, btn) {
     const label = deviceName === 'entry' ? 'вход' : 'выход';
     if (!confirm(`Открыть турникет "${label}" сейчас?`)) return;
 
-    const originalText = btn ? btn.textContent : '';
     if (btn) {
         btn.disabled = true;
-        btn.textContent = '⏳ Открываем...';
+        btn.classList.add('is-loading');
     }
     try {
         const resp = await fetch('/api/hikvision/open-door', {
@@ -544,7 +543,7 @@ async function requestHikvisionDoorOpen(deviceName, btn) {
     } finally {
         if (btn) {
             btn.disabled = false;
-            btn.textContent = originalText;
+            btn.classList.remove('is-loading');
         }
     }
 }
@@ -554,10 +553,9 @@ async function requestHikvisionClearDevice(deviceName, btn) {
     const typed = prompt(`Это удалит ВСЕХ людей из памяти терминала "${label}". Напишите ОЧИСТИТЬ для подтверждения.`);
     if (typed !== 'ОЧИСТИТЬ') return;
 
-    const originalText = btn ? btn.textContent : '';
     if (btn) {
         btn.disabled = true;
-        btn.textContent = '⏳ Очищаем...';
+        btn.classList.add('is-loading');
     }
     try {
         const resp = await fetch('/api/hikvision/clear-device', {
@@ -579,7 +577,7 @@ async function requestHikvisionClearDevice(deviceName, btn) {
     } finally {
         if (btn) {
             btn.disabled = false;
-            btn.textContent = originalText;
+            btn.classList.remove('is-loading');
         }
     }
 }
@@ -1111,7 +1109,14 @@ async function loadBridgeStatus() {
         if (!bridge) {
             banner.style.borderColor = '#fecaca';
             banner.style.background = '#fff1f2';
-            banner.innerHTML = '<strong>Bridge не найден</strong><br><span style="font-size:13px;">Локальный bridge еще не отправлял heartbeat.</span>';
+            banner.innerHTML = `
+                <div class="bridge-status-main">
+                    <strong>Bridge не найден</strong><br>
+                    <span style="font-size:13px;">Локальный bridge еще не отправлял heartbeat.</span>
+                </div>
+                ${bridgeStatusActionsHtml()}
+            `;
+            attachBridgeStatusButtons();
             setBridgeText('bridgeCpuMetric', '—');
             setBridgeText('bridgeCpuDetails', '');
             setBridgeText('bridgeRamMetric', '—');
@@ -1142,17 +1147,21 @@ async function loadBridgeStatus() {
         const dotColor = online ? (legacy ? '#d96f00' : '#16a34a') : '#dc2626';
         const seenText = bridge.seconds_since_seen == null ? 'нет данных' : `${bridge.seconds_since_seen} сек назад`;
         banner.innerHTML = `
-            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-                <span style="color:${dotColor}; font-size:18px;">${dot}</span>
-                <strong>${online ? (legacy ? 'Bridge online, но старая версия' : 'Локальный Bridge online') : 'Локальный Bridge offline'}</strong>
-                <span style="color:var(--theme-text-secondary);">• ${escapeHtml(bridge.host || 'unknown')} • PID ${escapeHtml(bridge.pid || '—')}</span>
+            <div class="bridge-status-main">
+                <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                    <span style="color:${dotColor}; font-size:18px;">${dot}</span>
+                    <strong>${online ? (legacy ? 'Bridge online, но старая версия' : 'Локальный Bridge online') : 'Локальный Bridge offline'}</strong>
+                    <span style="color:var(--theme-text-secondary);">• ${escapeHtml(bridge.host || 'unknown')} • PID ${escapeHtml(bridge.pid || '—')}</span>
+                </div>
+                <div style="margin-top:6px; font-size:13px; color:var(--theme-text-secondary);">
+                    Последний heartbeat: ${escapeHtml(seenText)}
+                </div>
+                ${legacy ? '<div style="margin-top:4px; font-size:13px; color:#92400e;">Обновите и перезапустите локальный bridge, чтобы появились live-логи и метрики.</div>' : ''}
+                ${processing ? `<div style="margin-top:4px; font-size:13px;">Выполняется команда #${processing.id}</div>` : ''}
             </div>
-            <div style="margin-top:6px; font-size:13px; color:var(--theme-text-secondary);">
-                Последний heartbeat: ${escapeHtml(seenText)}
-            </div>
-            ${legacy ? '<div style="margin-top:4px; font-size:13px; color:#92400e;">Обновите и перезапустите локальный bridge, чтобы появились live-логи и метрики.</div>' : ''}
-            ${processing ? `<div style="margin-top:4px; font-size:13px;">Выполняется команда #${processing.id}</div>` : ''}
+            ${bridgeStatusActionsHtml()}
         `;
+        attachBridgeStatusButtons();
 
         setBridgeText('bridgeCpuMetric', metrics.cpu_used_percent != null ? `${metrics.cpu_used_percent}%` : '—');
         setBridgeHtml('bridgeCpuDetails', bridgeMetricLines([
@@ -1171,7 +1180,14 @@ async function loadBridgeStatus() {
     } catch (error) {
         banner.style.borderColor = '#fecaca';
         banner.style.background = '#fff1f2';
-        banner.innerHTML = `<strong>Ошибка загрузки bridge</strong><br><span style="font-size:13px;">${escapeHtml(error.message)}</span>`;
+        banner.innerHTML = `
+            <div class="bridge-status-main">
+                <strong>Ошибка загрузки bridge</strong><br>
+                <span style="font-size:13px;">${escapeHtml(error.message)}</span>
+            </div>
+            ${bridgeStatusActionsHtml()}
+        `;
+        attachBridgeStatusButtons();
         updateBridgeProgress(null);
     }
 }
@@ -1282,6 +1298,33 @@ function setBridgeSensors(temperatures) {
     ]));
 }
 
+function bridgeStatusActionsHtml() {
+    return `
+        <div class="bridge-status-actions">
+            <button type="button" id="hikvisionManualSyncBtn" class="bridge-status-icon-btn" title="Синхронизировать сейчас" aria-label="Синхронизировать сейчас">
+                <i data-lucide="rotate-3d"></i>
+            </button>
+            <button type="button" id="bridgeStatusRefreshBtn" class="bridge-status-icon-btn" title="Обновить статус" aria-label="Обновить статус">
+                <i data-lucide="refresh-cw"></i>
+            </button>
+        </div>
+    `;
+}
+
+function attachBridgeStatusButtons() {
+    const syncBtn = document.getElementById('hikvisionManualSyncBtn');
+    if (syncBtn && !syncBtn.dataset.bound) {
+        syncBtn.dataset.bound = 'true';
+        syncBtn.addEventListener('click', requestHikvisionSync);
+    }
+    const refreshBtn = document.getElementById('bridgeStatusRefreshBtn');
+    if (refreshBtn && !refreshBtn.dataset.bound) {
+        refreshBtn.dataset.bound = 'true';
+        refreshBtn.addEventListener('click', loadBridgeStatus);
+    }
+    if (window.lucide) window.lucide.createIcons();
+}
+
 function formatGbFromMb(value) {
     if (value == null || !Number.isFinite(Number(value))) return '';
     return formatGb(Number(value) / 1024);
@@ -1322,17 +1365,25 @@ function friendlySensorName(name) {
 function setBridgeControlButtons(enabled, paused) {
     const pauseBtn = document.getElementById('bridgePauseBtn');
     const stopBtn = document.getElementById('bridgeStopBtn');
+    const controls = document.getElementById('bridgeProgressControls');
     if (pauseBtn) {
         pauseBtn.dataset.action = paused ? 'resume' : 'pause';
         pauseBtn.textContent = paused ? '▶️ Продолжить запись' : '⏸️ Пауза записи';
         pauseBtn.disabled = !enabled;
+        pauseBtn.style.display = enabled ? 'inline-flex' : 'none';
         pauseBtn.style.opacity = enabled ? '1' : '0.55';
         pauseBtn.style.cursor = enabled ? 'pointer' : 'not-allowed';
     }
     if (stopBtn) {
         stopBtn.disabled = !enabled;
+        stopBtn.style.display = enabled ? 'inline-flex' : 'none';
         stopBtn.style.opacity = enabled ? '1' : '0.55';
         stopBtn.style.cursor = enabled ? 'pointer' : 'not-allowed';
+    }
+    if (controls) {
+        const resultsBtn = document.getElementById('bridgeResultsBtn');
+        const hasResultsButton = resultsBtn && resultsBtn.style.display !== 'none';
+        controls.style.display = enabled || hasResultsButton ? 'flex' : 'none';
     }
 }
 
@@ -1397,6 +1448,8 @@ function updateBridgeProgress(progress) {
             return (results.success || []).length || (results.errors || []).length || (results.rejected || []).length;
         });
         btn.style.display = hasResults ? 'inline-flex' : 'none';
+        const controls = document.getElementById('bridgeProgressControls');
+        if (controls) controls.style.display = isActive || hasResults ? 'flex' : 'none';
     }
 }
 
