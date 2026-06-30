@@ -305,6 +305,9 @@ function renderMatches() {
 
 async function selectMatch(matchId, rerenderList = true) {
     tournamentState.selectedMatchId = matchId;
+    tournamentState.activeLineupSlot = null;
+    tournamentState.activeEventSlot = null;
+    tournamentState.eventDraftType = null;
     const data = await apiJson(`/api/tournament-matches/${matchId}`);
     tournamentState.currentMatch = data.match;
     tournamentState.lineup = [...(data.match.lineups || [])];
@@ -390,7 +393,9 @@ function renderPlayerSelects() {
 function renderLineupPicker() {
     const picker = qs('lineupPlayerPopover');
     if (!picker) return;
-    const activeSlot = lineupSlots().find((slot) => slot.order === Number(tournamentState.activeLineupSlot));
+    const activeSlot = tournamentState.activeLineupSlot === null
+        ? null
+        : lineupSlots().find((slot) => slot.order === Number(tournamentState.activeLineupSlot));
     if (!activeSlot) {
         picker.innerHTML = '';
         closeLineupPicker();
@@ -544,9 +549,10 @@ function renderLineup() {
                             ${rowSlots.map((slot) => {
                                 const player = assignments.get(slot.order);
                                 const summary = player ? eventSummary.get(Number(player.student_id)) || {} : {};
-                                const isEventActive = Number(tournamentState.activeEventSlot) === slot.order;
+                                const isLineupActive = tournamentState.activeLineupSlot !== null && Number(tournamentState.activeLineupSlot) === slot.order;
+                                const isEventActive = tournamentState.activeEventSlot !== null && Number(tournamentState.activeEventSlot) === slot.order;
                                 return `
-                                    <div class="lineup-slot ${player ? 'filled' : 'empty'} ${slot.rowIndex <= 1 ? 'panel-up' : ''} ${Number(tournamentState.activeLineupSlot) === slot.order || isEventActive ? 'active' : ''}" data-lineup-slot="${slot.order}" role="button" tabindex="0">
+                                    <div class="lineup-slot ${player ? 'filled' : 'empty'} ${slot.rowIndex <= 1 ? 'panel-up' : ''} ${isLineupActive || isEventActive ? 'active' : ''}" data-lineup-slot="${slot.order}" role="button" tabindex="0">
                                         ${player ? `
                                             <div class="lineup-avatar-wrap">
                                                 ${player.photo_url ? `<img src="${player.photo_url}" alt="">` : `<span class="pitch-avatar">${escapeHtml((player.student_name || '?').slice(0, 1))}</span>`}
@@ -612,6 +618,7 @@ function renderLineup() {
         button.addEventListener('click', (event) => {
             event.stopPropagation();
             const activeSlot = tournamentState.activeEventSlot;
+            if (activeSlot === null) return;
             tournamentState.activeEventSlot = null;
             tournamentState.eventDraftType = null;
             openLineupPicker(activeSlot);
@@ -782,7 +789,7 @@ function assignLineupPlayerToSlot(slotOrder, playerId) {
 
 function removeLineupSlot(slotOrder) {
     tournamentState.lineup = tournamentState.lineup.filter((item) => Number(item.sort_order) !== Number(slotOrder));
-    if (Number(tournamentState.activeLineupSlot) === Number(slotOrder)) {
+    if (tournamentState.activeLineupSlot !== null && Number(tournamentState.activeLineupSlot) === Number(slotOrder)) {
         tournamentState.activeLineupSlot = null;
     }
     renderLineup();
@@ -1189,6 +1196,8 @@ function bindForms() {
     qs('eventType')?.addEventListener('change', toggleEventFields);
     qs('formationViewSelect').addEventListener('change', () => {
         tournamentState.activeLineupSlot = null;
+        tournamentState.activeEventSlot = null;
+        tournamentState.eventDraftType = null;
         if (qs('currentMatchFormation')) {
             qs('currentMatchFormation').value = qs('formationViewSelect').value;
         }
