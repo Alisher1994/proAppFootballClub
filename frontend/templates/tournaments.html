@@ -17,31 +17,19 @@
 
     <main class="main-content tournaments-page">
         <section class="tournament-shell">
-            <header class="tournament-header tournament-topbar">
-                <div>
-                    <h1>Турниры</h1>
-                    <p>Сетка, участники, матчи, составы и события.</p>
-                </div>
-                <div class="tournament-actions">
-                    <select id="tournamentSelect" class="tournament-select">
-                        <option value="">Выберите турнир</option>
-                    </select>
-                    <button class="btn-secondary tournament-refresh" id="refreshTournamentBtn" type="button">
-                        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor"
-                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
-                            <path d="M3 21v-5h5" />
-                            <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
-                            <path d="M16 8h5V3" />
-                        </svg>
-                    </button>
-                </div>
-            </header>
-
             <div class="tournament-layout">
                 <aside class="tournament-sidebar-panel">
                     <div class="panel-title-row">
                         <h2>Список турниров</h2>
+                        <button class="btn-secondary tournament-refresh" id="refreshTournamentBtn" type="button" title="Обновить турниры">
+                            <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor"
+                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
+                                <path d="M3 21v-5h5" />
+                                <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+                                <path d="M16 8h5V3" />
+                            </svg>
+                        </button>
                     </div>
                     <div class="tournament-list" id="tournamentList">
                         <div class="empty-state small">Загрузка...</div>

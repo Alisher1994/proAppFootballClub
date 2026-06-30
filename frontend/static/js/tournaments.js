@@ -1272,7 +1272,7 @@ async function createMatch(event) {
 
 function bindForms() {
     qs('refreshTournamentBtn').addEventListener('click', initTournaments);
-    qs('tournamentSelect').addEventListener('change', (event) => selectTournament(event.target.value));
+    qs('tournamentSelect')?.addEventListener('change', (event) => selectTournament(event.target.value));
     qs('openTournamentModalBtn').addEventListener('click', () => openModal('tournamentModal'));
     qs('openTeamModalBtn').addEventListener('click', () => openModal('teamModal'));
     qs('openMatchModalBtn').addEventListener('click', () => openModal('matchModal'));

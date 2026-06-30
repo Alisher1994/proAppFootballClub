@@ -5382,7 +5382,7 @@ textarea:focus,
 .tournament-shell {
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: 10px;
 }
 
 .tournament-header,
@@ -5458,9 +5458,9 @@ textarea:focus,
 
 .tournament-sidebar-panel {
     position: sticky;
-    top: 14px;
-    min-height: calc(100vh - 170px);
-    max-height: calc(100vh - 110px);
+    top: 8px;
+    min-height: calc(100vh - 32px);
+    max-height: calc(100vh - 24px);
     padding: 14px;
     overflow: hidden;
     background: var(--theme-bg-secondary);
@@ -5534,30 +5534,37 @@ textarea:focus,
 }
 
 .tournament-tabs {
+    position: sticky;
+    top: 0;
+    z-index: 40;
     display: flex;
     gap: 8px;
-    padding: 8px;
-    border: 1px solid var(--theme-border);
-    border-radius: 8px;
+    padding: 0 8px;
+    border: 0;
+    border-radius: 0;
+    border-bottom: 1px solid var(--theme-border);
     background: var(--theme-bg-secondary);
 }
 
 .tournament-tab {
-    min-height: 38px;
+    position: relative;
+    min-height: 44px;
     padding: 0 16px;
-    border: 1px solid transparent;
-    border-radius: 8px;
-    background: transparent;
-    color: var(--theme-text-secondary);
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    color: var(--theme-text-secondary) !important;
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 400;
     cursor: pointer;
+    box-shadow: none !important;
 }
 
 .tournament-tab.active {
-    border-color: #ffe1b8;
-    background: #f7f4f1;
-    color: #d96f00;
+    border: 0 !important;
+    background: transparent !important;
+    color: #ff8a00 !important;
+    font-weight: 600;
 }
 
 .tournament-tab-panel {
@@ -8714,6 +8721,27 @@ main.main-content.tournaments-page .tournament-tabs button[type="button"].tourna
     background: transparent !important;
     border: 0 !important;
     color: #ff8a00 !important;
+}
+
+main.main-content.tournaments-page .tournament-tabs {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 40 !important;
+    padding: 0 8px !important;
+    border: 0 !important;
+    border-bottom: 1px solid var(--theme-border) !important;
+    border-radius: 0 !important;
+    background: var(--theme-bg-secondary) !important;
+    box-shadow: none !important;
+}
+
+main.main-content.tournaments-page .tournament-tabs button[type="button"].tournament-tab,
+main.main-content.tournaments-page .tournament-tabs button[type="button"].tournament-tab:hover,
+main.main-content.tournaments-page .tournament-tabs button[type="button"].tournament-tab.active {
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
 }
 
 .btn-primary,
