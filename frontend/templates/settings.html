@@ -1440,6 +1440,18 @@
             display: block;
         }
 
+        .logo-preview-box-square {
+            width: 68px;
+            justify-self: start;
+            padding: 10px;
+        }
+
+        .logo-preview-box-square img {
+            width: 44px;
+            height: 44px;
+            object-fit: contain;
+        }
+
         .logo-actions {
             min-width: 0;
             display: grid;
@@ -1974,6 +1986,38 @@
                                                             Выбрать
                                                         </button>
                                                         <button type="button" id="resetLogoBtn" class="btn-secondary" title="Вернуть системный логотип">
+                                                            <i data-lucide="rotate-ccw"></i>
+                                                            <span>Сбросить</span>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>
+                                            <i data-lucide="badge"></i>
+                                            Квадратный логотип
+                                        </label>
+                                        <div class="logo-settings-row">
+                                            <div class="logo-preview-box logo-preview-box-square">
+                                                <img id="system_square_logo_preview" src="{{ system_square_logo_url }}" alt="{{ system_name }}">
+                                            </div>
+                                            <div class="logo-actions">
+                                                <input type="file" id="system_square_logo_file" accept="image/png,image/jpeg,image/webp"
+                                                    data-ignore-dirty="true"
+                                                    class="logo-file-input">
+                                                <div class="logo-picker-panel">
+                                                    <div class="logo-picker-meta">
+                                                        <span class="logo-picker-title" id="square_logo_status_text">Системный</span>
+                                                        <span id="square_logo_file_name" class="logo-picker-file"></span>
+                                                    </div>
+                                                    <div class="logo-action-buttons">
+                                                        <button type="button" id="uploadSquareLogoBtn" class="btn-secondary">
+                                                            <i data-lucide="upload"></i>
+                                                            Выбрать
+                                                        </button>
+                                                        <button type="button" id="resetSquareLogoBtn" class="btn-secondary" title="Вернуть системный квадратный логотип">
                                                             <i data-lucide="rotate-ccw"></i>
                                                             <span>Сбросить</span>
                                                         </button>

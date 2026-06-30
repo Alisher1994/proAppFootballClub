@@ -5666,8 +5666,14 @@ textarea:focus,
     display: none !important;
 }
 
-.team-logo-picker input {
-    display: none;
+.team-logo-picker input[type="file"] {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+    overflow: hidden !important;
+    clip-path: inset(50%) !important;
 }
 
 .team-logo-copy {
@@ -6380,27 +6386,49 @@ textarea:focus,
     flex: 1;
     min-width: 0;
     display: grid;
-    grid-template-columns: minmax(160px, 1.2fr) minmax(130px, .9fr) minmax(130px, .9fr) 66px 98px auto auto;
+    grid-template-columns: minmax(170px, 1.25fr) minmax(132px, .85fr) minmax(132px, .85fr) 64px 96px 38px 38px;
     gap: 8px;
     align-items: center;
 }
 
 .pitch-title-controls input,
 .pitch-title-controls select {
+    box-sizing: border-box;
     width: 100%;
     min-width: 0;
-    height: 34px;
-    padding: 6px 10px;
+    height: 40px;
+    min-height: 40px;
+    padding: 0 12px;
     border: 1px solid rgba(255, 255, 255, .22);
     border-radius: 8px;
     background: rgba(255, 255, 255, .94);
     color: var(--theme-text-primary);
     font-size: 12px;
+    line-height: 40px;
 }
 
-.pitch-title-controls .btn-secondary {
-    height: 34px;
-    white-space: nowrap;
+.pitch-icon-button {
+    width: 38px;
+    height: 40px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, .12);
+    color: rgba(255, 255, 255, .9);
+    cursor: pointer;
+    transition: background .15s ease, color .15s ease, opacity .15s ease;
+}
+
+.pitch-icon-button:hover:not(:disabled) {
+    background: rgba(255, 138, 0, .22);
+    color: #ff8a00;
+}
+
+.pitch-icon-button:disabled {
+    opacity: .34;
+    cursor: default;
 }
 
 .pitch-lines {
@@ -6671,6 +6699,9 @@ textarea:focus,
 .lineup-slot strong {
     max-width: 100%;
     min-width: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
     overflow: hidden;
     padding: 4px 8px;
     border-radius: 6px;
@@ -6681,6 +6712,15 @@ textarea:focus,
     font-weight: 600;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+.lineup-system-logo {
+    width: 14px !important;
+    height: 14px !important;
+    flex: 0 0 14px;
+    border: 0 !important;
+    border-radius: 0 !important;
+    object-fit: contain;
 }
 
 .lineup-slot.empty strong {
@@ -6953,6 +6993,9 @@ textarea:focus,
 }
 
 .lineup-player-choice strong {
+    display: flex;
+    align-items: center;
+    gap: 6px;
     font-size: 12px;
     font-weight: 500;
 }
@@ -7117,8 +7160,7 @@ textarea:focus,
         grid-template-columns: 1fr 1fr;
     }
 
-    .pitch-title-controls input[type="search"],
-    .pitch-title-controls .btn-secondary {
+    .pitch-title-controls input[type="search"] {
         grid-column: 1 / -1;
     }
 
@@ -7769,7 +7811,7 @@ button.primary:hover {
 .btn-ghost,
 .filter-btn,
 button.secondary,
-button[type="button"]:not(.btn-danger):not(.delete-btn):not(.remove-btn):not(.logout-btn) {
+button[type="button"]:not(.btn-danger):not(.delete-btn):not(.remove-btn):not(.logout-btn):not(.pitch-icon-button) {
     background: #f8f7f6 !important;
     border: 1px solid var(--theme-border) !important;
     color: var(--theme-text-primary) !important;

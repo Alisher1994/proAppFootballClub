@@ -1356,6 +1356,8 @@ def ensure_club_settings_columns():
             conn.execute(db.text("ALTER TABLE club_settings ADD COLUMN system_name VARCHAR(200)"))
         if 'logo_path' not in columns:
             conn.execute(db.text("ALTER TABLE club_settings ADD COLUMN logo_path VARCHAR(300)"))
+        if 'square_logo_path' not in columns:
+            conn.execute(db.text("ALTER TABLE club_settings ADD COLUMN square_logo_path VARCHAR(300)"))
         if 'rewards_reset_period_months' not in columns:
             # SQLite использует INTEGER, PostgreSQL тоже поддерживает
             conn.execute(db.text("ALTER TABLE club_settings ADD COLUMN rewards_reset_period_months INTEGER DEFAULT 1"))
@@ -2128,12 +2130,14 @@ def format_date(value, fmt='%d.%m.%Y'):
 # Кеш для бренда системы
 SYSTEM_NAME_CACHE = None
 SYSTEM_LOGO_URL_CACHE = None
+SYSTEM_SQUARE_LOGO_URL_CACHE = None
 
 
 def reset_brand_cache():
-    global SYSTEM_NAME_CACHE, SYSTEM_LOGO_URL_CACHE
+    global SYSTEM_NAME_CACHE, SYSTEM_LOGO_URL_CACHE, SYSTEM_SQUARE_LOGO_URL_CACHE
     SYSTEM_NAME_CACHE = None
     SYSTEM_LOGO_URL_CACHE = None
+    SYSTEM_SQUARE_LOGO_URL_CACHE = None
 
 
 def get_system_logo_url(settings=None):
@@ -2142,6 +2146,14 @@ def get_system_logo_url(settings=None):
         filename = logo_path.replace('\\', '/').split('/')[-1]
         return url_for('static', filename=f'uploads/{filename}')
     return url_for('static', filename='uploads/logo.png')
+
+
+def get_system_square_logo_url(settings=None):
+    logo_path = getattr(settings, 'square_logo_path', None) if settings else None
+    if logo_path:
+        filename = logo_path.replace('\\', '/').split('/')[-1]
+        return url_for('static', filename=f'uploads/{filename}')
+    return url_for('static', filename='uploads/favicon.png')
 
 
 def get_tournament_team_logo_url(team, settings=None):
@@ -2156,11 +2168,12 @@ def get_tournament_team_logo_url(team, settings=None):
 @app.context_processor
 def inject_system_name():
     """Добавляет название системы во все шаблоны (с кешированием)"""
-    global SYSTEM_NAME_CACHE, SYSTEM_LOGO_URL_CACHE
-    if SYSTEM_NAME_CACHE and SYSTEM_LOGO_URL_CACHE:
+    global SYSTEM_NAME_CACHE, SYSTEM_LOGO_URL_CACHE, SYSTEM_SQUARE_LOGO_URL_CACHE
+    if SYSTEM_NAME_CACHE and SYSTEM_LOGO_URL_CACHE and SYSTEM_SQUARE_LOGO_URL_CACHE:
         return {
             'system_name': SYSTEM_NAME_CACHE,
-            'system_logo_url': SYSTEM_LOGO_URL_CACHE
+            'system_logo_url': SYSTEM_LOGO_URL_CACHE,
+            'system_square_logo_url': SYSTEM_SQUARE_LOGO_URL_CACHE
         }
         
     try:
@@ -2168,12 +2181,15 @@ def inject_system_name():
         settings = ClubSettings.query.first()
         SYSTEM_NAME_CACHE = settings.system_name if settings and settings.system_name else 'FK QORASUV'
         SYSTEM_LOGO_URL_CACHE = get_system_logo_url(settings)
+        SYSTEM_SQUARE_LOGO_URL_CACHE = get_system_square_logo_url(settings)
     except Exception:
         SYSTEM_NAME_CACHE = 'FK QORASUV'
         SYSTEM_LOGO_URL_CACHE = url_for('static', filename='uploads/logo.png')
+        SYSTEM_SQUARE_LOGO_URL_CACHE = url_for('static', filename='uploads/favicon.png')
     return {
         'system_name': SYSTEM_NAME_CACHE,
-        'system_logo_url': SYSTEM_LOGO_URL_CACHE
+        'system_logo_url': SYSTEM_LOGO_URL_CACHE,
+        'system_square_logo_url': SYSTEM_SQUARE_LOGO_URL_CACHE
     }
 
 
@@ -3738,7 +3754,7 @@ def tournament_teams_api(tournament_id):
     db.session.add(team)
     db.session.flush()
     try:
-        team.logo_path = save_tournament_team_logo(request.files.get('logo')) if is_multipart else None
+        team.logo_path = save_tournament_team_logo(request.files.get('logo')) if is_multipart and team_type == 'external' else None
     except ValueError as exc:
         db.session.rollback()
         return jsonify({'success': False, 'message': str(exc)}), 400
@@ -6617,6 +6633,8 @@ def get_club_settings():
         'system_name': settings.system_name or 'FK QORASUV',
         'logo_url': get_system_logo_url(settings),
         'logo_is_custom': bool(getattr(settings, 'logo_path', None)),
+        'square_logo_url': get_system_square_logo_url(settings),
+        'square_logo_is_custom': bool(getattr(settings, 'square_logo_path', None)),
         'working_days': settings.get_working_days_list(),
         'work_start_time': settings.work_start_time.strftime('%H:%M'),
         'work_end_time': settings.work_end_time.strftime('%H:%M'),
@@ -6886,6 +6904,82 @@ def reset_club_logo():
             'success': True,
             'logo_url': get_system_logo_url(settings),
             'logo_is_custom': False
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@app.route('/api/club-settings/square-logo', methods=['POST'])
+@login_required
+def upload_club_square_logo():
+    try:
+        ensure_club_settings_columns()
+        settings = get_club_settings_instance()
+        logo_file = request.files.get('logo')
+        if not logo_file or not logo_file.filename:
+            return jsonify({'success': False, 'message': 'Выберите квадратный логотип'}), 400
+
+        _, ext = os.path.splitext(secure_filename(logo_file.filename))
+        ext = ext.lower()
+        if ext not in {'.png', '.jpg', '.jpeg', '.webp'}:
+            return jsonify({'success': False, 'message': 'Поддерживаются PNG, JPG, WEBP'}), 400
+
+        os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+        old_logo = getattr(settings, 'square_logo_path', None)
+        filename = f"club_square_logo_{int(time.time())}{ext}"
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        logo_file.save(filepath)
+
+        settings.square_logo_path = filename
+        db.session.commit()
+
+        if old_logo:
+            old_filename = old_logo.replace('\\', '/').split('/')[-1]
+            if old_filename.startswith('club_square_logo_'):
+                old_path = os.path.join(app.config['UPLOAD_FOLDER'], old_filename)
+                try:
+                    if os.path.exists(old_path):
+                        os.remove(old_path)
+                except OSError:
+                    pass
+
+        reset_brand_cache()
+        return jsonify({
+            'success': True,
+            'square_logo_url': get_system_square_logo_url(settings),
+            'square_logo_is_custom': True
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@app.route('/api/club-settings/square-logo', methods=['DELETE'])
+@login_required
+def reset_club_square_logo():
+    try:
+        ensure_club_settings_columns()
+        settings = get_club_settings_instance()
+        old_logo = getattr(settings, 'square_logo_path', None)
+        settings.square_logo_path = None
+        db.session.commit()
+
+        if old_logo:
+            old_filename = old_logo.replace('\\', '/').split('/')[-1]
+            if old_filename.startswith('club_square_logo_'):
+                old_path = os.path.join(app.config['UPLOAD_FOLDER'], old_filename)
+                try:
+                    if os.path.exists(old_path):
+                        os.remove(old_path)
+                except OSError:
+                    pass
+
+        reset_brand_cache()
+        return jsonify({
+            'success': True,
+            'square_logo_url': get_system_square_logo_url(settings),
+            'square_logo_is_custom': False
         })
     except Exception as e:
         db.session.rollback()
@@ -9399,6 +9493,7 @@ def get_club_settings_public():
     return jsonify({
         'system_name': settings.system_name or 'FK QORASUV',
         'logo_url': get_system_logo_url(settings),
+        'square_logo_url': get_system_square_logo_url(settings),
         'telegram_bot_token': settings.telegram_bot_token or '',
         'director_phone': getattr(settings, 'director_phone', '') or '',
         'founder_phone': getattr(settings, 'founder_phone', '') or '',

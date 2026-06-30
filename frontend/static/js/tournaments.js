@@ -13,6 +13,8 @@ const tournamentState = {
     eventDraftType: null,
     analytics: null,
     activeTab: 'bracket',
+    lineupSnapshot: '',
+    matchSettingsSnapshot: '',
 };
 
 const POSITIONS_ORDER = ['Вратарь', 'Защитник', 'Полузащитник', 'Нападающий', 'Игрок'];
@@ -103,6 +105,50 @@ function teamById(id) {
 
 function logoImg(url, className, alt = '') {
     return url ? `<img class="${className}" src="${escapeHtml(url)}" alt="${escapeHtml(alt)}">` : '';
+}
+
+function systemSquareLogo(className = 'lineup-system-logo') {
+    const url = window.SYSTEM_SQUARE_LOGO_URL || '/static/uploads/favicon.png';
+    return `<img class="${className}" src="${escapeHtml(url)}" alt="">`;
+}
+
+function lineupSnapshotKey(lineup = tournamentState.lineup) {
+    return JSON.stringify(
+        (lineup || [])
+            .map((item) => ({
+                student_id: Number(item.student_id),
+                position: item.position || '',
+                sort_order: Number(item.sort_order),
+                is_starter: item.is_starter !== false,
+            }))
+            .sort((a, b) => a.sort_order - b.sort_order || a.student_id - b.student_id)
+    );
+}
+
+function matchSettingsSnapshotKey(match = tournamentState.currentMatch) {
+    if (!match) return '';
+    return JSON.stringify({
+        round_name: match.round_name || 'group',
+        bracket_side: match.bracket_side || 'left',
+        bracket_order: String(match.bracket_order || 0),
+        formation: match.formation || '4-3-3',
+    });
+}
+
+function currentMatchSettingsKeyFromControls() {
+    return JSON.stringify({
+        round_name: qs('currentMatchRound')?.value || tournamentState.currentMatch?.round_name || 'group',
+        bracket_side: qs('currentMatchSide')?.value || tournamentState.currentMatch?.bracket_side || 'left',
+        bracket_order: String(qs('currentMatchOrder')?.value || tournamentState.currentMatch?.bracket_order || 0),
+        formation: qs('currentMatchFormation')?.value || tournamentState.currentMatch?.formation || '4-3-3',
+    });
+}
+
+function updateLineupHeaderDirtyButtons() {
+    const saveLineupBtn = qs('saveLineupBtn');
+    const saveMatchBtn = qs('saveMatchSettingsBtn');
+    if (saveLineupBtn) saveLineupBtn.disabled = lineupSnapshotKey() === tournamentState.lineupSnapshot;
+    if (saveMatchBtn) saveMatchBtn.disabled = currentMatchSettingsKeyFromControls() === tournamentState.matchSettingsSnapshot;
 }
 
 function openModal(id) {
@@ -311,6 +357,8 @@ async function selectMatch(matchId, rerenderList = true) {
     const data = await apiJson(`/api/tournament-matches/${matchId}`);
     tournamentState.currentMatch = data.match;
     tournamentState.lineup = [...(data.match.lineups || [])];
+    tournamentState.lineupSnapshot = lineupSnapshotKey();
+    tournamentState.matchSettingsSnapshot = matchSettingsSnapshotKey();
     if (rerenderList) {
         renderMatches();
         renderBracket();
@@ -429,7 +477,7 @@ function renderLineupPicker() {
                         <button class="lineup-player-choice" type="button" data-player-id="${player.id}">
                             ${player.photo_url ? `<img src="${player.photo_url}" alt="">` : `<span class="avatar-fallback">${escapeHtml(displayName.slice(0, 1))}</span>`}
                             <span>
-                                <strong>${escapeHtml(displayName)}</strong>
+                                <strong>${systemSquareLogo()}${escapeHtml(displayName)}</strong>
                                 <small>${player.number ? `№${escapeHtml(player.number)} · ` : ''}${escapeHtml(player.group_name || 'Без группы')}</small>
                             </span>
                         </button>
@@ -561,8 +609,21 @@ function renderLineup() {
                         <option value="5-3-2"${selected('5-3-2', formation)}>5-3-2</option>
                         <option value="4-2-3-1"${selected('4-2-3-1', formation)}>4-2-3-1</option>
                     </select>
-                    <button class="btn-secondary small" id="saveLineupBtn" type="button">Сохранить состав</button>
-                    <button class="btn-secondary small" id="saveMatchSettingsBtn" type="button">Обновить матч</button>
+                    <button class="pitch-icon-button" id="saveLineupBtn" type="button" title="Сохранить состав" aria-label="Сохранить состав">
+                        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z" />
+                            <path d="M17 21v-8H7v8" />
+                            <path d="M7 3v5h8" />
+                        </svg>
+                    </button>
+                    <button class="pitch-icon-button" id="saveMatchSettingsBtn" type="button" title="Обновить матч" aria-label="Обновить матч">
+                        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 12a9 9 0 0 1-15 6.7L3 16" />
+                            <path d="M3 21v-5h5" />
+                            <path d="M3 12a9 9 0 0 1 15-6.7L21 8" />
+                            <path d="M21 3v5h-5" />
+                        </svg>
+                    </button>
                 </div>
             </div>
             <div class="pitch-lines lineup-pitch-lines ${tournamentState.activeEventSlot !== null ? 'lineup-focus-mode' : ''}">
@@ -584,7 +645,7 @@ function renderLineup() {
                                                 ${player.photo_url ? `<img src="${player.photo_url}" alt="">` : `<span class="pitch-avatar">${escapeHtml((player.student_name || '?').slice(0, 1))}</span>`}
                                                 ${renderLineupEventBadges(summary)}
                                             </div>
-                                            <strong>${escapeHtml(player.student_name)}</strong>
+                                            <strong>${systemSquareLogo()}${escapeHtml(player.student_name)}</strong>
                                             <span>${escapeHtml(slot.position)}${player.shirt_number ? ` · №${escapeHtml(player.shirt_number)}` : ''}</span>
                                             <button class="lineup-slot-remove" type="button" data-remove-lineup-slot="${slot.order}" title="Убрать игрока">
                                                 <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
@@ -669,6 +730,11 @@ function bindLineupHeaderControls() {
     qs('lineupSearch')?.addEventListener('input', renderLineupPicker);
     qs('saveLineupBtn')?.addEventListener('click', saveLineup);
     qs('saveMatchSettingsBtn')?.addEventListener('click', saveCurrentMatchSettings);
+    ['currentMatchRound', 'currentMatchSide', 'currentMatchOrder'].forEach((id) => {
+        const control = qs(id);
+        control?.addEventListener('input', updateLineupHeaderDirtyButtons);
+        control?.addEventListener('change', updateLineupHeaderDirtyButtons);
+    });
     qs('currentMatchFormation')?.addEventListener('change', () => {
         tournamentState.activeLineupSlot = null;
         tournamentState.activeEventSlot = null;
@@ -682,6 +748,7 @@ function bindLineupHeaderControls() {
         renderLineup();
         renderLineupPicker();
     });
+    updateLineupHeaderDirtyButtons();
 }
 
 function lineupEventSummary() {
@@ -912,6 +979,7 @@ async function saveLineup() {
     });
     tournamentState.currentMatch = data.match;
     tournamentState.lineup = data.match.lineups || [];
+    tournamentState.lineupSnapshot = lineupSnapshotKey();
     showWorkspace();
     renderLineupPicker();
     await loadAnalytics();
@@ -977,6 +1045,7 @@ async function saveCurrentMatchSettings() {
     });
     tournamentState.currentMatch = { ...match, ...data.match };
     tournamentState.matches = tournamentState.matches.map((item) => item.id === data.match.id ? data.match : item);
+    tournamentState.matchSettingsSnapshot = matchSettingsSnapshotKey(tournamentState.currentMatch);
     if (qs('currentMatchFormation')) qs('currentMatchFormation').value = data.match.formation || '4-3-3';
     showWorkspace();
     renderMatches();

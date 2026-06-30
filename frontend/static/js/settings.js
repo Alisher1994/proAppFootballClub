@@ -40,6 +40,18 @@ async function initSettings() {
     }
     const resetLogoBtn = document.getElementById('resetLogoBtn');
     if (resetLogoBtn) resetLogoBtn.addEventListener('click', resetSystemLogo);
+    const uploadSquareLogoBtn = document.getElementById('uploadSquareLogoBtn');
+    if (uploadSquareLogoBtn) uploadSquareLogoBtn.addEventListener('click', uploadSystemSquareLogo);
+    const squareLogoFileInput = document.getElementById('system_square_logo_file');
+    if (squareLogoFileInput) {
+        squareLogoFileInput.addEventListener('change', () => {
+            const fileName = document.getElementById('square_logo_file_name');
+            if (fileName) fileName.textContent = squareLogoFileInput.files?.[0]?.name || 'Файл не выбран';
+            if (squareLogoFileInput.files?.[0]) uploadSystemSquareLogo();
+        });
+    }
+    const resetSquareLogoBtn = document.getElementById('resetSquareLogoBtn');
+    if (resetSquareLogoBtn) resetSquareLogoBtn.addEventListener('click', resetSystemSquareLogo);
     attachTemplateTokenButtons();
 
     const expenseForm = document.getElementById('expenseCategoriesForm');
@@ -170,6 +182,7 @@ async function loadSettings() {
         const data = await resp.json();
         document.getElementById('system_name').value = data.system_name || '';
         setSystemLogoPreview(data.logo_url, data.logo_is_custom);
+        setSystemSquareLogoPreview(data.square_logo_url, data.square_logo_is_custom);
         setWorkingDays(data.working_days || []);
         document.getElementById('work_start_time').value = data.work_start_time || '09:00';
         document.getElementById('work_end_time').value = data.work_end_time || '21:00';
@@ -483,6 +496,19 @@ function setSystemLogoPreview(url, isCustom) {
     updateVisibleBrandLogos(url);
 }
 
+function setSystemSquareLogoPreview(url, isCustom) {
+    const preview = document.getElementById('system_square_logo_preview');
+    if (preview && url) preview.src = cacheBustUrl(url);
+
+    const status = document.getElementById('square_logo_status_text');
+    if (status) status.textContent = isCustom ? 'Загружен' : 'Системный';
+
+    const resetBtn = document.getElementById('resetSquareLogoBtn');
+    if (resetBtn) resetBtn.disabled = !isCustom;
+    const fileName = document.getElementById('square_logo_file_name');
+    if (fileName && !isCustom) fileName.textContent = '';
+}
+
 async function uploadSystemLogo() {
     const fileInput = document.getElementById('system_logo_file');
     const button = document.getElementById('uploadLogoBtn');
@@ -520,6 +546,43 @@ async function uploadSystemLogo() {
     }
 }
 
+async function uploadSystemSquareLogo() {
+    const fileInput = document.getElementById('system_square_logo_file');
+    const button = document.getElementById('uploadSquareLogoBtn');
+    const file = fileInput?.files?.[0];
+    if (!file) {
+        fileInput?.click();
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('logo', file);
+    if (button) button.disabled = true;
+    const status = document.getElementById('square_logo_status_text');
+    if (status) status.textContent = 'Загрузка...';
+
+    try {
+        const resp = await fetch('/api/club-settings/square-logo', {
+            method: 'POST',
+            body: formData
+        });
+        const result = await resp.json();
+        if (!result.success) {
+            alert('Ошибка: ' + (result.message || 'Не удалось загрузить квадратный логотип'));
+            return;
+        }
+        setSystemSquareLogoPreview(result.square_logo_url, result.square_logo_is_custom);
+        fileInput.value = '';
+        const fileName = document.getElementById('square_logo_file_name');
+        if (fileName) fileName.textContent = file.name;
+    } catch (error) {
+        console.error('Ошибка загрузки квадратного логотипа:', error);
+        alert('Не удалось загрузить квадратный логотип');
+    } finally {
+        if (button) button.disabled = false;
+    }
+}
+
 async function resetSystemLogo() {
     if (!confirm('Сбросить логотип на системный?')) return;
     const button = document.getElementById('resetLogoBtn');
@@ -538,6 +601,28 @@ async function resetSystemLogo() {
     } catch (error) {
         console.error('Ошибка сброса логотипа:', error);
         alert('Не удалось сбросить логотип');
+        if (button) button.disabled = false;
+    }
+}
+
+async function resetSystemSquareLogo() {
+    if (!confirm('Сбросить квадратный логотип на системный?')) return;
+    const button = document.getElementById('resetSquareLogoBtn');
+    if (button) button.disabled = true;
+
+    try {
+        const resp = await fetch('/api/club-settings/square-logo', { method: 'DELETE' });
+        const result = await resp.json();
+        if (!result.success) {
+            alert('Ошибка: ' + (result.message || 'Не удалось сбросить квадратный логотип'));
+            return;
+        }
+        setSystemSquareLogoPreview(result.square_logo_url, result.square_logo_is_custom);
+        const fileInput = document.getElementById('system_square_logo_file');
+        if (fileInput) fileInput.value = '';
+    } catch (error) {
+        console.error('Ошибка сброса квадратного логотипа:', error);
+        alert('Не удалось сбросить квадратный логотип');
         if (button) button.disabled = false;
     }
 }

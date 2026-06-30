@@ -473,6 +473,7 @@ class ClubSettings(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     system_name = db.Column(db.String(200), default='FK QORASUV')
     logo_path = db.Column(db.String(300), nullable=True)
+    square_logo_path = db.Column(db.String(300), nullable=True)
     working_days = db.Column(db.String(50), default='1,2,3,4,5')  # Дни недели, когда клуб работает
     work_start_time = db.Column(db.Time, default=time(9, 0))
     work_end_time = db.Column(db.Time, default=time(21, 0))
