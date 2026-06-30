@@ -6712,7 +6712,7 @@ textarea:focus,
 
 .lineup-event-actions {
     display: grid;
-    grid-template-columns: 1fr 1fr 28px;
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, .8fr) minmax(0, 1fr) 28px;
     gap: 6px;
 }
 

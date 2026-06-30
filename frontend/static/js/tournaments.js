@@ -608,6 +608,15 @@ function renderLineup() {
             renderLineup();
         });
     });
+    board.querySelectorAll('[data-replace-lineup-player]').forEach((button) => {
+        button.addEventListener('click', (event) => {
+            event.stopPropagation();
+            const activeSlot = tournamentState.activeEventSlot;
+            tournamentState.activeEventSlot = null;
+            tournamentState.eventDraftType = null;
+            openLineupPicker(activeSlot);
+        });
+    });
     board.querySelectorAll('[data-close-lineup-event]').forEach((button) => {
         button.addEventListener('click', (event) => {
             event.stopPropagation();
@@ -653,6 +662,7 @@ function renderLineupEventPanel(player) {
     return `
         <div class="lineup-event-panel">
             <div class="lineup-event-actions">
+                <button type="button" data-replace-lineup-player>Заменить</button>
                 <button type="button" class="${draftType === 'goal' ? 'active' : ''}" data-lineup-event-type="goal">Гол</button>
                 <button type="button" class="${draftType === 'card' ? 'active' : ''}" data-lineup-event-type="card">Карточка</button>
                 <button type="button" data-close-lineup-event title="Закрыть">
