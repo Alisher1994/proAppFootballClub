@@ -8602,6 +8602,26 @@ body,
     stroke: currentColor !important;
 }
 
+.student-details-header .student-tabs,
+.student-tabs {
+    gap: 14px !important;
+}
+
+.student-tabs .student-tab {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    flex: 0 0 auto !important;
+}
+
+.student-tabs .student-tab svg {
+    width: 15px !important;
+    height: 15px !important;
+    flex: 0 0 15px !important;
+    color: currentColor !important;
+    stroke: currentColor !important;
+}
+
 *:not(#app-scrollbar-override) {
     scrollbar-color: rgba(216, 208, 200, .46) transparent !important;
     scrollbar-width: thin !important;
