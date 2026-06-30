@@ -390,7 +390,7 @@ function renderLineupPicker() {
         closeLineupPicker();
         return;
     }
-    const search = (qs('lineupSearch')?.value || '').trim().toLowerCase();
+    const search = (qs('lineupModalSearch')?.value || qs('lineupSearch')?.value || '').trim().toLowerCase();
     const currentPlayer = tournamentState.lineup.find((item) => Number(item.sort_order) === activeSlot.order);
     const selectedIds = new Set(
         tournamentState.lineup
@@ -453,9 +453,13 @@ function renderLineupPicker() {
 
 function openLineupPicker(slotOrder) {
     tournamentState.activeLineupSlot = Number(slotOrder);
+    if (qs('lineupModalSearch')) {
+        qs('lineupModalSearch').value = qs('lineupSearch')?.value || '';
+    }
     renderLineup();
     renderLineupPicker();
     openModal('lineupPlayerModal');
+    setTimeout(() => qs('lineupModalSearch')?.focus(), 0);
 }
 
 function closeLineupPicker() {
@@ -1033,6 +1037,7 @@ function bindForms() {
     qs('teamForm').addEventListener('submit', createTeam);
     qs('matchForm').addEventListener('submit', createMatch);
     qs('lineupSearch').addEventListener('input', renderLineupPicker);
+    qs('lineupModalSearch')?.addEventListener('input', renderLineupPicker);
     qs('saveLineupBtn').addEventListener('click', saveLineup);
     qs('saveMatchSettingsBtn').addEventListener('click', saveCurrentMatchSettings);
     qs('eventType').addEventListener('change', toggleEventFields);
