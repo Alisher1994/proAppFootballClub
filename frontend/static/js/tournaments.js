@@ -1125,6 +1125,19 @@ function resetTeamLogoPreview() {
     if (fileName) fileName.textContent = 'PNG, JPG или WEBP';
 }
 
+function updateTeamTypeView() {
+    const external = qs('teamType')?.value === 'external';
+    const logoPicker = qs('teamLogoPicker');
+    if (logoPicker) logoPicker.hidden = !external;
+    qs('teamSourceGroups').style.display = external ? 'none' : '';
+    qs('teamPlayerPicker').style.display = external ? 'none' : '';
+    qs('teamExternalPlayers').style.display = external ? '' : 'none';
+    if (!external && qs('teamLogo')) {
+        qs('teamLogo').value = '';
+        resetTeamLogoPreview();
+    }
+}
+
 async function createTeam(event) {
     event.preventDefault();
     if (!tournamentState.selectedTournamentId) return;
@@ -1137,7 +1150,7 @@ async function createTeam(event) {
     groupIds.forEach((id) => formData.append('group_ids', id));
     playerIds.forEach((id) => formData.append('player_ids', id));
     formData.append('external_players', JSON.stringify(parseExternalPlayers(qs('teamExternalPlayers').value)));
-    if (qs('teamLogo')?.files?.[0]) {
+    if (qs('teamType').value === 'external' && qs('teamLogo')?.files?.[0]) {
         formData.append('logo', qs('teamLogo').files[0]);
     }
     await apiJson(`/api/tournaments/${tournamentState.selectedTournamentId}/teams`, {
@@ -1147,6 +1160,7 @@ async function createTeam(event) {
     });
     qs('teamForm').reset();
     resetTeamLogoPreview();
+    updateTeamTypeView();
     qs('teamPlayerPicker').innerHTML = '';
     closeModal('teamModal');
     await loadTeams();
@@ -1207,12 +1221,8 @@ function bindForms() {
         const url = URL.createObjectURL(file);
         preview.innerHTML = `<img src="${url}" alt="">`;
     });
-    qs('teamType').addEventListener('change', () => {
-        const external = qs('teamType').value === 'external';
-        qs('teamSourceGroups').style.display = external ? 'none' : '';
-        qs('teamPlayerPicker').style.display = external ? 'none' : '';
-        qs('teamExternalPlayers').style.display = external ? '' : 'none';
-    });
+    qs('teamType').addEventListener('change', updateTeamTypeView);
+    updateTeamTypeView();
     document.querySelectorAll('[data-close-modal]').forEach((button) => {
         button.addEventListener('click', () => closeModal(button.dataset.closeModal));
     });

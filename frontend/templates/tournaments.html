@@ -193,12 +193,14 @@
                             <option value="external">Внешняя команда</option>
                         </select>
                     </div>
-                    <label class="team-logo-picker">
+                    <label class="team-logo-picker" id="teamLogoPicker" hidden>
                         <span class="team-logo-preview" id="teamLogoPreview">Лого</span>
-                        <span>
+                        <span class="team-logo-copy">
                             <strong>Логотип команды</strong>
-                            <small id="teamLogoFileName">PNG, JPG или WEBP</small>
+                            <small>Только для внешней команды</small>
                         </span>
+                        <span class="team-logo-action">Выбрать логотип</span>
+                        <small class="team-logo-file-name" id="teamLogoFileName">PNG, JPG или WEBP</small>
                         <input id="teamLogo" type="file" accept="image/png,image/jpeg,image/webp">
                     </label>
                     <select id="teamSourceGroups" multiple size="5"></select>
