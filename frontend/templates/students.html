@@ -2619,6 +2619,15 @@
             object-fit: contain !important;
         }
 
+        #edit-photo-preview img.photo-placeholder-avatar,
+        #add-photo-preview img.photo-placeholder-avatar {
+            width: 132px !important;
+            height: 132px !important;
+            max-width: 132px !important;
+            max-height: 132px !important;
+            opacity: 0.72 !important;
+        }
+
         #edit-photo-preview,
         #add-photo-preview {
             display: flex !important;
@@ -3176,6 +3185,15 @@
 
         .group-picker.open .group-picker-menu {
             display: block;
+        }
+
+        #addStudentModal .group-picker.open .group-picker-menu,
+        #editStudentModal .group-picker.open .group-picker-menu {
+            position: relative;
+            top: 4px;
+            z-index: 2;
+            max-height: 260px;
+            box-shadow: none;
         }
 
         .group-picker-option {
@@ -4184,6 +4202,9 @@
                                         <div class="photo-upload-area" id="add-photo-area">
                                             <div class="photo-preview" id="add-photo-preview">
                                                 <div class="photo-placeholder">
+                                                    <img class="photo-placeholder-avatar"
+                                                        src="{{ url_for('static', filename='uploads/avatar_placeholder.png') }}"
+                                                        alt="">
                                                     <button type="button" class="photo-select-btn"
                                                         id="add-photo-select-btn">
                                                         <span class="photo-select-icon">+</span>
@@ -4505,6 +4526,9 @@
                                         <div class="photo-upload-area" id="edit-photo-area">
                                             <div class="photo-preview" id="edit-photo-preview">
                                                 <div class="photo-placeholder">
+                                                    <img class="photo-placeholder-avatar"
+                                                        src="{{ url_for('static', filename='uploads/avatar_placeholder.png') }}"
+                                                        alt="">
                                                     <button type="button" class="photo-select-btn"
                                                         id="edit-photo-select-btn">
                                                         <span class="photo-select-icon">+</span>

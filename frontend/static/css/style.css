@@ -135,6 +135,25 @@ html {
     flex-direction: column;
 }
 
+.sidebar-bg-video {
+    position: absolute;
+    top: 88px;
+    left: 0;
+    width: 100%;
+    height: 158px;
+    object-fit: cover;
+    opacity: 0.1;
+    pointer-events: none;
+    z-index: 0;
+}
+
+.sidebar-header,
+.sidebar nav,
+.sidebar-footer {
+    position: relative;
+    z-index: 1;
+}
+
 .sidebar.collapsed {
     width: 80px;
 }
@@ -2760,6 +2779,11 @@ body.theme-light .modal-body-scrollable::-webkit-scrollbar-thumb:hover {
     overflow: hidden;
 }
 
+body.login-page,
+.login-page {
+    background-color: #ffffff !important;
+}
+
 .login-bg-image {
     position: absolute;
     left: 0;
@@ -4414,6 +4438,17 @@ textarea:focus,
     height: auto;
     object-fit: contain;
     display: block;
+}
+
+.photo-preview img.photo-placeholder-avatar,
+.photo-placeholder-avatar {
+    width: 132px;
+    height: 132px;
+    max-width: 132px;
+    max-height: 132px;
+    object-fit: contain;
+    opacity: 0.72;
+    filter: saturate(0.82);
 }
 
 .photo-placeholder {

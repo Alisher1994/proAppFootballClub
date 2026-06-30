@@ -1,5 +1,19 @@
 const studentEditIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
 const studentTrashIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v5"/><path d="M14 11v5"/></svg>';
+const studentPhotoPlaceholderUrl = '/static/uploads/avatar_placeholder.png';
+
+function studentPhotoPlaceholderHtml(selectBtnId) {
+    return `
+        <div class="photo-placeholder">
+            <img class="photo-placeholder-avatar" src="${studentPhotoPlaceholderUrl}" alt="">
+            <button type="button" class="photo-select-btn" id="${selectBtnId}">
+                <span class="photo-select-icon">+</span>
+                <span class="photo-select-text">Выбрать</span>
+            </button>
+            <small class="photo-hint">Или нажмите в любом месте и вставьте фото (Ctrl+V)</small>
+        </div>
+    `;
+}
 
 // Переключение поля причины для чёрного списка
 function toggleBlacklistReason() {
@@ -190,6 +204,12 @@ function syncGroupPickerValue(selectId) {
     }
 }
 
+function getGroupPickerSearchValue(select, input) {
+    const selectedOption = select.options[select.selectedIndex];
+    const selectedText = selectedOption ? selectedOption.dataset.name || selectedOption.textContent.trim() : 'Без группы';
+    return input.value.trim() === selectedText ? '' : input.value;
+}
+
 function initGroupPicker(selectId, groups) {
     const select = document.getElementById(selectId);
     if (!select) return;
@@ -256,11 +276,11 @@ function initGroupPicker(selectId, groups) {
     input.onfocus = () => {
         picker.classList.add('open');
         input.select();
-        renderOptions(input.value);
+        renderOptions(getGroupPickerSearchValue(select, input));
     };
     input.onclick = () => {
         picker.classList.add('open');
-        renderOptions(input.value);
+        renderOptions(getGroupPickerSearchValue(select, input));
     };
     input.oninput = () => {
         picker.classList.add('open');
@@ -447,15 +467,7 @@ addStudentBtn.addEventListener('click', () => {
     // Сброс превью фото
     const addPreview = document.getElementById('add-photo-preview');
     if (addPreview) {
-        addPreview.innerHTML = `
-            <div class="photo-placeholder">
-                <button type="button" class="photo-select-btn" id="add-photo-select-btn">
-                    <span class="photo-select-icon">+</span>
-                    <span class="photo-select-text">Выбрать</span>
-                </button>
-                <small class="photo-hint">Или нажмите в любом месте и вставьте фото (Ctrl+V)</small>
-            </div>
-        `;
+        addPreview.innerHTML = studentPhotoPlaceholderHtml('add-photo-select-btn');
         // Переинициализировать компонент
         setTimeout(() => {
             initPhotoUpload('add-photo-upload', 'add_photo_input', 'add-photo-preview', 'add-photo-area', 'add-photo-select-btn');
@@ -473,15 +485,7 @@ closeBtns.forEach(btn => {
             // Сброс превью фото
             const addPreview = document.getElementById('add-photo-preview');
             if (addPreview) {
-                addPreview.innerHTML = `
-                    <div class="photo-placeholder">
-                        <button type="button" class="photo-select-btn" id="add-photo-select-btn">
-                            <span class="photo-select-icon">+</span>
-                            <span class="photo-select-text">Выбрать</span>
-                        </button>
-                        <small class="photo-hint">Или нажмите в любом месте и вставьте фото (Ctrl+V)</small>
-                    </div>
-                `;
+                addPreview.innerHTML = studentPhotoPlaceholderHtml('add-photo-select-btn');
                 // Переинициализировать компонент
                 setTimeout(() => {
                     initPhotoUpload('add-photo-upload', 'add_photo_input', 'add-photo-preview', 'add-photo-area', 'add-photo-select-btn');
@@ -1329,15 +1333,7 @@ document.addEventListener('click', async (e) => {
                         <button type="button" class="photo-delete-btn" onclick="deletePhoto('edit-photo-upload', 'edit_photo', 'edit-photo-preview', 'edit-photo-area', 'edit-photo-select-btn')">Удалить фото</button>
                     `;
             } else {
-                preview.innerHTML = `
-                        <div class="photo-placeholder">
-                            <button type="button" class="photo-select-btn" id="edit-photo-select-btn">
-                                <span class="photo-select-icon">+</span>
-                                <span class="photo-select-text">Выбрать</span>
-                            </button>
-                            <small class="photo-hint">Или нажмите в любом месте и вставьте фото (Ctrl+V)</small>
-                        </div>
-                    `;
+                preview.innerHTML = studentPhotoPlaceholderHtml('edit-photo-select-btn');
                 // Переинициализировать кнопку
                 setTimeout(() => {
                     const newSelectBtn = document.getElementById('edit-photo-select-btn');
@@ -1443,15 +1439,7 @@ window.deletePhoto = async function (containerId, inputId, previewId, areaId, se
     input.value = '';
 
     // Вернуть placeholder
-    preview.innerHTML = `
-        <div class="photo-placeholder">
-            <button type="button" class="photo-select-btn" id="${selectBtnId}">
-                <span class="photo-select-icon">+</span>
-                <span class="photo-select-text">Выбрать</span>
-            </button>
-            <small class="photo-hint">Или нажмите в любом месте и вставьте фото (Ctrl+V)</small>
-        </div>
-    `;
+    preview.innerHTML = studentPhotoPlaceholderHtml(selectBtnId);
 
     // Переинициализировать кнопку
     const newSelectBtn = document.getElementById(selectBtnId);
@@ -1604,15 +1592,7 @@ window.deletePhoto = function (containerId, inputId, previewId, areaId, selectBt
 
     if (input) input.value = '';
     if (preview) {
-        preview.innerHTML = `
-            <div class="photo-placeholder">
-                <button type="button" class="photo-select-btn" id="${selectBtnId}">
-                    <span class="photo-select-icon">+</span>
-                    <span class="photo-select-text">Выбрать</span>
-                </button>
-                <small class="photo-hint">Или нажмите в любом месте и вставьте фото (Ctrl+V)</small>
-            </div>
-        `;
+        preview.innerHTML = studentPhotoPlaceholderHtml(selectBtnId);
 
         // Переинициализируем обработчик клика для новой кнопки
         const newSelectBtn = document.getElementById(selectBtnId);
