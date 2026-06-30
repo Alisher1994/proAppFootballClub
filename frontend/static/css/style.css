@@ -9730,3 +9730,87 @@ main.main-content.tournaments-page .tournament-tabs button[type="button"].tourna
     color: #ff8a00 !important;
     font-weight: 600 !important;
 }
+
+/* Tournaments final layout: tabs are text controls, sidebar and tabs stay pinned while scrolling. */
+main.main-content.tournaments-page {
+    height: 100vh !important;
+    min-height: 100vh !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    padding: 22px 22px 32px !important;
+}
+
+main.main-content.tournaments-page .tournament-layout {
+    align-items: start !important;
+}
+
+main.main-content.tournaments-page .tournament-sidebar-panel {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 35 !important;
+    align-self: start !important;
+    max-height: calc(100vh - 44px) !important;
+}
+
+main.main-content.tournaments-page .tournament-tabs,
+main.main-content.tournaments-page nav.tournament-tabs {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 45 !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 22px !important;
+    min-height: 44px !important;
+    height: 44px !important;
+    padding: 0 8px !important;
+    margin: 0 !important;
+    border: 0 !important;
+    border-bottom: 1px solid #e4ddd6 !important;
+    border-radius: 0 !important;
+    background: #fff !important;
+    box-shadow: none !important;
+}
+
+main.main-content.tournaments-page .tournament-tab,
+main.main-content.tournaments-page .tournament-tab:hover,
+main.main-content.tournaments-page .tournament-tab:focus,
+main.main-content.tournaments-page .tournament-tab.active {
+    appearance: none !important;
+    -webkit-appearance: none !important;
+    position: relative !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    height: 44px !important;
+    min-height: 44px !important;
+    max-height: 44px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    outline: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    color: #5f6673 !important;
+    font-size: 13px !important;
+    line-height: 44px !important;
+    font-weight: 400 !important;
+    text-decoration: none !important;
+    cursor: pointer !important;
+}
+
+main.main-content.tournaments-page .tournament-tab.active {
+    color: #ff8a00 !important;
+    font-weight: 600 !important;
+}
+
+main.main-content.tournaments-page .tournament-tab.active::after {
+    content: "" !important;
+    position: absolute !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    height: 2px !important;
+    border-radius: 0 !important;
+    background: #ff8a00 !important;
+}

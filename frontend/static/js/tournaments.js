@@ -1311,6 +1311,11 @@ function bindForms() {
     });
     document.querySelectorAll('.tournament-tab').forEach((button) => {
         button.addEventListener('click', () => switchTournamentTab(button.dataset.tournamentTab));
+        button.addEventListener('keydown', (event) => {
+            if (event.key !== 'Enter' && event.key !== ' ') return;
+            event.preventDefault();
+            switchTournamentTab(button.dataset.tournamentTab);
+        });
     });
 
     qs('tournamentForm').addEventListener('submit', createTournament);
