@@ -8266,3 +8266,183 @@ label,
     background: transparent !important;
     color: #5f6673 !important;
 }
+
+/* Final polish for PWA menu, primary button icons, tags and sidebar tone. */
+.btn-primary .btn-plus,
+.btn-success .btn-plus,
+.game-btn-primary .btn-plus,
+.submit-btn .btn-plus,
+.save-btn .btn-plus,
+.add-btn .btn-plus,
+button[type="submit"].btn-primary .btn-plus,
+button.primary .btn-plus {
+    color: #fff !important;
+    -webkit-text-fill-color: #fff !important;
+}
+
+.btn-primary svg,
+.btn-success svg,
+.game-btn-primary svg,
+.submit-btn svg,
+.save-btn svg,
+.add-btn svg,
+button[type="submit"].btn-primary svg,
+button.primary svg {
+    color: #fff !important;
+    stroke: currentColor !important;
+}
+
+.expense-category-chip {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    min-height: 34px !important;
+    max-width: 100% !important;
+    padding: 0 8px 0 12px !important;
+    border: 1px solid #e4ddd6 !important;
+    border-radius: 8px !important;
+    background: #fff !important;
+    color: #17191f !important;
+    font-size: 13px !important;
+    font-weight: 400 !important;
+    line-height: 1 !important;
+    box-shadow: none !important;
+}
+
+.expense-category-chip span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.expense-category-remove {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 20px !important;
+    height: 20px !important;
+    min-width: 20px !important;
+    min-height: 20px !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 6px !important;
+    background: transparent !important;
+    color: #5f6673 !important;
+    font-size: 15px !important;
+    font-weight: 500 !important;
+    line-height: 1 !important;
+    box-shadow: none !important;
+    cursor: pointer !important;
+}
+
+.expense-category-remove:hover {
+    background: #fff3e3 !important;
+    color: #dc2626 !important;
+}
+
+.sidebar-toggle {
+    color: #8a9099 !important;
+    background: #f8f7f6 !important;
+    border-color: #e4ddd6 !important;
+}
+
+.sidebar-toggle svg {
+    color: #8a9099 !important;
+    stroke: currentColor !important;
+}
+
+.sidebar-toggle:hover {
+    color: #5f6673 !important;
+    background: #f2efec !important;
+}
+
+.sidebar-icon,
+.sidebar nav a .sidebar-icon,
+.sidebar-logout-btn .sidebar-icon {
+    color: #6b7280 !important;
+    stroke: currentColor !important;
+}
+
+.sidebar nav a.active .sidebar-icon,
+.sidebar nav a.active[href*="finances"] .sidebar-icon {
+    color: #5f6673 !important;
+    stroke: currentColor !important;
+}
+
+.mobile-more-menu {
+    border: 1px solid #e4ddd6 !important;
+}
+
+.more-menu-item {
+    color: #5f6673 !important;
+}
+
+.more-menu-item .item-icon {
+    box-shadow: none !important;
+}
+
+.mobile-more-overlay .mobile-more-menu {
+    left: 50% !important;
+    width: calc(100% - 24px) !important;
+    max-width: 430px !important;
+    padding: 18px 18px calc(22px + env(safe-area-inset-bottom)) !important;
+    border-radius: 20px 20px 0 0 !important;
+    transform: translateX(-50%) !important;
+    overflow: hidden !important;
+}
+
+.mobile-more-overlay .mobile-more-header {
+    padding: 0 0 14px !important;
+    margin-bottom: 18px !important;
+}
+
+.mobile-more-overlay .mobile-more-header h3 {
+    color: #5f6673 !important;
+    font-size: 16px !important;
+    line-height: 1.25 !important;
+    font-weight: 600 !important;
+}
+
+.mobile-more-overlay .mobile-more-header button {
+    flex: 0 0 36px !important;
+    width: 36px !important;
+    height: 36px !important;
+    min-width: 36px !important;
+    min-height: 36px !important;
+    padding: 0 !important;
+}
+
+.mobile-more-overlay .mobile-more-grid {
+    gap: 14px !important;
+}
+
+.mobile-more-overlay .more-menu-item {
+    min-width: 0 !important;
+    padding: 0 !important;
+}
+
+.expense-category-chip button[type="button"].expense-category-remove,
+.expense-category-chip button[type="button"].expense-category-remove:not(.btn-danger):not(.delete-btn):not(.remove-btn):not(.logout-btn) {
+    width: 20px !important;
+    height: 20px !important;
+    min-width: 20px !important;
+    min-height: 20px !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 6px !important;
+    background: transparent !important;
+    color: #5f6673 !important;
+    font-size: 15px !important;
+    font-weight: 500 !important;
+}
+
+.expense-category-chip button[type="button"].expense-category-remove:hover {
+    background: #fff3e3 !important;
+    color: #dc2626 !important;
+}
+
+button.sidebar-toggle,
+button[type="button"].sidebar-toggle:not(.btn-danger):not(.delete-btn):not(.remove-btn):not(.logout-btn) {
+    color: #8a9099 !important;
+}

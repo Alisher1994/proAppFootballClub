@@ -3,7 +3,14 @@
         <h2 class="sidebar-brand">
             <img class="sidebar-logo-icon sidebar-logo-horizontal" src="{{ system_logo_url }}" alt="{{ system_name }}">
         </h2>
-        <button class="sidebar-toggle" aria-label="Свернуть меню" type="button"></button>
+        <button class="sidebar-toggle" aria-label="Свернуть меню" type="button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <rect width="18" height="18" x="3" y="3" rx="2" />
+                <path d="M9 3v18" />
+                <path d="m16 15-3-3 3-3" />
+            </svg>
+        </button>
     </div>
     <nav>
         {% if current_user.has_permission('dashboard', 'view') %}
@@ -260,13 +267,16 @@
     .mobile-more-menu {
         position: absolute;
         bottom: -100%;
-        left: 0;
-        width: 100%;
+        left: 50%;
+        width: calc(100% - 24px);
+        max-width: 430px;
         background: var(--theme-bg-secondary);
-        border-radius: 24px 24px 0 0;
-        padding: 24px 24px 40px 24px;
+        border-radius: 20px 20px 0 0;
+        padding: 18px 18px calc(22px + env(safe-area-inset-bottom));
         transition: bottom 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
-        box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.3);
+        transform: translateX(-50%);
+        box-shadow: 0 -10px 36px rgba(23, 25, 31, 0.18);
+        overflow: hidden;
     }
 
     .mobile-more-overlay.active .mobile-more-menu {
@@ -278,23 +288,23 @@
         justify-content: space-between;
         align-items: center;
         margin-bottom: 24px;
-        padding-bottom: 16px;
+        padding: 0 0 14px;
         border-bottom: 1px solid var(--theme-border);
     }
 
     .mobile-more-header h3 {
-        font-size: 1.2rem;
-        font-weight: 800;
-        color: var(--theme-text-primary);
+        font-size: 16px;
+        font-weight: 600;
+        color: #5f6673;
     }
 
     .mobile-more-header button {
-        background: var(--theme-bg-tertiary);
-        border: none;
-        color: var(--theme-text-primary);
+        background: #f8f7f6;
+        border: 1px solid #e4ddd6;
+        color: #5f6673;
         width: 36px;
         height: 36px;
-        border-radius: 50%;
+        border-radius: 10px;
         font-size: 18px;
         cursor: pointer;
     }
@@ -302,7 +312,7 @@
     .mobile-more-grid {
         display: grid;
         grid-template-columns: repeat(3, 1fr);
-        gap: 20px;
+        gap: 14px;
     }
 
     .more-menu-item {
@@ -310,17 +320,19 @@
         flex-direction: column;
         align-items: center;
         gap: 8px;
+        min-width: 0;
+        padding: 0;
         text-decoration: none;
         color: var(--theme-text-secondary);
-        font-size: 0.75rem;
-        font-weight: 600;
+        font-size: 12px;
+        font-weight: 500;
         text-align: center;
     }
 
     .more-menu-item .item-icon {
         width: 52px;
         height: 52px;
-        border-radius: 16px;
+        border-radius: 14px;
         display: flex;
         align-items: center;
         justify-content: center;

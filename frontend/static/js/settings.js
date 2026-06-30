@@ -650,28 +650,16 @@ function renderExpenseCategories() {
 
     expenseCategories.forEach((category, index) => {
         const item = document.createElement('div');
-        item.style.display = 'flex';
-        item.style.alignItems = 'center';
-        item.style.gap = '6px';
-        item.style.background = 'var(--theme-card-bg)';
-        item.style.border = '1px solid var(--theme-border)';
-        item.style.borderRadius = '12px';
-        item.style.padding = '8px 12px';
-        item.style.color = 'var(--theme-text-primary)';
+        item.className = 'expense-category-chip';
 
         const name = document.createElement('span');
         name.textContent = category;
-        name.style.fontSize = '14px';
 
         const removeBtn = document.createElement('button');
         removeBtn.type = 'button';
+        removeBtn.className = 'expense-category-remove';
         removeBtn.textContent = '×';
         removeBtn.title = 'Удалить статью';
-        removeBtn.style.border = 'none';
-        removeBtn.style.background = 'transparent';
-        removeBtn.style.color = '#ef4444';
-        removeBtn.style.cursor = 'pointer';
-        removeBtn.style.fontSize = '16px';
         removeBtn.addEventListener('click', () => removeExpenseCategorySetting(index));
 
         item.appendChild(name);
@@ -1190,9 +1178,10 @@ function renderBridgeDeviceProgress(progress) {
 
     grid.innerHTML = devices.map(device => {
         const percent = Math.max(0, Math.min(100, Number(device.percent || 0)));
+        const done = percent >= 100 || device.status === 'done' || device.stage === 'done';
         const isEntry = device.name === 'entry';
-        const accent = isEntry ? '#ff8a00' : '#d96f00';
-        const bg = isEntry ? '#f7f4f1' : '#f7f4f1';
+        const accent = done ? '#16a34a' : (isEntry ? '#ff8a00' : '#d96f00');
+        const bg = done ? '#f0fdf4' : '#f7f4f1';
         const status = device.status === 'waiting' ? 'ожидает' : (device.status_text || 'выполняется');
         return `
             <div style="border:1px solid ${accent}33; background:${bg}; border-radius:8px; padding:10px;">
