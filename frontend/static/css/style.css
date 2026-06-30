@@ -6347,20 +6347,21 @@ textarea:focus,
 }
 
 .pitch-title {
-    min-height: 58px;
+    min-height: 64px;
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    padding: 10px 18px;
+    padding: 10px 16px;
     background: rgba(15, 23, 42, .72);
     border-bottom: 1px solid rgba(125, 211, 252, .22);
 }
 
 .pitch-title-main {
-    min-width: 150px;
-    display: grid;
-    gap: 3px;
+    min-width: 178px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
 }
 
 .pitch-title-main span,
@@ -6377,9 +6378,19 @@ textarea:focus,
 }
 
 .pitch-title-main strong {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
     color: #38bdf8;
     font-size: 18px;
-    letter-spacing: .08em;
+    letter-spacing: 0;
+}
+
+.pitch-title-logo {
+    width: 18px;
+    height: 18px;
+    flex: 0 0 18px;
+    object-fit: contain;
 }
 
 .pitch-title-controls {
@@ -6538,8 +6549,10 @@ textarea:focus,
 }
 
 .lineup-stadium {
-    min-height: 590px;
+    width: 100%;
+    min-height: 0;
     overflow: visible;
+    margin: 0 auto;
     border: 1px solid #1e3a5f;
     border-radius: 10px;
     background:
@@ -6549,22 +6562,26 @@ textarea:focus,
 }
 
 .lineup-pitch-lines {
-    min-height: 532px;
+    width: min(760px, calc(100% - 28px));
+    aspect-ratio: 7 / 9;
+    min-height: 680px;
     flex-direction: column;
     justify-content: space-evenly;
-    padding: 34px 28px;
-    margin: 14px;
+    padding: 36px 26px;
+    margin: 14px auto;
     border: 2px solid rgba(255, 255, 255, .28);
     border-radius: 4px;
     background:
-        linear-gradient(90deg, transparent calc(50% - 1px), rgba(255, 255, 255, .2) calc(50% - 1px), rgba(255, 255, 255, .2) calc(50% + 1px), transparent calc(50% + 1px)),
+        linear-gradient(180deg, transparent calc(50% - 1px), rgba(255, 255, 255, .22) calc(50% - 1px), rgba(255, 255, 255, .22) calc(50% + 1px), transparent calc(50% + 1px)),
         linear-gradient(180deg, rgba(255, 255, 255, .06), transparent 18%, transparent 82%, rgba(255, 255, 255, .06));
+    background-repeat: no-repeat;
+    background-size: 100% 100%;
 }
 
 .lineup-pitch-lines::before,
 .lineup-pitch-lines::after {
-    width: 44%;
-    height: 86px;
+    width: 46%;
+    height: 118px;
     border-color: rgba(255, 255, 255, .24);
 }
 
@@ -6578,19 +6595,23 @@ textarea:focus,
 
 .lineup-pitch-lines .pitch-center-circle {
     border-color: rgba(255, 255, 255, .22);
+    width: 132px;
+    height: 132px;
 }
 
 .lineup-pitch-lines.lineup-focus-mode {
     background:
         linear-gradient(rgba(3, 10, 24, .5), rgba(3, 10, 24, .5)),
-        linear-gradient(90deg, transparent calc(50% - 1px), rgba(255, 255, 255, .2) calc(50% - 1px), rgba(255, 255, 255, .2) calc(50% + 1px), transparent calc(50% + 1px)),
+        linear-gradient(180deg, transparent calc(50% - 1px), rgba(255, 255, 255, .2) calc(50% - 1px), rgba(255, 255, 255, .2) calc(50% + 1px), transparent calc(50% + 1px)),
         linear-gradient(180deg, rgba(255, 255, 255, .06), transparent 18%, transparent 82%, rgba(255, 255, 255, .06));
+    background-repeat: no-repeat;
+    background-size: 100% 100%;
 }
 
 .lineup-slot {
     position: relative;
-    width: min(126px, 100%);
-    min-height: 104px;
+    width: min(112px, 100%);
+    min-height: 96px;
     display: grid;
     justify-items: center;
     align-content: center;
@@ -6627,8 +6648,8 @@ textarea:focus,
 
 .lineup-slot img,
 .lineup-slot .pitch-avatar {
-    width: 62px;
-    height: 62px;
+    width: 56px;
+    height: 56px;
     border-radius: 50%;
     object-fit: cover;
     border: 2px solid #ff2b67;
@@ -6684,14 +6705,14 @@ textarea:focus,
 }
 
 .lineup-slot-plus {
-    width: 54px;
-    height: 54px;
+    width: 48px;
+    height: 48px;
     display: grid;
     place-items: center;
     border: 2px dashed rgba(255, 255, 255, .45);
     border-radius: 50%;
     color: #fff;
-    font-size: 30px;
+    font-size: 26px;
     font-weight: 400;
     line-height: 1;
 }

@@ -586,7 +586,7 @@ function renderLineup() {
             <div class="pitch-title">
                 <div class="pitch-title-main">
                     <span>${escapeHtml(match.home_team)} vs ${escapeHtml(match.away_team)}</span>
-                    <strong>${escapeHtml(formation)}</strong>
+                    <strong>${systemSquareLogo('pitch-title-logo')}${escapeHtml(formation)}</strong>
                 </div>
                 <div class="pitch-title-controls">
                     <input id="lineupSearch" type="search" placeholder="Поиск игрока" value="${escapeHtml(searchValue)}">
@@ -632,7 +632,7 @@ function renderLineup() {
                     const rowSlots = slots.slice(cursor, cursor + count);
                     cursor += count;
                     return `
-                        <div class="pitch-row pitch-row-${rowIndex}" style="grid-template-columns: repeat(${count}, minmax(82px, 1fr));">
+                        <div class="pitch-row pitch-row-${rowIndex}" style="grid-template-columns: repeat(${count}, minmax(76px, 1fr));">
                             ${rowSlots.map((slot) => {
                                 const player = assignments.get(slot.order);
                                 const summary = player ? eventSummary.get(Number(player.student_id)) || {} : {};
