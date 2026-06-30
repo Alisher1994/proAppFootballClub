@@ -3200,26 +3200,35 @@
             box-shadow: none;
         }
 
+        #addStudentModal button.group-picker-option,
+        #editStudentModal button.group-picker-option,
         .group-picker-option {
             width: 100%;
             display: flex;
             align-items: flex-start;
             gap: 10px;
-            min-height: 58px;
-            padding: 10px 12px;
-            border: 1px solid #e4ddd6;
-            border-radius: 10px;
-            background: #fff;
-            color: #0f172a;
+            height: auto !important;
+            min-height: 72px !important;
+            max-height: none !important;
+            padding: 12px !important;
+            border: 1px solid #e4ddd6 !important;
+            border-radius: 10px !important;
+            background: #fff !important;
+            color: #0f172a !important;
             text-align: left;
             cursor: pointer;
-            box-shadow: none;
+            box-shadow: none !important;
+            overflow: visible !important;
         }
 
+        #addStudentModal button.group-picker-option:hover,
+        #addStudentModal button.group-picker-option.active,
+        #editStudentModal button.group-picker-option:hover,
+        #editStudentModal button.group-picker-option.active,
         .group-picker-option:hover,
         .group-picker-option.active {
-            border-color: #f0cda8;
-            background: #fffaf5;
+            border-color: #f0cda8 !important;
+            background: #fffaf5 !important;
         }
 
         .group-picker-avatar {
