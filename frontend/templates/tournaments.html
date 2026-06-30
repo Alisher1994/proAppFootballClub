@@ -145,7 +145,7 @@
                         <button class="btn-secondary small" id="saveMatchSettingsBtn" type="button">Обновить матч</button>
                     </div>
 
-                    <div class="workspace-grid">
+                    <div class="workspace-grid lineup-workspace">
                         <section class="workspace-card">
                             <div class="panel-title-row">
                                 <h3>Состав и позиции</h3>
@@ -162,32 +162,6 @@
                                 </select>
                             </div>
                             <div class="lineup-board" id="lineupBoard"></div>
-                        </section>
-
-                        <section class="workspace-card">
-                            <h3>Событие матча</h3>
-                            <form class="event-form" id="eventForm">
-                                <div class="form-grid-3">
-                                    <select id="eventType">
-                                        <option value="goal">Гол</option>
-                                        <option value="card">Карточка</option>
-                                    </select>
-                                    <select id="eventHalf">
-                                        <option value="1">1 тайм</option>
-                                        <option value="2">2 тайм</option>
-                                        <option value="3">Доп.</option>
-                                    </select>
-                                    <input id="eventMinute" type="number" min="1" max="130" value="1" placeholder="Минута">
-                                </div>
-                                <select id="eventPlayer"></select>
-                                <select id="eventAssist"></select>
-                                <select id="eventCardColor">
-                                    <option value="yellow">Жёлтая</option>
-                                    <option value="red">Красная</option>
-                                </select>
-                                <textarea id="eventNote" rows="2" placeholder="Комментарий"></textarea>
-                                <button class="btn-primary" type="submit">Записать событие</button>
-                            </form>
                         </section>
                     </div>
 

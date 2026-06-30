@@ -6149,6 +6149,10 @@ textarea:focus,
     gap: 12px;
 }
 
+.workspace-grid.lineup-workspace {
+    grid-template-columns: minmax(0, 1fr);
+}
+
 .workspace-grid.lower {
     margin-top: 12px;
 }
@@ -6199,7 +6203,7 @@ textarea:focus,
 .event-timeline {
     display: grid;
     gap: 8px;
-    max-height: 310px;
+    max-height: 240px;
     overflow: auto;
 }
 
@@ -6478,7 +6482,7 @@ textarea:focus,
 
 .lineup-stadium {
     min-height: 590px;
-    overflow: hidden;
+    overflow: visible;
     border: 1px solid #1e3a5f;
     border-radius: 10px;
     background:
@@ -6535,6 +6539,10 @@ textarea:focus,
     transition: transform .15s ease, background .15s ease, box-shadow .15s ease;
 }
 
+.lineup-slot.active {
+    z-index: 9;
+}
+
 .lineup-slot:hover,
 .lineup-slot.active {
     background: rgba(255, 255, 255, .08);
@@ -6551,6 +6559,49 @@ textarea:focus,
     border: 2px solid #ff2b67;
     box-shadow: 0 8px 18px rgba(0, 0, 0, .2);
     background: #f8f7f6;
+}
+
+.lineup-avatar-wrap {
+    position: relative;
+    display: grid;
+    place-items: center;
+}
+
+.lineup-event-badges {
+    position: absolute;
+    top: -7px;
+    right: -9px;
+    display: flex;
+    gap: 3px;
+    align-items: center;
+}
+
+.lineup-event-badge {
+    min-width: 16px;
+    height: 16px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 4px;
+    border-radius: 999px;
+    color: #fff;
+    font-size: 9px;
+    line-height: 1;
+    font-weight: 700;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, .28);
+}
+
+.lineup-event-badge.goal {
+    background: #16a34a;
+}
+
+.lineup-event-badge.yellow {
+    background: #facc15;
+    color: #1f2937;
+}
+
+.lineup-event-badge.red {
+    background: #ef4444;
 }
 
 .lineup-slot.empty {
@@ -6617,6 +6668,77 @@ textarea:focus,
     background: rgba(5, 16, 35, .72);
     color: #fff;
     opacity: 1;
+}
+
+.lineup-event-panel {
+    position: absolute;
+    left: 50%;
+    top: calc(100% + 8px);
+    z-index: 8;
+    width: 250px;
+    display: grid;
+    gap: 8px;
+    padding: 9px;
+    border: 1px solid rgba(255, 138, 0, .45);
+    border-radius: 10px;
+    background: rgba(8, 18, 45, .96);
+    box-shadow: 0 14px 36px rgba(0, 0, 0, .34);
+    transform: translateX(-50%);
+    cursor: default;
+}
+
+.lineup-event-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr 28px;
+    gap: 6px;
+}
+
+.lineup-event-actions button,
+.lineup-event-form button {
+    min-height: 30px !important;
+    padding: 0 9px !important;
+    border: 0 !important;
+    border-radius: 7px !important;
+    background: rgba(255, 255, 255, .1) !important;
+    color: rgba(255, 255, 255, .84) !important;
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    cursor: pointer !important;
+}
+
+.lineup-event-actions button.active,
+.lineup-event-form button {
+    background: #ff8a00 !important;
+    color: #fff !important;
+}
+
+.lineup-event-form {
+    display: grid;
+    gap: 6px;
+}
+
+.lineup-event-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 74px;
+    gap: 6px;
+}
+
+.lineup-event-form input,
+.lineup-event-form select,
+.lineup-event-form textarea {
+    width: 100%;
+    min-width: 0;
+    min-height: 30px;
+    padding: 6px 8px;
+    border: 1px solid rgba(255, 255, 255, .18);
+    border-radius: 7px;
+    background: rgba(255, 255, 255, .95);
+    color: #17191f;
+    font-size: 11px;
+}
+
+.lineup-event-form textarea {
+    resize: vertical;
 }
 
 .lineup-player-popover {
