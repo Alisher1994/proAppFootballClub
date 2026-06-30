@@ -9230,3 +9230,25 @@ button[id$="FilterToggleBtn"] {
     background: rgba(138, 144, 153, .45) !important;
     background-clip: padding-box !important;
 }
+
+.lineup-slot button[type="button"].lineup-slot-remove,
+.lineup-slot button[type="button"].lineup-slot-remove:not(.btn-danger):not(.delete-btn):not(.remove-btn):not(.logout-btn) {
+    width: 24px !important;
+    height: 24px !important;
+    min-width: 24px !important;
+    min-height: 24px !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 999px !important;
+    background: rgba(5, 16, 35, .48) !important;
+    color: rgba(255, 255, 255, .72) !important;
+    opacity: .78 !important;
+    box-shadow: none !important;
+}
+
+.lineup-slot button[type="button"].lineup-slot-remove:hover,
+.lineup-slot button[type="button"].lineup-slot-remove:not(.btn-danger):not(.delete-btn):not(.remove-btn):not(.logout-btn):hover {
+    background: rgba(5, 16, 35, .72) !important;
+    color: #fff !important;
+    opacity: 1 !important;
+}
