@@ -3204,11 +3204,12 @@
         #editStudentModal button.group-picker-option,
         .group-picker-option {
             width: 100%;
-            display: flex;
-            align-items: flex-start;
-            gap: 10px;
+            display: grid !important;
+            grid-template-columns: 34px minmax(0, 1fr) !important;
+            align-items: start !important;
+            gap: 10px !important;
             height: auto !important;
-            min-height: 72px !important;
+            min-height: 0 !important;
             max-height: none !important;
             padding: 12px !important;
             border: 1px solid #e4ddd6 !important;
@@ -3250,10 +3251,11 @@
         }
 
         .group-picker-option-body {
-            display: flex;
+            display: flex !important;
             min-width: 0;
             flex-direction: column;
-            gap: 5px;
+            gap: 6px;
+            overflow: visible !important;
         }
 
         .group-picker-option-title {
@@ -3265,10 +3267,19 @@
 
         .group-picker-schedule,
         .student-group-schedule-chips {
-            display: grid;
-            grid-template-columns: repeat(3, minmax(0, max-content));
+            display: flex;
+            flex-wrap: wrap;
             gap: 4px;
             min-width: 0;
+        }
+
+        #addStudentModal .group-picker-schedule,
+        #editStudentModal .group-picker-schedule {
+            display: flex !important;
+            flex-wrap: wrap !important;
+            align-items: flex-start !important;
+            max-width: 100% !important;
+            overflow: visible !important;
         }
 
         .student-group-schedule-chips {
@@ -3281,6 +3292,7 @@
             align-items: center;
             gap: 3px;
             max-width: 100%;
+            min-width: 0;
             padding: 1px 5px;
             border-radius: 999px;
             background: #eef2ff;
@@ -3305,6 +3317,7 @@
             display: inline-flex;
             align-items: center;
             gap: 4px;
+            width: fit-content;
             color: #64748b;
             font-size: 11px;
             line-height: 1.2;
