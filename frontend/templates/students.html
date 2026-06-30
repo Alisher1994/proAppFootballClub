@@ -3200,8 +3200,6 @@
             box-shadow: none;
         }
 
-        #addStudentModal button.group-picker-option,
-        #editStudentModal button.group-picker-option,
         .group-picker-option {
             width: 100%;
             display: grid !important;
@@ -3209,9 +3207,10 @@
             align-items: start !important;
             gap: 10px !important;
             height: auto !important;
-            min-height: 0 !important;
+            min-height: 92px !important;
             max-height: none !important;
             padding: 12px !important;
+            box-sizing: border-box !important;
             border: 1px solid #e4ddd6 !important;
             border-radius: 10px !important;
             background: #fff !important;
@@ -3222,10 +3221,6 @@
             overflow: visible !important;
         }
 
-        #addStudentModal button.group-picker-option:hover,
-        #addStudentModal button.group-picker-option.active,
-        #editStudentModal button.group-picker-option:hover,
-        #editStudentModal button.group-picker-option.active,
         .group-picker-option:hover,
         .group-picker-option.active {
             border-color: #f0cda8 !important;

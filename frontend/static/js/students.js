@@ -238,36 +238,42 @@ function initGroupPicker(selectId, groups) {
         const visibleGroups = groups.filter(group => !normalizedQuery || buildGroupSearchText(group).includes(normalizedQuery));
         const noGroupActive = !select.value;
         menu.innerHTML = `
-            <button type="button" class="group-picker-option ${noGroupActive ? 'active' : ''}" data-value="">
+            <div role="button" tabindex="0" class="group-picker-option ${noGroupActive ? 'active' : ''}" data-value="">
                 <span class="group-picker-avatar placeholder">-</span>
                 <span class="group-picker-option-body">
                     <span class="group-picker-option-title">Без группы</span>
                     <span class="group-picker-option-sub">Ученик пока не закреплен</span>
                 </span>
-            </button>
+            </div>
             ${visibleGroups.map(group => {
                 const count = `${group.active_student_count || 0}/${group.max_students || '∞'}`;
                 const active = String(select.value || '') === String(group.id);
                 return `
-                    <button type="button" class="group-picker-option ${active ? 'active' : ''}" data-value="${group.id}">
+                    <div role="button" tabindex="0" class="group-picker-option ${active ? 'active' : ''}" data-value="${group.id}">
                         ${buildGroupTeacherAvatar(group)}
                         <span class="group-picker-option-body">
                             <span class="group-picker-option-title">${escapeHtml(group.name)}</span>
                             <span class="group-picker-schedule">${buildGroupScheduleChips(group)}</span>
                             <span class="group-picker-option-sub"><i data-lucide="users"></i>${escapeHtml(count)}</span>
                         </span>
-                    </button>
+                    </div>
                 `;
             }).join('') || '<div class="group-picker-empty">Группа не найдена</div>'}
         `;
         menu.querySelectorAll('.group-picker-option').forEach(option => {
-            option.addEventListener('mousedown', event => {
+            const chooseOption = event => {
                 event.preventDefault();
                 select.value = option.dataset.value || '';
                 select.dispatchEvent(new Event('change', { bubbles: true }));
                 syncGroupPickerValue(selectId);
                 picker.classList.remove('open');
                 renderOptions('');
+            };
+            option.addEventListener('mousedown', chooseOption);
+            option.addEventListener('keydown', event => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    chooseOption(event);
+                }
             });
         });
         if (window.lucide) lucide.createIcons();
