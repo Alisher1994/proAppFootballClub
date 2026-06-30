@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&display=swap');
+
 .modal-form input,
 .modal-form select,
 .modal-form textarea {
@@ -57,6 +59,7 @@
 
 /* CSS Variables for Theme */
 :root {
+    --ui-font-family: 'Onest', Arial, "Helvetica Neue", Helvetica, sans-serif;
     /* Light Theme (Forced Default) */
     --theme-bg-primary: #f4f1ee;
     --theme-bg-secondary: #ffffff;
@@ -99,7 +102,7 @@ body.theme-light {
 }
 
 body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+    font-family: var(--ui-font-family);
     background: var(--theme-bg-primary);
     color: var(--theme-text-primary);
     line-height: 1.6;
@@ -2366,7 +2369,7 @@ body.theme-light .modal-body-scrollable::-webkit-scrollbar-thumb:hover {
         font-size: 0.95rem;
         background: #fff;
         transition: all 0.2s ease;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        font-family: var(--ui-font-family);
     }
 
     .form-card select {
@@ -2984,7 +2987,7 @@ body.login-page .password-field .password-toggle:focus-visible {
     white-space: nowrap;
     animation: loginTicker 28s linear infinite;
     color: #334155;
-    font-family: 'Rajdhani', 'Segoe UI', sans-serif;
+    font-family: var(--ui-font-family);
     font-size: 1rem;
     font-weight: 300;
     letter-spacing: 0.02em;
@@ -3117,7 +3120,7 @@ button,
 input,
 select,
 textarea {
-    font-family: Arial, "Helvetica Neue", Helvetica, sans-serif !important;
+    font-family: var(--ui-font-family) !important;
 }
 
 body {
@@ -6553,7 +6556,7 @@ body,
 .finances-page,
 .users-page {
     background: var(--theme-bg-primary) !important;
-    font-family: Arial, "Helvetica Neue", Helvetica, sans-serif !important;
+    font-family: var(--ui-font-family) !important;
 }
 
 .tournament-header,
@@ -6714,7 +6717,7 @@ textarea {
     border-radius: 8px !important;
     background: #fff !important;
     color: var(--theme-text-primary) !important;
-    font-family: Arial, "Helvetica Neue", Helvetica, sans-serif !important;
+    font-family: var(--ui-font-family) !important;
     font-size: 14px !important;
     line-height: 1.35 !important;
     font-weight: 400 !important;
@@ -6853,7 +6856,7 @@ body,
 .tariffs-page {
     background: var(--theme-bg-primary) !important;
     color: var(--theme-text-primary) !important;
-    font-family: Arial, "Helvetica Neue", Helvetica, sans-serif !important;
+    font-family: var(--ui-font-family) !important;
     letter-spacing: 0 !important;
 }
 
@@ -6870,7 +6873,7 @@ h4,
 .panel-title-row h2,
 .workspace-card h3 {
     color: var(--theme-text-primary) !important;
-    font-family: Arial, "Helvetica Neue", Helvetica, sans-serif !important;
+    font-family: var(--ui-font-family) !important;
     font-weight: 600 !important;
     letter-spacing: 0 !important;
 }
@@ -7078,7 +7081,7 @@ textarea,
     border-radius: var(--ui-radius-sm) !important;
     background: #fff !important;
     color: var(--theme-text-primary) !important;
-    font-family: Arial, "Helvetica Neue", Helvetica, sans-serif !important;
+    font-family: var(--ui-font-family) !important;
     font-size: 13px !important;
     line-height: 1.35 !important;
     font-weight: 400 !important;
@@ -7135,7 +7138,7 @@ button,
 .add-btn {
     border-radius: var(--ui-radius-sm) !important;
     box-shadow: none !important;
-    font-family: Arial, "Helvetica Neue", Helvetica, sans-serif !important;
+    font-family: var(--ui-font-family) !important;
     font-size: 13px !important;
     font-weight: 600 !important;
     letter-spacing: 0 !important;
@@ -8294,7 +8297,7 @@ h4,
 .section-title,
 .card-title {
     color: #5f6673 !important;
-    font-family: Arial, "Helvetica Neue", Helvetica, sans-serif !important;
+    font-family: var(--ui-font-family) !important;
     font-weight: 600 !important;
     letter-spacing: 0 !important;
 }
@@ -8749,7 +8752,7 @@ body,
 .filter-bottom-sheet-header h3,
 .game-filter-header h3 {
     color: #5f6673 !important;
-    font-family: Arial, "Helvetica Neue", Helvetica, sans-serif !important;
+    font-family: var(--ui-font-family) !important;
     font-size: 18px !important;
     line-height: 22px !important;
     font-weight: 600 !important;
@@ -8820,7 +8823,7 @@ button[id$="FilterToggleBtn"] {
 .finances-page .balance-value-minimal,
 .finances-page #cumulativeBalance {
     color: #111827 !important;
-    font-family: Arial, "Helvetica Neue", Helvetica, sans-serif !important;
+    font-family: var(--ui-font-family) !important;
     font-size: 22px !important;
     line-height: 26px !important;
     font-weight: 600 !important;

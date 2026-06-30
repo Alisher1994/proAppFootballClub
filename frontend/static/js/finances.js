@@ -528,7 +528,7 @@ function renderExpenseDonut(canvas, segments, total) {
     ctx.fill();
 
     ctx.fillStyle = '#0f172a';
-    ctx.font = '600 14px Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif';
+    ctx.font = '600 14px Onest, Arial, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(total.toLocaleString('ru-RU'), center, center);
@@ -681,7 +681,7 @@ function drawSimpleChart(months) {
 
     if (months.length === 0) {
         ctx.fillStyle = '#95a5a6';
-        ctx.font = '12px Arial';
+        ctx.font = '12px Onest, Arial';
         ctx.textAlign = 'center';
         ctx.fillText('Нет данных для отображения', canvas.width / 2, canvas.height / 2);
         return;
@@ -710,7 +710,7 @@ function drawSimpleChart(months) {
 
         // Подпись месяца
         ctx.fillStyle = '#2c3e50';
-        ctx.font = '9px Arial';
+        ctx.font = '9px Onest, Arial';
         ctx.textAlign = 'center';
         ctx.fillText(m.month_name, x + barWidth, canvas.height - 5);
     });
@@ -719,7 +719,7 @@ function drawSimpleChart(months) {
     ctx.fillStyle = '#27ae60';
     ctx.fillRect(padding, 6, 12, 10);
     ctx.fillStyle = '#2c3e50';
-    ctx.font = '10px Arial';
+    ctx.font = '10px Onest, Arial';
     ctx.textAlign = 'left';
     ctx.fillText('Приход', padding + 18, 14);
 
