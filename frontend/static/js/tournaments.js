@@ -191,11 +191,13 @@ async function loadTournaments() {
 
 function renderTournamentSelect() {
     const select = qs('tournamentSelect');
-    select.innerHTML = '<option value="">Выберите турнир</option>' + tournamentState.tournaments.map((item) => (
-        `<option value="${item.id}" ${Number(item.id) === Number(tournamentState.selectedTournamentId) ? 'selected' : ''}>
-            ${escapeHtml(item.name)} · ${STATUS_LABELS[item.status] || item.status || '-'}
-        </option>`
-    )).join('');
+    if (select) {
+        select.innerHTML = '<option value="">Выберите турнир</option>' + tournamentState.tournaments.map((item) => (
+            `<option value="${item.id}" ${Number(item.id) === Number(tournamentState.selectedTournamentId) ? 'selected' : ''}>
+                ${escapeHtml(item.name)} · ${STATUS_LABELS[item.status] || item.status || '-'}
+            </option>`
+        )).join('');
+    }
     renderTournamentList();
 }
 
