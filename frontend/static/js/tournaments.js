@@ -49,9 +49,13 @@ function escapeHtml(value) {
 }
 
 async function apiJson(url, options = {}) {
+    const headers = { ...(options.headers || {}) };
+    if (!(options.body instanceof FormData)) {
+        headers['Content-Type'] = headers['Content-Type'] || 'application/json';
+    }
     const response = await fetch(url, {
-        headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
         ...options,
+        headers,
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok || data.success === false) {
@@ -82,6 +86,10 @@ function selectedTournament() {
 
 function teamById(id) {
     return tournamentState.teams.find((item) => Number(item.id) === Number(id));
+}
+
+function logoImg(url, className, alt = '') {
+    return url ? `<img class="${className}" src="${escapeHtml(url)}" alt="${escapeHtml(alt)}">` : '';
 }
 
 function openModal(id) {
@@ -193,6 +201,7 @@ function renderTeams() {
         const players = [...(team.players || []), ...(team.external_players || [])].slice(0, 6);
         return `
             <article class="tournament-team-card">
+                ${logoImg(team.logo_url, 'tournament-team-logo', team.name) || '<span class="tournament-team-logo avatar-fallback">?</span>'}
                 <div>
                     <strong>${escapeHtml(team.name)}</strong>
                     <span>${escapeHtml(typeLabel)}${groups ? ` · ${escapeHtml(groups)}` : ''}</span>
@@ -362,8 +371,14 @@ function showWorkspace() {
     if (panel) panel.hidden = tournamentState.activeTab !== 'bracket';
     qs('matchWorkspace').hidden = false;
     qs('matchWorkspaceEmpty').hidden = true;
-    qs('scoreHomeTeam').textContent = match.home_team;
-    qs('scoreAwayTeam').textContent = match.away_team;
+    qs('scoreHomeTeam').innerHTML = `
+        <span class="score-team-name">${escapeHtml(match.home_team)}</span>
+        ${logoImg(match.home_logo_url, 'score-team-logo', match.home_team)}
+    `;
+    qs('scoreAwayTeam').innerHTML = `
+        ${logoImg(match.away_logo_url, 'score-team-logo', match.away_team)}
+        <span class="score-team-name">${escapeHtml(match.away_team)}</span>
+    `;
     qs('matchScore').textContent = `${match.home_score || 0} : ${match.away_score || 0}`;
     qs('matchMeta').textContent = `${formatDateTime(match.match_date)} · ${ROUND_LABELS[match.round_name] || 'Матч'}`;
     qs('matchStatusLabel').textContent = STATUS_LABELS[match.status] || match.status || '-';
@@ -632,9 +647,9 @@ function renderBracket() {
                 <h4>${ROUND_LABELS[round]}</h4>
                 ${matches.map((match) => `
                     <button class="bracket-match ${match.id === tournamentState.selectedMatchId ? 'active' : ''}" type="button" data-bracket-match="${match.id}">
-                        <span>${escapeHtml(match.home_team)}</span>
+                        <span>${logoImg(match.home_logo_url, 'bracket-team-logo', match.home_team)}<span class="bracket-team-name">${escapeHtml(match.home_team)}</span></span>
                         <strong>${match.home_score || 0}:${match.away_score || 0}</strong>
-                        <span>${escapeHtml(match.away_team)}</span>
+                        <span>${logoImg(match.away_logo_url, 'bracket-team-logo', match.away_team)}<span class="bracket-team-name">${escapeHtml(match.away_team)}</span></span>
                     </button>
                 `).join('')}
             </div>
@@ -694,23 +709,35 @@ function parseExternalPlayers(text) {
     }).filter(Boolean);
 }
 
+function resetTeamLogoPreview() {
+    const preview = qs('teamLogoPreview');
+    const fileName = qs('teamLogoFileName');
+    if (preview) preview.textContent = 'Лого';
+    if (fileName) fileName.textContent = 'PNG, JPG или WEBP';
+}
+
 async function createTeam(event) {
     event.preventDefault();
     if (!tournamentState.selectedTournamentId) return;
     const playerIds = Array.from(qs('teamPlayerPicker').querySelectorAll('input[type="checkbox"]:checked')).map((input) => input.value);
     const groupIds = Array.from(qs('teamSourceGroups').selectedOptions).map((option) => option.value);
+    const formData = new FormData();
+    formData.append('name', qs('teamName').value);
+    formData.append('team_type', qs('teamType').value);
+    formData.append('notes', qs('teamNotes').value);
+    groupIds.forEach((id) => formData.append('group_ids', id));
+    playerIds.forEach((id) => formData.append('player_ids', id));
+    formData.append('external_players', JSON.stringify(parseExternalPlayers(qs('teamExternalPlayers').value)));
+    if (qs('teamLogo')?.files?.[0]) {
+        formData.append('logo', qs('teamLogo').files[0]);
+    }
     await apiJson(`/api/tournaments/${tournamentState.selectedTournamentId}/teams`, {
         method: 'POST',
-        body: JSON.stringify({
-            name: qs('teamName').value,
-            team_type: qs('teamType').value,
-            group_ids: groupIds,
-            player_ids: playerIds,
-            external_players: parseExternalPlayers(qs('teamExternalPlayers').value),
-            notes: qs('teamNotes').value,
-        }),
+        headers: {},
+        body: formData,
     });
     qs('teamForm').reset();
+    resetTeamLogoPreview();
     qs('teamPlayerPicker').innerHTML = '';
     closeModal('teamModal');
     await loadTeams();
@@ -758,6 +785,19 @@ function bindForms() {
     qs('openTeamModalBtn').addEventListener('click', () => openModal('teamModal'));
     qs('openMatchModalBtn').addEventListener('click', () => openModal('matchModal'));
     qs('teamSourceGroups').addEventListener('change', loadStudentsForTeamPicker);
+    qs('teamLogo')?.addEventListener('change', () => {
+        const file = qs('teamLogo')?.files?.[0];
+        const preview = qs('teamLogoPreview');
+        const fileName = qs('teamLogoFileName');
+        if (fileName) fileName.textContent = file ? file.name : 'PNG, JPG или WEBP';
+        if (!preview) return;
+        if (!file) {
+            resetTeamLogoPreview();
+            return;
+        }
+        const url = URL.createObjectURL(file);
+        preview.innerHTML = `<img src="${url}" alt="">`;
+    });
     qs('teamType').addEventListener('change', () => {
         const external = qs('teamType').value === 'external';
         qs('teamSourceGroups').style.display = external ? 'none' : '';

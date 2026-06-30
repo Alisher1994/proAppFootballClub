@@ -249,7 +249,7 @@
                 </div>
             </div>
             <div class="modal-body-scrollable">
-                <form class="compact-form" id="teamForm">
+                <form class="compact-form" id="teamForm" enctype="multipart/form-data">
                     <div class="form-grid-2">
                         <input id="teamName" type="text" placeholder="Название команды" required>
                         <select id="teamType">
@@ -257,6 +257,14 @@
                             <option value="external">Внешняя команда</option>
                         </select>
                     </div>
+                    <label class="team-logo-picker">
+                        <span class="team-logo-preview" id="teamLogoPreview">Лого</span>
+                        <span>
+                            <strong>Логотип команды</strong>
+                            <small id="teamLogoFileName">PNG, JPG или WEBP</small>
+                        </span>
+                        <input id="teamLogo" type="file" accept="image/png,image/jpeg,image/webp">
+                    </label>
                     <select id="teamSourceGroups" multiple size="5"></select>
                     <textarea id="teamExternalPlayers" rows="4" placeholder="Внешние игроки: ФИО, номер, позиция. Каждый игрок с новой строки."></textarea>
                     <textarea id="teamNotes" rows="2" placeholder="Примечание"></textarea>

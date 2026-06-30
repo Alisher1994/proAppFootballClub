@@ -673,6 +673,7 @@ class TournamentTeam(db.Model):
     tournament_id = db.Column(db.Integer, db.ForeignKey('tournaments.id'), nullable=False, index=True)
     name = db.Column(db.String(200), nullable=False)
     team_type = db.Column(db.String(20), default='internal')  # internal, external
+    logo_path = db.Column(db.String(300), nullable=True)
     notes = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime, default=get_local_datetime)
     updated_at = db.Column(db.DateTime, default=get_local_datetime, onupdate=get_local_datetime)

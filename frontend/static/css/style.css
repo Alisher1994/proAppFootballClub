@@ -5491,11 +5491,34 @@ textarea:focus,
 
 .tournament-team-card {
     display: grid;
+    grid-template-columns: 42px minmax(0, 1fr);
     gap: 10px;
+    align-items: start;
     padding: 12px;
     border: 1px solid var(--theme-border);
     border-radius: 8px;
     background: #f8f7f6;
+}
+
+.tournament-team-logo,
+.score-team-logo,
+.bracket-team-logo,
+.team-logo-preview {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    object-fit: contain;
+    background: #fff;
+    border: 1px solid var(--theme-border);
+    flex: 0 0 auto;
+}
+
+.tournament-team-logo {
+    width: 42px;
+    height: 42px;
 }
 
 .tournament-team-card strong,
@@ -5518,9 +5541,58 @@ textarea:focus,
 }
 
 .team-mini-roster {
+    grid-column: 1 / -1;
     display: flex;
     flex-wrap: wrap;
     gap: 6px;
+}
+
+.team-logo-picker {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+    border: 1px solid var(--theme-border);
+    border-radius: 8px;
+    background: #f8f7f6;
+    cursor: pointer;
+}
+
+.team-logo-picker input {
+    display: none;
+}
+
+.team-logo-picker strong,
+.team-logo-picker small {
+    display: block;
+}
+
+.team-logo-picker strong {
+    color: var(--theme-text-primary);
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.team-logo-picker small {
+    margin-top: 2px;
+    color: var(--theme-text-secondary);
+    font-size: 12px;
+}
+
+.team-logo-preview {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--theme-text-secondary);
+    font-size: 11px;
+    font-weight: 600;
+    overflow: hidden;
+}
+
+.team-logo-preview img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
 }
 
 .team-mini-roster span {
@@ -5890,6 +5962,9 @@ textarea:focus,
 .score-team {
     min-width: 0;
     overflow: hidden;
+    display: flex;
+    align-items: center;
+    gap: 10px;
     color: var(--theme-text-primary);
     font-size: 16px;
     font-weight: 600;
@@ -5898,11 +5973,20 @@ textarea:focus,
 }
 
 .score-team.left {
+    justify-content: flex-end;
     text-align: right;
 }
 
 .score-team.right {
+    justify-content: flex-start;
     text-align: left;
+}
+
+.score-team-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .score-center {
@@ -6476,10 +6560,26 @@ textarea:focus,
 
 .bracket-match span {
     min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
     font-size: 12px;
+}
+
+.bracket-team-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.bracket-team-logo {
+    width: 20px;
+    height: 20px;
+    border-radius: 5px;
 }
 
 .bracket-match strong {

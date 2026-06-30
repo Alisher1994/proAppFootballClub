@@ -6,6 +6,7 @@ import time
 import queue
 import re
 import calendar
+import uuid
 import requests
 import cv2
 import numpy as np
@@ -1245,6 +1246,7 @@ def ensure_tournament_tables():
             tables = inspector.get_table_names()
 
         match_columns = {col['name'] for col in inspector.get_columns('tournament_matches')}
+        team_columns = {col['name'] for col in inspector.get_columns('tournament_teams')}
         event_columns = {col['name'] for col in inspector.get_columns('tournament_events')}
         with db.engine.begin() as conn:
             if 'round_name' not in match_columns:
@@ -1259,6 +1261,8 @@ def ensure_tournament_tables():
                 conn.execute(db.text("ALTER TABLE tournament_matches ADD COLUMN home_team_id INTEGER"))
             if 'away_team_id' not in match_columns:
                 conn.execute(db.text("ALTER TABLE tournament_matches ADD COLUMN away_team_id INTEGER"))
+            if 'logo_path' not in team_columns:
+                conn.execute(db.text("ALTER TABLE tournament_teams ADD COLUMN logo_path VARCHAR(300)"))
             if 'external_player_id' not in event_columns:
                 conn.execute(db.text("ALTER TABLE tournament_events ADD COLUMN external_player_id INTEGER"))
             if 'external_assist_player_id' not in event_columns:
@@ -2139,6 +2143,16 @@ def get_system_logo_url(settings=None):
         return url_for('static', filename=f'uploads/{filename}')
     return url_for('static', filename='uploads/logo.png')
 
+
+def get_tournament_team_logo_url(team, settings=None):
+    logo_path = getattr(team, 'logo_path', None)
+    if logo_path:
+        filename = logo_path.replace('\\', '/').split('/')[-1]
+        return url_for('static', filename=f'uploads/{filename}')
+    if getattr(team, 'team_type', None) == 'internal':
+        return get_system_logo_url(settings or get_club_settings_instance())
+    return None
+
 @app.context_processor
 def inject_system_name():
     """Добавляет название системы во все шаблоны (с кешированием)"""
@@ -2338,6 +2352,31 @@ def build_photo_url(photo_path):
         if path.startswith(prefix):
             path = path[len(prefix):]
     return url_for('static', filename=path)
+
+
+def save_tournament_team_logo(logo_file, old_logo_path=None):
+    if not logo_file or not logo_file.filename:
+        return old_logo_path
+    _, ext = os.path.splitext(secure_filename(logo_file.filename))
+    ext = ext.lower()
+    if ext not in {'.png', '.jpg', '.jpeg', '.webp'}:
+        raise ValueError('Поддерживаются PNG, JPG, WEBP')
+
+    os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+    filename = f"tournament_team_logo_{int(time.time())}_{uuid.uuid4().hex[:8]}{ext}"
+    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    logo_file.save(filepath)
+
+    if old_logo_path:
+        old_filename = old_logo_path.replace('\\', '/').split('/')[-1]
+        if old_filename.startswith('tournament_team_logo_'):
+            old_path = os.path.join(app.config['UPLOAD_FOLDER'], old_filename)
+            try:
+                if os.path.exists(old_path):
+                    os.remove(old_path)
+            except OSError:
+                pass
+    return os.path.join('frontend', 'static', 'uploads', filename)
 
 
 def save_user_photo(photo_file, user_id):
@@ -3446,11 +3485,14 @@ def serialize_tournament_team(team, include_players=False):
         'group_id': item.group_id,
         'group_name': item.group.name if item.group else None,
     } for item in getattr(team, 'source_groups', [])]
+    team_logo_url = get_tournament_team_logo_url(team)
     payload = {
         'id': team.id,
         'tournament_id': team.tournament_id,
         'name': team.name,
         'team_type': team.team_type or 'internal',
+        'logo_url': team_logo_url,
+        'logo_path': getattr(team, 'logo_path', None),
         'notes': team.notes,
         'source_groups': source_groups,
         'source_group_ids': [item['group_id'] for item in source_groups],
@@ -3523,6 +3565,8 @@ def serialize_tournament_event(event):
 def serialize_tournament_match(match, include_details=False):
     home_name = match.home_team_ref.name if getattr(match, 'home_team_ref', None) else match.home_team
     away_name = match.away_team_ref.name if getattr(match, 'away_team_ref', None) else match.away_team
+    home_logo_url = get_tournament_team_logo_url(match.home_team_ref) if getattr(match, 'home_team_ref', None) else None
+    away_logo_url = get_tournament_team_logo_url(match.away_team_ref) if getattr(match, 'away_team_ref', None) else None
     payload = {
         'id': match.id,
         'tournament_id': match.tournament_id,
@@ -3533,6 +3577,8 @@ def serialize_tournament_match(match, include_details=False):
         'match_date': match.match_date.isoformat() if match.match_date else None,
         'home_team': home_name,
         'away_team': away_name,
+        'home_logo_url': home_logo_url,
+        'away_logo_url': away_logo_url,
         'home_score': match.home_score or 0,
         'away_score': match.away_score or 0,
         'status': match.status,
@@ -3669,7 +3715,8 @@ def tournament_teams_api(tournament_id):
 
     if not has_tournament_permission('edit'):
         return jsonify({'success': False, 'message': 'Нет доступа'}), 403
-    data = request.get_json() or {}
+    is_multipart = request.content_type and request.content_type.startswith('multipart/form-data')
+    data = request.form if is_multipart else (request.get_json() or {})
     name = (data.get('name') or '').strip()
     team_type = (data.get('team_type') or 'internal').strip()
     if not name:
@@ -3685,6 +3732,11 @@ def tournament_teams_api(tournament_id):
     )
     db.session.add(team)
     db.session.flush()
+    try:
+        team.logo_path = save_tournament_team_logo(request.files.get('logo')) if is_multipart else None
+    except ValueError as exc:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(exc)}), 400
 
     group_ids = parse_int_list_payload(data, 'group_ids')
     for group_id in group_ids:
@@ -3701,7 +3753,13 @@ def tournament_teams_api(tournament_id):
                 shirt_number=student.student_number,
             ))
 
-    external_players = data.get('external_players') if isinstance(data.get('external_players'), list) else []
+    raw_external_players = data.get('external_players')
+    if isinstance(raw_external_players, str):
+        try:
+            raw_external_players = json.loads(raw_external_players)
+        except Exception:
+            raw_external_players = []
+    external_players = raw_external_players if isinstance(raw_external_players, list) else []
     for row in external_players:
         full_name = (row.get('full_name') or row.get('name') or '').strip()
         if not full_name:
@@ -3747,14 +3805,31 @@ def tournament_team_detail_api(team_id):
         )).first()
         if used:
             return jsonify({'success': False, 'message': 'Команда используется в матче'}), 400
+        old_logo = getattr(team, 'logo_path', None)
         db.session.delete(team)
         db.session.commit()
+        if old_logo:
+            old_filename = old_logo.replace('\\', '/').split('/')[-1]
+            if old_filename.startswith('tournament_team_logo_'):
+                try:
+                    old_path = os.path.join(app.config['UPLOAD_FOLDER'], old_filename)
+                    if os.path.exists(old_path):
+                        os.remove(old_path)
+                except OSError:
+                    pass
         return jsonify({'success': True})
 
-    data = request.get_json() or {}
+    is_multipart = request.content_type and request.content_type.startswith('multipart/form-data')
+    data = request.form if is_multipart else (request.get_json() or {})
     team.name = (data.get('name') or team.name).strip()
     team.team_type = (data.get('team_type') or team.team_type or 'internal').strip()
     team.notes = (data.get('notes') or '').strip() or None
+    if is_multipart and request.files.get('logo'):
+        try:
+            team.logo_path = save_tournament_team_logo(request.files.get('logo'), team.logo_path)
+        except ValueError as exc:
+            db.session.rollback()
+            return jsonify({'success': False, 'message': str(exc)}), 400
 
     TournamentTeamSourceGroup.query.filter_by(team_id=team.id).delete()
     for group_id in parse_int_list_payload(data, 'group_ids'):
@@ -3770,7 +3845,13 @@ def tournament_team_detail_api(team_id):
 
     if 'external_players' in data:
         TournamentExternalPlayer.query.filter_by(team_id=team.id).delete()
-        external_players = data.get('external_players') if isinstance(data.get('external_players'), list) else []
+        raw_external_players = data.get('external_players')
+        if isinstance(raw_external_players, str):
+            try:
+                raw_external_players = json.loads(raw_external_players)
+            except Exception:
+                raw_external_players = []
+        external_players = raw_external_players if isinstance(raw_external_players, list) else []
         for row in external_players:
             full_name = (row.get('full_name') or row.get('name') or '').strip()
             if full_name:
