@@ -5,10 +5,25 @@ let bridgeStatusTimer = null;
 let lastBridgeProgress = null;
 let settingsDirtyTrackingReady = false;
 const settingsFormSnapshots = new Map();
+const ACCESS_POLICY_INFO = {
+    full_current_month: {
+        short: 'Пропускаем только если текущий месяц оплачен полностью.',
+        details: 'Ученик проходит через терминал только после 100% оплаты текущего месяца. Частичная оплата текущего месяца не допускает к проходу.'
+    },
+    partial_current_month: {
+        short: 'Нужна любая оплата за текущий месяц, старых долгов быть не должно.',
+        details: 'Ученик проходит, если за текущий месяц есть оплата. Долги за прошлые месяцы блокируют проход.'
+    },
+    any_payment_this_month: {
+        short: 'Нужна оплата за текущий месяц, старые долги разрешены в пределах лимита.',
+        details: 'Ученик проходит, если за текущий месяц есть оплата, а старый долг не превышает выбранное количество месяцев.'
+    }
+};
 
 async function initSettings() {
     attachWorkingDayToggles();
     await loadSettings();
+    attachAccessPaymentPolicyControls();
 
     const expenseInput = document.getElementById('expense-category-input');
     if (expenseInput) {
@@ -124,6 +139,66 @@ async function initSettings() {
     initializeSettingsDirtyTracking();
 }
 
+function getAccessPolicyValue() {
+    return document.getElementById('access_payment_policy')?.value || 'partial_current_month';
+}
+
+function normalizeAccessDebtMonths() {
+    const input = document.getElementById('access_max_debt_months');
+    if (!input) return 1;
+    const value = parseInt(input.value || '1', 10);
+    const normalized = Math.max(1, Math.min(36, Number.isFinite(value) ? value : 1));
+    input.value = normalized;
+    return normalized;
+}
+
+function updateAccessPaymentPolicyUI() {
+    const policy = getAccessPolicyValue();
+    const info = ACCESS_POLICY_INFO[policy] || ACCESS_POLICY_INFO.partial_current_month;
+    const debtGroup = document.getElementById('accessDebtMonthsGroup');
+    const help = document.getElementById('accessPaymentPolicyHelp');
+    const infoCard = document.getElementById('accessPolicyDetails');
+    const showDebtLimit = policy === 'any_payment_this_month';
+
+    if (debtGroup) debtGroup.classList.toggle('is-hidden', !showDebtLimit);
+    if (help) help.textContent = info.short;
+    if (infoCard) {
+        infoCard.innerHTML = `<strong>${help?.textContent || ''}</strong><br>${info.details}`;
+    }
+    if (showDebtLimit) normalizeAccessDebtMonths();
+}
+
+function attachAccessPaymentPolicyControls() {
+    const policySelect = document.getElementById('access_payment_policy');
+    const infoButton = document.getElementById('accessPolicyInfoButton');
+    const debtInput = document.getElementById('access_max_debt_months');
+    const help = document.getElementById('accessPaymentPolicyHelp');
+
+    if (help && !document.getElementById('accessPolicyDetails')) {
+        const infoCard = document.createElement('div');
+        infoCard.id = 'accessPolicyDetails';
+        infoCard.className = 'access-policy-help-card is-hidden';
+        help.insertAdjacentElement('afterend', infoCard);
+    }
+
+    if (policySelect) {
+        policySelect.addEventListener('change', updateAccessPaymentPolicyUI);
+    }
+    if (debtInput) {
+        debtInput.addEventListener('change', normalizeAccessDebtMonths);
+        debtInput.addEventListener('blur', normalizeAccessDebtMonths);
+    }
+    if (infoButton) {
+        infoButton.addEventListener('click', () => {
+            const infoCard = document.getElementById('accessPolicyDetails');
+            if (!infoCard) return;
+            const isHidden = infoCard.classList.toggle('is-hidden');
+            infoButton.classList.toggle('is-open', !isHidden);
+        });
+    }
+    updateAccessPaymentPolicyUI();
+}
+
 function attachTemplateTokenButtons() {
     document.querySelectorAll('.template-token-list').forEach(list => {
         list.addEventListener('click', (event) => {
@@ -204,7 +279,10 @@ async function loadSettings() {
         if (hikvisionCleanupStaleUsersEl) hikvisionCleanupStaleUsersEl.checked = data.hikvision_cleanup_stale_users !== false;
         if (accessDebtStartMonthEl) accessDebtStartMonthEl.value = data.access_debt_start_month || '';
         if (accessDebtStartYearEl) accessDebtStartYearEl.value = data.access_debt_start_year || '';
-        if (accessMaxDebtMonthsEl) accessMaxDebtMonthsEl.value = data.access_max_debt_months ?? 0;
+        if (accessMaxDebtMonthsEl) {
+            const loadedDebtMonths = parseInt(data.access_max_debt_months || '1', 10);
+            accessMaxDebtMonthsEl.value = Math.max(1, Number.isFinite(loadedDebtMonths) ? loadedDebtMonths : 1);
+        }
         if (hikvisionDeviceKeyEl) hikvisionDeviceKeyEl.value = data.hikvision_device_key || '';
         setHikvisionDevices(data.hikvision_devices || []);
         document.getElementById('rewards_reset_period_months').value = data.rewards_reset_period_months || 1;
@@ -628,6 +706,10 @@ async function resetSystemSquareLogo() {
 }
 
 function gatherAllSettings() {
+    const accessPaymentPolicy = document.getElementById('access_payment_policy')?.value || 'partial_current_month';
+    const accessMaxDebtMonths = accessPaymentPolicy === 'any_payment_this_month'
+        ? normalizeAccessDebtMonths()
+        : 0;
     return {
         system_name: document.getElementById('system_name').value.trim(),
         working_days: collectWorkingDays(),
@@ -636,13 +718,13 @@ function gatherAllSettings() {
         max_groups_per_slot: parseInt(document.getElementById('max_groups_per_slot').value, 10),
         block_future_payments: document.getElementById('block_future_payments').checked,
         access_block_day: parseInt(document.getElementById('access_block_day')?.value || '10', 10),
-        access_payment_policy: document.getElementById('access_payment_policy')?.value || 'partial_current_month',
+        access_payment_policy: accessPaymentPolicy,
         hikvision_daily_sync_time: document.getElementById('hikvision_daily_sync_time')?.value || '03:00',
         hikvision_parallel_devices: document.getElementById('hikvision_parallel_devices')?.checked || false,
         hikvision_cleanup_stale_users: document.getElementById('hikvision_cleanup_stale_users')?.checked !== false,
         access_debt_start_month: document.getElementById('access_debt_start_month')?.value || null,
         access_debt_start_year: document.getElementById('access_debt_start_year')?.value || null,
-        access_max_debt_months: parseInt(document.getElementById('access_max_debt_months')?.value || '0', 10),
+        access_max_debt_months: accessMaxDebtMonths,
         hikvision_device_key: (document.getElementById('hikvision_device_key')?.value || '').trim(),
         hikvision_devices: collectHikvisionDevices(),
         rewards_reset_period_months: parseInt(document.getElementById('rewards_reset_period_months').value, 10),

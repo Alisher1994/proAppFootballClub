@@ -289,6 +289,54 @@
             font-weight: 400;
         }
 
+        .access-policy-label {
+            display: inline-flex !important;
+            align-items: center !important;
+            gap: 8px !important;
+        }
+
+        .access-policy-info {
+            width: 18px;
+            height: 18px;
+            border: 1px solid #d8d0c8;
+            border-radius: 50%;
+            background: #fff;
+            color: #5f6673;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font: 600 12px/1 Onest, Arial, sans-serif;
+            cursor: pointer;
+            padding: 0;
+        }
+
+        .access-policy-info:hover,
+        .access-policy-info.is-open {
+            color: #ff8a00;
+            border-color: #ff8a00;
+        }
+
+        .access-policy-help-card {
+            margin-top: 10px;
+            padding: 12px 14px;
+            border: 1px solid #e4ddd6;
+            border-radius: 10px;
+            background: #fffaf5;
+            color: #5f6673;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        .access-policy-help-card strong {
+            color: #3f4652;
+            font-weight: 600;
+        }
+
+        .access-policy-help-card.is-hidden,
+        #accessDebtMonthsGroup.is-hidden {
+            display: none;
+        }
+
         /* Стили для рабочих дней */
         .day-toggle-group {
             display: grid;
@@ -2718,23 +2766,27 @@
                                         </div>
                                     </div>
                                     <div class="form-group">
-                                        <label>Правило допуска по оплате</label>
+                                        <label class="access-policy-label">
+                                            Правило допуска по оплате
+                                            <button type="button" class="access-policy-info" id="accessPolicyInfoButton" aria-label="Показать логику выбранного правила">
+                                                i
+                                            </button>
+                                        </label>
                                         <select id="access_payment_policy" class="form-input-modern">
-                                            <option value="partial_current_month">Частичная оплата за этот месяц, без долгов за прошлые месяцы</option>
-                                            <option value="any_payment_this_month">Частичная оплата за этот месяц, с долгами за прошлые месяцы</option>
-                                            <option value="full_current_month">Пропуск только при 100% оплате и без долгов за прошлые месяцы</option>
+                                            <option value="full_current_month">Только 100% оплата текущего месяца</option>
+                                            <option value="partial_current_month">Частичная оплата текущего месяца, без старых долгов</option>
+                                            <option value="any_payment_this_month">Частичная оплата текущего месяца, разрешить старые долги</option>
                                         </select>
-                                        <small>
-                                            Если родители догоняют старые долги, выберите вариант с долгами за прошлые месяцы.
+                                        <small id="accessPaymentPolicyHelp">
+                                            Выберите правило допуска для терминала.
                                         </small>
                                     </div>
-                                    <div class="form-group">
-                                        <label>Пропускать с долгом не более</label>
-                                        <input type="number" id="access_max_debt_months" min="0" max="36"
-                                            class="form-input-modern" placeholder="0">
-                                        <small>
-                                            0 = без ограничения по количеству месяцев. Если поставить 2, ученик с долгом
-                                            за 3 месяца не пройдет даже при частичной оплате.
+                                    <div class="form-group is-hidden" id="accessDebtMonthsGroup">
+                                        <label>Сколько месяцев старого долга разрешено</label>
+                                        <input type="number" id="access_max_debt_months" min="1" max="36"
+                                            class="form-input-modern" placeholder="1">
+                                        <small id="accessDebtMonthsHelp">
+                                            1 = можно долг за 1 прошлый месяц, 2 = за 2 месяца.
                                         </small>
                                     </div>
                                     <div class="form-group">

@@ -679,6 +679,13 @@ def get_access_max_debt_months(settings):
     return max(0, min(36, value))
 
 
+def get_effective_access_max_debt_months(settings):
+    value = get_access_max_debt_months(settings)
+    if get_access_payment_policy(settings) == 'any_payment_this_month':
+        return max(1, value)
+    return 0
+
+
 def normalize_month_pair(year, month):
     if not year or not month:
         return None
@@ -721,7 +728,7 @@ def get_student_debt_start_pair(student, settings, today=None):
     return max(candidates)
 
 
-def get_debt_month_counts(students, settings=None, today=None):
+def get_debt_month_counts(students, settings=None, today=None, include_current=True):
     settings = settings or get_club_settings_instance()
     today = today or get_local_date()
     students = [student for student in students if student and student.tariff and not student.club_funded]
@@ -765,7 +772,17 @@ def get_debt_month_counts(students, settings=None, today=None):
 
         tariff_price = float(student.tariff.price or 0)
         count = 0
-        for year, month in iter_month_pairs(start_year, start_month, today.year, today.month):
+        end_year, end_month = today.year, today.month
+        if not include_current:
+            end_month -= 1
+            if end_month < 1:
+                end_month = 12
+                end_year -= 1
+        if (start_year, start_month) > (end_year, end_month):
+            counts[student.id] = 0
+            continue
+
+        for year, month in iter_month_pairs(start_year, start_month, end_year, end_month):
             paid = paid_by_month.get((student.id, year, month), 0)
             if max(0, tariff_price - paid) > 0:
                 count += 1
@@ -796,10 +813,10 @@ def student_access_state(student, settings=None, paid_map=None, payment_date_pai
     policy = get_access_payment_policy(settings)
     max_debt_months = get_access_max_debt_months(settings)
 
-    if policy != 'full_current_month' and max_debt_months > 0:
+    if policy == 'partial_current_month':
         if debt_month_count is None:
-            debt_month_count = get_debt_month_counts([student], settings, today).get(student.id, 0)
-        if debt_month_count > max_debt_months:
+            debt_month_count = get_debt_month_counts([student], settings, today, include_current=False).get(student.id, 0)
+        if debt_month_count > 0:
             return False, 'too_many_debt_months', debt
 
     if policy == 'full_current_month':
@@ -808,6 +825,11 @@ def student_access_state(student, settings=None, paid_map=None, payment_date_pai
         return True, 'paid_full_current_month', 0
 
     if policy == 'any_payment_this_month':
+        max_debt_months = max(1, max_debt_months)
+        if debt_month_count is None:
+            debt_month_count = get_debt_month_counts([student], settings, today, include_current=False).get(student.id, 0)
+        if debt_month_count > max_debt_months:
+            return False, 'too_many_debt_months', debt
         if paid > 0 or paid_by_date > 0:
             return True, 'any_payment_this_month', debt
         return False, 'no_payment_this_month', debt
@@ -842,8 +864,9 @@ def build_student_access_payload(student, settings=None, paid_map=None, payment_
     today = today or get_local_date()
     paid_map = paid_map or {}
     payment_date_paid_map = payment_date_paid_map or {}
-    if debt_month_count is None and get_access_max_debt_months(settings) > 0 and not student.club_funded:
-        debt_month_count = get_debt_month_counts([student], settings, today).get(student.id, 0)
+    policy = get_access_payment_policy(settings)
+    if debt_month_count is None and policy in {'partial_current_month', 'any_payment_this_month'} and not student.club_funded:
+        debt_month_count = get_debt_month_counts([student], settings, today, include_current=False).get(student.id, 0)
     allowed, reason, debt = student_access_state(
         student,
         settings,
@@ -876,8 +899,8 @@ def build_student_access_payload(student, settings=None, paid_map=None, payment_
         'tariff_price': tariff_price,
         'has_photo': bool(photo_url),
         'block_day': int(getattr(settings, 'access_block_day', 10) or 10),
-        'payment_policy': get_access_payment_policy(settings),
-        'max_debt_months': get_access_max_debt_months(settings),
+        'payment_policy': policy,
+        'max_debt_months': get_effective_access_max_debt_months(settings),
         'debt_month_count': int(debt_month_count or 0),
         'month': today.month,
         'year': today.year,
@@ -5880,7 +5903,12 @@ def hikvision_students():
         joinedload(Student.group)
     ).order_by(Student.id.asc()).all()
     staff_users = User.query.order_by(User.id.asc()).all()
-    debt_month_counts = get_debt_month_counts(students, settings, today) if get_access_max_debt_months(settings) > 0 else {}
+    access_policy = get_access_payment_policy(settings)
+    debt_month_counts = (
+        get_debt_month_counts(students, settings, today, include_current=False)
+        if access_policy in {'partial_current_month', 'any_payment_this_month'}
+        else {}
+    )
 
     base_url = request.host_url.rstrip('/')
     payload = []
@@ -5908,8 +5936,8 @@ def hikvision_students():
         'month': today.month,
         'year': today.year,
         'access_block_day': int(getattr(settings, 'access_block_day', 10) or 10),
-        'access_payment_policy': get_access_payment_policy(settings),
-        'access_max_debt_months': get_access_max_debt_months(settings),
+        'access_payment_policy': access_policy,
+        'access_max_debt_months': get_effective_access_max_debt_months(settings),
         'duplicates_skipped': duplicates_skipped,
         'students': payload
     })
@@ -5940,7 +5968,7 @@ def hikvision_person():
         'year': today.year,
         'access_block_day': int(getattr(settings, 'access_block_day', 10) or 10),
         'access_payment_policy': get_access_payment_policy(settings),
-        'access_max_debt_months': get_access_max_debt_months(settings),
+        'access_max_debt_months': get_effective_access_max_debt_months(settings),
     })
 
 
@@ -5958,7 +5986,7 @@ def hikvision_config():
         'daily_sync_time': get_hikvision_daily_sync_time(settings),
         'parallel_devices': bool(getattr(settings, 'hikvision_parallel_devices', False)),
         'cleanup_stale_users': bool(getattr(settings, 'hikvision_cleanup_stale_users', True)),
-        'max_debt_months': get_access_max_debt_months(settings),
+        'max_debt_months': get_effective_access_max_debt_months(settings),
         'timezone': 'Asia/Tashkent',
     })
 
@@ -6775,8 +6803,11 @@ def update_club_settings():
         if access_debt_start_month and (access_debt_start_month < 1 or access_debt_start_month > 12):
             return jsonify({'success': False, 'message': 'Месяц начала контроля доступа должен быть от 1 до 12'}), 400
         access_max_debt_months = int(access_max_debt_months or 0)
-        if access_max_debt_months < 0 or access_max_debt_months > 36:
-            return jsonify({'success': False, 'message': 'Лимит месяцев долга должен быть от 0 до 36'}), 400
+        if access_payment_policy == 'any_payment_this_month':
+            if access_max_debt_months < 1 or access_max_debt_months > 36:
+                return jsonify({'success': False, 'message': 'Лимит старого долга должен быть от 1 до 36 месяцев'}), 400
+        else:
+            access_max_debt_months = 0
 
         settings.system_name = system_name
         settings.set_working_days_list(working_days)
