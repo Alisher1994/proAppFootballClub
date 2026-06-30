@@ -141,7 +141,8 @@ html {
     left: 0;
     width: 100%;
     height: 158px;
-    object-fit: cover;
+    object-fit: contain;
+    object-position: center top;
     opacity: 0.1;
     pointer-events: none;
     z-index: 0;
@@ -2886,6 +2887,32 @@ body.login-page,
     background: rgba(15, 23, 42, 0.08);
     color: #0f172a;
     outline: none;
+}
+
+body.login-page .password-field .password-toggle,
+body.login-page button.password-toggle[type="button"]:not(.btn-danger):not(.delete-btn):not(.remove-btn):not(.logout-btn) {
+    position: absolute !important;
+    right: 10px !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    width: 34px !important;
+    height: 34px !important;
+    min-width: 34px !important;
+    min-height: 34px !important;
+    max-width: 34px !important;
+    max-height: 34px !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    color: #334155 !important;
+}
+
+body.login-page .password-field .password-toggle:hover,
+body.login-page .password-field .password-toggle:focus-visible {
+    background: transparent !important;
+    color: #0f172a !important;
 }
 
 .login-box .btn-primary {
