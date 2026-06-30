@@ -350,7 +350,27 @@ function setProgress(patch = null) {
   if (!patch) {
     currentProgress = null;
   } else {
-    const next = { ...(currentProgress || {}), ...patch };
+    const nowMs = Date.now();
+    const finalStages = new Set(['done', 'done_with_errors', 'error', 'stopped']);
+    const startsNewRun = ['start', 'clear_device'].includes(patch.stage || '') || !currentProgress;
+    const base = startsNewRun
+      ? { started_at: new Date(nowMs).toISOString(), started_at_ms: nowMs }
+      : { ...(currentProgress || {}) };
+    const next = { ...base, ...patch };
+    if (!next.started_at_ms) {
+      next.started_at_ms = nowMs;
+      next.started_at = new Date(nowMs).toISOString();
+    }
+    if (patch.stage && !finalStages.has(patch.stage)) {
+      delete next.finished_at;
+      delete next.finished_at_ms;
+      delete next.duration_ms;
+    }
+    if (finalStages.has(next.stage || '')) {
+      next.finished_at_ms = nowMs;
+      next.finished_at = new Date(nowMs).toISOString();
+      next.duration_ms = Math.max(0, nowMs - Number(next.started_at_ms || nowMs));
+    }
     const total = Number(next.total || 0);
     const processed = Number(next.processed || 0);
     next.percent = total > 0 ? Math.min(100, Math.max(0, Math.round((processed / total) * 100))) : 0;

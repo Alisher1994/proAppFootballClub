@@ -1373,6 +1373,8 @@ function updateBridgeProgress(progress) {
     if (progress.errors != null || deviceList.length) stats.push(`ошибок: ${progress.errors ?? aggregate.errors}`);
     if (progress.rejected != null || deviceList.length) stats.push(`отклонено: ${progress.rejected ?? aggregate.rejected}`);
     if (progress.skipped != null) stats.push(`заблокировано/пропущено: ${progress.skipped}`);
+    const timingText = formatBridgeCompletionTiming(progress);
+    if (timingText) stats.push(timingText);
     setBridgeText('bridgeProgressStats', stats.join(' · '));
     renderBridgeDeviceProgress(progress);
 
@@ -1384,6 +1386,46 @@ function updateBridgeProgress(progress) {
         });
         btn.style.display = hasResults ? 'inline-flex' : 'none';
     }
+}
+
+function formatBridgeCompletionTiming(progress) {
+    if (!progress) return '';
+    const stage = progress.stage || '';
+    const finalStages = new Set(['done', 'done_with_errors']);
+    const percent = Math.max(0, Math.min(100, Number(progress.percent || 0)));
+    if (!finalStages.has(stage) && percent < 100) return '';
+
+    const processed = Number(progress.processed || 0);
+    if (!processed) return '';
+
+    let durationMs = Number(progress.duration_ms || 0);
+    if (!durationMs && progress.started_at && progress.finished_at) {
+        const started = new Date(progress.started_at).getTime();
+        const finished = new Date(progress.finished_at).getTime();
+        if (Number.isFinite(started) && Number.isFinite(finished)) {
+            durationMs = Math.max(0, finished - started);
+        }
+    }
+    if (!durationMs) return '';
+
+    const perRecordMs = durationMs / processed;
+    return [
+        `среднее: ${formatBridgeDuration(perRecordMs)} / 1 запись`,
+        `${formatBridgeDuration(perRecordMs * 100)} / 100`,
+        `всего: ${formatBridgeDuration(durationMs)}`
+    ].join(' · ');
+}
+
+function formatBridgeDuration(ms) {
+    const minutes = ms / 60000;
+    if (minutes > 0 && minutes < 0.01) return '<0,01 мин';
+    return `${formatBridgeDurationNumber(minutes)} мин`;
+}
+
+function formatBridgeDurationNumber(value) {
+    if (value >= 10) return String(Math.round(value));
+    if (value >= 1) return value.toFixed(1).replace('.', ',');
+    return value.toFixed(2).replace('.', ',');
 }
 
 function renderBridgeDeviceProgress(progress) {
