@@ -83,12 +83,21 @@ function renderTrainerChecklist(selectId) {
         return;
     }
 
-    list.innerHTML = options.map(option => `
+    list.innerHTML = options.map(option => {
+        const trainer = allTrainers.find(item => String(item.id) === String(option.value)) || {};
+        const displayName = option.textContent.trim();
+        const initial = (displayName || 'Т').trim().slice(0, 1).toUpperCase();
+        const avatar = trainer.photo_url
+            ? `<img class="trainer-check-avatar" src="${escapeHtml(trainer.photo_url)}" alt="">`
+            : `<span class="trainer-check-avatar trainer-check-avatar-fallback">${escapeHtml(initial)}</span>`;
+        return `
         <label class="trainer-check-option">
             <input type="checkbox" value="${escapeHtml(option.value)}" ${option.selected ? 'checked' : ''}>
-            <span>${escapeHtml(option.textContent.trim())}</span>
+            ${avatar}
+            <span class="trainer-check-name">${escapeHtml(displayName)}</span>
         </label>
-    `).join('');
+    `;
+    }).join('');
 
     list.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
         checkbox.addEventListener('change', () => {

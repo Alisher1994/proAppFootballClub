@@ -1661,23 +1661,24 @@
         #addGroupModal .selected-slots-display,
         #editGroupModal .selected-slots-display,
         #editSelectedSlotsDisplay {
-            min-height: 42px !important;
-            padding: 8px !important;
-            gap: 8px !important;
-            background: #f8f7f6 !important;
-            border: 1px solid #e4ddd6 !important;
-            border-radius: 8px !important;
+            min-height: 0 !important;
+            padding: 0 !important;
+            gap: 6px !important;
+            background: transparent !important;
+            border: 0 !important;
+            border-radius: 0 !important;
             box-shadow: none !important;
         }
 
         #addGroupModal .selected-slot-badge,
         #editGroupModal .selected-slot-badge,
         #editSelectedSlotsDisplay .slot-badge {
-            min-height: 32px !important;
+            min-height: 30px !important;
+            height: 30px !important;
             padding: 0 8px 0 10px !important;
-            gap: 8px !important;
+            gap: 6px !important;
             border: 1px solid #e4ddd6 !important;
-            border-radius: 8px !important;
+            border-radius: 9px !important;
             background: #fff !important;
             color: #17191f !important;
             font-size: 13px !important;
@@ -1688,14 +1689,15 @@
         #addGroupModal .selected-slot-badge .remove-slot,
         #editGroupModal .selected-slot-badge .remove-slot,
         #editSelectedSlotsDisplay .slot-badge-remove {
-            width: 22px !important;
-            height: 22px !important;
-            min-width: 22px !important;
-            border: 1px solid #e4ddd6 !important;
-            border-radius: 7px !important;
-            background: #f8f7f6 !important;
+            width: 20px !important;
+            height: 20px !important;
+            min-width: 20px !important;
+            border: 0 !important;
+            border-radius: 0 !important;
+            background: transparent !important;
             color: #5f6673 !important;
             box-shadow: none !important;
+            margin-left: 0 !important;
         }
 
         #addGroupModal .schedule-visualization,
@@ -1804,6 +1806,89 @@
             height: 12px !important;
             border-width: 1px !important;
             border-radius: 4px !important;
+        }
+
+        #addGroupModal .trainer-checklist,
+        #editGroupModal .trainer-checklist {
+            gap: 6px !important;
+            max-height: 150px !important;
+            padding: 6px !important;
+            border: 1px solid #e4ddd6 !important;
+            border-radius: 8px !important;
+            background: #f8f7f6 !important;
+            box-shadow: none !important;
+        }
+
+        #addGroupModal .trainer-check-option,
+        #editGroupModal .trainer-check-option {
+            min-height: 40px !important;
+            padding: 6px 8px !important;
+            gap: 8px !important;
+            border: 1px solid transparent !important;
+            border-radius: 8px !important;
+            background: #fff !important;
+            color: #5f6673 !important;
+            font-size: 13px !important;
+            font-weight: 500 !important;
+            box-shadow: none !important;
+        }
+
+        #addGroupModal .trainer-check-option:has(input:checked),
+        #editGroupModal .trainer-check-option:has(input:checked) {
+            border-color: #ff8a00 !important;
+            background: #fff8ef !important;
+            color: #17191f !important;
+        }
+
+        #addGroupModal .trainer-check-option input,
+        #editGroupModal .trainer-check-option input {
+            width: 16px !important;
+            height: 16px !important;
+            min-width: 16px !important;
+            border-radius: 5px !important;
+            margin: 0 !important;
+        }
+
+        #addGroupModal .trainer-check-avatar,
+        #editGroupModal .trainer-check-avatar {
+            width: 28px !important;
+            height: 28px !important;
+            min-width: 28px !important;
+            border-radius: 50% !important;
+            object-fit: cover !important;
+            background: #ece7e2 !important;
+            color: #5f6673 !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            font-size: 12px !important;
+            font-weight: 600 !important;
+            border: 1px solid #e4ddd6 !important;
+        }
+
+        #addGroupModal .trainer-check-name,
+        #editGroupModal .trainer-check-name {
+            min-width: 0 !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+            white-space: nowrap !important;
+        }
+
+        .settings-page #groupsTable,
+        .settings-page table#groupsTable.data-table {
+            border: 0 !important;
+            border-radius: 0 !important;
+            border-collapse: collapse !important;
+            box-shadow: none !important;
+            overflow: visible !important;
+        }
+
+        .settings-page #groupsTable th,
+        .settings-page #groupsTable td {
+            border-right: 0 !important;
+            border-left: 0 !important;
+            border-top: 0 !important;
+            border-bottom: 1px solid #ece7e2 !important;
         }
     </style>
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>

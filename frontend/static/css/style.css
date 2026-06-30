@@ -7147,31 +7147,31 @@ button.secondary:hover {
 
 .data-table,
 .tournament-table,
-.access-table,
-table {
+.access-table {
     background: #fff !important;
-    border: 1px solid var(--theme-border) !important;
-    border-collapse: separate !important;
+    border: 0 !important;
+    border-collapse: collapse !important;
     border-spacing: 0 !important;
-    border-radius: var(--ui-radius) !important;
-    overflow: hidden !important;
+    border-radius: 0 !important;
+    overflow: visible !important;
     box-shadow: none !important;
 }
 
 .data-table thead,
 .tournament-table thead,
-.access-table thead,
-table thead {
+.access-table thead {
     background: var(--theme-table-header-bg) !important;
 }
 
 .data-table th,
 .tournament-table th,
-.access-table th,
-table th {
+.access-table th {
     background: var(--theme-table-header-bg) !important;
     color: var(--theme-text-secondary) !important;
     border-bottom: 1px solid var(--theme-border) !important;
+    border-left: 0 !important;
+    border-right: 0 !important;
+    border-top: 0 !important;
     font-size: 11px !important;
     font-weight: 600 !important;
     letter-spacing: 0 !important;
@@ -7180,25 +7180,25 @@ table th {
 
 .data-table td,
 .tournament-table td,
-.access-table td,
-table td {
+.access-table td {
     color: var(--theme-text-primary) !important;
     border-bottom: 1px solid var(--theme-table-border) !important;
+    border-left: 0 !important;
+    border-right: 0 !important;
+    border-top: 0 !important;
     font-size: 13px !important;
     font-weight: 400 !important;
 }
 
 .data-table tbody tr,
 .tournament-table tbody tr,
-.access-table tbody tr,
-table tbody tr {
+.access-table tbody tr {
     background: #fff !important;
 }
 
 .data-table tbody tr:hover,
 .tournament-table tbody tr:hover,
-.access-table tbody tr:hover,
-table tbody tr:hover {
+.access-table tbody tr:hover {
     background: #fffaf5 !important;
 }
 
