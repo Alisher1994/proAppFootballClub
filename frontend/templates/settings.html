@@ -1547,17 +1547,21 @@
         }
 
         .terminal-ip-row .form-input-modern {
+            width: 100% !important;
+            box-sizing: border-box !important;
             min-height: 42px;
-            padding-right: 76px !important;
+            padding-right: 78px !important;
         }
 
         .terminal-icon-button {
             position: absolute;
             top: 50%;
-            width: 32px;
-            height: 32px;
-            min-width: 32px;
-            min-height: 32px;
+            width: 28px !important;
+            height: 28px !important;
+            min-width: 28px !important;
+            min-height: 28px !important;
+            max-width: 28px !important;
+            max-height: 28px !important;
             padding: 0 !important;
             border: 0 !important;
             border-radius: 8px;
@@ -1573,11 +1577,11 @@
         }
 
         .terminal-icon-button[data-open-hikvision-door] {
-            right: 38px;
+            right: 40px;
         }
 
         .terminal-icon-button[data-clear-hikvision-device] {
-            right: 8px;
+            right: 10px;
         }
 
         .bridge-status-banner {
@@ -3144,7 +3148,7 @@
                                     <div>Загрузка состояния bridge...</div>
                                     <div class="bridge-status-actions">
                                         <button type="button" id="hikvisionManualSyncBtn" class="bridge-status-icon-btn" title="Синхронизировать сейчас" aria-label="Синхронизировать сейчас">
-                                            <i data-lucide="rotate-3d"></i>
+                                            <i data-lucide="database-backup"></i>
                                         </button>
                                         <button type="button" id="bridgeStatusRefreshBtn" class="bridge-status-icon-btn" title="Обновить статус" aria-label="Обновить статус">
                                             <i data-lucide="refresh-cw"></i>

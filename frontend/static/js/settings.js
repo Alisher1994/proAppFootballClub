@@ -1302,7 +1302,7 @@ function bridgeStatusActionsHtml() {
     return `
         <div class="bridge-status-actions">
             <button type="button" id="hikvisionManualSyncBtn" class="bridge-status-icon-btn" title="Синхронизировать сейчас" aria-label="Синхронизировать сейчас">
-                <i data-lucide="rotate-3d"></i>
+                <i data-lucide="database-backup"></i>
             </button>
             <button type="button" id="bridgeStatusRefreshBtn" class="bridge-status-icon-btn" title="Обновить статус" aria-label="Обновить статус">
                 <i data-lucide="refresh-cw"></i>
