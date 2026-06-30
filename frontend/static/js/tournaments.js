@@ -81,6 +81,16 @@ function formatDateTime(value) {
     });
 }
 
+function displayStudentName(value) {
+    const parts = String(value || '').trim().split(/\s+/).filter(Boolean);
+    if (parts.length < 2) return parts.join(' ') || 'Без имени';
+    return `${parts.slice(1).join(' ')} ${parts[0]}`;
+}
+
+function firstNameLetter(value) {
+    return (displayStudentName(value).trim()[0] || '#').toLocaleUpperCase('ru-RU');
+}
+
 function selectedTournament() {
     return tournamentState.tournaments.find((item) => Number(item.id) === Number(tournamentState.selectedTournamentId));
 }
@@ -388,9 +398,35 @@ function renderLineupPicker() {
             .map((item) => Number(item.student_id))
     );
     const players = tournamentState.players.filter((player) => {
-        const haystack = `${player.name || ''} ${player.number || ''} ${player.group_name || ''}`.toLowerCase();
+        const displayName = displayStudentName(player.name);
+        const haystack = `${player.name || ''} ${displayName} ${player.number || ''} ${player.group_name || ''}`.toLowerCase();
         return !selectedIds.has(Number(player.id)) && (!search || haystack.includes(search));
-    });
+    }).sort((a, b) => displayStudentName(a.name).localeCompare(displayStudentName(b.name), 'ru'));
+    const groups = players.reduce((acc, player) => {
+        const letter = firstNameLetter(player.name);
+        if (!acc.has(letter)) acc.set(letter, []);
+        acc.get(letter).push(player);
+        return acc;
+    }, new Map());
+    const groupedPlayersHtml = Array.from(groups.entries()).map(([letter, groupPlayers]) => `
+        <section class="lineup-alpha-group">
+            <h3>${escapeHtml(letter)}</h3>
+            <div class="lineup-alpha-grid">
+                ${groupPlayers.map((player) => {
+                    const displayName = displayStudentName(player.name);
+                    return `
+                        <button class="lineup-player-choice" type="button" data-player-id="${player.id}">
+                            ${player.photo_url ? `<img src="${player.photo_url}" alt="">` : `<span class="avatar-fallback">${escapeHtml(displayName.slice(0, 1))}</span>`}
+                            <span>
+                                <strong>${escapeHtml(displayName)}</strong>
+                                <small>${player.number ? `№${escapeHtml(player.number)} · ` : ''}${escapeHtml(player.group_name || 'Без группы')}</small>
+                            </span>
+                        </button>
+                    `;
+                }).join('')}
+            </div>
+        </section>
+    `).join('');
 
     picker.innerHTML = `
         <div class="lineup-popover-head">
@@ -403,15 +439,7 @@ function renderLineupPicker() {
             </button>
         </div>
         <div class="lineup-popover-list">
-            ${players.length ? players.map((player) => `
-                <button class="lineup-player-choice" type="button" data-player-id="${player.id}">
-                    ${player.photo_url ? `<img src="${player.photo_url}" alt="">` : `<span class="avatar-fallback">${escapeHtml((player.name || '?').slice(0, 1))}</span>`}
-                    <span>
-                        <strong>${escapeHtml(player.name)}</strong>
-                        <small>${player.number ? `№${escapeHtml(player.number)} · ` : ''}${escapeHtml(player.group_name || 'Без группы')}</small>
-                    </span>
-                </button>
-            `).join('') : '<div class="empty-state small">Игроков для добавления нет.</div>'}
+            ${players.length ? groupedPlayersHtml : '<div class="empty-state small">Игроков для добавления нет.</div>'}
         </div>
     `;
     picker.querySelector('[data-close-lineup-picker]')?.addEventListener('click', () => {

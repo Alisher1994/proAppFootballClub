@@ -6667,11 +6667,34 @@ textarea:focus,
 
 .lineup-popover-list {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
-    gap: 8px;
+    gap: 12px;
     max-height: 230px;
     overflow: auto;
     padding: 10px;
+}
+
+.lineup-alpha-group {
+    display: grid;
+    gap: 8px;
+}
+
+.lineup-alpha-group h3 {
+    position: sticky;
+    top: -10px;
+    z-index: 1;
+    margin: 0;
+    padding: 5px 2px;
+    background: #fff;
+    color: #ff8a00;
+    font-size: 12px;
+    line-height: 16px;
+    font-weight: 600;
+}
+
+.lineup-alpha-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+    gap: 8px;
 }
 
 .lineup-player-choice {
