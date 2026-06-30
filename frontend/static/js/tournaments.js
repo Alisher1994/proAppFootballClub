@@ -507,11 +507,6 @@ function showWorkspace() {
     qs('matchScore').textContent = `${match.home_score || 0} : ${match.away_score || 0}`;
     qs('matchMeta').textContent = `${formatDateTime(match.match_date)} · ${ROUND_LABELS[match.round_name] || 'Матч'}`;
     qs('matchStatusLabel').textContent = STATUS_LABELS[match.status] || match.status || '-';
-    qs('formationViewSelect').value = match.formation || '4-3-3';
-    qs('currentMatchRound').value = match.round_name || 'group';
-    qs('currentMatchSide').value = match.bracket_side || 'left';
-    qs('currentMatchOrder').value = match.bracket_order || 0;
-    qs('currentMatchFormation').value = match.formation || '4-3-3';
     renderLineup();
     renderTimeline();
     renderAnalytics();
@@ -526,18 +521,49 @@ function renderLineup() {
         board.innerHTML = '<div class="empty-state">Выберите матч.</div>';
         return;
     }
-    const formation = qs('formationViewSelect')?.value || match.formation || '4-3-3';
+    const formation = qs('currentMatchFormation')?.value || match.formation || '4-3-3';
     const rows = FORMATION_ROWS[formation] || FORMATION_ROWS['4-3-3'];
     const slots = lineupSlots(formation);
     const assignments = lineupAssignments(slots);
     const eventSummary = lineupEventSummary();
     let cursor = 0;
+    const selected = (value, current) => String(value) === String(current) ? ' selected' : '';
+    const currentRound = match.round_name || 'group';
+    const currentSide = match.bracket_side || 'left';
+    const currentOrder = match.bracket_order || 0;
+    const searchValue = qs('lineupSearch')?.value || '';
 
     board.innerHTML = `
         <div class="lineup-stadium">
             <div class="pitch-title">
-                <span>${escapeHtml(match.home_team)} vs ${escapeHtml(match.away_team)}</span>
-                <strong>${escapeHtml(formation)}</strong>
+                <div class="pitch-title-main">
+                    <span>${escapeHtml(match.home_team)} vs ${escapeHtml(match.away_team)}</span>
+                    <strong>${escapeHtml(formation)}</strong>
+                </div>
+                <div class="pitch-title-controls">
+                    <input id="lineupSearch" type="search" placeholder="Поиск игрока" value="${escapeHtml(searchValue)}">
+                    <select id="currentMatchRound" title="Этап">
+                        <option value="group"${selected('group', currentRound)}>Групповой этап</option>
+                        <option value="quarterfinal"${selected('quarterfinal', currentRound)}>1/4 финала</option>
+                        <option value="semifinal"${selected('semifinal', currentRound)}>Полуфинал</option>
+                        <option value="final"${selected('final', currentRound)}>Финал</option>
+                    </select>
+                    <select id="currentMatchSide" title="Сетка">
+                        <option value="left"${selected('left', currentSide)}>Левая сетка</option>
+                        <option value="right"${selected('right', currentSide)}>Правая сетка</option>
+                        <option value="center"${selected('center', currentSide)}>Центр</option>
+                    </select>
+                    <input id="currentMatchOrder" type="number" min="0" value="${escapeHtml(currentOrder)}" title="Порядок в сетке">
+                    <select id="currentMatchFormation" title="Схема">
+                        <option value="4-3-3"${selected('4-3-3', formation)}>4-3-3</option>
+                        <option value="4-4-2"${selected('4-4-2', formation)}>4-4-2</option>
+                        <option value="3-5-2"${selected('3-5-2', formation)}>3-5-2</option>
+                        <option value="5-3-2"${selected('5-3-2', formation)}>5-3-2</option>
+                        <option value="4-2-3-1"${selected('4-2-3-1', formation)}>4-2-3-1</option>
+                    </select>
+                    <button class="btn-secondary small" id="saveLineupBtn" type="button">Сохранить состав</button>
+                    <button class="btn-secondary small" id="saveMatchSettingsBtn" type="button">Обновить матч</button>
+                </div>
             </div>
             <div class="pitch-lines lineup-pitch-lines ${tournamentState.activeEventSlot !== null ? 'lineup-focus-mode' : ''}">
                 <div class="pitch-center-circle"></div>
@@ -580,6 +606,7 @@ function renderLineup() {
             </div>
         </div>
     `;
+    bindLineupHeaderControls();
     board.querySelectorAll('[data-lineup-slot]').forEach((slotElement) => {
         const openSlot = () => {
             const slotOrder = Number(slotElement.dataset.lineupSlot);
@@ -635,6 +662,25 @@ function renderLineup() {
     board.querySelectorAll('.lineup-event-form').forEach((form) => {
         form.addEventListener('click', (event) => event.stopPropagation());
         form.addEventListener('submit', createLineupEvent);
+    });
+}
+
+function bindLineupHeaderControls() {
+    qs('lineupSearch')?.addEventListener('input', renderLineupPicker);
+    qs('saveLineupBtn')?.addEventListener('click', saveLineup);
+    qs('saveMatchSettingsBtn')?.addEventListener('click', saveCurrentMatchSettings);
+    qs('currentMatchFormation')?.addEventListener('change', () => {
+        tournamentState.activeLineupSlot = null;
+        tournamentState.activeEventSlot = null;
+        tournamentState.eventDraftType = null;
+        if (tournamentState.currentMatch) {
+            tournamentState.currentMatch = {
+                ...tournamentState.currentMatch,
+                formation: qs('currentMatchFormation').value,
+            };
+        }
+        renderLineup();
+        renderLineupPicker();
     });
 }
 
@@ -708,7 +754,7 @@ function renderLineupEventPanel(player) {
 }
 
 function lineupSlots(formation) {
-    const selectedFormation = formation || qs('formationViewSelect')?.value || tournamentState.currentMatch?.formation || '4-3-3';
+    const selectedFormation = formation || qs('currentMatchFormation')?.value || tournamentState.currentMatch?.formation || '4-3-3';
     const rows = FORMATION_ROWS[selectedFormation] || FORMATION_ROWS['4-3-3'];
     let order = 0;
     return rows.flatMap((count, rowIndex) => (
@@ -931,7 +977,7 @@ async function saveCurrentMatchSettings() {
     });
     tournamentState.currentMatch = { ...match, ...data.match };
     tournamentState.matches = tournamentState.matches.map((item) => item.id === data.match.id ? data.match : item);
-    qs('formationViewSelect').value = data.match.formation || '4-3-3';
+    if (qs('currentMatchFormation')) qs('currentMatchFormation').value = data.match.formation || '4-3-3';
     showWorkspace();
     renderMatches();
     renderBracket();
@@ -957,7 +1003,7 @@ function renderPitchPoster() {
         pitch.innerHTML = '<div class="pitch-empty">Выберите матч.</div>';
         return;
     }
-    const formation = qs('formationViewSelect')?.value || match.formation || '4-3-3';
+    const formation = qs('currentMatchFormation')?.value || match.formation || '4-3-3';
     const rows = FORMATION_ROWS[formation] || FORMATION_ROWS['4-3-3'];
     const players = lineupForPitch();
     if (!players.length) {
@@ -1189,21 +1235,8 @@ function bindForms() {
     qs('tournamentForm').addEventListener('submit', createTournament);
     qs('teamForm').addEventListener('submit', createTeam);
     qs('matchForm').addEventListener('submit', createMatch);
-    qs('lineupSearch').addEventListener('input', renderLineupPicker);
     qs('lineupModalSearch')?.addEventListener('input', renderLineupPicker);
-    qs('saveLineupBtn').addEventListener('click', saveLineup);
-    qs('saveMatchSettingsBtn').addEventListener('click', saveCurrentMatchSettings);
     qs('eventType')?.addEventListener('change', toggleEventFields);
-    qs('formationViewSelect').addEventListener('change', () => {
-        tournamentState.activeLineupSlot = null;
-        tournamentState.activeEventSlot = null;
-        tournamentState.eventDraftType = null;
-        if (qs('currentMatchFormation')) {
-            qs('currentMatchFormation').value = qs('formationViewSelect').value;
-        }
-        renderLineup();
-        renderLineupPicker();
-    });
     qs('eventForm')?.addEventListener('submit', async (event) => {
         event.preventDefault();
         await apiJson(`/api/tournament-matches/${tournamentState.selectedMatchId}/events`, {

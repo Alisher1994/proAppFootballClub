@@ -122,44 +122,10 @@
                         <div class="score-team right" id="scoreAwayTeam">Соперник</div>
                     </div>
 
-                    <div class="match-settings-bar">
-                        <select id="currentMatchRound">
-                            <option value="group">Групповой этап</option>
-                            <option value="quarterfinal">1/4 финала</option>
-                            <option value="semifinal">Полуфинал</option>
-                            <option value="final">Финал</option>
-                        </select>
-                        <select id="currentMatchSide">
-                            <option value="left">Левая сетка</option>
-                            <option value="right">Правая сетка</option>
-                            <option value="center">Центр</option>
-                        </select>
-                        <input id="currentMatchOrder" type="number" min="0" value="0" title="Порядок в сетке">
-                        <select id="currentMatchFormation">
-                            <option value="4-3-3">4-3-3</option>
-                            <option value="4-4-2">4-4-2</option>
-                            <option value="3-5-2">3-5-2</option>
-                            <option value="5-3-2">5-3-2</option>
-                            <option value="4-2-3-1">4-2-3-1</option>
-                        </select>
-                        <button class="btn-secondary small" id="saveMatchSettingsBtn" type="button">Обновить матч</button>
-                    </div>
-
                     <div class="workspace-grid lineup-workspace">
                         <section class="workspace-card">
                             <div class="panel-title-row">
                                 <h3>Состав и позиции</h3>
-                                <button class="btn-secondary small" id="saveLineupBtn" type="button">Сохранить состав</button>
-                            </div>
-                            <div class="lineup-stadium-toolbar">
-                                <input id="lineupSearch" type="search" placeholder="Поиск игрока">
-                                <select id="formationViewSelect" class="compact-select">
-                                    <option value="4-3-3">4-3-3</option>
-                                    <option value="4-4-2">4-4-2</option>
-                                    <option value="3-5-2">3-5-2</option>
-                                    <option value="5-3-2">5-3-2</option>
-                                    <option value="4-2-3-1">4-2-3-1</option>
-                                </select>
                             </div>
                             <div class="lineup-board" id="lineupBoard"></div>
                         </section>

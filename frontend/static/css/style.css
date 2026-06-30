@@ -6120,29 +6120,6 @@ textarea:focus,
     border: 1px solid #ffe1b8;
 }
 
-.match-settings-bar {
-    display: grid;
-    grid-template-columns: 1fr 1fr 72px 110px auto;
-    gap: 8px;
-    margin-bottom: 12px;
-    padding: 10px;
-    border: 1px solid var(--theme-border);
-    border-radius: 8px;
-    background: #f8f7f6;
-}
-
-.match-settings-bar select,
-.match-settings-bar input {
-    min-width: 0;
-    min-height: 34px;
-    padding: 6px 9px;
-    border: 1px solid var(--theme-border);
-    border-radius: 8px;
-    background: #fff;
-    color: var(--theme-text-primary);
-    font-size: 12px;
-}
-
 .workspace-grid {
     display: grid;
     grid-template-columns: minmax(0, 1.25fr) minmax(280px, .75fr);
@@ -6327,33 +6304,66 @@ textarea:focus,
 }
 
 .pitch-title {
-    height: 58px;
+    min-height: 58px;
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    padding: 0 18px;
+    padding: 10px 18px;
     background: rgba(15, 23, 42, .72);
     border-bottom: 1px solid rgba(125, 211, 252, .22);
 }
 
-.pitch-title span,
-.pitch-title strong {
+.pitch-title-main {
+    min-width: 150px;
+    display: grid;
+    gap: 3px;
+}
+
+.pitch-title-main span,
+.pitch-title-main strong {
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
-.pitch-title span {
+.pitch-title-main span {
     font-size: 13px;
     color: rgba(255, 255, 255, .72);
 }
 
-.pitch-title strong {
+.pitch-title-main strong {
     color: #38bdf8;
     font-size: 18px;
     letter-spacing: .08em;
+}
+
+.pitch-title-controls {
+    flex: 1;
+    min-width: 0;
+    display: grid;
+    grid-template-columns: minmax(160px, 1.2fr) minmax(130px, .9fr) minmax(130px, .9fr) 66px 98px auto auto;
+    gap: 8px;
+    align-items: center;
+}
+
+.pitch-title-controls input,
+.pitch-title-controls select {
+    width: 100%;
+    min-width: 0;
+    height: 34px;
+    padding: 6px 10px;
+    border: 1px solid rgba(255, 255, 255, .22);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, .94);
+    color: var(--theme-text-primary);
+    font-size: 12px;
+}
+
+.pitch-title-controls .btn-secondary {
+    height: 34px;
+    white-space: nowrap;
 }
 
 .pitch-lines {
@@ -6456,24 +6466,6 @@ textarea:focus,
     color: rgba(255, 255, 255, .72);
     font-size: 10px;
     line-height: 1.2;
-}
-
-.lineup-stadium-toolbar {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 130px;
-    gap: 8px;
-    margin-bottom: 12px;
-}
-
-.lineup-stadium-toolbar input[type="search"] {
-    min-width: 0;
-    min-height: 34px;
-    padding: 6px 10px;
-    border: 1px solid var(--theme-border);
-    border-radius: 8px;
-    background: #fff;
-    color: var(--theme-text-primary);
-    font-size: 12px;
 }
 
 .lineup-board {
@@ -7073,11 +7065,24 @@ textarea:focus,
     .tournament-layout,
     .workspace-grid,
     .workspace-grid.visual-row,
-    .match-settings-bar,
     .form-grid-2,
     .form-grid-3,
     .lineup-form {
         grid-template-columns: 1fr;
+    }
+
+    .pitch-title {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .pitch-title-controls {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .pitch-title-controls input[type="search"],
+    .pitch-title-controls .btn-secondary {
+        grid-column: 1 / -1;
     }
 
     .tournament-list-panel,
