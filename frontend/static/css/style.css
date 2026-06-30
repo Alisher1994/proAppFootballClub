@@ -6523,6 +6523,20 @@ textarea:focus,
     border-color: rgba(255, 255, 255, .22);
 }
 
+.lineup-pitch-lines.lineup-focus-mode::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 4;
+    width: auto;
+    height: auto;
+    border: 0;
+    border-radius: 2px;
+    background: rgba(3, 10, 24, .46);
+    transform: none;
+    pointer-events: none;
+}
+
 .lineup-slot {
     position: relative;
     width: min(126px, 100%);
@@ -6537,10 +6551,16 @@ textarea:focus,
     cursor: pointer;
     outline: none;
     transition: transform .15s ease, background .15s ease, box-shadow .15s ease;
+    z-index: 5;
 }
 
 .lineup-slot.active {
-    z-index: 9;
+    z-index: 40;
+}
+
+.lineup-pitch-lines.lineup-focus-mode .lineup-slot:not(.active) {
+    opacity: .38;
+    filter: saturate(.7);
 }
 
 .lineup-slot:hover,
@@ -6674,7 +6694,7 @@ textarea:focus,
     position: absolute;
     left: 50%;
     top: calc(100% + 8px);
-    z-index: 8;
+    z-index: 80;
     width: 250px;
     display: grid;
     gap: 8px;
@@ -6709,6 +6729,26 @@ textarea:focus,
 .lineup-event-actions button.active,
 .lineup-event-form button {
     background: #ff8a00 !important;
+    color: #fff !important;
+}
+
+.lineup-event-actions button[data-close-lineup-event],
+.lineup-event-actions button[data-close-lineup-event]:not(.btn-danger):not(.delete-btn):not(.remove-btn):not(.logout-btn) {
+    width: 28px !important;
+    min-width: 28px !important;
+    height: 30px !important;
+    min-height: 30px !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 999px !important;
+    background: rgba(5, 16, 35, .64) !important;
+    color: rgba(255, 255, 255, .78) !important;
+    box-shadow: none !important;
+}
+
+.lineup-event-actions button[data-close-lineup-event]:hover,
+.lineup-event-actions button[data-close-lineup-event]:not(.btn-danger):not(.delete-btn):not(.remove-btn):not(.logout-btn):hover {
+    background: rgba(5, 16, 35, .86) !important;
     color: #fff !important;
 }
 
@@ -9452,4 +9492,18 @@ button[id$="FilterToggleBtn"] {
     height: auto !important;
     overflow-y: auto !important;
     overflow-x: hidden !important;
+}
+
+.lineup-slot .lineup-event-actions button[data-close-lineup-event],
+.lineup-slot .lineup-event-actions button[data-close-lineup-event]:not(.btn-danger):not(.delete-btn):not(.remove-btn):not(.logout-btn) {
+    width: 28px !important;
+    min-width: 28px !important;
+    height: 30px !important;
+    min-height: 30px !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 999px !important;
+    background: rgba(5, 16, 35, .64) !important;
+    color: rgba(255, 255, 255, .78) !important;
+    box-shadow: none !important;
 }

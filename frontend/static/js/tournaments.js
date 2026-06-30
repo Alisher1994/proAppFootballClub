@@ -534,7 +534,7 @@ function renderLineup() {
                 <span>${escapeHtml(match.home_team)} vs ${escapeHtml(match.away_team)}</span>
                 <strong>${escapeHtml(formation)}</strong>
             </div>
-            <div class="pitch-lines lineup-pitch-lines">
+            <div class="pitch-lines lineup-pitch-lines ${tournamentState.activeEventSlot !== null ? 'lineup-focus-mode' : ''}">
                 <div class="pitch-center-circle"></div>
                 ${rows.map((count, rowIndex) => {
                     const rowSlots = slots.slice(cursor, cursor + count);
