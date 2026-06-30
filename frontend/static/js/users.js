@@ -35,7 +35,7 @@ async function loadUsers() {
         console.error('Ошибка загрузки пользователей:', error);
         const tbody = document.getElementById('users-table-body');
         if (tbody) {
-            tbody.innerHTML = '<tr><td colspan="8" class="info-text">Ошибка загрузки данных</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="9" class="info-text">Ошибка загрузки данных</td></tr>';
         }
     }
 }
@@ -77,7 +77,7 @@ function renderUsersTable() {
     if (!tbody) return;
 
     if (allUsers.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" class="info-text">Сотрудники не найдены</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="9" class="info-text">Сотрудники не найдены</td></tr>';
         return;
     }
 
@@ -94,7 +94,11 @@ function renderUsersTable() {
             ? 'Не используется'
             : user.salary_type === 'floating'
             ? 'Плавающая'
-            : (user.fixed_salary ? Number(user.fixed_salary).toLocaleString('ru-RU') + ' сум' : 'Фиксированная');
+            : 'Фиксированная';
+        const hasFixedSalary = user.fixed_salary !== null && user.fixed_salary !== undefined && user.fixed_salary !== '';
+        const salaryAmountLabel = hasFixedSalary
+            ? `${Number(user.fixed_salary).toLocaleString('ru-RU')} сум`
+            : '-';
         const photoCell = user.photo_url
             ? `<img src="${escapeHtml(user.photo_url)}" alt="${escapeHtml(displayName)}" style="width:42px;height:42px;object-fit:cover;border-radius:8px;border:1px solid var(--theme-border);">`
             : '<span style="color:#94a3b8;font-size:12px;">Нет фото</span>';
@@ -104,7 +108,7 @@ function renderUsersTable() {
 
         return `
             <tr>
-                <td class="mobile-staff-card-cell" colspan="8">
+                <td class="mobile-staff-card-cell" colspan="9">
                     <div class="mobile-staff-card">
                         <div class="mobile-staff-main">
                             ${mobilePhoto}
@@ -136,6 +140,7 @@ function renderUsersTable() {
                 <td class="desktop-user-cell" data-label="Полное имя">${escapeHtml(displayName)}</td>
                 <td class="desktop-user-cell" data-label="Роль">${escapeHtml(roleName)}</td>
                 <td class="desktop-user-cell" data-label="Зарплата">${escapeHtml(salaryLabel)}</td>
+                <td class="desktop-user-cell" data-label="Сумма зарплаты">${escapeHtml(salaryAmountLabel)}</td>
                 <td class="desktop-user-cell" data-label="Статус">${statusBadge}</td>
                 <td class="desktop-user-cell" data-label="Дата создания">${createdDate}</td>
                 <td class="desktop-user-cell" data-label="Действия">
