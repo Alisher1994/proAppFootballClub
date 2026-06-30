@@ -6491,7 +6491,32 @@ textarea:focus,
     min-height: 532px;
     flex-direction: column;
     justify-content: space-evenly;
-    padding: 24px 18px;
+    padding: 34px 28px;
+    margin: 14px;
+    border: 2px solid rgba(255, 255, 255, .28);
+    border-radius: 4px;
+    background:
+        linear-gradient(90deg, transparent calc(50% - 1px), rgba(255, 255, 255, .2) calc(50% - 1px), rgba(255, 255, 255, .2) calc(50% + 1px), transparent calc(50% + 1px)),
+        linear-gradient(180deg, rgba(255, 255, 255, .06), transparent 18%, transparent 82%, rgba(255, 255, 255, .06));
+}
+
+.lineup-pitch-lines::before,
+.lineup-pitch-lines::after {
+    width: 44%;
+    height: 86px;
+    border-color: rgba(255, 255, 255, .24);
+}
+
+.lineup-pitch-lines::before {
+    bottom: 0;
+}
+
+.lineup-pitch-lines::after {
+    top: 0;
+}
+
+.lineup-pitch-lines .pitch-center-circle {
+    border-color: rgba(255, 255, 255, .22);
 }
 
 .lineup-slot {
@@ -6521,7 +6546,7 @@ textarea:focus,
 .lineup-slot .pitch-avatar {
     width: 62px;
     height: 62px;
-    border-radius: 22px;
+    border-radius: 50%;
     object-fit: cover;
     border: 2px solid #ff2b67;
     box-shadow: 0 8px 18px rgba(0, 0, 0, .2);
@@ -6575,23 +6600,32 @@ textarea:focus,
     position: absolute;
     top: 5px;
     right: 5px;
-    width: 24px;
-    height: 24px;
+    width: 22px;
+    height: 22px;
     display: grid;
     place-items: center;
     border: 0;
     border-radius: 50%;
-    background: rgba(255, 255, 255, .92);
-    color: #5f6673;
+    background: rgba(255, 255, 255, .18);
+    color: rgba(255, 255, 255, .78);
     cursor: pointer;
+    backdrop-filter: blur(4px);
+}
+
+.lineup-slot-remove:hover {
+    background: rgba(255, 255, 255, .3);
+    color: #fff;
 }
 
 .lineup-player-popover {
-    margin-top: 10px;
     overflow: hidden;
     border: 1px solid var(--theme-border);
     border-radius: 8px;
     background: #fff;
+}
+
+.lineup-picker-modal .modal-content {
+    max-width: 760px;
 }
 
 .lineup-popover-head {

@@ -376,8 +376,8 @@ function renderLineupPicker() {
     if (!picker) return;
     const activeSlot = lineupSlots().find((slot) => slot.order === Number(tournamentState.activeLineupSlot));
     if (!activeSlot) {
-        picker.hidden = true;
         picker.innerHTML = '';
+        closeLineupPicker();
         return;
     }
     const search = (qs('lineupSearch')?.value || '').trim().toLowerCase();
@@ -392,7 +392,6 @@ function renderLineupPicker() {
         return !selectedIds.has(Number(player.id)) && (!search || haystack.includes(search));
     });
 
-    picker.hidden = false;
     picker.innerHTML = `
         <div class="lineup-popover-head">
             <strong>${escapeHtml(activeSlot.position)}</strong>
@@ -422,6 +421,21 @@ function renderLineupPicker() {
     picker.querySelectorAll('[data-player-id]').forEach((button) => {
         button.addEventListener('click', () => assignLineupPlayerToSlot(activeSlot.order, Number(button.dataset.playerId)));
     });
+}
+
+function openLineupPicker(slotOrder) {
+    tournamentState.activeLineupSlot = Number(slotOrder);
+    renderLineup();
+    renderLineupPicker();
+    openModal('lineupPlayerModal');
+}
+
+function closeLineupPicker() {
+    const modal = qs('lineupPlayerModal');
+    if (!modal || modal.hidden) return;
+    modal.hidden = true;
+    modal.style.display = 'none';
+    document.body.style.overflow = '';
 }
 
 function hideWorkspace() {
@@ -515,9 +529,7 @@ function renderLineup() {
     `;
     board.querySelectorAll('[data-lineup-slot]').forEach((slotElement) => {
         const openSlot = () => {
-            tournamentState.activeLineupSlot = Number(slotElement.dataset.lineupSlot);
-            renderLineup();
-            renderLineupPicker();
+            openLineupPicker(slotElement.dataset.lineupSlot);
         };
         slotElement.addEventListener('click', openSlot);
         slotElement.addEventListener('keydown', (event) => {
@@ -612,6 +624,7 @@ function assignLineupPlayerToSlot(slotOrder, playerId) {
     tournamentState.activeLineupSlot = null;
     renderLineup();
     renderLineupPicker();
+    closeLineupPicker();
 }
 
 function removeLineupSlot(slotOrder) {
@@ -971,6 +984,13 @@ function bindForms() {
     });
     document.querySelectorAll('[data-close-modal]').forEach((button) => {
         button.addEventListener('click', () => closeModal(button.dataset.closeModal));
+    });
+    document.querySelectorAll('[data-close-lineup-picker]').forEach((button) => {
+        button.addEventListener('click', () => {
+            tournamentState.activeLineupSlot = null;
+            renderLineup();
+            closeLineupPicker();
+        });
     });
     document.querySelectorAll('.tournament-modal').forEach((modal) => {
         modal.addEventListener('click', (event) => {
