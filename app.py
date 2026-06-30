@@ -3567,6 +3567,11 @@ def serialize_tournament_match(match, include_details=False):
     away_name = match.away_team_ref.name if getattr(match, 'away_team_ref', None) else match.away_team
     home_logo_url = get_tournament_team_logo_url(match.home_team_ref) if getattr(match, 'home_team_ref', None) else None
     away_logo_url = get_tournament_team_logo_url(match.away_team_ref) if getattr(match, 'away_team_ref', None) else None
+    own_team_names = {'наша команда', 'karasu', 'карасу'}
+    if not home_logo_url and (home_name or '').strip().lower() in own_team_names:
+        home_logo_url = get_system_logo_url(get_club_settings_instance())
+    if not away_logo_url and (away_name or '').strip().lower() in own_team_names:
+        away_logo_url = get_system_logo_url(get_club_settings_instance())
     payload = {
         'id': match.id,
         'tournament_id': match.tournament_id,
