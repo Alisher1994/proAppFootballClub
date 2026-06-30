@@ -9814,3 +9814,47 @@ main.main-content.tournaments-page .tournament-tab.active::after {
     border-radius: 0 !important;
     background: #ff8a00 !important;
 }
+
+@media (min-width: 861px) {
+    main.main-content.tournaments-page {
+        position: relative !important;
+        box-sizing: border-box !important;
+        height: 100vh !important;
+        max-height: 100vh !important;
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
+    }
+
+    main.main-content.tournaments-page .tournament-shell,
+    main.main-content.tournaments-page .tournament-layout {
+        display: block !important;
+        min-width: 0 !important;
+    }
+
+    main.main-content.tournaments-page .tournament-sidebar-panel {
+        position: fixed !important;
+        left: 302px !important;
+        top: 22px !important;
+        bottom: 22px !important;
+        width: 320px !important;
+        min-height: 0 !important;
+        max-height: none !important;
+        box-sizing: border-box !important;
+    }
+
+    body.sidebar-collapsed main.main-content.tournaments-page .tournament-sidebar-panel,
+    body:has(.sidebar.collapsed) main.main-content.tournaments-page .tournament-sidebar-panel,
+    .sidebar.collapsed ~ main.main-content.tournaments-page .tournament-sidebar-panel {
+        left: 102px !important;
+    }
+
+    main.main-content.tournaments-page .tournament-list {
+        max-height: calc(100vh - 124px) !important;
+    }
+
+    main.main-content.tournaments-page .tournament-content {
+        width: auto !important;
+        min-width: 0 !important;
+        margin-left: 334px !important;
+    }
+}
