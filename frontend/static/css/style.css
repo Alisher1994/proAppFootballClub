@@ -8622,6 +8622,32 @@ body,
     stroke: currentColor !important;
 }
 
+.stats-grid .stat-card {
+    gap: 10px !important;
+}
+
+.stat-card-icon {
+    width: 16px !important;
+    height: 16px !important;
+    min-width: 16px !important;
+    min-height: 16px !important;
+    flex: 0 0 16px !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    color: #5f6673 !important;
+}
+
+.stat-card-icon svg,
+.stat-card-icon i {
+    width: 16px !important;
+    height: 16px !important;
+    color: currentColor !important;
+    stroke: currentColor !important;
+}
+
 *:not(#app-scrollbar-override) {
     scrollbar-color: rgba(216, 208, 200, .46) transparent !important;
     scrollbar-width: thin !important;
