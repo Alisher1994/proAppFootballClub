@@ -15,6 +15,9 @@ const tournamentState = {
     activeTab: 'bracket',
     lineupSnapshot: '',
     matchSettingsSnapshot: '',
+    editingTournamentId: null,
+    editingTeamId: null,
+    editingMatchId: null,
 };
 
 const POSITIONS_ORDER = ['Вратарь', 'Защитник', 'Полузащитник', 'Нападающий', 'Игрок'];
@@ -107,9 +110,31 @@ function logoImg(url, className, alt = '') {
     return url ? `<img class="${className}" src="${escapeHtml(url)}" alt="${escapeHtml(alt)}">` : '';
 }
 
+function actionIcon(type) {
+    if (type === 'edit') {
+        return '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
+    }
+    return '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>';
+}
+
 function systemSquareLogo(className = 'lineup-system-logo') {
     const url = window.SYSTEM_SQUARE_LOGO_URL || '/static/uploads/favicon.png';
     return `<img class="${className}" src="${escapeHtml(url)}" alt="">`;
+}
+
+function toDateInput(value) {
+    if (!value) return '';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return String(value).slice(0, 10);
+    return date.toISOString().slice(0, 10);
+}
+
+function toDateTimeLocalInput(value) {
+    if (!value) return '';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return String(value).slice(0, 16);
+    const offsetDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+    return offsetDate.toISOString().slice(0, 16);
 }
 
 function lineupSnapshotKey(lineup = tournamentState.lineup) {
@@ -217,7 +242,7 @@ function renderTournamentList() {
         const dates = [startDate, endDate].filter((value) => value && value !== '-').join(' - ');
         const matchesCount = Number(item.matches_count || item.match_count || item.matches?.length || 0);
         return `
-            <button class="tournament-list-item ${isActive ? 'active' : ''}" type="button" data-tournament-id="${item.id}">
+            <article class="tournament-list-item ${isActive ? 'active' : ''}" role="button" tabindex="0" data-tournament-id="${item.id}">
                 <span class="tournament-list-title">${escapeHtml(item.name || 'Без названия')}</span>
                 <span class="tournament-list-status">${escapeHtml(status)}</span>
                 <span class="tournament-list-meta">
@@ -225,12 +250,33 @@ function renderTournamentList() {
                     ${dates ? `<span>${escapeHtml(dates)}</span>` : ''}
                 </span>
                 <span class="tournament-list-count">${matchesCount} матч.</span>
-            </button>
+                <span class="tournament-card-actions">
+                    <button class="tournament-action-btn" type="button" title="Редактировать турнир" data-edit-tournament="${item.id}">${actionIcon('edit')}</button>
+                    <button class="tournament-action-btn danger" type="button" title="Удалить турнир" data-delete-tournament="${item.id}">${actionIcon('delete')}</button>
+                </span>
+            </article>
         `;
     }).join('');
 
-    list.querySelectorAll('[data-tournament-id]').forEach((button) => {
-        button.addEventListener('click', () => selectTournament(button.dataset.tournamentId));
+    list.querySelectorAll('[data-tournament-id]').forEach((card) => {
+        card.addEventListener('click', () => selectTournament(card.dataset.tournamentId));
+        card.addEventListener('keydown', (event) => {
+            if (event.key !== 'Enter' && event.key !== ' ') return;
+            event.preventDefault();
+            selectTournament(card.dataset.tournamentId);
+        });
+    });
+    list.querySelectorAll('[data-edit-tournament]').forEach((button) => {
+        button.addEventListener('click', (event) => {
+            event.stopPropagation();
+            openTournamentEditor(Number(button.dataset.editTournament));
+        });
+    });
+    list.querySelectorAll('[data-delete-tournament]').forEach((button) => {
+        button.addEventListener('click', (event) => {
+            event.stopPropagation();
+            deleteTournament(Number(button.dataset.deleteTournament));
+        });
     });
 }
 
@@ -301,6 +347,10 @@ function renderTeams() {
                     <strong>${escapeHtml(team.name)}</strong>
                     <span>${escapeHtml(typeLabel)}${groups ? ` · ${escapeHtml(groups)}` : ''}</span>
                 </div>
+                <div class="tournament-card-actions">
+                    <button class="tournament-action-btn" type="button" title="Редактировать участника" data-edit-team="${team.id}">${actionIcon('edit')}</button>
+                    <button class="tournament-action-btn danger" type="button" title="Удалить участника" data-delete-team="${team.id}">${actionIcon('delete')}</button>
+                </div>
                 <div class="team-mini-roster">
                     ${players.map((player) => `<span>${escapeHtml(player.name)}${player.number ? ` №${escapeHtml(player.number)}` : ''}</span>`).join('')}
                     ${(team.players_count || 0) > players.length ? `<span>+${(team.players_count || 0) - players.length}</span>` : ''}
@@ -308,6 +358,12 @@ function renderTeams() {
             </article>
         `;
     }).join('');
+    list.querySelectorAll('[data-edit-team]').forEach((button) => {
+        button.addEventListener('click', () => openTeamEditor(Number(button.dataset.editTeam)));
+    });
+    list.querySelectorAll('[data-delete-team]').forEach((button) => {
+        button.addEventListener('click', () => deleteTeam(Number(button.dataset.deleteTeam)));
+    });
 }
 
 async function loadMatches() {
@@ -336,7 +392,7 @@ function renderMatches() {
         return;
     }
     list.innerHTML = tournamentState.matches.map((match) => `
-        <button class="entity-item match-item ${match.id === tournamentState.selectedMatchId ? 'active' : ''}" type="button"
+        <article class="entity-item match-item ${match.id === tournamentState.selectedMatchId ? 'active' : ''}" role="button" tabindex="0"
             data-match-id="${match.id}">
             <span class="entity-title">${escapeHtml(match.home_team)} <b>${match.home_score}:${match.away_score}</b> ${escapeHtml(match.away_team)}</span>
             <span class="entity-meta">${formatDateTime(match.match_date)}</span>
@@ -344,10 +400,31 @@ function renderMatches() {
                 <span>${escapeHtml(ROUND_LABELS[match.round_name] || 'Матч')}</span>
                 <span>${match.players_count || 0} игрок.</span>
             </span>
-        </button>
+            <span class="tournament-card-actions">
+                <button class="tournament-action-btn" type="button" title="Редактировать матч" data-edit-match="${match.id}">${actionIcon('edit')}</button>
+                <button class="tournament-action-btn danger" type="button" title="Удалить матч" data-delete-match="${match.id}">${actionIcon('delete')}</button>
+            </span>
+        </article>
     `).join('');
-    list.querySelectorAll('[data-match-id]').forEach((button) => {
-        button.addEventListener('click', () => selectMatch(Number(button.dataset.matchId)));
+    list.querySelectorAll('[data-match-id]').forEach((card) => {
+        card.addEventListener('click', () => selectMatch(Number(card.dataset.matchId)));
+        card.addEventListener('keydown', (event) => {
+            if (event.key !== 'Enter' && event.key !== ' ') return;
+            event.preventDefault();
+            selectMatch(Number(card.dataset.matchId));
+        });
+    });
+    list.querySelectorAll('[data-edit-match]').forEach((button) => {
+        button.addEventListener('click', (event) => {
+            event.stopPropagation();
+            openMatchEditor(Number(button.dataset.editMatch));
+        });
+    });
+    list.querySelectorAll('[data-delete-match]').forEach((button) => {
+        button.addEventListener('click', (event) => {
+            event.stopPropagation();
+            deleteMatch(Number(button.dataset.deleteMatch));
+        });
     });
 }
 
@@ -381,7 +458,7 @@ async function loadPlayersForMatch(match) {
     renderPlayerSelects();
 }
 
-async function loadStudentsForTeamPicker() {
+async function loadStudentsForTeamPicker(selectedPlayerIds = null) {
     const selectedGroupIds = Array.from(qs('teamSourceGroups').selectedOptions).map((option) => Number(option.value));
     let players = [];
     if (!selectedGroupIds.length) {
@@ -400,9 +477,10 @@ async function loadStudentsForTeamPicker() {
         seen.add(player.id);
         return true;
     });
+    const selectedSet = new Set((selectedPlayerIds || players.map((player) => player.id)).map((id) => Number(id)));
     qs('teamPlayerPicker').innerHTML = players.length ? players.map((player) => `
         <label class="team-player-option">
-            <input type="checkbox" value="${player.id}" checked>
+            <input type="checkbox" value="${player.id}" ${selectedSet.has(Number(player.id)) ? 'checked' : ''}>
             ${player.photo_url ? `<img src="${player.photo_url}" alt="">` : `<span class="avatar-fallback">${escapeHtml((player.name || '?').slice(0, 1))}</span>`}
             <span><strong>${escapeHtml(player.name)}</strong><small>${escapeHtml(player.group_name || '')}</small></span>
         </label>
@@ -1162,10 +1240,32 @@ function renderEmptyState() {
     hideWorkspace();
 }
 
+function resetTournamentForm() {
+    tournamentState.editingTournamentId = null;
+    qs('tournamentForm').reset();
+    qs('tournamentModalTitle').textContent = 'Новый турнир';
+}
+
+function openTournamentEditor(tournamentId) {
+    const item = tournamentState.tournaments.find((row) => Number(row.id) === Number(tournamentId));
+    if (!item) return;
+    tournamentState.editingTournamentId = Number(tournamentId);
+    qs('tournamentModalTitle').textContent = 'Редактировать турнир';
+    qs('tournamentName').value = item.name || '';
+    qs('tournamentSeason').value = item.season || '';
+    qs('tournamentStatus').value = item.status || 'planned';
+    qs('tournamentLocation').value = item.location || '';
+    qs('tournamentStart').value = toDateInput(item.start_date);
+    qs('tournamentEnd').value = toDateInput(item.end_date);
+    qs('tournamentNotes').value = item.notes || '';
+    openModal('tournamentModal');
+}
+
 async function createTournament(event) {
     event.preventDefault();
-    const data = await apiJson('/api/tournaments', {
-        method: 'POST',
+    const editingId = tournamentState.editingTournamentId;
+    const data = await apiJson(editingId ? `/api/tournaments/${editingId}` : '/api/tournaments', {
+        method: editingId ? 'PUT' : 'POST',
         body: JSON.stringify({
             name: qs('tournamentName').value,
             season: qs('tournamentSeason').value,
@@ -1176,10 +1276,65 @@ async function createTournament(event) {
             notes: qs('tournamentNotes').value,
         }),
     });
-    qs('tournamentForm').reset();
+    resetTournamentForm();
     closeModal('tournamentModal');
     tournamentState.selectedTournamentId = data.tournament.id;
     await loadTournaments();
+}
+
+async function deleteTournament(tournamentId) {
+    const item = tournamentState.tournaments.find((row) => Number(row.id) === Number(tournamentId));
+    const name = item?.name || 'турнир';
+    if (!confirm(`Удалить турнир «${name}» вместе с матчами и участниками?`)) return;
+    await apiJson(`/api/tournaments/${tournamentId}`, { method: 'DELETE' });
+    if (Number(tournamentState.selectedTournamentId) === Number(tournamentId)) {
+        tournamentState.selectedTournamentId = null;
+        tournamentState.selectedMatchId = null;
+        tournamentState.currentMatch = null;
+    }
+    await loadTournaments();
+}
+
+function resetTeamForm() {
+    tournamentState.editingTeamId = null;
+    qs('teamForm').reset();
+    qs('teamModalTitle').textContent = 'Команда турнира';
+    Array.from(qs('teamSourceGroups').options).forEach((option) => {
+        option.selected = false;
+    });
+    qs('teamExternalPlayers').value = '';
+    qs('teamPlayerPicker').innerHTML = '';
+    resetTeamLogoPreview();
+    updateTeamTypeView();
+}
+
+async function openTeamEditor(teamId) {
+    const team = tournamentState.teams.find((row) => Number(row.id) === Number(teamId));
+    if (!team) return;
+    tournamentState.editingTeamId = Number(teamId);
+    qs('teamModalTitle').textContent = 'Редактировать участника';
+    qs('teamName').value = team.name || '';
+    qs('teamType').value = team.team_type || 'internal';
+    qs('teamNotes').value = team.notes || '';
+    Array.from(qs('teamSourceGroups').options).forEach((option) => {
+        option.selected = (team.source_group_ids || []).map(Number).includes(Number(option.value));
+    });
+    const externalPlayers = (team.external_players || []).map((player) => (
+        [player.name || player.full_name || '', player.number || player.shirt_number || '', player.position || '']
+            .filter(Boolean)
+            .join(', ')
+    ));
+    qs('teamExternalPlayers').value = externalPlayers.join('\n');
+    resetTeamLogoPreview();
+    updateTeamTypeView();
+    if (team.logo_url && qs('teamLogoPreview')) {
+        qs('teamLogoPreview').innerHTML = `<img src="${escapeHtml(team.logo_url)}" alt="">`;
+        qs('teamLogoFileName').textContent = 'Текущий логотип';
+    }
+    if (qs('teamType').value !== 'external') {
+        await loadStudentsForTeamPicker((team.players || []).map((player) => player.student_id || player.id));
+    }
+    openModal('teamModal');
 }
 
 function parseExternalPlayers(text) {
@@ -1212,6 +1367,7 @@ function updateTeamTypeView() {
 async function createTeam(event) {
     event.preventDefault();
     if (!tournamentState.selectedTournamentId) return;
+    const editingId = tournamentState.editingTeamId;
     const playerIds = Array.from(qs('teamPlayerPicker').querySelectorAll('input[type="checkbox"]:checked')).map((input) => input.value);
     const groupIds = Array.from(qs('teamSourceGroups').selectedOptions).map((option) => option.value);
     const formData = new FormData();
@@ -1224,30 +1380,69 @@ async function createTeam(event) {
     if (qs('teamType').value === 'external' && qs('teamLogo')?.files?.[0]) {
         formData.append('logo', qs('teamLogo').files[0]);
     }
-    await apiJson(`/api/tournaments/${tournamentState.selectedTournamentId}/teams`, {
-        method: 'POST',
+    await apiJson(editingId ? `/api/tournament-teams/${editingId}` : `/api/tournaments/${tournamentState.selectedTournamentId}/teams`, {
+        method: editingId ? 'PUT' : 'POST',
         headers: {},
         body: formData,
     });
-    qs('teamForm').reset();
-    resetTeamLogoPreview();
-    updateTeamTypeView();
-    qs('teamPlayerPicker').innerHTML = '';
+    resetTeamForm();
     closeModal('teamModal');
     await loadTeams();
+    await loadMatches();
+}
+
+async function deleteTeam(teamId) {
+    const team = tournamentState.teams.find((row) => Number(row.id) === Number(teamId));
+    const name = team?.name || 'участника';
+    if (!confirm(`Удалить участника «${name}»?`)) return;
+    try {
+        await apiJson(`/api/tournament-teams/${teamId}`, { method: 'DELETE' });
+        await loadTeams();
+        await loadMatches();
+    } catch (error) {
+        alert(error.message);
+    }
+}
+
+function resetMatchForm() {
+    tournamentState.editingMatchId = null;
+    qs('matchForm').reset();
+    qs('matchModalTitle').textContent = 'Новый матч';
+    qs('matchBracketOrder').value = '0';
+    qs('matchFormation').value = '4-3-3';
+    qs('matchStatus').value = 'scheduled';
+}
+
+function openMatchEditor(matchId) {
+    const match = tournamentState.matches.find((row) => Number(row.id) === Number(matchId));
+    if (!match) return;
+    tournamentState.editingMatchId = Number(matchId);
+    qs('matchModalTitle').textContent = 'Редактировать матч';
+    qs('matchDate').value = toDateTimeLocalInput(match.match_date);
+    qs('matchHomeTeam').value = match.home_team_id || '';
+    qs('matchAwayTeam').value = match.away_team_id || '';
+    qs('matchStatus').value = match.status || 'scheduled';
+    qs('matchVenue').value = match.venue || '';
+    qs('matchRound').value = match.round_name || 'group';
+    qs('matchBracketSide').value = match.bracket_side || 'left';
+    qs('matchBracketOrder').value = match.bracket_order ?? 0;
+    qs('matchFormation').value = match.formation || '4-3-3';
+    qs('matchNotes').value = match.notes || '';
+    openModal('matchModal');
 }
 
 async function createMatch(event) {
     event.preventDefault();
     if (!tournamentState.selectedTournamentId) return;
+    const editingId = tournamentState.editingMatchId;
     const homeTeam = teamById(qs('matchHomeTeam').value);
     const awayTeam = teamById(qs('matchAwayTeam').value);
     if (!homeTeam || !awayTeam) {
         alert('Выберите обе команды матча');
         return;
     }
-    const data = await apiJson(`/api/tournaments/${tournamentState.selectedTournamentId}/matches`, {
-        method: 'POST',
+    const data = await apiJson(editingId ? `/api/tournament-matches/${editingId}` : `/api/tournaments/${tournamentState.selectedTournamentId}/matches`, {
+        method: editingId ? 'PUT' : 'POST',
         body: JSON.stringify({
             match_date: qs('matchDate').value,
             home_team_id: homeTeam.id,
@@ -1264,21 +1459,45 @@ async function createMatch(event) {
             notes: qs('matchNotes').value,
         }),
     });
-    qs('matchForm').reset();
-    qs('matchBracketOrder').value = '0';
+    resetMatchForm();
     closeModal('matchModal');
     tournamentState.selectedMatchId = data.match.id;
     await loadMatches();
     switchTournamentTab('bracket');
 }
 
+async function deleteMatch(matchId) {
+    const match = tournamentState.matches.find((row) => Number(row.id) === Number(matchId));
+    const title = match ? `${match.home_team} - ${match.away_team}` : 'матч';
+    if (!confirm(`Удалить матч «${title}» вместе с составом и событиями?`)) return;
+    await apiJson(`/api/tournament-matches/${matchId}`, { method: 'DELETE' });
+    if (Number(tournamentState.selectedMatchId) === Number(matchId)) {
+        tournamentState.selectedMatchId = null;
+        tournamentState.currentMatch = null;
+        tournamentState.lineup = [];
+        hideWorkspace();
+    }
+    await loadMatches();
+    renderBracket();
+    await loadAnalytics();
+}
+
 function bindForms() {
     qs('refreshTournamentBtn').addEventListener('click', initTournaments);
     qs('tournamentSelect')?.addEventListener('change', (event) => selectTournament(event.target.value));
-    qs('openTournamentModalBtn').addEventListener('click', () => openModal('tournamentModal'));
-    qs('openTeamModalBtn').addEventListener('click', () => openModal('teamModal'));
-    qs('openMatchModalBtn').addEventListener('click', () => openModal('matchModal'));
-    qs('teamSourceGroups').addEventListener('change', loadStudentsForTeamPicker);
+    qs('openTournamentModalBtn').addEventListener('click', () => {
+        resetTournamentForm();
+        openModal('tournamentModal');
+    });
+    qs('openTeamModalBtn').addEventListener('click', () => {
+        resetTeamForm();
+        openModal('teamModal');
+    });
+    qs('openMatchModalBtn').addEventListener('click', () => {
+        resetMatchForm();
+        openModal('matchModal');
+    });
+    qs('teamSourceGroups').addEventListener('change', () => loadStudentsForTeamPicker());
     qs('teamLogo')?.addEventListener('change', () => {
         const file = qs('teamLogo')?.files?.[0];
         const preview = qs('teamLogoPreview');

@@ -9858,3 +9858,62 @@ main.main-content.tournaments-page .tournament-tab.active::after {
         margin-left: 334px !important;
     }
 }
+
+main.main-content.tournaments-page .tournament-list-item,
+main.main-content.tournaments-page .entity-item.match-item {
+    position: relative !important;
+    padding-right: 86px !important;
+}
+
+main.main-content.tournaments-page .tournament-team-card {
+    position: relative !important;
+    grid-template-columns: 42px minmax(0, 1fr) auto !important;
+}
+
+main.main-content.tournaments-page .tournament-card-actions {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    gap: 6px !important;
+}
+
+main.main-content.tournaments-page .tournament-list-item > .tournament-card-actions,
+main.main-content.tournaments-page .entity-item.match-item > .tournament-card-actions {
+    position: absolute !important;
+    right: 10px !important;
+    bottom: 10px !important;
+}
+
+main.main-content.tournaments-page .tournament-team-card > .tournament-card-actions {
+    grid-column: 3 !important;
+    grid-row: 1 !important;
+}
+
+main.main-content.tournaments-page .tournament-action-btn,
+main.main-content.tournaments-page button.tournament-action-btn {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 32px !important;
+    min-width: 32px !important;
+    height: 32px !important;
+    min-height: 32px !important;
+    padding: 0 !important;
+    border: 1px solid #e4ddd6 !important;
+    border-radius: 8px !important;
+    background: rgba(255, 255, 255, .78) !important;
+    color: #5f6673 !important;
+    box-shadow: none !important;
+}
+
+main.main-content.tournaments-page .tournament-action-btn:hover {
+    border-color: #ff8a00 !important;
+    color: #ff8a00 !important;
+    background: #fffaf4 !important;
+}
+
+main.main-content.tournaments-page .tournament-action-btn.danger:hover {
+    border-color: #ffd0d0 !important;
+    color: #dc2626 !important;
+    background: #fff3f3 !important;
+}
