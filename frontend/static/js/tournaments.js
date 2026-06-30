@@ -350,12 +350,16 @@ function renderLineupPicker() {
 }
 
 function hideWorkspace() {
+    const panel = qs('matchWorkspacePanel');
+    if (panel) panel.hidden = tournamentState.activeTab !== 'bracket';
     qs('matchWorkspace').hidden = true;
     qs('matchWorkspaceEmpty').hidden = false;
 }
 
 function showWorkspace() {
     const match = tournamentState.currentMatch;
+    const panel = qs('matchWorkspacePanel');
+    if (panel) panel.hidden = tournamentState.activeTab !== 'bracket';
     qs('matchWorkspace').hidden = false;
     qs('matchWorkspaceEmpty').hidden = true;
     qs('scoreHomeTeam').textContent = match.home_team;
@@ -650,6 +654,10 @@ function switchTournamentTab(tabName) {
     document.querySelectorAll('.tournament-tab-panel').forEach((panel) => {
         panel.classList.toggle('active', panel.id === `tournamentTab-${tabName}`);
     });
+    const workspacePanel = qs('matchWorkspacePanel');
+    if (workspacePanel) {
+        workspacePanel.hidden = tabName !== 'bracket';
+    }
 }
 
 function renderEmptyState() {

@@ -23,9 +23,6 @@
                     <select id="tournamentSelect" class="tournament-select">
                         <option value="">Выберите турнир</option>
                     </select>
-                    <button class="btn-secondary" id="openTournamentModalBtn" type="button">+ Турнир</button>
-                    <button class="btn-secondary" id="openTeamModalBtn" type="button" disabled>+ Команда</button>
-                    <button class="btn-primary" id="openMatchModalBtn" type="button" disabled>+ Матч</button>
                     <button class="btn-secondary tournament-refresh" id="refreshTournamentBtn" type="button">
                         <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor"
                             stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -48,6 +45,7 @@
             <section class="tournament-panel tournament-tab-panel active" id="tournamentTab-bracket">
                 <div class="panel-title-row">
                     <h2>Сетка турнира</h2>
+                    <button class="btn-secondary" id="openTournamentModalBtn" type="button">+ Турнир</button>
                 </div>
                 <div class="bracket-board tournament-main-bracket" id="bracketBoard"></div>
             </section>
@@ -55,6 +53,7 @@
             <section class="tournament-panel tournament-tab-panel" id="tournamentTab-matches">
                 <div class="panel-title-row">
                     <h2>Матчи</h2>
+                    <button class="btn-primary" id="openMatchModalBtn" type="button" disabled>+ Матч</button>
                 </div>
                 <div class="entity-list tournament-match-list" id="matchList">
                     <div class="empty-state">Выберите турнир.</div>
@@ -64,6 +63,7 @@
             <section class="tournament-panel tournament-tab-panel" id="tournamentTab-teams">
                 <div class="panel-title-row">
                     <h2>Участники</h2>
+                    <button class="btn-secondary" id="openTeamModalBtn" type="button" disabled>+ Команда</button>
                 </div>
                 <div class="tournament-teams-grid" id="teamList">
                     <div class="empty-state">Выберите турнир.</div>
@@ -95,7 +95,7 @@
                 </div>
             </section>
 
-            <section class="tournament-panel match-workspace">
+            <section class="tournament-panel match-workspace" id="matchWorkspacePanel">
                 <div id="matchWorkspaceEmpty" class="workspace-empty">
                     Выберите матч в сетке или списке, чтобы открыть счет, события и состав.
                 </div>
