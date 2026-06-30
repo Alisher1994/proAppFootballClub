@@ -1404,6 +1404,9 @@ function cleanBridgeProgressStatus(text) {
     return String(text || '')
         .replace(/^(Вход|Выход)\s*\([^)]*\):\s*/i, '')
         .replace(/^(Вход|Выход):\s*/i, '')
+        .replace(/\.?\s*Успешно\s+\d+\s*,?\s*ошибок\s+\d+\.?/i, '.')
+        .replace(/\s{2,}/g, ' ')
+        .replace(/\s+\./g, '.')
         .trim();
 }
 
