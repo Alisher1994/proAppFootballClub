@@ -8623,7 +8623,8 @@ body,
 }
 
 .stats-grid .stat-card {
-    gap: 10px !important;
+    align-items: flex-start !important;
+    gap: 9px !important;
 }
 
 .stat-card-icon {
@@ -8638,6 +8639,7 @@ body,
     background: transparent !important;
     box-shadow: none !important;
     color: #5f6673 !important;
+    margin-top: 1px !important;
 }
 
 .stat-card-icon svg,
@@ -8646,6 +8648,22 @@ body,
     height: 16px !important;
     color: currentColor !important;
     stroke: currentColor !important;
+}
+
+.stats-grid .stat-card h3 {
+    margin: 0 0 3px !important;
+    color: #5f6673 !important;
+    font-size: 13px !important;
+    line-height: 16px !important;
+    font-weight: 600 !important;
+    text-transform: none !important;
+}
+
+.stats-grid .stat-number {
+    color: #4f5867 !important;
+    font-size: 16px !important;
+    line-height: 18px !important;
+    font-weight: 400 !important;
 }
 
 *:not(#app-scrollbar-override) {
