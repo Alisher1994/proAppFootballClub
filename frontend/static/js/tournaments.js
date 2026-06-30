@@ -372,8 +372,8 @@ function showWorkspace() {
     qs('matchWorkspace').hidden = false;
     qs('matchWorkspaceEmpty').hidden = true;
     qs('scoreHomeTeam').innerHTML = `
-        <span class="score-team-name">${escapeHtml(match.home_team)}</span>
         ${logoImg(match.home_logo_url, 'score-team-logo', match.home_team)}
+        <span class="score-team-name">${escapeHtml(match.home_team)}</span>
     `;
     qs('scoreAwayTeam').innerHTML = `
         ${logoImg(match.away_logo_url, 'score-team-logo', match.away_team)}
