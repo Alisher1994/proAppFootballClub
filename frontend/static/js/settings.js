@@ -1145,7 +1145,6 @@ async function loadBridgeStatus() {
         const dot = online ? '●' : '●';
         const dotColor = online ? (legacy ? '#d96f00' : '#16a34a') : '#dc2626';
         const seenText = bridge.seconds_since_seen == null ? 'нет данных' : `${bridge.seconds_since_seen} сек назад`;
-        const action = bridge.current_action && bridge.current_action !== 'idle' ? bridge.current_action : 'ожидает задачи';
         banner.innerHTML = `
             <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
                 <span style="color:${dotColor}; font-size:18px;">${dot}</span>
@@ -1153,7 +1152,7 @@ async function loadBridgeStatus() {
                 <span style="color:var(--theme-text-secondary);">• ${escapeHtml(bridge.host || 'unknown')} • PID ${escapeHtml(bridge.pid || '—')}</span>
             </div>
             <div style="margin-top:6px; font-size:13px; color:var(--theme-text-secondary);">
-                Сейчас: ${escapeHtml(action)} · Последний heartbeat: ${escapeHtml(seenText)}
+                Последний heartbeat: ${escapeHtml(seenText)}
             </div>
             ${legacy ? '<div style="margin-top:4px; font-size:13px; color:#92400e;">Обновите и перезапустите локальный bridge, чтобы появились live-логи и метрики.</div>' : ''}
             ${processing ? `<div style="margin-top:4px; font-size:13px;">Выполняется команда #${processing.id}</div>` : ''}
@@ -1374,7 +1373,7 @@ function updateBridgeProgress(progress) {
         bar.style.background = stage === 'error' || stage === 'stopped' ? '#dc2626' : (stage === 'done' ? '#16a34a' : (progress.paused ? '#ff8a00' : '#ff8a00'));
     }
 
-    const status = progress.status_text || progress.current || 'Выполняется задача';
+    const status = cleanBridgeProgressStatus(progress.status_text || progress.current || 'Выполняется задача');
     const countText = total > 0 ? ` · ${processed} из ${total}` : '';
     setBridgeText('bridgeProgressText', `${status}${countText}`);
 
@@ -1403,6 +1402,13 @@ function updateBridgeProgress(progress) {
         });
         btn.style.display = hasResults ? 'inline-flex' : 'none';
     }
+}
+
+function cleanBridgeProgressStatus(text) {
+    return String(text || '')
+        .replace(/^(Вход|Выход)\s*\([^)]*\):\s*/i, '')
+        .replace(/^(Вход|Выход):\s*/i, '')
+        .trim();
 }
 
 function formatBridgeCompletionTiming(progress) {
@@ -1460,7 +1466,7 @@ function renderBridgeDeviceProgress(progress) {
         const isEntry = device.name === 'entry';
         const accent = done ? '#16a34a' : (isEntry ? '#ff8a00' : '#d96f00');
         const bg = done ? '#f0fdf4' : '#f7f4f1';
-        const status = device.status === 'waiting' ? 'ожидает' : (device.status_text || 'выполняется');
+        const status = device.status === 'waiting' ? 'ожидает' : cleanBridgeProgressStatus(device.status_text || 'выполняется');
         return `
             <div style="border:1px solid ${accent}33; background:${bg}; border-radius:8px; padding:10px;">
                 <div style="display:flex; justify-content:space-between; gap:8px; align-items:center;">

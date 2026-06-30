@@ -1542,34 +1542,74 @@
         }
 
         .terminal-ip-row {
-            display: grid;
-            grid-template-columns: minmax(0, 1fr) 42px 42px;
-            gap: 8px;
-            align-items: center;
+            position: relative;
+            display: block;
         }
 
         .terminal-ip-row .form-input-modern {
             min-height: 42px;
+            padding-right: 84px;
         }
 
         .terminal-icon-button {
-            width: 42px;
-            height: 42px;
-            min-width: 42px;
-            min-height: 42px;
+            position: absolute;
+            top: 50%;
+            width: 32px;
+            height: 32px;
+            min-width: 32px;
+            min-height: 32px;
             padding: 0 !important;
-            border-radius: 9px;
+            border: 0 !important;
+            border-radius: 8px;
+            background: transparent !important;
+            box-shadow: none !important;
+            color: var(--settings-muted);
+            transform: translateY(-50%);
+        }
+
+        .terminal-icon-button:hover {
+            background: #f1ece7 !important;
+            color: #ff8a00;
+        }
+
+        .terminal-icon-button[data-open-hikvision-door] {
+            right: 42px;
+        }
+
+        .terminal-icon-button[data-clear-hikvision-device] {
+            right: 8px;
         }
 
         .terminal-icon-button svg {
-            width: 18px !important;
-            height: 18px !important;
+            width: 17px !important;
+            height: 17px !important;
         }
 
         .terminal-icon-button.terminal-clear {
             color: var(--settings-danger);
-            border-color: #fecaca;
-            background: #fff;
+            border-color: transparent;
+            background: transparent !important;
+        }
+
+        .access-policy-row {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(220px, 280px);
+            gap: 14px;
+            align-items: start;
+        }
+
+        .access-policy-row:has(#accessDebtMonthsGroup.is-hidden) {
+            grid-template-columns: 1fr;
+        }
+
+        .access-policy-row #accessDebtMonthsGroup {
+            margin: 0;
+        }
+
+        @media (max-width: 900px) {
+            .access-policy-row {
+                grid-template-columns: 1fr;
+            }
         }
 
         .settings-page #bridgeResultsModal .modal-content {
@@ -2953,36 +2993,38 @@
                                             </div>
                                         </div>
                                     </div>
-                                    <div class="form-group">
-                                        <label class="access-policy-label">
-                                            Правило допуска по оплате
-                                            <button type="button" class="access-policy-info" id="accessPolicyInfoButton" aria-label="Показать логику выбранного правила">
-                                                i
-                                            </button>
-                                            <span class="access-policy-help-card" id="accessPolicyDetails" role="tooltip"></span>
-                                        </label>
-                                        <select id="access_payment_policy" class="form-input-modern access-policy-select-native" tabindex="-1" aria-hidden="true">
-                                            <option value="full_current_month">Только 100% оплата текущего месяца</option>
-                                            <option value="partial_current_month">Частичная оплата текущего месяца, без старых долгов</option>
-                                            <option value="any_payment_this_month">Частичная оплата текущего месяца, разрешить старые долги</option>
-                                        </select>
-                                        <div class="access-policy-dropdown" id="accessPolicyDropdown">
-                                            <button type="button" class="access-policy-trigger" id="accessPolicyTrigger" aria-haspopup="listbox" aria-expanded="false">
-                                                Выберите правило
-                                            </button>
-                                            <div class="access-policy-menu" id="accessPolicyMenu" role="listbox" aria-label="Правило допуска по оплате"></div>
+                                    <div class="access-policy-row">
+                                        <div class="form-group">
+                                            <label class="access-policy-label">
+                                                Правило допуска по оплате
+                                                <button type="button" class="access-policy-info" id="accessPolicyInfoButton" aria-label="Показать логику выбранного правила">
+                                                    i
+                                                </button>
+                                                <span class="access-policy-help-card" id="accessPolicyDetails" role="tooltip"></span>
+                                            </label>
+                                            <select id="access_payment_policy" class="form-input-modern access-policy-select-native" tabindex="-1" aria-hidden="true">
+                                                <option value="full_current_month">Только 100% оплата текущего месяца</option>
+                                                <option value="partial_current_month">Частичная оплата текущего месяца, без старых долгов</option>
+                                                <option value="any_payment_this_month">Частичная оплата текущего месяца, разрешить старые долги</option>
+                                            </select>
+                                            <div class="access-policy-dropdown" id="accessPolicyDropdown">
+                                                <button type="button" class="access-policy-trigger" id="accessPolicyTrigger" aria-haspopup="listbox" aria-expanded="false">
+                                                    Выберите правило
+                                                </button>
+                                                <div class="access-policy-menu" id="accessPolicyMenu" role="listbox" aria-label="Правило допуска по оплате"></div>
+                                            </div>
+                                            <small id="accessPaymentPolicyHelp">
+                                                Выберите правило допуска для терминала.
+                                            </small>
                                         </div>
-                                        <small id="accessPaymentPolicyHelp">
-                                            Выберите правило допуска для терминала.
-                                        </small>
-                                    </div>
-                                    <div class="form-group is-hidden" id="accessDebtMonthsGroup">
-                                        <label>Сколько месяцев старого долга разрешено</label>
-                                        <input type="number" id="access_max_debt_months" min="1" max="36"
-                                            class="form-input-modern" placeholder="1">
-                                        <small id="accessDebtMonthsHelp">
-                                            1 = можно долг за 1 прошлый месяц, 2 = за 2 месяца.
-                                        </small>
+                                        <div class="form-group is-hidden" id="accessDebtMonthsGroup">
+                                            <label>Сколько месяцев старого долга разрешено</label>
+                                            <input type="number" id="access_max_debt_months" min="1" max="36"
+                                                class="form-input-modern" placeholder="1">
+                                            <small id="accessDebtMonthsHelp">
+                                                1 = можно долг за 1 прошлый месяц, 2 = за 2 месяца.
+                                            </small>
+                                        </div>
                                     </div>
                                     <div class="form-group">
                                         <label>Время полной синхронизации</label>
