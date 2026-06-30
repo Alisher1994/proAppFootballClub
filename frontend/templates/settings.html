@@ -412,6 +412,7 @@
             justify-content: space-between;
             text-align: left;
             font: 400 14px/1.35 Onest, Arial, sans-serif;
+            font-weight: 400 !important;
             cursor: pointer;
         }
 
@@ -457,14 +458,19 @@
 
         .access-policy-option {
             width: 100%;
-            padding: 9px 10px;
+            padding: 10px 12px;
             border: 0;
-            border-radius: 8px;
+            border-radius: 9px;
             background: transparent;
             color: #293241;
             display: block;
             text-align: left;
             cursor: pointer;
+            margin-bottom: 6px;
+        }
+
+        .access-policy-option:last-child {
+            margin-bottom: 0;
         }
 
         .access-policy-option:hover,
@@ -476,7 +482,7 @@
             display: block;
             font-size: 14px;
             line-height: 1.35;
-            font-weight: 500;
+            font-weight: 400;
         }
 
         .access-policy-option-description {
@@ -1629,126 +1635,133 @@
             text-overflow: ellipsis;
         }
 
-        .logo-settings-row {
+        .logo-settings-grid {
             display: grid;
-            grid-template-columns: 164px minmax(0, 1fr);
+            grid-template-columns: minmax(180px, 220px) minmax(140px, 160px);
             gap: 14px;
-            align-items: center;
+            align-items: stretch;
         }
 
-        .logo-preview-box {
-            height: 68px;
+        .logo-card {
+            position: relative;
+            min-height: 118px;
             border: 1px solid var(--settings-border);
             border-radius: 12px;
             background: #f8f7f6;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 10px 14px;
+            display: grid;
+            grid-template-rows: 1fr auto;
+            place-items: center;
+            padding: 14px;
+            overflow: hidden;
         }
 
-        .logo-preview-box img {
+        .logo-card-square {
+            max-width: 160px;
+        }
+
+        .logo-card img {
             max-width: 100%;
-            max-height: 48px;
+            max-height: 58px;
             object-fit: contain;
             display: block;
         }
 
-        .logo-preview-box-square {
-            width: 68px;
-            justify-self: start;
-            padding: 10px;
+        .logo-card-square img {
+            width: 54px;
+            height: 54px;
         }
 
-        .logo-preview-box-square img {
-            width: 44px;
-            height: 44px;
-            object-fit: contain;
-        }
-
-        .logo-actions {
-            min-width: 0;
-            display: grid;
-            gap: 8px;
-        }
-
-        .logo-picker-panel {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 10px;
-            min-height: 44px;
-            border: 1px solid var(--settings-border);
-            border-radius: 12px;
-            background: #f8f7f6;
-            padding: 6px 8px 6px 12px;
-        }
-
-        .logo-picker-meta {
-            min-width: 0;
+        .logo-card-meta {
+            width: 100%;
             display: grid;
             gap: 2px;
+            text-align: center;
+            color: var(--settings-muted);
+            font-size: 12px;
+            line-height: 1.25;
         }
 
         .logo-picker-title {
-            color: var(--settings-text);
-            font-weight: 700;
-            font-size: 13px;
+            color: var(--settings-muted);
+            font-weight: 400;
+            font-size: 12px;
         }
 
         .logo-picker-file {
-            color: var(--settings-muted);
-            font-size: 12px;
+            color: #8b7280;
+            font-size: 11px;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
-            max-width: 320px;
         }
 
         .logo-file-input {
             display: none;
         }
 
-        .logo-action-buttons {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            align-items: center;
+        .logo-upload-overlay,
+        .logo-reset-overlay {
+            position: absolute;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.16s ease, transform 0.16s ease;
         }
 
-        .logo-action-buttons .btn-secondary {
+        .logo-card:hover .logo-upload-overlay,
+        .logo-card:hover .logo-reset-overlay {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .logo-upload-overlay {
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -42%);
             min-height: 34px;
             padding: 0 12px;
-            border-radius: 10px;
-            gap: 6px;
-            font-size: 13px;
-        }
-
-        .logo-action-buttons #uploadLogoBtn {
-            background: #1f2937;
-            border-color: #1f2937;
+            border: 1px solid rgba(255, 255, 255, 0.9);
+            border-radius: 999px;
+            background: rgba(31, 35, 42, 0.72);
             color: #fff;
-            box-shadow: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font: 500 12px/1 Onest, Arial, sans-serif;
+            cursor: pointer;
+            backdrop-filter: blur(4px);
         }
 
-        .logo-action-buttons #uploadLogoBtn:hover {
-            background: #111827;
-            border-color: #111827;
+        .logo-card:hover .logo-upload-overlay {
+            transform: translate(-50%, -50%);
         }
 
-        .logo-action-buttons #resetLogoBtn {
-            width: 34px;
-            min-width: 34px;
-            padding: 0;
+        .logo-upload-overlay svg {
+            width: 14px;
+            height: 14px;
         }
 
-        .logo-action-buttons #resetLogoBtn span {
+        .logo-reset-overlay {
+            right: 8px;
+            top: 8px;
+            width: 26px;
+            height: 26px;
+            border: 0;
+            border-radius: 50%;
+            background: rgba(31, 35, 42, 0.72);
+            color: #fff;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+
+        .logo-reset-overlay:disabled {
             display: none;
         }
 
-        #logo_status_text {
-            color: var(--settings-muted);
-            font-size: 12px;
+        .logo-reset-overlay svg {
+            width: 14px;
+            height: 14px;
         }
 
         .template-token-list {
@@ -1802,8 +1815,8 @@
                 grid-template-columns: repeat(4, minmax(0, 1fr));
             }
 
-            .logo-settings-row {
-                grid-template-columns: 1fr;
+            .logo-settings-grid {
+                grid-template-columns: 1fr 1fr;
             }
         }
 
@@ -2179,64 +2192,42 @@
                                     <div class="form-group">
                                         <label>
                                             <i data-lucide="image"></i>
-                                            Логотип
+                                            Логотипы
                                         </label>
-                                        <div class="logo-settings-row">
-                                            <div class="logo-preview-box">
+                                        <div class="logo-settings-grid">
+                                            <div class="logo-card">
                                                 <img id="system_logo_preview" src="{{ system_logo_url }}" alt="{{ system_name }}">
-                                            </div>
-                                            <div class="logo-actions">
+                                                <div class="logo-card-meta">
+                                                    <span class="logo-picker-title" id="logo_status_text">Горизонтальный · системный</span>
+                                                    <span id="logo_file_name" class="logo-picker-file"></span>
+                                                </div>
                                                 <input type="file" id="system_logo_file" accept="image/png,image/jpeg,image/webp"
                                                     data-ignore-dirty="true"
                                                     class="logo-file-input">
-                                                <div class="logo-picker-panel">
-                                                    <div class="logo-picker-meta">
-                                                        <span class="logo-picker-title" id="logo_status_text">Системный</span>
-                                                        <span id="logo_file_name" class="logo-picker-file"></span>
-                                                    </div>
-                                                    <div class="logo-action-buttons">
-                                                        <button type="button" id="uploadLogoBtn" class="btn-secondary">
-                                                            <i data-lucide="upload"></i>
-                                                            Выбрать
-                                                        </button>
-                                                        <button type="button" id="resetLogoBtn" class="btn-secondary" title="Вернуть системный логотип">
-                                                            <i data-lucide="rotate-ccw"></i>
-                                                            <span>Сбросить</span>
-                                                        </button>
-                                                    </div>
-                                                </div>
+                                                <button type="button" id="uploadLogoBtn" class="logo-upload-overlay">
+                                                    <i data-lucide="upload"></i>
+                                                    Выбрать
+                                                </button>
+                                                <button type="button" id="resetLogoBtn" class="logo-reset-overlay" title="Вернуть системный логотип">
+                                                    <i data-lucide="x"></i>
+                                                </button>
                                             </div>
-                                        </div>
-                                    </div>
-                                    <div class="form-group">
-                                        <label>
-                                            <i data-lucide="badge"></i>
-                                            Квадратный логотип
-                                        </label>
-                                        <div class="logo-settings-row">
-                                            <div class="logo-preview-box logo-preview-box-square">
+                                            <div class="logo-card logo-card-square">
                                                 <img id="system_square_logo_preview" src="{{ system_square_logo_url }}" alt="{{ system_name }}">
-                                            </div>
-                                            <div class="logo-actions">
+                                                <div class="logo-card-meta">
+                                                    <span class="logo-picker-title" id="square_logo_status_text">Квадратный · системный</span>
+                                                    <span id="square_logo_file_name" class="logo-picker-file"></span>
+                                                </div>
                                                 <input type="file" id="system_square_logo_file" accept="image/png,image/jpeg,image/webp"
                                                     data-ignore-dirty="true"
                                                     class="logo-file-input">
-                                                <div class="logo-picker-panel">
-                                                    <div class="logo-picker-meta">
-                                                        <span class="logo-picker-title" id="square_logo_status_text">Системный</span>
-                                                        <span id="square_logo_file_name" class="logo-picker-file"></span>
-                                                    </div>
-                                                    <div class="logo-action-buttons">
-                                                        <button type="button" id="uploadSquareLogoBtn" class="btn-secondary">
-                                                            <i data-lucide="upload"></i>
-                                                            Выбрать
-                                                        </button>
-                                                        <button type="button" id="resetSquareLogoBtn" class="btn-secondary" title="Вернуть системный квадратный логотип">
-                                                            <i data-lucide="rotate-ccw"></i>
-                                                            <span>Сбросить</span>
-                                                        </button>
-                                                    </div>
-                                                </div>
+                                                <button type="button" id="uploadSquareLogoBtn" class="logo-upload-overlay">
+                                                    <i data-lucide="upload"></i>
+                                                    Выбрать
+                                                </button>
+                                                <button type="button" id="resetSquareLogoBtn" class="logo-reset-overlay" title="Вернуть системный квадратный логотип">
+                                                    <i data-lucide="x"></i>
+                                                </button>
                                             </div>
                                         </div>
                                     </div>

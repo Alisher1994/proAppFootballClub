@@ -108,6 +108,11 @@ async function initSettings() {
             await saveSettings();
         });
     }
+    const accessBlockDayInput = document.getElementById('access_block_day');
+    if (accessBlockDayInput) {
+        accessBlockDayInput.addEventListener('change', normalizeAccessBlockDay);
+        accessBlockDayInput.addEventListener('blur', normalizeAccessBlockDay);
+    }
 
     const hikvisionManualSyncBtn = document.getElementById('hikvisionManualSyncBtn');
     if (hikvisionManualSyncBtn) {
@@ -249,6 +254,15 @@ function attachAccessPaymentPolicyControls() {
     updateAccessPaymentPolicyUI();
 }
 
+function normalizeAccessBlockDay() {
+    const input = document.getElementById('access_block_day');
+    if (!input) return 10;
+    const value = parseInt(input.value || '10', 10);
+    const normalized = Math.max(1, Math.min(31, Number.isFinite(value) ? value : 10));
+    input.value = normalized;
+    return normalized;
+}
+
 function attachTemplateTokenButtons() {
     document.querySelectorAll('.template-token-list').forEach(list => {
         list.addEventListener('click', (event) => {
@@ -322,7 +336,10 @@ async function loadSettings() {
         const accessDebtStartYearEl = document.getElementById('access_debt_start_year');
         const accessMaxDebtMonthsEl = document.getElementById('access_max_debt_months');
         const hikvisionDeviceKeyEl = document.getElementById('hikvision_device_key');
-        if (accessBlockDayEl) accessBlockDayEl.value = data.access_block_day || 10;
+        if (accessBlockDayEl) {
+            accessBlockDayEl.value = data.access_block_day || 10;
+            normalizeAccessBlockDay();
+        }
         if (accessPaymentPolicyEl) accessPaymentPolicyEl.value = data.access_payment_policy || 'partial_current_month';
         if (hikvisionDailySyncTimeEl) hikvisionDailySyncTimeEl.value = data.hikvision_daily_sync_time || '03:00';
         if (hikvisionParallelDevicesEl) hikvisionParallelDevicesEl.checked = !!data.hikvision_parallel_devices;
@@ -613,7 +630,7 @@ function setSystemLogoPreview(url, isCustom) {
 
     const status = document.getElementById('logo_status_text');
     if (status) {
-        status.textContent = isCustom ? 'Загружен' : 'Системный';
+        status.textContent = isCustom ? 'Горизонтальный · загружен' : 'Горизонтальный · системный';
     }
 
     const resetBtn = document.getElementById('resetLogoBtn');
@@ -629,7 +646,7 @@ function setSystemSquareLogoPreview(url, isCustom) {
     if (preview && url) preview.src = cacheBustUrl(url);
 
     const status = document.getElementById('square_logo_status_text');
-    if (status) status.textContent = isCustom ? 'Загружен' : 'Системный';
+    if (status) status.textContent = isCustom ? 'Квадратный · загружен' : 'Квадратный · системный';
 
     const resetBtn = document.getElementById('resetSquareLogoBtn');
     if (resetBtn) resetBtn.disabled = !isCustom;
@@ -767,7 +784,7 @@ function gatherAllSettings() {
         work_end_time: document.getElementById('work_end_time').value,
         max_groups_per_slot: parseInt(document.getElementById('max_groups_per_slot').value, 10),
         block_future_payments: document.getElementById('block_future_payments').checked,
-        access_block_day: parseInt(document.getElementById('access_block_day')?.value || '10', 10),
+        access_block_day: normalizeAccessBlockDay(),
         access_payment_policy: accessPaymentPolicy,
         hikvision_daily_sync_time: document.getElementById('hikvision_daily_sync_time')?.value || '03:00',
         hikvision_parallel_devices: document.getElementById('hikvision_parallel_devices')?.checked || false,
