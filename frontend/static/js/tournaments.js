@@ -8,6 +8,7 @@ const tournamentState = {
     selectedMatchId: null,
     currentMatch: null,
     lineup: [],
+    activeLineupSlot: null,
     analytics: null,
     activeTab: 'bracket',
 };
@@ -371,25 +372,56 @@ function renderPlayerSelects() {
 }
 
 function renderLineupPicker() {
-    const list = qs('lineupMultiList');
-    if (!list) return;
+    const picker = qs('lineupPlayerPopover');
+    if (!picker) return;
+    const activeSlot = lineupSlots().find((slot) => slot.order === Number(tournamentState.activeLineupSlot));
+    if (!activeSlot) {
+        picker.hidden = true;
+        picker.innerHTML = '';
+        return;
+    }
     const search = (qs('lineupSearch')?.value || '').trim().toLowerCase();
-    const selectedIds = new Set(tournamentState.lineup.map((item) => Number(item.student_id)));
+    const currentPlayer = tournamentState.lineup.find((item) => Number(item.sort_order) === activeSlot.order);
+    const selectedIds = new Set(
+        tournamentState.lineup
+            .filter((item) => Number(item.sort_order) !== activeSlot.order)
+            .map((item) => Number(item.student_id))
+    );
     const players = tournamentState.players.filter((player) => {
         const haystack = `${player.name || ''} ${player.number || ''} ${player.group_name || ''}`.toLowerCase();
         return !selectedIds.has(Number(player.id)) && (!search || haystack.includes(search));
     });
 
-    list.innerHTML = players.length ? players.map((player) => `
-        <label class="lineup-option">
-            <input type="checkbox" value="${player.id}">
-            ${player.photo_url ? `<img src="${player.photo_url}" alt="">` : `<span class="avatar-fallback">${escapeHtml((player.name || '?').slice(0, 1))}</span>`}
-            <span>
-                <strong>${escapeHtml(player.name)}</strong>
-                <small>${player.number ? `№${escapeHtml(player.number)} · ` : ''}${escapeHtml(player.group_name || 'Без группы')}</small>
-            </span>
-        </label>
-    `).join('') : '<div class="empty-state small">Игроков для добавления нет.</div>';
+    picker.hidden = false;
+    picker.innerHTML = `
+        <div class="lineup-popover-head">
+            <strong>${escapeHtml(activeSlot.position)}</strong>
+            <span>${currentPlayer ? escapeHtml(currentPlayer.student_name) : 'Выберите ученика'}</span>
+            <button type="button" data-close-lineup-picker title="Закрыть">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M18 6 6 18" /><path d="m6 6 12 12" />
+                </svg>
+            </button>
+        </div>
+        <div class="lineup-popover-list">
+            ${players.length ? players.map((player) => `
+                <button class="lineup-player-choice" type="button" data-player-id="${player.id}">
+                    ${player.photo_url ? `<img src="${player.photo_url}" alt="">` : `<span class="avatar-fallback">${escapeHtml((player.name || '?').slice(0, 1))}</span>`}
+                    <span>
+                        <strong>${escapeHtml(player.name)}</strong>
+                        <small>${player.number ? `№${escapeHtml(player.number)} · ` : ''}${escapeHtml(player.group_name || 'Без группы')}</small>
+                    </span>
+                </button>
+            `).join('') : '<div class="empty-state small">Игроков для добавления нет.</div>'}
+        </div>
+    `;
+    picker.querySelector('[data-close-lineup-picker]')?.addEventListener('click', () => {
+        tournamentState.activeLineupSlot = null;
+        renderLineupPicker();
+    });
+    picker.querySelectorAll('[data-player-id]').forEach((button) => {
+        button.addEventListener('click', () => assignLineupPlayerToSlot(activeSlot.order, Number(button.dataset.playerId)));
+    });
 }
 
 function hideWorkspace() {
@@ -429,39 +461,166 @@ function showWorkspace() {
 
 function renderLineup() {
     const board = qs('lineupBoard');
-    if (!tournamentState.lineup.length) {
-        board.innerHTML = '<div class="empty-state">Состав ещё не заполнен.</div>';
-        renderPitchPoster();
+    if (!board) return;
+    const match = tournamentState.currentMatch;
+    if (!match) {
+        board.innerHTML = '<div class="empty-state">Выберите матч.</div>';
         return;
     }
-    board.innerHTML = POSITIONS_ORDER.map((position) => {
-        const players = tournamentState.lineup.filter((item) => item.position === position);
-        if (!players.length) return '';
-        return `
-            <div class="lineup-position">
-                <h4>${escapeHtml(position)}</h4>
-                ${players.map((player) => `
-                    <div class="lineup-chip">
-                        ${player.photo_url ? `<img src="${player.photo_url}" alt="">` : `<span class="avatar-fallback">${escapeHtml((player.student_name || '?').slice(0, 1))}</span>`}
-                        <span>${escapeHtml(player.shirt_number ? `№${player.shirt_number} · ` : '')}${escapeHtml(player.student_name)}</span>
-                        <button type="button" data-lineup-index="${tournamentState.lineup.indexOf(player)}" title="Убрать">
-                            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M18 6 6 18" /><path d="m6 6 12 12" />
-                            </svg>
-                        </button>
-                    </div>
-                `).join('')}
+    const formation = qs('formationViewSelect')?.value || match.formation || '4-3-3';
+    const rows = FORMATION_ROWS[formation] || FORMATION_ROWS['4-3-3'];
+    const slots = lineupSlots(formation);
+    const assignments = lineupAssignments(slots);
+    let cursor = 0;
+
+    board.innerHTML = `
+        <div class="lineup-stadium">
+            <div class="pitch-title">
+                <span>${escapeHtml(match.home_team)} vs ${escapeHtml(match.away_team)}</span>
+                <strong>${escapeHtml(formation)}</strong>
             </div>
-        `;
-    }).join('') || '<div class="empty-state">Состав ещё не заполнен.</div>';
-    board.querySelectorAll('[data-lineup-index]').forEach((button) => {
-        button.addEventListener('click', () => {
-            tournamentState.lineup.splice(Number(button.dataset.lineupIndex), 1);
+            <div class="pitch-lines lineup-pitch-lines">
+                <div class="pitch-center-circle"></div>
+                ${rows.map((count, rowIndex) => {
+                    const rowSlots = slots.slice(cursor, cursor + count);
+                    cursor += count;
+                    return `
+                        <div class="pitch-row pitch-row-${rowIndex}" style="grid-template-columns: repeat(${count}, minmax(82px, 1fr));">
+                            ${rowSlots.map((slot) => {
+                                const player = assignments.get(slot.order);
+                                return `
+                                    <div class="lineup-slot ${player ? 'filled' : 'empty'} ${Number(tournamentState.activeLineupSlot) === slot.order ? 'active' : ''}" data-lineup-slot="${slot.order}" role="button" tabindex="0">
+                                        ${player ? `
+                                            ${player.photo_url ? `<img src="${player.photo_url}" alt="">` : `<span class="pitch-avatar">${escapeHtml((player.student_name || '?').slice(0, 1))}</span>`}
+                                            <strong>${escapeHtml(player.student_name)}</strong>
+                                            <span>${escapeHtml(slot.position)}${player.shirt_number ? ` · №${escapeHtml(player.shirt_number)}` : ''}</span>
+                                            <button class="lineup-slot-remove" type="button" data-remove-lineup-slot="${slot.order}" title="Убрать игрока">
+                                                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                                                    <path d="M18 6 6 18" /><path d="m6 6 12 12" />
+                                                </svg>
+                                            </button>
+                                        ` : `
+                                            <span class="lineup-slot-plus">+</span>
+                                            <strong>${escapeHtml(slot.position)}</strong>
+                                            <span>Выбрать игрока</span>
+                                        `}
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    `;
+                }).reverse().join('')}
+            </div>
+        </div>
+    `;
+    board.querySelectorAll('[data-lineup-slot]').forEach((slotElement) => {
+        const openSlot = () => {
+            tournamentState.activeLineupSlot = Number(slotElement.dataset.lineupSlot);
             renderLineup();
             renderLineupPicker();
+        };
+        slotElement.addEventListener('click', openSlot);
+        slotElement.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                openSlot();
+            }
         });
     });
-    renderPitchPoster();
+    board.querySelectorAll('[data-remove-lineup-slot]').forEach((button) => {
+        button.addEventListener('click', (event) => {
+            event.stopPropagation();
+            removeLineupSlot(Number(button.dataset.removeLineupSlot));
+        });
+    });
+}
+
+function lineupSlots(formation) {
+    const selectedFormation = formation || qs('formationViewSelect')?.value || tournamentState.currentMatch?.formation || '4-3-3';
+    const rows = FORMATION_ROWS[selectedFormation] || FORMATION_ROWS['4-3-3'];
+    let order = 0;
+    return rows.flatMap((count, rowIndex) => (
+        Array.from({ length: count }, (_, slotIndex) => ({
+            rowIndex,
+            slotIndex,
+            order: order++,
+            position: positionForFormationRow(rowIndex, rows.length),
+        }))
+    ));
+}
+
+function positionForFormationRow(rowIndex, totalRows) {
+    if (rowIndex === 0) return 'Вратарь';
+    if (rowIndex === totalRows - 1) return 'Нападающий';
+    if (rowIndex >= totalRows - 2) return 'Полузащитник';
+    return 'Защитник';
+}
+
+function lineupAssignments(slots) {
+    const assignments = new Map();
+    const used = new Set();
+    const starters = tournamentState.lineup.filter((item) => item.is_starter !== false);
+
+    slots.forEach((slot) => {
+        const player = starters.find((item) => Number(item.sort_order) === slot.order && !used.has(item));
+        if (player) {
+            assignments.set(slot.order, player);
+            used.add(player);
+        }
+    });
+
+    slots.forEach((slot) => {
+        if (assignments.has(slot.order)) return;
+        const player = starters.find((item) => item.position === slot.position && !used.has(item));
+        if (player) {
+            assignments.set(slot.order, player);
+            used.add(player);
+        }
+    });
+
+    slots.forEach((slot) => {
+        if (assignments.has(slot.order)) return;
+        const player = starters.find((item) => !used.has(item));
+        if (player) {
+            assignments.set(slot.order, player);
+            used.add(player);
+        }
+    });
+
+    return assignments;
+}
+
+function assignLineupPlayerToSlot(slotOrder, playerId) {
+    const slot = lineupSlots().find((item) => item.order === Number(slotOrder));
+    const player = tournamentState.players.find((item) => Number(item.id) === Number(playerId));
+    if (!slot || !player) return;
+    tournamentState.lineup = tournamentState.lineup.filter((item) => (
+        Number(item.sort_order) !== slot.order && Number(item.student_id) !== Number(player.id)
+    ));
+    tournamentState.lineup.push({
+        student_id: player.id,
+        student_name: player.name,
+        student_number: player.number,
+        photo_url: player.photo_url,
+        team_side: 'home',
+        position: slot.position,
+        shirt_number: player.number || '',
+        is_starter: true,
+        sort_order: slot.order,
+    });
+    tournamentState.lineup.sort((a, b) => Number(a.sort_order || 0) - Number(b.sort_order || 0));
+    tournamentState.activeLineupSlot = null;
+    renderLineup();
+    renderLineupPicker();
+}
+
+function removeLineupSlot(slotOrder) {
+    tournamentState.lineup = tournamentState.lineup.filter((item) => Number(item.sort_order) !== Number(slotOrder));
+    if (Number(tournamentState.activeLineupSlot) === Number(slotOrder)) {
+        tournamentState.activeLineupSlot = null;
+    }
+    renderLineup();
+    renderLineupPicker();
 }
 
 function renderTimeline() {
@@ -524,34 +683,6 @@ function renderAnalytics() {
             <td>${row.score}</td>
         </tr>
     `).join('') : '<tr><td colspan="7" class="empty-cell">Нет данных</td></tr>';
-}
-
-function addSelectedLineupPlayers() {
-    const checked = Array.from(qs('lineupMultiList')?.querySelectorAll('input[type="checkbox"]:checked') || []);
-    if (!checked.length) {
-        alert('Выберите игроков для состава.');
-        return;
-    }
-    const position = qs('lineupPosition').value || 'Игрок';
-    const isStarter = qs('lineupStarter').checked;
-    checked.forEach((checkbox) => {
-        const playerId = Number(checkbox.value);
-        const player = tournamentState.players.find((item) => Number(item.id) === playerId);
-        if (!player || tournamentState.lineup.some((item) => Number(item.student_id) === playerId)) return;
-        tournamentState.lineup.push({
-            student_id: player.id,
-            student_name: player.name,
-            student_number: player.number,
-            photo_url: player.photo_url,
-            team_side: 'home',
-            position,
-            shirt_number: player.number || '',
-            is_starter: isStarter,
-            sort_order: tournamentState.lineup.length,
-        });
-    });
-    renderLineup();
-    renderLineupPicker();
 }
 
 async function saveLineup() {
@@ -853,12 +984,18 @@ function bindForms() {
     qs('tournamentForm').addEventListener('submit', createTournament);
     qs('teamForm').addEventListener('submit', createTeam);
     qs('matchForm').addEventListener('submit', createMatch);
-    qs('addSelectedLineupBtn').addEventListener('click', addSelectedLineupPlayers);
     qs('lineupSearch').addEventListener('input', renderLineupPicker);
     qs('saveLineupBtn').addEventListener('click', saveLineup);
     qs('saveMatchSettingsBtn').addEventListener('click', saveCurrentMatchSettings);
     qs('eventType').addEventListener('change', toggleEventFields);
-    qs('formationViewSelect').addEventListener('change', renderPitchPoster);
+    qs('formationViewSelect').addEventListener('change', () => {
+        tournamentState.activeLineupSlot = null;
+        if (qs('currentMatchFormation')) {
+            qs('currentMatchFormation').value = qs('formationViewSelect').value;
+        }
+        renderLineup();
+        renderLineupPicker();
+    });
     qs('eventForm').addEventListener('submit', async (event) => {
         event.preventDefault();
         await apiJson(`/api/tournament-matches/${tournamentState.selectedMatchId}/events`, {
