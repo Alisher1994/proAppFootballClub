@@ -8488,3 +8488,146 @@ button.sidebar-toggle,
 button[type="button"].sidebar-toggle:not(.btn-danger):not(.delete-btn):not(.remove-btn):not(.logout-btn) {
     color: #8a9099 !important;
 }
+
+/* Final unified scrollbar and student modal tab polish. */
+html,
+body,
+* {
+    scrollbar-color: rgba(216, 208, 200, .46) transparent !important;
+    scrollbar-width: thin !important;
+}
+
+::-webkit-scrollbar {
+    width: 6px !important;
+    height: 6px !important;
+    background: transparent !important;
+}
+
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner {
+    background: transparent !important;
+}
+
+::-webkit-scrollbar-thumb {
+    min-height: 36px !important;
+    border: 2px solid transparent !important;
+    border-radius: 999px !important;
+    background: rgba(216, 208, 200, .42) !important;
+    background-clip: padding-box !important;
+    box-shadow: none !important;
+}
+
+::-webkit-scrollbar-thumb:hover,
+::-webkit-scrollbar-thumb:active {
+    background: rgba(138, 144, 153, .45) !important;
+    background-clip: padding-box !important;
+}
+
+.modal-content::-webkit-scrollbar,
+.simple-modal::-webkit-scrollbar,
+.modal-body-scrollable::-webkit-scrollbar,
+.edit-student-modal-content::-webkit-scrollbar,
+.add-student-modal-content::-webkit-scrollbar,
+.student-list-content::-webkit-scrollbar,
+.student-details-content::-webkit-scrollbar,
+.history-list::-webkit-scrollbar,
+.sidebar nav::-webkit-scrollbar {
+    width: 6px !important;
+    height: 6px !important;
+    background: transparent !important;
+}
+
+.modal-content::-webkit-scrollbar-track,
+.simple-modal::-webkit-scrollbar-track,
+.modal-body-scrollable::-webkit-scrollbar-track,
+.edit-student-modal-content::-webkit-scrollbar-track,
+.add-student-modal-content::-webkit-scrollbar-track,
+.student-list-content::-webkit-scrollbar-track,
+.student-details-content::-webkit-scrollbar-track,
+.history-list::-webkit-scrollbar-track,
+.sidebar nav::-webkit-scrollbar-track {
+    background: transparent !important;
+}
+
+.modal-content::-webkit-scrollbar-thumb,
+.simple-modal::-webkit-scrollbar-thumb,
+.modal-body-scrollable::-webkit-scrollbar-thumb,
+.edit-student-modal-content::-webkit-scrollbar-thumb,
+.add-student-modal-content::-webkit-scrollbar-thumb,
+.student-list-content::-webkit-scrollbar-thumb,
+.student-details-content::-webkit-scrollbar-thumb,
+.history-list::-webkit-scrollbar-thumb,
+.sidebar nav::-webkit-scrollbar-thumb {
+    border: 2px solid transparent !important;
+    border-radius: 999px !important;
+    background: rgba(216, 208, 200, .42) !important;
+    background-clip: padding-box !important;
+    box-shadow: none !important;
+}
+
+.modal-content::-webkit-scrollbar-thumb:hover,
+.simple-modal::-webkit-scrollbar-thumb:hover,
+.modal-body-scrollable::-webkit-scrollbar-thumb:hover,
+.edit-student-modal-content::-webkit-scrollbar-thumb:hover,
+.add-student-modal-content::-webkit-scrollbar-thumb:hover,
+.student-list-content::-webkit-scrollbar-thumb:hover,
+.student-details-content::-webkit-scrollbar-thumb:hover,
+.history-list::-webkit-scrollbar-thumb:hover,
+.sidebar nav::-webkit-scrollbar-thumb:hover {
+    background: rgba(138, 144, 153, .45) !important;
+    background-clip: padding-box !important;
+}
+
+#addStudentModal .form-tabs,
+#editStudentModal .form-tabs {
+    gap: 14px !important;
+    padding: 0 20px !important;
+}
+
+#addStudentModal .form-tabs button[type="button"].form-tab,
+#editStudentModal .form-tabs button[type="button"].form-tab {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    flex: 0 0 auto !important;
+    line-height: 44px !important;
+}
+
+#addStudentModal .form-tabs button[type="button"].form-tab svg,
+#editStudentModal .form-tabs button[type="button"].form-tab svg {
+    width: 15px !important;
+    height: 15px !important;
+    flex: 0 0 15px !important;
+    color: currentColor !important;
+    stroke: currentColor !important;
+}
+
+*:not(#app-scrollbar-override) {
+    scrollbar-color: rgba(216, 208, 200, .46) transparent !important;
+    scrollbar-width: thin !important;
+}
+
+*:not(#app-scrollbar-override)::-webkit-scrollbar {
+    width: 6px !important;
+    height: 6px !important;
+    background: transparent !important;
+}
+
+*:not(#app-scrollbar-override)::-webkit-scrollbar-track,
+*:not(#app-scrollbar-override)::-webkit-scrollbar-corner {
+    background: transparent !important;
+}
+
+*:not(#app-scrollbar-override)::-webkit-scrollbar-thumb {
+    border: 2px solid transparent !important;
+    border-radius: 999px !important;
+    background: rgba(216, 208, 200, .42) !important;
+    background-clip: padding-box !important;
+    box-shadow: none !important;
+}
+
+*:not(#app-scrollbar-override)::-webkit-scrollbar-thumb:hover,
+*:not(#app-scrollbar-override)::-webkit-scrollbar-thumb:active {
+    background: rgba(138, 144, 153, .45) !important;
+    background-clip: padding-box !important;
+}

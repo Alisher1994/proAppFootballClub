@@ -1684,14 +1684,14 @@
         .student-tab-content[id^="tab-history-"],
         .student-tab-content[id^="tab-attendance-"] {
             scrollbar-width: thin !important;
-            scrollbar-color: #ff8a00 rgba(30, 41, 59, 0.5) !important;
+            scrollbar-color: rgba(216, 208, 200, .46) transparent !important;
         }
 
         body.theme-light .student-tab-content[id^="tab-payments-"],
         body.theme-light .student-tab-content[id^="tab-history-"],
         body.theme-light .student-tab-content[id^="tab-attendance-"] {
             scrollbar-width: thin !important;
-            scrollbar-color: #ff8a00 #e5e7eb !important;
+            scrollbar-color: rgba(216, 208, 200, .46) transparent !important;
         }
 
         .student-tab-content[id^="tab-payments-"]::-webkit-scrollbar-corner,
@@ -2325,14 +2325,14 @@
         .student-details-content,
         .game-filter-body {
             scrollbar-width: thin !important;
-            scrollbar-color: #ff8a00 rgba(30, 41, 59, 0.5) !important;
+            scrollbar-color: rgba(216, 208, 200, .46) transparent !important;
         }
 
         body.theme-light .student-list-content,
         body.theme-light .student-details-content,
         body.theme-light .game-filter-body {
             scrollbar-width: thin !important;
-            scrollbar-color: #ff8a00 #e5e7eb !important;
+            scrollbar-color: rgba(216, 208, 200, .46) transparent !important;
         }
 
         .student-list-content::-webkit-scrollbar-corner,
@@ -2399,7 +2399,7 @@
         #paymentModal .modal-content,
         #editPaymentModal .modal-content {
             scrollbar-width: thin !important;
-            scrollbar-color: #ff8a00 #e5e7eb !important;
+            scrollbar-color: rgba(216, 208, 200, .46) transparent !important;
         }
 
         /* Кастомный скроллбар для истории оплат */
@@ -4352,12 +4352,69 @@
 
                     <!-- Вкладки формы -->
                     <div class="form-tabs">
-                        <button type="button" class="form-tab active" data-tab="basic">Основная информация</button>
-                        <button type="button" class="form-tab" data-tab="academic">Учебные данные</button>
-                        <button type="button" class="form-tab" data-tab="parameters">Параметры ученика</button>
-                        <button type="button" class="form-tab" data-tab="address">Адрес</button>
-                        <button type="button" class="form-tab" data-tab="passport">Паспорт</button>
-                        <button type="button" class="form-tab" data-tab="history">История</button>
+                        <button type="button" class="form-tab active" data-tab="basic">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"
+                                stroke-linejoin="round" class="lucide lucide-user-icon lucide-user">
+                                <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+                                <circle cx="12" cy="7" r="4" />
+                            </svg>
+                            Основная информация
+                        </button>
+                        <button type="button" class="form-tab" data-tab="academic">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"
+                                stroke-linejoin="round" class="lucide lucide-book-user-icon lucide-book-user">
+                                <path d="M15 13a3 3 0 1 0-6 0" />
+                                <path
+                                    d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H19a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H6.5a1 1 0 0 1 0-5H20" />
+                                <circle cx="12" cy="8" r="2" />
+                            </svg>
+                            Учебные данные
+                        </button>
+                        <button type="button" class="form-tab" data-tab="parameters">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"
+                                stroke-linejoin="round"
+                                class="lucide lucide-chart-column-increasing-icon lucide-chart-column-increasing">
+                                <path d="M13 17V9" />
+                                <path d="M18 17V5" />
+                                <path d="M3 3v16a2 2 0 0 0 2 2h16" />
+                                <path d="M8 17v-3" />
+                            </svg>
+                            Параметры ученика
+                        </button>
+                        <button type="button" class="form-tab" data-tab="address">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"
+                                stroke-linejoin="round" class="lucide lucide-map-pin-icon lucide-map-pin">
+                                <path
+                                    d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0" />
+                                <circle cx="12" cy="10" r="3" />
+                            </svg>
+                            Адрес
+                        </button>
+                        <button type="button" class="form-tab" data-tab="passport">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"
+                                stroke-linejoin="round" class="lucide lucide-shield-check-icon lucide-shield-check">
+                                <path
+                                    d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1-1z" />
+                                <path d="m9 12 2 2 4-4" />
+                            </svg>
+                            Паспорт
+                        </button>
+                        <button type="button" class="form-tab" data-tab="history">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"
+                                stroke-linejoin="round" class="lucide lucide-scroll-text-icon lucide-scroll-text">
+                                <path d="M15 12h-5" />
+                                <path d="M15 8h-5" />
+                                <path d="M19 17V5a2 2 0 0 0-2-2H8" />
+                                <path d="M8 21h12a2 2 0 0 0 2-2v-1a1 1 0 0 0-1-1H11a1 1 0 0 0-1 1v1a2 2 0 1 1-4 0V5a2 2 0 1 1 4 0v2" />
+                            </svg>
+                            История
+                        </button>
                     </div>
 
                     <!-- Содержимое вкладок -->

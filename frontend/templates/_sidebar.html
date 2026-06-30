@@ -367,6 +367,70 @@
             display: none !important;
         }
     }
+
+    /* Late shared scrollbar pass for pages that define their own inline styles. */
+    html,
+    body,
+    * {
+        scrollbar-color: rgba(216, 208, 200, .46) transparent !important;
+        scrollbar-width: thin !important;
+    }
+
+    ::-webkit-scrollbar {
+        width: 6px !important;
+        height: 6px !important;
+        background: transparent !important;
+    }
+
+    ::-webkit-scrollbar-track,
+    ::-webkit-scrollbar-corner {
+        background: transparent !important;
+    }
+
+    ::-webkit-scrollbar-thumb {
+        min-height: 36px !important;
+        border: 2px solid transparent !important;
+        border-radius: 999px !important;
+        background: rgba(216, 208, 200, .42) !important;
+        background-clip: padding-box !important;
+        box-shadow: none !important;
+    }
+
+    ::-webkit-scrollbar-thumb:hover,
+    ::-webkit-scrollbar-thumb:active {
+        background: rgba(138, 144, 153, .45) !important;
+        background-clip: padding-box !important;
+    }
+
+    *:not(#app-scrollbar-override) {
+        scrollbar-color: rgba(216, 208, 200, .46) transparent !important;
+        scrollbar-width: thin !important;
+    }
+
+    *:not(#app-scrollbar-override)::-webkit-scrollbar {
+        width: 6px !important;
+        height: 6px !important;
+        background: transparent !important;
+    }
+
+    *:not(#app-scrollbar-override)::-webkit-scrollbar-track,
+    *:not(#app-scrollbar-override)::-webkit-scrollbar-corner {
+        background: transparent !important;
+    }
+
+    *:not(#app-scrollbar-override)::-webkit-scrollbar-thumb {
+        border: 2px solid transparent !important;
+        border-radius: 999px !important;
+        background: rgba(216, 208, 200, .42) !important;
+        background-clip: padding-box !important;
+        box-shadow: none !important;
+    }
+
+    *:not(#app-scrollbar-override)::-webkit-scrollbar-thumb:hover,
+    *:not(#app-scrollbar-override)::-webkit-scrollbar-thumb:active {
+        background: rgba(138, 144, 153, .45) !important;
+        background-clip: padding-box !important;
+    }
 </style>
 
 <script>
