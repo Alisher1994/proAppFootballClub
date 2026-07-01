@@ -168,9 +168,16 @@
             color: #475569;
             font-size: 10px;
             font-weight: 600;
+            line-height: 1.15;
+            text-align: center;
             cursor: pointer;
             padding: 7px;
             transition: border-color .18s ease, background-color .18s ease, color .18s ease;
+        }
+        .pay-mode label span {
+            display: block;
+            width: 100%;
+            text-align: center;
         }
         .pay-mode input { display: none; }
         .pay-mode-icon {
@@ -653,12 +660,12 @@
                 <form class="pay-form" id="pay-form">
                     <div class="pay-mode" aria-label="Способ поиска ученика">
                         <label>
-                            <input type="radio" name="pay_lookup_mode" value="group" checked>
+                            <input type="radio" name="pay_lookup_mode" value="group">
                             <i data-lucide="users" class="pay-mode-icon" aria-hidden="true"></i>
                             <span data-i18n="byGroup">По группе</span>
                         </label>
                         <label>
-                            <input type="radio" name="pay_lookup_mode" value="phone">
+                            <input type="radio" name="pay_lookup_mode" value="phone" checked>
                             <i data-lucide="phone" class="pay-mode-icon" aria-hidden="true"></i>
                             <span data-i18n="byPhone">По телефону</span>
                         </label>
@@ -721,7 +728,7 @@
 
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
     <script>
-        const state = { groups: [], methods: [], students: [], phoneStudents: [], selectedGroup: null, selectedStudent: null, selectedStudents: [], selectedPeriod: null, mode: 'group', lang: 'ru' };
+        const state = { groups: [], methods: [], students: [], phoneStudents: [], selectedGroup: null, selectedStudent: null, selectedStudents: [], selectedPeriod: null, mode: 'phone', lang: 'ru' };
         const periodStep = document.getElementById('pay-period-step');
         const periodSelect = document.getElementById('pay-period');
         const groupStep = document.getElementById('pay-group-step');
