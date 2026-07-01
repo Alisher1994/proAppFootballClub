@@ -36,6 +36,9 @@
             padding: 24px 18px 44px;
             position: relative;
             z-index: 1;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
         }
         .pay-header {
             display: flex;
@@ -45,26 +48,65 @@
             margin-bottom: 14px;
         }
         .pay-lang {
-            display: inline-flex;
-            gap: 4px;
-            padding: 4px;
+            position: relative;
+        }
+        .pay-lang-toggle,
+        .pay-lang-menu button {
+            min-width: 72px;
+            height: 36px;
             border: 1px solid #e4ddd6;
             border-radius: 9px;
             background: #fff;
-        }
-        .pay-lang button {
-            min-width: 36px;
-            height: 28px;
-            border: 0;
-            border-radius: 7px;
-            background: transparent;
             color: #64748b;
             font: 600 12px/1 var(--ui-font-family);
             cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 0 10px;
         }
-        .pay-lang button.active {
+        .pay-lang-toggle::after {
+            content: "";
+            width: 0;
+            height: 0;
+            border-left: 4px solid transparent;
+            border-right: 4px solid transparent;
+            border-top: 5px solid #94a3b8;
+            margin-left: 2px;
+        }
+        .pay-lang-menu {
+            position: absolute;
+            left: 0;
+            top: calc(100% + 6px);
+            display: none;
+            min-width: 92px;
+            padding: 5px;
+            border: 1px solid #e4ddd6;
+            border-radius: 10px;
+            background: #fff;
+            box-shadow: 0 14px 30px rgba(15, 23, 42, .12);
+            z-index: 30;
+        }
+        .pay-lang.open .pay-lang-menu {
+            display: grid;
+            gap: 3px;
+        }
+        .pay-lang-menu button {
+            width: 100%;
+            justify-content: flex-start;
+            border: 0;
+            background: transparent;
+        }
+        .pay-lang-menu button.active {
             background: #fff7ed;
             color: #d96f00;
+        }
+        .pay-flag {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            flex: 0 0 auto;
         }
         .pay-grid {
             display: block;
@@ -109,25 +151,36 @@
         .pay-mode {
             display: grid;
             grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 8px;
+            gap: 10px;
         }
         .pay-mode label {
             display: flex;
+            flex-direction: column;
             align-items: center;
             justify-content: center;
-            min-height: 40px;
+            gap: 8px;
+            min-height: 86px;
             border: 1px solid #e4ddd6;
-            border-radius: 8px;
-            background: #fff;
+            border-radius: 10px;
+            background: #f7f4f1;
             color: #475569;
             font-size: 13px;
             font-weight: 600;
             cursor: pointer;
+            transition: border-color .18s ease, background-color .18s ease, color .18s ease;
         }
         .pay-mode input { display: none; }
+        .pay-mode-icon {
+            width: 26px;
+            height: 26px;
+            color: #334155;
+        }
         .pay-mode label:has(input:checked) {
             border-color: #ff8a00;
             background: #fff7ed;
+            color: #d96f00;
+        }
+        .pay-mode label:has(input:checked) .pay-mode-icon {
             color: #d96f00;
         }
         .pay-period {
@@ -389,9 +442,10 @@
         .pay-links {
             display: flex;
             flex-wrap: wrap;
+            justify-content: center;
             gap: 10px 16px;
-            padding-top: 10px;
-            border-top: 1px solid #e4ddd6;
+            margin-top: auto;
+            padding-top: 28px;
             font-size: 12px;
             font-family: var(--ui-font-family);
         }
@@ -475,8 +529,17 @@
     <main class="pay-shell">
         <header class="pay-header">
             <div class="pay-lang" aria-label="Язык">
-                <button type="button" data-pay-lang="ru" class="active">RU</button>
-                <button type="button" data-pay-lang="uz">UZ</button>
+                <button type="button" class="pay-lang-toggle" id="pay-lang-toggle" aria-haspopup="true" aria-expanded="false"></button>
+                <div class="pay-lang-menu" id="pay-lang-menu">
+                    <button type="button" data-pay-lang="ru" class="active">
+                        <svg class="pay-flag" viewBox="0 0 18 18" aria-hidden="true"><clipPath id="pay-flag-ru"><circle cx="9" cy="9" r="9"/></clipPath><g clip-path="url(#pay-flag-ru)"><path fill="#fff" d="M0 0h18v6H0z"/><path fill="#1c57a7" d="M0 6h18v6H0z"/><path fill="#d52b1e" d="M0 12h18v6H0z"/></g></svg>
+                        RU
+                    </button>
+                    <button type="button" data-pay-lang="uz">
+                        <svg class="pay-flag" viewBox="0 0 18 18" aria-hidden="true"><clipPath id="pay-flag-uz"><circle cx="9" cy="9" r="9"/></clipPath><g clip-path="url(#pay-flag-uz)"><path fill="#1eb6d9" d="M0 0h18v5.2H0z"/><path fill="#fff" d="M0 6.4h18v5.2H0z"/><path fill="#1f9d55" d="M0 12.8h18V18H0z"/><path fill="#d91f26" d="M0 5.2h18v1.2H0zM0 11.6h18v1.2H0z"/><circle cx="4" cy="2.6" r="1.25" fill="#fff"/></g></svg>
+                        UZ
+                    </button>
+                </div>
             </div>
             <a class="btn-secondary" href="{{ url_for('login') }}" data-i18n="login">Войти в систему</a>
         </header>
@@ -488,8 +551,23 @@
                 </div>
                 <form class="pay-form" id="pay-form">
                     <div class="pay-mode" aria-label="Способ поиска ученика">
-                        <label><input type="radio" name="pay_lookup_mode" value="group" checked><span data-i18n="byGroup">По группе</span></label>
-                        <label><input type="radio" name="pay_lookup_mode" value="phone"><span data-i18n="byPhone">По телефону</span></label>
+                        <label>
+                            <input type="radio" name="pay_lookup_mode" value="group" checked>
+                            <svg class="pay-mode-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M16 21v-2a4 4 0 0 0-8 0v2"/>
+                                <circle cx="12" cy="7" r="4"/>
+                                <path d="M22 21v-2a4 4 0 0 0-3-3.87"/>
+                                <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                            </svg>
+                            <span data-i18n="byGroup">По группе</span>
+                        </label>
+                        <label>
+                            <input type="radio" name="pay_lookup_mode" value="phone">
+                            <svg class="pay-mode-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M22 16.92v3a2 2 0 0 1-2.18 2A19.8 19.8 0 0 1 3.08 5.18 2 2 0 0 1 5.06 3h3a2 2 0 0 1 2 1.72c.12.9.32 1.77.6 2.61a2 2 0 0 1-.45 2.11L9 10.65a16 16 0 0 0 4.35 4.35l1.21-1.21a2 2 0 0 1 2.11-.45c.84.28 1.71.48 2.61.6A2 2 0 0 1 22 16.92z"/>
+                            </svg>
+                            <span data-i18n="byPhone">По телефону</span>
+                        </label>
                     </div>
 
                     <label id="pay-phone-step" class="pay-step-hidden">
@@ -540,13 +618,13 @@
                     <div class="pay-result" id="pay-result"></div>
                     <div class="pay-provider-box" id="pay-provider-box"></div>
 
-                    <div class="pay-links">
-                        <a class="pay-legal-link" data-section="privacy" href="{{ url_for('legal_page', section='privacy', lang='ru') }}" target="_blank"><span class="pay-link-icon">i</span><span data-i18n="privacyDoc">Политика конфиденциальности</span></a>
-                        <a class="pay-legal-link" data-section="offer" href="{{ url_for('legal_page', section='offer', lang='ru') }}" target="_blank"><span class="pay-link-icon">✓</span><span data-i18n="termsDoc">Пользовательское соглашение</span></a>
-                        <a class="pay-legal-link" data-section="refund" href="{{ url_for('legal_page', section='refund', lang='ru') }}" target="_blank"><span class="pay-link-icon">₽</span><span data-i18n="refundDoc">Правила оплаты и возврата</span></a>
-                    </div>
                 </form>
             </section>
+        </div>
+        <div class="pay-links">
+            <a class="pay-legal-link" data-section="privacy" href="{{ url_for('legal_page', section='privacy', lang='ru') }}" target="_blank"><span class="pay-link-icon">i</span><span data-i18n="privacyDoc">Политика конфиденциальности</span></a>
+            <a class="pay-legal-link" data-section="offer" href="{{ url_for('legal_page', section='offer', lang='ru') }}" target="_blank"><span class="pay-link-icon">✓</span><span data-i18n="termsDoc">Пользовательское соглашение</span></a>
+            <a class="pay-legal-link" data-section="refund" href="{{ url_for('legal_page', section='refund', lang='ru') }}" target="_blank"><span class="pay-link-icon">₽</span><span data-i18n="refundDoc">Правила оплаты и возврата</span></a>
         </div>
     </main>
 
@@ -705,6 +783,10 @@
             document.querySelectorAll('[data-pay-lang]').forEach(button => {
                 button.classList.toggle('active', button.dataset.payLang === state.lang);
             });
+            const activeLangButton = document.querySelector(`[data-pay-lang="${state.lang}"]`);
+            if (activeLangButton) {
+                document.getElementById('pay-lang-toggle').innerHTML = activeLangButton.innerHTML;
+            }
             groupInput.placeholder = t('groupPlaceholder');
             studentInput.placeholder = state.selectedGroup ? t('studentPlaceholder') : t('studentBeforeGroup');
             updateLegalLinks();
@@ -1049,7 +1131,16 @@
             input.addEventListener('change', () => switchLookupMode(input.value));
         });
         document.querySelectorAll('[data-pay-lang]').forEach(button => {
-            button.addEventListener('click', () => applyLanguage(button.dataset.payLang));
+            button.addEventListener('click', () => {
+                applyLanguage(button.dataset.payLang);
+                document.querySelector('.pay-lang').classList.remove('open');
+                document.getElementById('pay-lang-toggle').setAttribute('aria-expanded', 'false');
+            });
+        });
+        document.getElementById('pay-lang-toggle').addEventListener('click', () => {
+            const langBox = document.querySelector('.pay-lang');
+            const isOpen = langBox.classList.toggle('open');
+            document.getElementById('pay-lang-toggle').setAttribute('aria-expanded', String(isOpen));
         });
         periodSelect.addEventListener('change', handlePeriodChange);
         phoneInput.addEventListener('focus', () => ensureUzPhonePrefix(phoneInput));
@@ -1063,6 +1154,10 @@
             if (!event.target.closest('.pay-combobox')) {
                 groupList.classList.remove('open');
                 studentList.classList.remove('open');
+            }
+            if (!event.target.closest('.pay-lang')) {
+                document.querySelector('.pay-lang').classList.remove('open');
+                document.getElementById('pay-lang-toggle').setAttribute('aria-expanded', 'false');
             }
         });
 
