@@ -194,11 +194,11 @@
         }
         .pay-group-cards {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
             gap: 10px;
         }
         .pay-group-card {
-            min-height: 118px;
+            min-height: 92px;
             aspect-ratio: 1 / 1;
             border: 1px solid #e4ddd6;
             border-radius: 8px;
@@ -209,10 +209,10 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            gap: 10px;
-            padding: 12px;
+            gap: 7px;
+            padding: 9px;
             text-align: center;
-            font: 600 13px/1.25 var(--ui-font-family);
+            font: 600 12px/1.15 var(--ui-font-family);
             transition: border-color .18s ease, background-color .18s ease, color .18s ease, box-shadow .18s ease;
         }
         .pay-group-card:hover {
@@ -226,8 +226,21 @@
             box-shadow: 0 8px 18px rgba(255, 138, 0, .1);
         }
         .pay-group-icon {
-            width: 24px;
-            height: 24px;
+            width: 21px;
+            height: 21px;
+        }
+        .pay-group-name {
+            display: grid;
+            gap: 2px;
+            max-width: 100%;
+        }
+        .pay-group-title,
+        .pay-group-subtitle {
+            display: block;
+            max-width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
         .pay-period {
             display: grid;
@@ -622,7 +635,7 @@
                     <div class="pay-student-picks pay-step-hidden" id="pay-phone-results"></div>
 
                     <section id="pay-group-step" class="pay-group-section">
-                        <span data-i18n="group">Группа</span>
+                        <span data-i18n="group">Выберите группу</span>
                         <div class="pay-group-cards" id="pay-group-cards"></div>
                     </section>
                     <label id="pay-student-step" class="pay-step-hidden">
@@ -698,7 +711,7 @@
                 byGroup: 'По группе',
                 byPhone: 'По телефону',
                 phone: 'Телефон',
-                group: 'Группа',
+                group: 'Выберите группу',
                 student: 'Ученик',
                 payMonth: 'Месяц оплаты',
                 payMethod: 'Способ оплаты',
@@ -736,7 +749,7 @@
                 byGroup: 'Guruh bo‘yicha',
                 byPhone: 'Telefon bo‘yicha',
                 phone: 'Telefon',
-                group: 'Guruh',
+                group: 'Guruhni tanlang',
                 student: 'O‘quvchi',
                 payMonth: 'To‘lov oyi',
                 payMethod: 'To‘lov usuli',
@@ -783,6 +796,14 @@
             '"': '&quot;',
             "'": '&#39;'
         }[char]));
+
+        function groupNameParts(name) {
+            const parts = String(name || '').trim().split(/\s+/);
+            if (parts.length <= 1) {
+                return { title: parts[0] || '', subtitle: '' };
+            }
+            return { title: parts[0], subtitle: parts.slice(1).join(' ') };
+        }
 
         function syncSubmit() {
             const method = document.querySelector('input[name="pay_method"]:checked');
@@ -884,12 +905,18 @@
                 groupCards.innerHTML = `<div class="pay-empty">${t('nothingFound')}</div>`;
                 return;
             }
-            groupCards.innerHTML = state.groups.map(group => `
-                <button type="button" class="pay-group-card ${state.selectedGroup?.id === group.id ? 'active' : ''}" data-id="${group.id}">
-                    <i data-lucide="users" class="pay-group-icon" aria-hidden="true"></i>
-                    <span>${escapeHtml(group.name)}</span>
-                </button>
-            `).join('');
+            groupCards.innerHTML = state.groups.map(group => {
+                const name = groupNameParts(group.name);
+                return `
+                    <button type="button" class="pay-group-card ${state.selectedGroup?.id === group.id ? 'active' : ''}" data-id="${group.id}" title="${escapeHtml(group.name)}">
+                        <i data-lucide="users" class="pay-group-icon" aria-hidden="true"></i>
+                        <span class="pay-group-name">
+                            <span class="pay-group-title">${escapeHtml(name.title)}</span>
+                            ${name.subtitle ? `<span class="pay-group-subtitle">${escapeHtml(name.subtitle)}</span>` : ''}
+                        </span>
+                    </button>
+                `;
+            }).join('');
             groupCards.querySelectorAll('.pay-group-card').forEach(button => {
                 button.addEventListener('click', () => {
                     const group = state.groups.find(item => String(item.id) === button.dataset.id);
