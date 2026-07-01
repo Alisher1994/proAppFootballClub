@@ -34,7 +34,7 @@
         }
         .account-grid {
             display: grid;
-            grid-template-columns: 320px minmax(0, 1fr);
+            grid-template-columns: minmax(0, 1fr);
             gap: 18px;
             align-items: start;
         }
@@ -63,11 +63,11 @@
         }
         .account-avatar {
             display: flex;
-            justify-content: center;
+            justify-content: flex-start;
         }
         .account-avatar-frame {
             position: relative;
-            width: min(190px, 100%);
+            width: 126px;
             aspect-ratio: 1;
             overflow: hidden;
             border-radius: 8px;
@@ -147,6 +147,15 @@
             grid-template-columns: repeat(2, minmax(0, 1fr));
             gap: 13px 14px;
         }
+        .account-profile-top {
+            display: grid;
+            grid-template-columns: 126px minmax(0, 1fr);
+            gap: 18px;
+            align-items: start;
+        }
+        .account-profile-fields {
+            min-width: 0;
+        }
         .account-form .full { grid-column: 1 / -1; }
         .account-form label {
             display: grid;
@@ -215,8 +224,10 @@
             .account-shell { padding: 16px 12px 92px; }
             .account-grid,
             .account-form,
+            .account-profile-top,
             .account-security-grid { grid-template-columns: 1fr; }
             .account-header h1 { font-size: 24px; }
+            .account-avatar { justify-content: center; }
         }
     </style>
 </head>
@@ -234,45 +245,43 @@
             </div>
 
             <div class="account-grid">
-                <section class="account-panel">
-                    <h2>Аватар</h2>
-                    <div class="account-avatar">
-                        <div class="account-avatar-frame">
-                            <img id="account-avatar-img" alt="Аватар" src="{{ url_for('static', filename='uploads/avatar_ccount.png') }}">
-                            <input id="account-photo" type="file" accept="image/*">
-                            <div class="account-avatar-overlay">
-                                <label class="account-avatar-pick" for="account-photo">Выбрать фото</label>
-                            </div>
-                            <button id="account-remove-photo" class="account-avatar-reset" type="button" aria-label="Сбросить фото">&times;</button>
-                        </div>
-                    </div>
-                </section>
-
                 <div class="account-stack">
                     <section class="account-panel">
                         <h2>Основная информация</h2>
                         <form id="account-form">
-                            <div class="account-form">
-                                <label>
-                                    ФИО
-                                    <input id="account-full-name" type="text" autocomplete="name">
-                                </label>
-                                <label>
-                                    Логин
-                                    <span id="account-username" class="account-readonly"></span>
-                                </label>
-                                <label>
-                                    Номер телефона
-                                    <input id="account-phone" type="tel" autocomplete="tel">
-                                </label>
-                                <label>
-                                    Электронная почта
-                                    <input id="account-email" type="email" autocomplete="email">
-                                </label>
-                                <label class="full">
-                                    Роль
-                                    <span id="account-role" class="account-readonly"></span>
-                                </label>
+                            <div class="account-profile-top">
+                                <div class="account-avatar">
+                                    <div class="account-avatar-frame">
+                                        <img id="account-avatar-img" alt="Аватар" src="{{ url_for('static', filename='uploads/avatar_ccount.png') }}">
+                                        <input id="account-photo" type="file" accept="image/*">
+                                        <div class="account-avatar-overlay">
+                                            <label class="account-avatar-pick" for="account-photo">Выбрать</label>
+                                        </div>
+                                        <button id="account-remove-photo" class="account-avatar-reset" type="button" aria-label="Сбросить фото">&times;</button>
+                                    </div>
+                                </div>
+                                <div class="account-form account-profile-fields">
+                                    <label>
+                                        ФИО
+                                        <input id="account-full-name" type="text" autocomplete="name">
+                                    </label>
+                                    <label>
+                                        Логин
+                                        <span id="account-username" class="account-readonly"></span>
+                                    </label>
+                                    <label>
+                                        Номер телефона
+                                        <input id="account-phone" type="tel" autocomplete="tel">
+                                    </label>
+                                    <label>
+                                        Электронная почта
+                                        <input id="account-email" type="email" autocomplete="email">
+                                    </label>
+                                    <label class="full">
+                                        Роль
+                                        <span id="account-role" class="account-readonly"></span>
+                                    </label>
+                                </div>
                             </div>
                             <div class="account-actions">
                                 <button class="btn-primary" id="account-save-btn" type="submit" disabled>Сохранить</button>
