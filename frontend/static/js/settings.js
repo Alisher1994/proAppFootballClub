@@ -473,7 +473,7 @@ function renderPaymentProviderConfigs() {
             : '<span class="payment-provider-doc">Документации нет</span>';
 
         return `
-            <div class="payment-provider-card" data-provider-card="${provider.id}">
+            <div class="payment-provider-card ${config.enabled ? 'is-enabled' : ''}" data-provider-card="${provider.id}">
                 <div class="payment-provider-card-header">
                     <div>
                         <div class="payment-provider-title">
@@ -487,7 +487,7 @@ function renderPaymentProviderConfigs() {
                         <span class="switch-slider"></span>
                     </label>
                 </div>
-                <div class="payment-provider-fields">
+                <div class="payment-provider-fields" data-payment-provider-details>
                     <div class="payment-provider-field">
                         <span>Режим</span>
                         <select class="form-input-modern" data-payment-provider="${provider.id}" data-payment-field="mode">
@@ -497,14 +497,20 @@ function renderPaymentProviderConfigs() {
                     </div>
                     ${fieldsHtml}
                 </div>
-                <div class="payment-provider-example">${escapeHtml(provider.example)} ${docsLink}</div>
+                <div class="payment-provider-example" data-payment-provider-details>${escapeHtml(provider.example)} ${docsLink}</div>
             </div>
         `;
     }).join('');
 
     container.querySelectorAll('input, select').forEach((element) => {
         element.addEventListener('input', () => updateSettingsFormDirtyState(document.getElementById('settingsForm')));
-        element.addEventListener('change', () => updateSettingsFormDirtyState(document.getElementById('settingsForm')));
+        element.addEventListener('change', () => {
+            if (element.dataset.paymentField === 'enabled') {
+                const card = element.closest('[data-provider-card]');
+                if (card) card.classList.toggle('is-enabled', element.checked);
+            }
+            updateSettingsFormDirtyState(document.getElementById('settingsForm'));
+        });
     });
     if (window.lucide) window.lucide.createIcons();
 }
