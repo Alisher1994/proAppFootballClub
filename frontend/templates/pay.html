@@ -231,9 +231,14 @@
             color: #d96f00;
             box-shadow: 0 8px 18px rgba(255, 138, 0, .1);
         }
+        .pay-group-card.active .pay-group-icon,
+        .pay-group-card.active .pay-group-check {
+            color: #d96f00;
+        }
         .pay-group-icon {
             width: 18px;
             height: 18px;
+            color: #334155;
         }
         .pay-group-check {
             position: absolute;
@@ -259,6 +264,10 @@
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
+        }
+        .pay-group-subtitle {
+            font-size: 9px;
+            line-height: 1.05;
         }
         .pay-period {
             display: grid;
