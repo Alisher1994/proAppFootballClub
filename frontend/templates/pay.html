@@ -110,11 +110,6 @@
         }
         .pay-period {
             display: grid;
-            grid-template-columns: minmax(0, 1fr) 140px;
-            gap: 10px;
-        }
-        .pay-period label {
-            display: grid;
             gap: 7px;
         }
         .pay-period select {
@@ -437,7 +432,6 @@
         }
         @media (max-width: 860px) {
             .pay-methods { grid-template-columns: 1fr; }
-            .pay-period { grid-template-columns: 1fr; }
             .pay-header { justify-content: stretch; }
             .pay-header .btn-secondary { width: 100%; justify-content: center; }
             .pay-bg-video {
@@ -467,17 +461,6 @@
                     <img src="{{ system_logo_url }}" alt="{{ system_name }}">
                 </div>
                 <form class="pay-form" id="pay-form">
-                    <div class="pay-period">
-                        <label>
-                            Месяц оплаты
-                            <select id="pay-month"></select>
-                        </label>
-                        <label>
-                            Год
-                            <select id="pay-year"></select>
-                        </label>
-                    </div>
-
                     <div class="pay-mode" aria-label="Способ поиска ученика">
                         <label><input type="radio" name="pay_lookup_mode" value="group" checked>По группе</label>
                         <label><input type="radio" name="pay_lookup_mode" value="phone">По телефону</label>
@@ -505,6 +488,11 @@
                     </label>
 
                     <div class="pay-summary" id="pay-summary" style="display:none;"></div>
+
+                    <label class="pay-period pay-step-hidden" id="pay-period-step">
+                        Месяц оплаты
+                        <select id="pay-period"></select>
+                    </label>
 
                     <label id="pay-method-step" class="pay-step-hidden">
                         Способ оплаты
@@ -535,9 +523,9 @@
     </main>
 
     <script>
-        const state = { groups: [], methods: [], students: [], phoneStudents: [], selectedGroup: null, selectedStudent: null, selectedStudents: [], mode: 'group' };
-        const monthSelect = document.getElementById('pay-month');
-        const yearSelect = document.getElementById('pay-year');
+        const state = { groups: [], methods: [], students: [], phoneStudents: [], selectedGroup: null, selectedStudent: null, selectedStudents: [], selectedPeriod: null, mode: 'group' };
+        const periodStep = document.getElementById('pay-period-step');
+        const periodSelect = document.getElementById('pay-period');
         const groupInput = document.getElementById('pay-group');
         const groupList = document.getElementById('pay-group-list');
         const groupStep = document.getElementById('pay-group-step');
@@ -571,6 +559,7 @@
             const isGroupMode = state.mode === 'group';
             const hasGroup = Boolean(state.selectedGroup);
             const hasStudent = state.selectedStudents.length > 0;
+            const hasPeriod = Boolean(state.selectedPeriod);
             const hasMethod = Boolean(method);
             const hasConsent = Boolean(consentInput.checked);
 
@@ -578,28 +567,29 @@
             phoneStep.classList.toggle('pay-step-hidden', isGroupMode);
             phoneResults.classList.toggle('pay-step-hidden', isGroupMode || state.phoneStudents.length === 0);
             studentStep.classList.toggle('pay-step-hidden', !isGroupMode || !hasGroup);
-            methodStep.classList.toggle('pay-step-hidden', !hasStudent);
+            periodStep.classList.toggle('pay-step-hidden', !hasStudent);
+            methodStep.classList.toggle('pay-step-hidden', !hasPeriod);
             consentStep.classList.toggle('pay-step-hidden', !hasMethod);
             submitBtn.classList.toggle('pay-step-hidden', !hasMethod);
-            submitBtn.disabled = !((isGroupMode ? hasGroup : true) && hasStudent && hasMethod && hasConsent);
+            submitBtn.disabled = !((isGroupMode ? hasGroup : true) && hasStudent && hasPeriod && hasMethod && hasConsent);
         }
 
-        function initPeriodSelects() {
-            const now = new Date();
-            const currentYear = now.getFullYear();
-            const currentMonth = now.getMonth() + 1;
-            monthSelect.innerHTML = monthNames.map((name, index) => (
-                `<option value="${index + 1}">${name}</option>`
-            )).join('');
-            yearSelect.innerHTML = [currentYear, currentYear - 1, currentYear - 2].map(year => (
-                `<option value="${year}">${year}</option>`
-            )).join('');
-            monthSelect.value = String(currentMonth);
-            yearSelect.value = String(currentYear);
+        function periodKey(period) {
+            return `${period.year}-${String(period.month).padStart(2, '0')}`;
         }
 
-        function getPayPeriodParams() {
-            return `month=${encodeURIComponent(monthSelect.value)}&year=${encodeURIComponent(yearSelect.value)}`;
+        function periodLabel(period) {
+            return `${monthNames[period.month - 1]} ${period.year}`;
+        }
+
+        function findStudentPeriod(student, period) {
+            if (!student || !period) return null;
+            return (student.unpaid_periods || []).find(item => item.year === period.year && item.month === period.month) || null;
+        }
+
+        function getStudentPeriodAmount(student, period = state.selectedPeriod) {
+            const found = findStudentPeriod(student, period);
+            return Number(found?.amount_due || 0);
         }
 
         function findByName(items, value, field = 'name') {
@@ -643,6 +633,7 @@
         function resetPaymentProgress() {
             state.selectedStudents = [];
             state.selectedStudent = null;
+            state.selectedPeriod = null;
             consentInput.checked = false;
             document.querySelectorAll('input[name="pay_method"]').forEach(input => { input.checked = false; });
             providerBox.style.display = 'none';
@@ -664,12 +655,11 @@
         }
 
         function selectStudent(student) {
-            state.selectedStudent = student;
-            state.selectedStudents = [student];
             studentInput.value = student.full_name;
             resetPaymentProgress();
             state.selectedStudent = student;
             state.selectedStudents = [student];
+            renderPeriodOptions();
             renderSummary();
             syncSubmit();
         }
@@ -688,17 +678,55 @@
                         <span class="pay-student-pick-name">${escapeHtml(student.full_name)}</span>
                         <span class="pay-student-pick-meta">${escapeHtml(student.group_name || 'Без группы')} · ${escapeHtml(student.tariff.name)}</span>
                     </span>
-                    <span class="pay-student-pick-amount">${money(student.amount_due || student.tariff.price)}</span>
+                    <span class="pay-student-pick-amount">${(student.unpaid_periods || []).length ? `${(student.unpaid_periods || []).length} мес.` : 'Оплачено'}</span>
                 </label>
             `).join('');
             phoneResults.querySelectorAll('input[type="checkbox"]').forEach(input => {
                 input.addEventListener('change', () => {
                     const ids = new Set(Array.from(phoneResults.querySelectorAll('input[type="checkbox"]:checked')).map(item => Number(item.value)));
                     state.selectedStudents = state.phoneStudents.filter(student => ids.has(student.id));
+                    state.selectedPeriod = null;
+                    document.querySelectorAll('input[name="pay_method"]').forEach(item => { item.checked = false; });
+                    consentInput.checked = false;
+                    renderPeriodOptions();
                     renderSummary();
                     syncSubmit();
                 });
             });
+            syncSubmit();
+        }
+
+        function renderPeriodOptions() {
+            state.selectedPeriod = null;
+            if (!state.selectedStudents.length) {
+                periodSelect.innerHTML = '';
+                syncSubmit();
+                return;
+            }
+
+            const periods = new Map();
+            state.selectedStudents.forEach(student => {
+                (student.unpaid_periods || []).forEach(period => {
+                    const key = periodKey(period);
+                    if (!periods.has(key)) {
+                        periods.set(key, { year: period.year, month: period.month });
+                    }
+                });
+            });
+            const sorted = Array.from(periods.values()).sort((a, b) => (
+                a.year === b.year ? a.month - b.month : a.year - b.year
+            ));
+
+            if (!sorted.length) {
+                periodSelect.innerHTML = '<option value="">Нет неоплаченных месяцев</option>';
+                renderSummary();
+                syncSubmit();
+                return;
+            }
+
+            periodSelect.innerHTML = '<option value="">Выберите месяц оплаты</option>' + sorted.map(period => (
+                `<option value="${periodKey(period)}">${periodLabel(period)}</option>`
+            )).join('');
             syncSubmit();
         }
 
@@ -719,19 +747,26 @@
                 summaryBox.innerHTML = '';
                 return;
             }
+            if (!state.selectedPeriod) {
+                summaryBox.style.display = 'none';
+                summaryBox.innerHTML = '';
+                return;
+            }
             summaryBox.style.display = 'grid';
-            const total = state.selectedStudents.reduce((sum, student) => sum + Number(student.amount_due || student.tariff.price || 0), 0);
+            const total = state.selectedStudents.reduce((sum, student) => sum + getStudentPeriodAmount(student), 0);
             if (state.selectedStudents.length === 1) {
                 const s = state.selectedStudents[0];
                 summaryBox.innerHTML = `
+                    <div class="pay-summary-row"><span>Месяц</span><strong>${periodLabel(state.selectedPeriod)}</strong></div>
                     <div class="pay-summary-row"><span>Тариф</span><strong>${s.tariff.name}</strong></div>
                     <div class="pay-summary-row"><span>К оплате</span><strong>${money(total)}</strong></div>
                 `;
                 return;
             }
             summaryBox.innerHTML = `
+                <div class="pay-summary-row"><span>Месяц</span><strong>${periodLabel(state.selectedPeriod)}</strong></div>
                 ${state.selectedStudents.map(student => `
-                    <div class="pay-summary-row"><span>${escapeHtml(student.full_name)}</span><strong>${money(student.amount_due || student.tariff.price)}</strong></div>
+                    <div class="pay-summary-row"><span>${escapeHtml(student.full_name)}</span><strong>${money(getStudentPeriodAmount(student))}</strong></div>
                 `).join('')}
                 <div class="pay-summary-row"><span>К оплате</span><strong>${money(total)}</strong></div>
             `;
@@ -754,7 +789,7 @@
             studentInput.value = '';
             studentInput.placeholder = 'Загрузка...';
             studentList.innerHTML = '';
-            const response = await fetch(`/api/pay/students?group_id=${encodeURIComponent(groupId)}&${getPayPeriodParams()}`);
+            const response = await fetch(`/api/pay/students?group_id=${encodeURIComponent(groupId)}`);
             const data = await response.json();
             state.students = data.students || [];
             studentInput.disabled = false;
@@ -766,6 +801,7 @@
             const digits = phoneInput.value.replace(/\D/g, '');
             state.phoneStudents = [];
             state.selectedStudents = [];
+            state.selectedPeriod = null;
             renderSummary();
             renderPhoneResults();
             if (digits.length < 9) {
@@ -774,7 +810,7 @@
             }
             phoneResults.innerHTML = '<div class="pay-empty">Ищем учеников...</div>';
             phoneResults.classList.remove('pay-step-hidden');
-            const response = await fetch(`/api/pay/students-by-phone?phone=${encodeURIComponent(phoneInput.value)}&${getPayPeriodParams()}`);
+            const response = await fetch(`/api/pay/students-by-phone?phone=${encodeURIComponent(phoneInput.value)}`);
             const data = await response.json();
             if (!data.success) {
                 phoneResults.innerHTML = `<div class="pay-empty">${escapeHtml(data.message || 'Ничего не найдено')}</div>`;
@@ -791,6 +827,7 @@
                 state.selectedStudents = [state.phoneStudents[0]];
             }
             renderPhoneResults();
+            renderPeriodOptions();
             renderSummary();
             syncSubmit();
         }
@@ -824,14 +861,15 @@
         }
 
         function handlePeriodChange() {
-            resetPaymentProgress();
+            const value = periodSelect.value;
+            state.selectedPeriod = null;
+            document.querySelectorAll('input[name="pay_method"]').forEach(item => { item.checked = false; });
+            consentInput.checked = false;
+            if (value) {
+                const [year, month] = value.split('-').map(Number);
+                state.selectedPeriod = { year, month };
+            }
             renderSummary();
-            if (state.mode === 'group' && state.selectedGroup) {
-                loadStudents(state.selectedGroup.id);
-            }
-            if (state.mode === 'phone') {
-                searchStudentsByPhone();
-            }
             syncSubmit();
         }
 
@@ -877,8 +915,7 @@
         document.querySelectorAll('input[name="pay_lookup_mode"]').forEach(input => {
             input.addEventListener('change', () => switchLookupMode(input.value));
         });
-        monthSelect.addEventListener('change', handlePeriodChange);
-        yearSelect.addEventListener('change', handlePeriodChange);
+        periodSelect.addEventListener('change', handlePeriodChange);
         phoneInput.addEventListener('focus', () => ensureUzPhonePrefix(phoneInput));
         phoneInput.addEventListener('input', () => {
             ensureUzPhonePrefix(phoneInput);
@@ -907,8 +944,8 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     student_ids: state.selectedStudents.map(student => student.id),
-                    month: Number(monthSelect.value),
-                    year: Number(yearSelect.value),
+                    month: Number(state.selectedPeriod?.month),
+                    year: Number(state.selectedPeriod?.year),
                     method: method?.value,
                     accepted_terms: consentInput.checked
                 })
@@ -930,7 +967,6 @@
             `;
         });
 
-        initPeriodSelects();
         loadOptions().catch(() => {
             resultBox.textContent = 'Не удалось загрузить данные для оплаты';
             resultBox.classList.add('error');

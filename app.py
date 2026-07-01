@@ -2710,9 +2710,6 @@ def public_pay_options():
 
 @app.route('/api/pay/students', methods=['GET'])
 def public_pay_students():
-    year, month, period_error = get_public_pay_period()
-    if period_error:
-        return jsonify({'success': False, 'message': period_error}), 400
     group_id = request.args.get('group_id', type=int)
     if not group_id:
         return jsonify({'success': False, 'message': 'Выберите группу'}), 400
@@ -2722,21 +2719,18 @@ def public_pay_students():
         Student.status == 'active'
     ).order_by(Student.full_name.asc()).all()
 
-    items = build_public_pay_students_payload(students, year, month)
+    items = build_public_pay_students_payload(students)
 
     return jsonify({'success': True, 'students': items})
 
 
-def build_public_pay_students_payload(students, year=None, month=None):
+def build_public_pay_students_payload(students):
     today = get_local_date()
-    year = year or today.year
-    month = month or today.month
-    paid_map = get_month_paid_map(year, month)
+    settings = get_club_settings_instance()
     items = []
     for student in students:
         tariff_price = float(student.tariff.price or 0) if student.tariff else 0
-        paid = float(paid_map.get(student.id, 0) or 0)
-        amount_due = max(0, tariff_price - paid)
+        unpaid_periods = build_public_unpaid_periods(student, settings, today)
         items.append({
             'id': student.id,
             'full_name': student.full_name,
@@ -2751,19 +2745,57 @@ def build_public_pay_students_payload(students, year=None, month=None):
                 'price': tariff_price,
                 'lessons_count': student.tariff.lessons_count if student.tariff else None,
             },
-            'paid_this_month': paid,
-            'amount_due': amount_due,
-            'payment_month': month,
-            'payment_year': year,
+            'unpaid_periods': unpaid_periods,
         })
     return items
 
 
+def build_public_unpaid_periods(student, settings=None, today=None):
+    settings = settings or get_club_settings_instance()
+    today = today or get_local_date()
+    if not student or not student.tariff or student.club_funded:
+        return []
+
+    floor_pair = (today.year - 2, 1)
+    start_pair = get_student_debt_start_pair(student, settings, today)
+    start_year, start_month = max(start_pair, floor_pair)
+    if (start_year, start_month) > (today.year, today.month):
+        return []
+
+    paid_rows = db.session.query(
+        Payment.payment_year,
+        Payment.payment_month,
+        func.coalesce(func.sum(Payment.amount_paid), 0)
+    ).filter(
+        Payment.student_id == student.id,
+        Payment.payment_year.isnot(None),
+        Payment.payment_month.isnot(None),
+        Payment.payment_year >= start_year,
+        Payment.payment_year <= today.year
+    ).group_by(Payment.payment_year, Payment.payment_month).all()
+    paid_by_month = {
+        (year, month): float(total or 0)
+        for year, month, total in paid_rows
+    }
+
+    tariff_price = float(student.tariff.price or 0)
+    periods = []
+    for year, month in iter_month_pairs(start_year, start_month, today.year, today.month):
+        paid = paid_by_month.get((year, month), 0)
+        amount_due = max(0, tariff_price - paid)
+        if amount_due > 0:
+            periods.append({
+                'year': year,
+                'month': month,
+                'paid': paid,
+                'amount_due': amount_due,
+                'tariff_price': tariff_price,
+            })
+    return periods
+
+
 @app.route('/api/pay/students-by-phone', methods=['GET'])
 def public_pay_students_by_phone():
-    year, month, period_error = get_public_pay_period()
-    if period_error:
-        return jsonify({'success': False, 'message': period_error}), 400
     phone = (request.args.get('phone') or '').strip()
     phone_digits = normalize_phone(phone)
     if len(phone_digits) < 7:
@@ -2777,13 +2809,13 @@ def public_pay_students_by_phone():
         student for student in candidates
         if phones_match(student.phone, phone) or phones_match(student.parent_phone, phone)
     ]
-    return jsonify({'success': True, 'students': build_public_pay_students_payload(students, year, month)})
+    return jsonify({'success': True, 'students': build_public_pay_students_payload(students)})
 
 
 @app.route('/api/pay/checkout', methods=['POST'])
 def public_pay_checkout():
     data = request.get_json(silent=True) or {}
-    year, month, period_error = get_public_pay_period(data)
+    year, month, period_error = get_public_pay_period(data, require=True)
     if period_error:
         return jsonify({'success': False, 'message': period_error}), 400
     raw_student_ids = data.get('student_ids')
@@ -2825,10 +2857,13 @@ def public_pay_checkout():
     checkout_students = []
     total_amount = 0
     for student in students:
+        unpaid_periods = build_public_unpaid_periods(student)
+        if not any(item['year'] == year and item['month'] == month for item in unpaid_periods):
+            continue
         paid = float(paid_map.get(student.id, 0) or 0)
         tariff_price = float(student.tariff.price or 0)
         amount_due = max(0, tariff_price - paid)
-        payable_amount = amount_due or tariff_price
+        payable_amount = amount_due
         total_amount += payable_amount
         checkout_students.append({
             'student_id': student.id,
@@ -2838,6 +2873,9 @@ def public_pay_checkout():
             'amount': payable_amount,
             'paid_this_month': paid,
         })
+
+    if total_amount <= 0 or not checkout_students:
+        return jsonify({'success': False, 'message': 'Выбранный месяц уже оплачен'}), 400
 
     return jsonify({
         'success': True,
@@ -2962,10 +3000,12 @@ def format_uz_phone(value: str):
     return value.strip() if value else None
 
 
-def get_public_pay_period(data=None):
+def get_public_pay_period(data=None, require=False):
     today = get_local_date()
     min_year = today.year - 2
     source = data if data is not None else request.values
+    if require and (source.get('year') in ('', None) or source.get('month') in ('', None)):
+        return None, None, 'Выберите месяц оплаты'
     try:
         year = int(source.get('year') or today.year)
         month = int(source.get('month') or today.month)
