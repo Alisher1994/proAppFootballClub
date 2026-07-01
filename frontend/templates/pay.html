@@ -150,31 +150,31 @@
         }
         .pay-mode {
             display: grid;
-            grid-template-columns: repeat(2, 132px);
+            grid-template-columns: repeat(2, 78px);
             justify-content: center;
-            gap: 12px;
+            gap: 8px;
         }
         .pay-mode label {
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            gap: 8px;
+            gap: 5px;
             aspect-ratio: 1 / 1;
             border: 1px solid #e4ddd6;
             border-radius: 8px;
             background: #f7f4f1;
             color: #475569;
-            font-size: 13px;
+            font-size: 10px;
             font-weight: 600;
             cursor: pointer;
-            padding: 12px;
+            padding: 7px;
             transition: border-color .18s ease, background-color .18s ease, color .18s ease;
         }
         .pay-mode input { display: none; }
         .pay-mode-icon {
-            width: 26px;
-            height: 26px;
+            width: 18px;
+            height: 18px;
             color: #334155;
         }
         .pay-mode label:has(input:checked) {
@@ -194,10 +194,12 @@
         }
         .pay-group-cards {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(78px, 1fr));
+            grid-template-columns: repeat(auto-fill, 78px);
+            justify-content: center;
             gap: 8px;
         }
         .pay-group-card {
+            position: relative;
             min-height: 78px;
             aspect-ratio: 1 / 1;
             border: 1px solid #e4ddd6;
@@ -212,12 +214,16 @@
             gap: 5px;
             padding: 7px;
             text-align: center;
-            font: 600 11px/1.12 var(--ui-font-family);
-            transition: border-color .18s ease, background-color .18s ease, color .18s ease, box-shadow .18s ease;
+            font: 600 10px/1.08 var(--ui-font-family);
+            transition: border-color .18s ease, background-color .18s ease, color .18s ease, box-shadow .18s ease, opacity .18s ease;
+        }
+        .pay-group-cards:has(.pay-group-card.active) .pay-group-card:not(.active) {
+            opacity: .48;
         }
         .pay-group-card:hover {
             border-color: #ffc178;
             background: #fffaf4;
+            opacity: 1 !important;
         }
         .pay-group-card.active {
             border-color: #ff8a00;
@@ -229,9 +235,21 @@
             width: 18px;
             height: 18px;
         }
+        .pay-group-check {
+            position: absolute;
+            top: 6px;
+            right: 6px;
+            display: none;
+            width: 14px;
+            height: 14px;
+            color: #d96f00;
+        }
+        .pay-group-card.active .pay-group-check {
+            display: block;
+        }
         .pay-group-name {
             display: grid;
-            gap: 2px;
+            gap: 1px;
             max-width: 100%;
         }
         .pay-group-title,
@@ -570,10 +588,10 @@
             .pay-header { justify-content: stretch; }
             .pay-header .btn-secondary { width: 100%; justify-content: center; }
             .pay-mode {
-                grid-template-columns: repeat(2, minmax(112px, 132px));
+                grid-template-columns: repeat(2, 78px);
             }
             .pay-group-cards {
-                grid-template-columns: repeat(2, minmax(0, 1fr));
+                grid-template-columns: repeat(3, 78px);
             }
             .pay-bg-video {
                 right: -8px;
@@ -909,6 +927,7 @@
                 const name = groupNameParts(group.name);
                 return `
                     <button type="button" class="pay-group-card ${state.selectedGroup?.id === group.id ? 'active' : ''}" data-id="${group.id}" title="${escapeHtml(group.name)}">
+                        <i data-lucide="check-circle" class="pay-group-check" aria-hidden="true"></i>
                         <i data-lucide="users" class="pay-group-icon" aria-hidden="true"></i>
                         <span class="pay-group-name">
                             <span class="pay-group-title">${escapeHtml(name.title)}</span>
