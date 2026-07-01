@@ -6721,7 +6721,8 @@ def normalize_payment_provider_configs(raw_configs):
     allowed_fields = {
         'enabled', 'mode', 'merchant_id', 'service_id', 'cashbox_id',
         'merchant_user_id', 'secret_key', 'token', 'api_key', 'uuid',
-        'store_id', 'endpoint_url', 'checkout_url', 'callback_url',
+        'store_id', 'agent_id', 'terminal_id', 'login', 'password',
+        'project_id', 'endpoint_url', 'checkout_url', 'callback_url',
         'webhook_sign_formula', 'account_key', 'test_amount', 'notes'
     }
     max_lengths = {
@@ -6729,6 +6730,7 @@ def normalize_payment_provider_configs(raw_configs):
         'secret_key': 500,
         'token': 500,
         'api_key': 500,
+        'password': 500,
         'endpoint_url': 500,
         'checkout_url': 500,
         'callback_url': 500,

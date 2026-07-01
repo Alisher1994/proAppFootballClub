@@ -30,63 +30,121 @@ const PAYMENT_PROVIDER_DEFINITIONS = [
     {
         id: 'payme',
         title: 'Payme',
+        logo: '/static/uploads/payme.png',
         docsUrl: 'https://developer.help.paycom.uz/',
         note: 'Merchant API: JSON-RPC callback с CheckPerformTransaction, CreateTransaction, PerformTransaction, CancelTransaction.',
-        example: 'Sandbox: merchant_id + secret/test key. Account key обычно student_id или payment_id.'
+        example: 'Sandbox: merchant_id + secret/test key. Account key обычно student_id или payment_id.',
+        fields: [
+            { key: 'merchant_id', label: 'Merchant ID', placeholder: 'ID кассы Payme' },
+            { key: 'login', label: 'Login', placeholder: 'Paycom login' },
+            { key: 'secret_key', label: 'Secret / test key', placeholder: 'Ключ кассы', type: 'password', wide: true },
+            { key: 'account_key', label: 'Account field', placeholder: 'student_id или payment_id' },
+            { key: 'checkout_url', label: 'Pay URL', placeholder: 'https://checkout.paycom.uz/...' },
+            { key: 'callback_url', label: 'Callback URL', placeholder: '/api/payments/payme/callback', wide: true },
+            { key: 'test_amount', label: 'Тестовая сумма', placeholder: '1000' },
+            { key: 'notes', label: 'Заметки', placeholder: 'Доступы/условия из кабинета Payme', wide: true }
+        ]
     },
     {
         id: 'click',
         title: 'Click',
+        logo: '/static/uploads/click.png',
         docsUrl: 'https://docs.click.uz/',
         note: 'Merchant Billing API: prepare/complete callback, service_id, merchant_id, merchant_user_id и secret_key.',
-        example: 'Sandbox: проверьте sign_string и action 0/1 на тестовой оплате.'
+        example: 'Sandbox: проверьте sign_string и action 0/1 на тестовой оплате.',
+        fields: [
+            { key: 'merchant_id', label: 'Merchant ID', placeholder: 'merchant_id' },
+            { key: 'service_id', label: 'Service ID', placeholder: 'service_id' },
+            { key: 'merchant_user_id', label: 'Merchant user ID', placeholder: 'merchant_user_id' },
+            { key: 'secret_key', label: 'Secret key', placeholder: 'secret_key', type: 'password', wide: true },
+            { key: 'endpoint_url', label: 'Merchant endpoint', placeholder: 'https://api.click.uz/...' },
+            { key: 'callback_url', label: 'Prepare/Complete URL', placeholder: '/api/payments/click/callback', wide: true },
+            { key: 'test_amount', label: 'Тестовая сумма', placeholder: '1000' },
+            { key: 'notes', label: 'Заметки', placeholder: 'Action 0/1, sign_string, параметры кабинета', wide: true }
+        ]
     },
     {
         id: 'uzum',
         title: 'Uzum Bank',
+        logo: '/static/uploads/uzum.png',
         docsUrl: 'https://developer.uzumbank.uz/',
         note: 'Подготовлено под Checkout/Merchant/Dynamic QR: ID мерчанта, сервис, секрет и callback.',
-        example: 'После выдачи кабинета внесем точный endpoint песочницы и метод оплаты.'
+        example: 'После выдачи кабинета внесем точный endpoint песочницы и метод оплаты.',
+        fields: [
+            { key: 'merchant_id', label: 'Merchant ID', placeholder: 'ID мерчанта' },
+            { key: 'service_id', label: 'Service / shop ID', placeholder: 'service_id или shop_id' },
+            { key: 'cashbox_id', label: 'Terminal / cashbox ID', placeholder: 'terminal_id' },
+            { key: 'secret_key', label: 'Secret key', placeholder: 'secret_key', type: 'password', wide: true },
+            { key: 'token', label: 'Access token', placeholder: 'token', type: 'password', wide: true },
+            { key: 'endpoint_url', label: 'API endpoint', placeholder: 'https://...' },
+            { key: 'checkout_url', label: 'Checkout URL', placeholder: 'https://...' },
+            { key: 'callback_url', label: 'Callback URL', placeholder: '/api/payments/uzum/callback', wide: true },
+            { key: 'account_key', label: 'Account field', placeholder: 'student_id или payment_id' },
+            { key: 'test_amount', label: 'Тестовая сумма', placeholder: '1000' },
+            { key: 'notes', label: 'Заметки', placeholder: 'Что выдаст кабинет Uzum', wide: true }
+        ]
     },
     {
         id: 'oson',
         title: 'OSON',
+        logo: '/static/uploads/oson.jpeg',
         docsUrl: 'https://docs.oson.com/',
         note: 'Подготовлено под кассу/merchant account: cashbox/service ID, secret/token и callback статусов.',
-        example: 'Для теста нужен ключ кассы и тестовый endpoint из кабинета OSON.'
+        example: 'Для теста нужен ключ кассы и тестовый endpoint из кабинета OSON.',
+        fields: [
+            { key: 'merchant_id', label: 'Merchant ID', placeholder: 'merchant_id' },
+            { key: 'service_id', label: 'Service ID', placeholder: 'service_id' },
+            { key: 'cashbox_id', label: 'Cashbox ID', placeholder: 'cashbox_id' },
+            { key: 'secret_key', label: 'Secret key', placeholder: 'secret_key', type: 'password', wide: true },
+            { key: 'token', label: 'Token', placeholder: 'api token', type: 'password', wide: true },
+            { key: 'endpoint_url', label: 'API endpoint', placeholder: 'https://...' },
+            { key: 'callback_url', label: 'Callback URL', placeholder: '/api/payments/oson/callback', wide: true },
+            { key: 'account_key', label: 'Account field', placeholder: 'student_id или payment_id' },
+            { key: 'test_amount', label: 'Тестовая сумма', placeholder: '1000' },
+            { key: 'notes', label: 'Заметки', placeholder: 'Касса, услуга, тестовые параметры', wide: true }
+        ]
     },
     {
         id: 'paynet',
         title: 'Paynet',
+        logo: '/static/uploads/paynet.png',
         docsUrl: 'https://github.com/PayTechUz/paynet-pkg',
         note: 'Подготовлено под узбекский Paynet: параметры агента/услуги, токен, endpoint и callback заполняются после договора.',
-        example: 'Публичные примеры есть у PayTechUZ, production включайте только после выдачи официальных параметров Paynet Uzbekistan.'
+        example: 'Публичные примеры есть у PayTechUZ, production включайте только после выдачи официальных параметров Paynet Uzbekistan.',
+        fields: [
+            { key: 'agent_id', label: 'Agent ID', placeholder: 'agent_id' },
+            { key: 'service_id', label: 'Service ID', placeholder: 'service_id' },
+            { key: 'terminal_id', label: 'Terminal ID', placeholder: 'terminal_id' },
+            { key: 'secret_key', label: 'Secret key', placeholder: 'secret_key', type: 'password', wide: true },
+            { key: 'token', label: 'Token', placeholder: 'api token', type: 'password', wide: true },
+            { key: 'endpoint_url', label: 'API endpoint', placeholder: 'https://...' },
+            { key: 'callback_url', label: 'Callback URL', placeholder: '/api/payments/paynet/callback', wide: true },
+            { key: 'account_key', label: 'Account field', placeholder: 'student_id или payment_id' },
+            { key: 'test_amount', label: 'Тестовая сумма', placeholder: '1000' },
+            { key: 'notes', label: 'Заметки', placeholder: 'Параметры от Paynet после договора', wide: true }
+        ]
     },
     {
         id: 'multicard',
         title: 'Multicard',
+        logo: '/static/uploads/multicard.png',
         docsUrl: 'https://docs.multicard.uz/introduction-4736405f0',
         note: 'Единая интеграция: sandbox/prod API, token на 24 часа, invoice checkout_url/short_link и webhook статуса.',
-        example: 'Sandbox endpoint: https://dev-mesh.multicard.uz/. Production: https://mesh.multicard.uz/. Webhook sign: sha1(uuid + invoice_id + amount + secret).'
+        example: 'Sandbox endpoint: https://dev-mesh.multicard.uz/. Production: https://mesh.multicard.uz/. Webhook sign: sha1(uuid + invoice_id + amount + secret).',
+        fields: [
+            { key: 'uuid', label: 'UUID', placeholder: 'uuid проекта/мерчанта' },
+            { key: 'store_id', label: 'Store ID', placeholder: 'store_id' },
+            { key: 'api_key', label: 'API key', placeholder: 'api key', type: 'password', wide: true },
+            { key: 'secret_key', label: 'Webhook secret', placeholder: 'secret для sign', type: 'password', wide: true },
+            { key: 'token', label: 'Bearer token', placeholder: 'токен на 24 часа', type: 'password', wide: true },
+            { key: 'endpoint_url', label: 'API endpoint', placeholder: 'https://dev-mesh.multicard.uz/' },
+            { key: 'checkout_url', label: 'Checkout URL', placeholder: 'checkout_url / short_link' },
+            { key: 'callback_url', label: 'Webhook URL', placeholder: '/api/payments/multicard/callback', wide: true },
+            { key: 'webhook_sign_formula', label: 'Webhook sign', placeholder: 'sha1(uuid + invoice_id + amount + secret)', wide: true },
+            { key: 'test_amount', label: 'Тестовая сумма', placeholder: '1000' },
+            { key: 'notes', label: 'Заметки', placeholder: 'Тестовая карта, OTP, статусные callbacks', wide: true }
+        ]
     }
-];
-const PAYMENT_PROVIDER_FIELDS = [
-    { key: 'merchant_id', label: 'Merchant ID', placeholder: 'merchant_id / m' },
-    { key: 'service_id', label: 'Service ID', placeholder: 'service_id' },
-    { key: 'cashbox_id', label: 'Cashbox / Terminal ID', placeholder: 'cashbox_id' },
-    { key: 'merchant_user_id', label: 'Merchant user ID', placeholder: 'merchant_user_id' },
-    { key: 'uuid', label: 'UUID / Project ID', placeholder: 'uuid из кабинета' },
-    { key: 'store_id', label: 'Store / Point ID', placeholder: 'store_id' },
-    { key: 'secret_key', label: 'Secret / test key', placeholder: 'sandbox secret', type: 'password', wide: true },
-    { key: 'api_key', label: 'API key', placeholder: 'api key', type: 'password', wide: true },
-    { key: 'token', label: 'Token', placeholder: 'api token', type: 'password', wide: true },
-    { key: 'endpoint_url', label: 'Sandbox endpoint', placeholder: 'https://...', wide: true },
-    { key: 'checkout_url', label: 'Checkout / pay URL', placeholder: 'https://...', wide: true },
-    { key: 'callback_url', label: 'Callback URL для кабинета', placeholder: '/api/payments/provider/callback', wide: true },
-    { key: 'webhook_sign_formula', label: 'Webhook sign', placeholder: 'sha1(uuid + invoice_id + amount + secret)', wide: true },
-    { key: 'account_key', label: 'Account key', placeholder: 'student_id или payment_id' },
-    { key: 'test_amount', label: 'Тестовая сумма', placeholder: '1000' },
-    { key: 'notes', label: 'Заметки', placeholder: 'Что выдали в кабинете', wide: true }
 ];
 
 async function initSettings() {
@@ -389,7 +447,7 @@ function renderPaymentProviderConfigs() {
     container.innerHTML = PAYMENT_PROVIDER_DEFINITIONS.map((provider) => {
         const config = paymentProviderConfigs[provider.id] || {};
         const mode = config.mode === 'production' ? 'production' : 'sandbox';
-        const fieldsHtml = PAYMENT_PROVIDER_FIELDS.map((field) => {
+        const fieldsHtml = (provider.fields || []).map((field) => {
             const fieldValue = field.key === 'callback_url'
                 ? (config[field.key] || getDefaultProviderCallback(provider.id))
                 : (config[field.key] || '');
@@ -419,7 +477,7 @@ function renderPaymentProviderConfigs() {
                 <div class="payment-provider-card-header">
                     <div>
                         <div class="payment-provider-title">
-                            <i data-lucide="plug-zap"></i>
+                            <img src="${escapeHtml(provider.logo)}" alt="${escapeHtml(provider.title)}" class="payment-provider-logo">
                             <span>${escapeHtml(provider.title)}</span>
                         </div>
                         <p class="payment-provider-note">${escapeHtml(provider.note)}</p>
