@@ -488,15 +488,15 @@
             });
         }
 
-        function showGroupOptions() {
-            const query = groupInput.value.trim().toLowerCase();
+        function showGroupOptions(showAll = false) {
+            const query = showAll ? '' : groupInput.value.trim().toLowerCase();
             const items = state.groups.filter(group => String(group.name || '').toLowerCase().includes(query));
             renderDropdown(groupList, items, 'name', selectGroup);
         }
 
-        function showStudentOptions() {
+        function showStudentOptions(showAll = false) {
             if (studentInput.disabled) return;
-            const query = studentInput.value.trim().toLowerCase();
+            const query = showAll ? '' : studentInput.value.trim().toLowerCase();
             const items = state.students.filter(student => String(student.full_name || '').toLowerCase().includes(query));
             renderDropdown(studentList, items, 'full_name', selectStudent);
         }
@@ -612,8 +612,10 @@
             showStudentOptions();
         });
 
-        groupInput.addEventListener('focus', showGroupOptions);
-        studentInput.addEventListener('focus', showStudentOptions);
+        groupInput.addEventListener('focus', () => showGroupOptions(true));
+        groupInput.addEventListener('click', () => showGroupOptions(Boolean(state.selectedGroup)));
+        studentInput.addEventListener('focus', () => showStudentOptions(true));
+        studentInput.addEventListener('click', () => showStudentOptions(Boolean(state.selectedStudent)));
 
         document.addEventListener('click', event => {
             if (!event.target.closest('.pay-combobox')) {
