@@ -2652,18 +2652,26 @@
                                             <div class="payment-method-item">
                                                 <div class="payment-method-row">
                                                     <div class="payment-method-title">
-                                                        <img src="{{ url_for('static', filename='uploads/xazna.png') }}"
-                                                            alt="Xazna" class="payment-method-icon">
-                                                        <div class="payment-method-name">Xazna</div>
+                                                        <div class="payment-method-icon"
+                                                            style="display:flex;align-items:center;justify-content:center;">
+                                                            <svg xmlns="http://www.w3.org/2000/svg" width="24"
+                                                                height="24" viewBox="0 0 24 24" fill="none"
+                                                                stroke="currentColor" stroke-width="1.5"
+                                                                stroke-linecap="round" stroke-linejoin="round">
+                                                                <rect width="20" height="14" x="2" y="5" rx="2" />
+                                                                <path d="M2 10h20" />
+                                                            </svg>
+                                                        </div>
+                                                        <div class="payment-method-name">Multicard</div>
                                                     </div>
                                                     <label class="switch-toggle">
-                                                        <input type="checkbox" id="payment_xazna_enabled">
+                                                        <input type="checkbox" id="payment_multicard_enabled">
                                                         <span class="switch-slider"></span>
                                                     </label>
                                                 </div>
                                                 <div class="payment-method-input">
-                                                    <label for="payment_xazna_qr_url">Ссылка на QR-код</label>
-                                                    <input type="text" id="payment_xazna_qr_url"
+                                                    <label for="payment_multicard_qr_url">Ссылка на QR-код</label>
+                                                    <input type="text" id="payment_multicard_qr_url"
                                                         class="form-input-modern" placeholder="https://...">
                                                 </div>
                                             </div>

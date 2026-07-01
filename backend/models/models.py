@@ -508,8 +508,8 @@ class ClubSettings(db.Model):
     payment_humo_enabled = db.Column(db.Boolean, default=False)  # Включен HUMO
     payment_paynet_enabled = db.Column(db.Boolean, default=False)  # Включен Paynet
     payment_paynet_qr_url = db.Column(db.String(500), nullable=True)  # QR для Paynet
-    payment_xazna_enabled = db.Column(db.Boolean, default=False)  # Включен Xazna
-    payment_xazna_qr_url = db.Column(db.String(500), nullable=True)  # QR для Xazna
+    payment_multicard_enabled = db.Column(db.Boolean, default=False)  # Включен Multicard
+    payment_multicard_qr_url = db.Column(db.String(500), nullable=True)  # QR для Multicard
     payment_oson_enabled = db.Column(db.Boolean, default=False)  # Включен Oson
     payment_oson_qr_url = db.Column(db.String(500), nullable=True)  # QR для Oson
     payment_transfer_enabled = db.Column(db.Boolean, default=False)  # Включен Перечисление

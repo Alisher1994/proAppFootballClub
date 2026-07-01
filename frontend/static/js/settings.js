@@ -58,16 +58,16 @@ const PAYMENT_PROVIDER_DEFINITIONS = [
     {
         id: 'paynet',
         title: 'Paynet',
-        docsUrl: 'https://docs.developer.paynet.my/docs',
-        note: 'Ссылки ведут на Malaysia PayNet. Для узбекского Paynet оставляем поля как заготовку до кабинета/документации.',
-        example: 'Не включайте production, пока Paynet не даст локальные параметры интеграции.'
+        docsUrl: 'https://github.com/PayTechUz/paynet-pkg',
+        note: 'Подготовлено под узбекский Paynet: параметры агента/услуги, токен, endpoint и callback заполняются после договора.',
+        example: 'Публичные примеры есть у PayTechUZ, production включайте только после выдачи официальных параметров Paynet Uzbekistan.'
     },
     {
-        id: 'xazna',
-        title: 'Xazna',
-        docsUrl: '',
-        note: 'Документация не найдена. Поля оставлены для ручного подключения после выдачи условий интеграции.',
-        example: 'Когда дадут доступ, добавим protocol/callback и проверим песочницу.'
+        id: 'multicard',
+        title: 'Multicard',
+        docsUrl: 'https://docs.multicard.uz/introduction-4736405f0',
+        note: 'Единая интеграция: sandbox/prod API, token на 24 часа, invoice checkout_url/short_link и webhook статуса.',
+        example: 'Sandbox endpoint: https://dev-mesh.multicard.uz/. Production: https://mesh.multicard.uz/. Webhook sign: sha1(uuid + invoice_id + amount + secret).'
     }
 ];
 const PAYMENT_PROVIDER_FIELDS = [
@@ -75,11 +75,15 @@ const PAYMENT_PROVIDER_FIELDS = [
     { key: 'service_id', label: 'Service ID', placeholder: 'service_id' },
     { key: 'cashbox_id', label: 'Cashbox / Terminal ID', placeholder: 'cashbox_id' },
     { key: 'merchant_user_id', label: 'Merchant user ID', placeholder: 'merchant_user_id' },
+    { key: 'uuid', label: 'UUID / Project ID', placeholder: 'uuid из кабинета' },
+    { key: 'store_id', label: 'Store / Point ID', placeholder: 'store_id' },
     { key: 'secret_key', label: 'Secret / test key', placeholder: 'sandbox secret', type: 'password', wide: true },
+    { key: 'api_key', label: 'API key', placeholder: 'api key', type: 'password', wide: true },
     { key: 'token', label: 'Token', placeholder: 'api token', type: 'password', wide: true },
     { key: 'endpoint_url', label: 'Sandbox endpoint', placeholder: 'https://...', wide: true },
     { key: 'checkout_url', label: 'Checkout / pay URL', placeholder: 'https://...', wide: true },
     { key: 'callback_url', label: 'Callback URL для кабинета', placeholder: '/api/payments/provider/callback', wide: true },
+    { key: 'webhook_sign_formula', label: 'Webhook sign', placeholder: 'sha1(uuid + invoice_id + amount + secret)', wide: true },
     { key: 'account_key', label: 'Account key', placeholder: 'student_id или payment_id' },
     { key: 'test_amount', label: 'Тестовая сумма', placeholder: '1000' },
     { key: 'notes', label: 'Заметки', placeholder: 'Что выдали в кабинете', wide: true }
@@ -549,8 +553,8 @@ async function loadSettings() {
         const humoEnabledEl = document.getElementById('payment_humo_enabled');
         const paynetEnabledEl = document.getElementById('payment_paynet_enabled');
         const paynetQrEl = document.getElementById('payment_paynet_qr_url');
-        const xaznaEnabledEl = document.getElementById('payment_xazna_enabled');
-        const xaznaQrEl = document.getElementById('payment_xazna_qr_url');
+        const multicardEnabledEl = document.getElementById('payment_multicard_enabled');
+        const multicardQrEl = document.getElementById('payment_multicard_qr_url');
         const osonEnabledEl = document.getElementById('payment_oson_enabled');
         const osonQrEl = document.getElementById('payment_oson_qr_url');
         const transferEnabledEl = document.getElementById('payment_transfer_enabled');
@@ -565,8 +569,8 @@ async function loadSettings() {
         if (humoEnabledEl) humoEnabledEl.checked = !!data.payment_humo_enabled;
         if (paynetEnabledEl) paynetEnabledEl.checked = !!data.payment_paynet_enabled;
         if (paynetQrEl) paynetQrEl.value = data.payment_paynet_qr_url || '';
-        if (xaznaEnabledEl) xaznaEnabledEl.checked = !!data.payment_xazna_enabled;
-        if (xaznaQrEl) xaznaQrEl.value = data.payment_xazna_qr_url || '';
+        if (multicardEnabledEl) multicardEnabledEl.checked = !!data.payment_multicard_enabled;
+        if (multicardQrEl) multicardQrEl.value = data.payment_multicard_qr_url || '';
         if (osonEnabledEl) osonEnabledEl.checked = !!data.payment_oson_enabled;
         if (osonQrEl) osonQrEl.value = data.payment_oson_qr_url || '';
         if (transferEnabledEl) transferEnabledEl.checked = !!data.payment_transfer_enabled;
@@ -965,8 +969,8 @@ function gatherAllSettings() {
         payment_humo_enabled: document.getElementById('payment_humo_enabled')?.checked || false,
         payment_paynet_enabled: document.getElementById('payment_paynet_enabled')?.checked || false,
         payment_paynet_qr_url: (document.getElementById('payment_paynet_qr_url')?.value || '').trim(),
-        payment_xazna_enabled: document.getElementById('payment_xazna_enabled')?.checked || false,
-        payment_xazna_qr_url: (document.getElementById('payment_xazna_qr_url')?.value || '').trim(),
+        payment_multicard_enabled: document.getElementById('payment_multicard_enabled')?.checked || false,
+        payment_multicard_qr_url: (document.getElementById('payment_multicard_qr_url')?.value || '').trim(),
         payment_oson_enabled: document.getElementById('payment_oson_enabled')?.checked || false,
         payment_oson_qr_url: (document.getElementById('payment_oson_qr_url')?.value || '').trim(),
         payment_transfer_enabled: document.getElementById('payment_transfer_enabled')?.checked || false,

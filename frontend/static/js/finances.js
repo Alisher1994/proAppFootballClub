@@ -1144,7 +1144,7 @@ let paymentMethodSettings = {
     card: { enabled: true, qrUrl: '' },
     humo: { enabled: false, qrUrl: '' },
     paynet: { enabled: false, qrUrl: '' },
-    xazna: { enabled: false, qrUrl: '' },
+    multicard: { enabled: false, qrUrl: '' },
     oson: { enabled: false, qrUrl: '' },
     transfer: { enabled: false, qrUrl: '' }
 };
@@ -1180,9 +1180,9 @@ async function loadPaymentMethodSettings() {
                 enabled: !!data.payment_paynet_enabled,
                 qrUrl: data.payment_paynet_qr_url || ''
             },
-            xazna: {
-                enabled: !!data.payment_xazna_enabled,
-                qrUrl: data.payment_xazna_qr_url || ''
+            multicard: {
+                enabled: !!data.payment_multicard_enabled,
+                qrUrl: data.payment_multicard_qr_url || ''
             },
             oson: {
                 enabled: !!data.payment_oson_enabled,
@@ -1208,7 +1208,7 @@ function applyPaymentMethodSettings() {
         card: paymentMethodSettings.card,
         humo: paymentMethodSettings.humo,
         paynet: paymentMethodSettings.paynet,
-        xazna: paymentMethodSettings.xazna,
+        multicard: paymentMethodSettings.multicard,
         oson: paymentMethodSettings.oson,
         transfer: paymentMethodSettings.transfer
     };
@@ -1247,7 +1247,7 @@ function getPaymentDisplayName(paymentType) {
         card: 'UZCARD',
         humo: 'HUMO',
         paynet: 'Paynet',
-        xazna: 'Xazna',
+        multicard: 'Multicard',
         oson: 'Oson',
         click: 'Click',
         payme: 'Payme',
@@ -1896,7 +1896,7 @@ function renderIncomeTable(payments) {
         'payme': 'Payme',
         'uzum': 'Uzum',
         'paynet': 'Paynet',
-        'xazna': 'Xazna',
+        'multicard': 'Multicard',
         'oson': 'Oson'
     };
 
