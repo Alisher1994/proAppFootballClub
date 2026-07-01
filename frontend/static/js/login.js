@@ -1,4 +1,14 @@
-document.getElementById('loginForm').addEventListener('submit', async (e) => {
+const loginForm = document.getElementById('loginForm');
+const forgotPasswordForm = document.getElementById('forgotPasswordForm');
+const resetPasswordForm = document.getElementById('resetPasswordForm');
+
+function showLoginPanel(panel) {
+    if (loginForm) loginForm.style.display = panel === 'login' ? '' : 'none';
+    if (forgotPasswordForm) forgotPasswordForm.style.display = panel === 'forgot' ? '' : 'none';
+    if (resetPasswordForm) resetPasswordForm.style.display = panel === 'reset' ? '' : 'none';
+}
+
+loginForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     
     const username = document.getElementById('username').value;
@@ -28,6 +38,78 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
         }
     } catch (error) {
         errorDiv.textContent = 'Ошибка соединения с сервером';
+    }
+});
+
+(() => {
+    const errorDiv = document.getElementById('error-message');
+    const params = new URLSearchParams(window.location.search);
+    const resetToken = resetPasswordForm?.dataset.resetToken || '';
+    const errorMap = {
+        google_not_configured: 'Google авторизация еще не настроена.',
+        google_user_not_found: 'Пользователь с данной электронной почтой не найден.',
+        google_cancelled: 'Вход через Google отменен.',
+        google_state: 'Сессия Google входа устарела. Попробуйте еще раз.',
+        google_failed: 'Не удалось выполнить вход через Google.',
+        google_email: 'Google не вернул электронную почту.',
+        google_already_linked: 'Этот Google Account уже привязан к другому пользователю.',
+        guest_role: 'Эта роль предназначена только для прохода через Face ID.',
+        inactive_user: 'Аккаунт отключен.'
+    };
+
+    if (resetToken) {
+        showLoginPanel('reset');
+        return;
+    }
+
+    const error = params.get('error');
+    if (error && errorDiv) {
+        errorDiv.textContent = errorMap[error] || 'Ошибка входа';
+    }
+})();
+
+document.getElementById('forgotPasswordBtn')?.addEventListener('click', () => {
+    showLoginPanel('forgot');
+});
+
+document.getElementById('backToLoginFromForgot')?.addEventListener('click', () => {
+    showLoginPanel('login');
+});
+
+forgotPasswordForm?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const message = document.getElementById('forgot-message');
+    message.textContent = '';
+    const response = await fetch('/api/password/forgot', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: document.getElementById('forgot-email').value.trim() })
+    });
+    const result = await response.json();
+    message.textContent = result.message || (result.success ? 'Письмо отправлено' : 'Ошибка');
+});
+
+resetPasswordForm?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const message = document.getElementById('reset-message');
+    message.textContent = '';
+    const response = await fetch('/api/password/reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            token: resetPasswordForm.dataset.resetToken || '',
+            new_password: document.getElementById('reset-new-password').value,
+            confirm_password: document.getElementById('reset-confirm-password').value
+        })
+    });
+    const result = await response.json();
+    message.textContent = result.message || (result.success ? 'Пароль обновлен' : 'Ошибка');
+    if (result.success) {
+        resetPasswordForm.reset();
+        setTimeout(() => {
+            window.history.replaceState({}, '', '/login');
+            showLoginPanel('login');
+        }, 1400);
     }
 });
 

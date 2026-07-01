@@ -1387,6 +1387,8 @@
                                 <th>Фото</th>
                                 <th>Имя пользователя</th>
                                 <th>Полное имя</th>
+                                <th>Телефон</th>
+                                <th>Email</th>
                                 <th>Роль</th>
                                 <th>Зарплата</th>
                                 <th>Сумма зарплаты</th>
@@ -1397,7 +1399,7 @@
                         </thead>
                         <tbody id="users-table-body">
                             <tr>
-                                <td colspan="9" class="info-text">Загрузка...</td>
+                                <td colspan="11" class="info-text">Загрузка...</td>
                             </tr>
                         </tbody>
                     </table>
@@ -1471,6 +1473,18 @@
                                 <label>Полное имя</label>
                                 <input type="text" id="user-full-name" class="form-input-modern"
                                     placeholder="Введите полное имя">
+                            </div>
+
+                            <div class="form-group">
+                                <label>Номер телефона</label>
+                                <input type="tel" id="user-phone" class="form-input-modern"
+                                    placeholder="+998 XX XXX XX XX">
+                            </div>
+
+                            <div class="form-group">
+                                <label>Электронная почта</label>
+                                <input type="email" id="user-email" class="form-input-modern"
+                                    placeholder="name@example.com">
                             </div>
 
                             <div class="form-group">

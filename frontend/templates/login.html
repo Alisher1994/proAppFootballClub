@@ -43,7 +43,38 @@
                 </div>
                 
                 <button type="submit" class="btn-primary">Войти</button>
+                <a class="google-login-btn" href="{{ url_for('google_login') }}">
+                    <svg viewBox="0 0 48 48" aria-hidden="true">
+                        <path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.5l6.7-6.7C35.6 2.5 30.3 0 24 0 14.6 0 6.5 5.4 2.6 13.2l7.8 6.1C12.2 13.6 17.5 9.5 24 9.5z"/>
+                        <path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v8.5h12.6c-.5 2.9-2.2 5.4-4.7 7.1l7.3 5.7c4.3-4 7.3-9.9 7.3-16.8z"/>
+                        <path fill="#FBBC05" d="M10.4 28.7A14.7 14.7 0 0 1 9.6 24c0-1.6.3-3.2.8-4.7l-7.8-6.1A24 24 0 0 0 0 24c0 3.9.9 7.6 2.6 10.8l7.8-6.1z"/>
+                        <path fill="#34A853" d="M24 48c6.5 0 12-2.1 16-5.8l-7.3-5.7c-2 1.4-4.7 2.2-8.7 2.2-6.5 0-11.8-4.1-13.6-9.8l-7.8 6.1C6.5 42.6 14.6 48 24 48z"/>
+                    </svg>
+                    <span>Войти через Google</span>
+                </a>
+                <button type="button" id="forgotPasswordBtn" class="login-link-btn">Забыли пароль?</button>
                 <div id="error-message" class="error"></div>
+            </form>
+            <form id="forgotPasswordForm" style="display:none;">
+                <div class="form-group">
+                    <label>Электронная почта</label>
+                    <input type="email" id="forgot-email" required>
+                </div>
+                <button type="submit" class="btn-primary">Отправить ссылку</button>
+                <button type="button" class="login-link-btn" id="backToLoginFromForgot">Вернуться ко входу</button>
+                <div id="forgot-message" class="error"></div>
+            </form>
+            <form id="resetPasswordForm" data-reset-token="{{ reset_token or '' }}" style="display:none;">
+                <div class="form-group">
+                    <label>Новый пароль</label>
+                    <input type="password" id="reset-new-password" required>
+                </div>
+                <div class="form-group">
+                    <label>Подтвердить пароль</label>
+                    <input type="password" id="reset-confirm-password" required>
+                </div>
+                <button type="submit" class="btn-primary">Сохранить пароль</button>
+                <div id="reset-message" class="error"></div>
             </form>
         </div>
     </div>

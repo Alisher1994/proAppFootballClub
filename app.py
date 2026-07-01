@@ -8,6 +8,9 @@ import re
 import calendar
 import uuid
 import requests
+import hashlib
+import smtplib
+import secrets
 import cv2
 import numpy as np
 from datetime import datetime, timedelta, date, timezone
@@ -21,6 +24,13 @@ from werkzeug.utils import secure_filename
 from sqlalchemy import func, or_
 from sqlalchemy.orm import joinedload
 import pytz
+from email.message import EmailMessage
+from urllib.parse import urlencode
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except Exception:
+    pass
 from PIL import Image, ImageDraw, ImageFont
 import psutil
 try:
@@ -106,8 +116,14 @@ if database_url:
     # Railway PostgreSQL использует postgres://, но SQLAlchemy требует postgresql://
     if database_url.startswith('postgres://'):
         database_url = database_url.replace('postgres://', 'postgresql://', 1)
+    elif database_url.startswith('sqlite:///') and not database_url.startswith('sqlite:////'):
+        sqlite_path = database_url.replace('sqlite:///', '', 1)
+        if not os.path.isabs(sqlite_path):
+            sqlite_path = os.path.join(basedir, sqlite_path)
+        database_url = 'sqlite:///' + sqlite_path.replace('\\', '/')
     app.config['SQLALCHEMY_DATABASE_URI'] = database_url
-    print(f"✅ ИСПОЛЬЗУЕТСЯ POSTGRESQL: {database_url.split('@')[-1]}") # Логируем (без пароля)
+    db_label = 'POSTGRESQL' if database_url.startswith('postgresql://') else 'SQLITE'
+    print(f"✅ ИСПОЛЬЗУЕТСЯ {db_label}: {database_url.split('@')[-1]}") # Логируем (без пароля)
 else:
     # Локальная разработка - SQLite
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'database', 'football_school.db')
@@ -117,6 +133,13 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['UPLOAD_FOLDER'] = os.path.join(basedir, 'frontend', 'static', 'uploads')
 
 UPLOAD_FOLDER = app.config['UPLOAD_FOLDER']
+
+GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID', '').strip()
+GOOGLE_CLIENT_SECRET = os.environ.get('GOOGLE_CLIENT_SECRET', '').strip()
+GOOGLE_OAUTH_AUTHORIZE_URL = 'https://accounts.google.com/o/oauth2/v2/auth'
+GOOGLE_OAUTH_TOKEN_URL = 'https://oauth2.googleapis.com/token'
+GOOGLE_OAUTH_USERINFO_URL = 'https://www.googleapis.com/oauth2/v3/userinfo'
+PASSWORD_RESET_TOKEN_TTL_HOURS = int(os.environ.get('PASSWORD_RESET_TOKEN_TTL_HOURS', '2') or 2)
 
 db.init_app(app)
 bcrypt = Bcrypt(app)
@@ -151,6 +174,62 @@ def get_cached_font():
         except: continue
     GLOBAL_FONT = ImageFont.load_default()
     return GLOBAL_FONT
+
+
+def normalize_email(value):
+    return (value or '').strip().lower()
+
+
+def token_hash(value):
+    return hashlib.sha256((value or '').encode('utf-8')).hexdigest()
+
+
+def absolute_url(endpoint, **values):
+    return url_for(endpoint, _external=True, **values)
+
+
+def get_google_redirect_uri():
+    return absolute_url('google_callback')
+
+
+def smtp_configured():
+    required = ['SMTP_HOST', 'SMTP_PORT', 'SMTP_USERNAME', 'SMTP_PASSWORD', 'MAIL_FROM']
+    return all((os.environ.get(key) or '').strip() for key in required)
+
+
+def send_email_message(to_email, subject, body):
+    if not smtp_configured():
+        raise RuntimeError('SMTP не настроен. Укажите SMTP_HOST, SMTP_PORT, SMTP_USERNAME, SMTP_PASSWORD и MAIL_FROM.')
+
+    msg = EmailMessage()
+    msg['Subject'] = subject
+    msg['From'] = os.environ.get('MAIL_FROM')
+    msg['To'] = to_email
+    msg.set_content(body)
+
+    host = os.environ.get('SMTP_HOST')
+    port = int(os.environ.get('SMTP_PORT', '587') or 587)
+    username = os.environ.get('SMTP_USERNAME')
+    password = os.environ.get('SMTP_PASSWORD')
+    use_ssl = (os.environ.get('SMTP_USE_SSL') or '').strip().lower() in ('1', 'true', 'yes')
+
+    if use_ssl:
+        with smtplib.SMTP_SSL(host, port, timeout=20) as server:
+            server.login(username, password)
+            server.send_message(msg)
+    else:
+        with smtplib.SMTP(host, port, timeout=20) as server:
+            server.starttls()
+            server.login(username, password)
+            server.send_message(msg)
+
+
+def redirect_after_login(user):
+    if user.role == 'payment_admin':
+        return '/mobile-payments'
+    if user.role == 'teacher':
+        return '/teacher-attendance'
+    return '/dashboard'
 
 class VideoCamera(object):
     def __init__(self, url):
@@ -1173,6 +1252,33 @@ def ensure_users_table_columns():
                 db.session.rollback()
                 if "duplicate column" not in str(e).lower():
                     print(f"Ошибка при добавлении full_name: {e}")
+
+        extra_columns = {
+            'phone': "ALTER TABLE users ADD COLUMN phone VARCHAR(30)",
+            'email': "ALTER TABLE users ADD COLUMN email VARCHAR(255)",
+            'google_sub': "ALTER TABLE users ADD COLUMN google_sub VARCHAR(255)",
+            'password_reset_token_hash': "ALTER TABLE users ADD COLUMN password_reset_token_hash VARCHAR(128)",
+            'password_reset_expires_at': "ALTER TABLE users ADD COLUMN password_reset_expires_at TIMESTAMP",
+        }
+        for column_name, statement in extra_columns.items():
+            if column_name not in columns:
+                try:
+                    db.session.execute(db.text(statement))
+                    db.session.commit()
+                    print(f"✓ Добавлена колонка {column_name} в таблицу users")
+                except Exception as e:
+                    db.session.rollback()
+                    err_text = str(e).lower()
+                    if "duplicate column" not in err_text and "duplicatecolumn" not in err_text:
+                        print(f"Ошибка при добавлении {column_name}: {e}")
+
+        try:
+            db.session.execute(db.text("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email ON users (email)"))
+            db.session.execute(db.text("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_google_sub ON users (google_sub)"))
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            print(f"Ошибка при создании индексов users: {e}")
 
         if 'photo_path' not in columns:
             try:
@@ -2337,17 +2443,151 @@ def login():
         if user and bcrypt.check_password_hash(user.password_hash, password):
             if is_guest_role(user):
                 return jsonify({'success': False, 'message': 'Эта роль предназначена только для прохода через Face ID'}), 403
+            if getattr(user, 'is_active', True) is False:
+                return jsonify({'success': False, 'message': 'Аккаунт отключен'}), 403
             login_user(user)
-            # Перенаправление в зависимости от роли
-            if user.role == 'payment_admin':
-                return jsonify({'success': True, 'role': user.role, 'redirect': '/mobile-payments'})
-            elif user.role == 'teacher':
-                return jsonify({'success': True, 'role': user.role, 'redirect': '/teacher-attendance'})
-            return jsonify({'success': True, 'role': user.role})
+            return jsonify({'success': True, 'role': user.role, 'redirect': redirect_after_login(user)})
         else:
             return jsonify({'success': False, 'message': 'Неверный логин или пароль'}), 401
     
-    return render_template('login.html')
+    return render_template('login.html', reset_token=request.args.get('reset_token', ''))
+
+
+@app.route('/auth/google')
+def google_login():
+    if not GOOGLE_CLIENT_ID or not GOOGLE_CLIENT_SECRET:
+        return redirect(url_for('login', error='google_not_configured'))
+
+    state = secrets.token_urlsafe(24)
+    session['google_oauth_state'] = state
+    params = {
+        'client_id': GOOGLE_CLIENT_ID,
+        'redirect_uri': get_google_redirect_uri(),
+        'response_type': 'code',
+        'scope': 'openid email profile',
+        'state': state,
+        'prompt': 'select_account',
+    }
+    return redirect(f"{GOOGLE_OAUTH_AUTHORIZE_URL}?{urlencode(params)}")
+
+
+@app.route('/auth/google/callback')
+def google_callback():
+    error = request.args.get('error')
+    if error:
+        return redirect(url_for('login', error='google_cancelled'))
+
+    state = request.args.get('state')
+    if not state or state != session.pop('google_oauth_state', None):
+        return redirect(url_for('login', error='google_state'))
+
+    code = request.args.get('code')
+    if not code:
+        return redirect(url_for('login', error='google_no_code'))
+
+    try:
+        token_response = requests.post(GOOGLE_OAUTH_TOKEN_URL, data={
+            'code': code,
+            'client_id': GOOGLE_CLIENT_ID,
+            'client_secret': GOOGLE_CLIENT_SECRET,
+            'redirect_uri': get_google_redirect_uri(),
+            'grant_type': 'authorization_code',
+        }, timeout=15)
+        token_response.raise_for_status()
+        access_token = token_response.json().get('access_token')
+        if not access_token:
+            return redirect(url_for('login', error='google_token'))
+
+        info_response = requests.get(
+            GOOGLE_OAUTH_USERINFO_URL,
+            headers={'Authorization': f'Bearer {access_token}'},
+            timeout=15
+        )
+        info_response.raise_for_status()
+        profile = info_response.json()
+        email = normalize_email(profile.get('email'))
+        google_sub = profile.get('sub')
+        if not email or not google_sub:
+            return redirect(url_for('login', error='google_email'))
+
+        user = User.query.filter_by(email=email).first()
+        if not user:
+            return redirect(url_for('login', error='google_user_not_found'))
+        if is_guest_role(user):
+            return redirect(url_for('login', error='guest_role'))
+        if getattr(user, 'is_active', True) is False:
+            return redirect(url_for('login', error='inactive_user'))
+        if user.google_sub and user.google_sub != google_sub:
+            return redirect(url_for('login', error='google_already_linked'))
+
+        if not user.google_sub:
+            user.google_sub = google_sub
+            db.session.commit()
+
+        login_user(user)
+        return redirect(redirect_after_login(user))
+    except Exception as e:
+        print(f"Ошибка Google OAuth: {e}")
+        db.session.rollback()
+        return redirect(url_for('login', error='google_failed'))
+
+
+@app.route('/api/password/forgot', methods=['POST'])
+def forgot_password():
+    data = request.get_json(silent=True) or {}
+    email = normalize_email(data.get('email'))
+    if not email:
+        return jsonify({'success': False, 'message': 'Введите электронную почту'}), 400
+
+    user = User.query.filter_by(email=email).first()
+    if not user:
+        return jsonify({'success': False, 'message': 'Пользователь с такой электронной почтой не найден.'}), 404
+
+    token = secrets.token_urlsafe(32)
+    user.password_reset_token_hash = token_hash(token)
+    user.password_reset_expires_at = datetime.utcnow() + timedelta(hours=PASSWORD_RESET_TOKEN_TTL_HOURS)
+    db.session.commit()
+
+    reset_link = absolute_url('login', reset_token=token)
+    try:
+        send_email_message(
+            email,
+            'Восстановление пароля',
+            f"Здравствуйте!\n\nДля сброса пароля перейдите по ссылке:\n{reset_link}\n\nСсылка действует {PASSWORD_RESET_TOKEN_TTL_HOURS} ч."
+        )
+    except Exception as e:
+        user.password_reset_token_hash = None
+        user.password_reset_expires_at = None
+        db.session.commit()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+    return jsonify({'success': True, 'message': 'Письмо со ссылкой для сброса пароля отправлено.'})
+
+
+@app.route('/api/password/reset', methods=['POST'])
+def reset_password():
+    data = request.get_json(silent=True) or {}
+    token = (data.get('token') or '').strip()
+    new_password = data.get('new_password') or ''
+    confirm_password = data.get('confirm_password') or ''
+
+    if not token:
+        return jsonify({'success': False, 'message': 'Ссылка для сброса пароля некорректна'}), 400
+    if len(new_password) < 4:
+        return jsonify({'success': False, 'message': 'Пароль должен быть не менее 4 символов'}), 400
+    if new_password != confirm_password:
+        return jsonify({'success': False, 'message': 'Пароли не совпадают'}), 400
+
+    user = User.query.filter_by(password_reset_token_hash=token_hash(token)).first()
+    if not user or not user.password_reset_expires_at or user.password_reset_expires_at < datetime.utcnow():
+        return jsonify({'success': False, 'message': 'Ссылка устарела или уже использована'}), 400
+
+    user.password_hash = bcrypt.generate_password_hash(new_password).decode('utf-8')
+    user.password_reset_token_hash = None
+    user.password_reset_expires_at = None
+    db.session.commit()
+
+    return jsonify({'success': True, 'message': 'Пароль обновлен. Теперь можно войти.'})
 
 
 @app.route('/logout')
@@ -2355,6 +2595,103 @@ def login():
 def logout():
     logout_user()
     return redirect(url_for('login'))
+
+
+@app.route('/my-account')
+@login_required
+def my_account_page():
+    return render_template('my_account.html')
+
+
+@app.route('/api/my-account', methods=['GET'])
+@login_required
+def get_my_account():
+    role_name = current_user.role_obj.name if current_user.role_obj else current_user.role
+    return jsonify({
+        'id': current_user.id,
+        'username': current_user.username,
+        'full_name': current_user.full_name or '',
+        'phone': getattr(current_user, 'phone', '') or '',
+        'email': getattr(current_user, 'email', '') or '',
+        'role': current_user.role,
+        'role_id': current_user.role_id,
+        'role_name': role_name,
+        'photo_url': build_photo_url(current_user.photo_path),
+        'google_linked': bool(getattr(current_user, 'google_sub', None)),
+        'can_change_role': current_user.has_permission('users', 'edit')
+    })
+
+
+@app.route('/api/my-account', methods=['PUT'])
+@login_required
+def update_my_account():
+    try:
+        data = request.form if request.form else (request.get_json(silent=True) or {})
+        full_name = (data.get('full_name') or '').strip()
+        phone = (data.get('phone') or '').strip()
+        email = normalize_email(data.get('email'))
+        role_id = data.get('role_id')
+        remove_photo = str(data.get('remove_photo', '')).lower() in ('true', '1', 'on', 'yes')
+
+        if email:
+            existing = User.query.filter(User.email == email, User.id != current_user.id).first()
+            if existing:
+                return jsonify({'success': False, 'message': 'Пользователь с такой электронной почтой уже существует'}), 400
+
+        current_user.full_name = full_name or None
+        current_user.phone = phone or None
+        current_user.email = email or None
+
+        if role_id is not None and current_user.has_permission('users', 'edit'):
+            current_user.role_id = role_id or None
+            if role_id:
+                current_user.role = 'custom'
+
+        if remove_photo and current_user.photo_path:
+            old_path = current_user.photo_path
+            current_user.photo_path = None
+            try:
+                if os.path.exists(old_path):
+                    os.remove(old_path)
+            except Exception as photo_error:
+                print(f"Ошибка при удалении фото аккаунта: {photo_error}")
+
+        photo = request.files.get('photo') if request.files else None
+        if photo and photo.filename:
+            old_path = current_user.photo_path
+            current_user.photo_path = save_user_photo(photo, current_user.id)
+            try:
+                if old_path and os.path.exists(old_path):
+                    os.remove(old_path)
+            except Exception as photo_error:
+                print(f"Ошибка при удалении старого фото аккаунта: {photo_error}")
+
+        queue_hikvision_person('staff', current_user.id, 'account_updated')
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Аккаунт обновлен'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@app.route('/api/my-account/password', methods=['POST'])
+@login_required
+def change_my_password():
+    data = request.get_json(silent=True) or {}
+    current_password = data.get('current_password') or ''
+    new_password = data.get('new_password') or ''
+    confirm_password = data.get('confirm_password') or ''
+
+    if not bcrypt.check_password_hash(current_user.password_hash, current_password):
+        return jsonify({'success': False, 'message': 'Текущий пароль указан неверно'}), 400
+    if len(new_password) < 4:
+        return jsonify({'success': False, 'message': 'Новый пароль должен быть не менее 4 символов'}), 400
+    if new_password != confirm_password:
+        return jsonify({'success': False, 'message': 'Новые пароли не совпадают'}), 400
+
+    current_user.password_hash = bcrypt.generate_password_hash(new_password).decode('utf-8')
+    db.session.commit()
+    return jsonify({'success': True, 'message': 'Пароль обновлен'})
 
 
 # ===== ПОРТАЛ ДЛЯ РОДИТЕЛЕЙ/УЧЕНИКОВ =====
@@ -8335,6 +8672,9 @@ def get_users():
             'id': user.id,
             'username': user.username,
             'full_name': user.full_name,
+            'phone': getattr(user, 'phone', None),
+            'email': getattr(user, 'email', None),
+            'google_linked': bool(getattr(user, 'google_sub', None)),
             'role': user.role,
             'role_id': user.role_id,
             'role_name': role_name,
@@ -8364,6 +8704,8 @@ def create_user():
         username = data.get('username', '').strip()
         password = data.get('password', '').strip()
         full_name = data.get('full_name', '').strip()
+        phone = (data.get('phone') or '').strip()
+        email = normalize_email(data.get('email'))
         role_id = data.get('role_id') or None
         is_active = str(data.get('is_active', 'true')).lower() in ('true', '1', 'on', 'yes')
         salary_type, fixed_salary = parse_user_salary_fields(data)
@@ -8379,12 +8721,17 @@ def create_user():
         # Проверка уникальности имени пользователя
         if User.query.filter_by(username=username).first():
             return jsonify({'success': False, 'message': 'Пользователь с таким именем уже существует'}), 400
+
+        if email and User.query.filter_by(email=email).first():
+            return jsonify({'success': False, 'message': 'Пользователь с такой электронной почтой уже существует'}), 400
         
         # Создание пользователя
         user = User(
             username=username,
             password_hash=bcrypt.generate_password_hash(password).decode('utf-8'),
             full_name=full_name,
+            phone=phone or None,
+            email=email or None,
             role_id=role_id,
             role='custom' if role_id else 'admin',  # Для обратной совместимости
             salary_type=salary_type,
@@ -8438,6 +8785,8 @@ def update_user(user_id):
         username = data.get('username')
         password = data.get('password')
         full_name = data.get('full_name')
+        phone = data.get('phone')
+        email = data.get('email')
         role_id = data.get('role_id')
         is_active = data.get('is_active')
         remove_photo = str(data.get('remove_photo', '')).lower() in ('true', '1', 'on', 'yes')
@@ -8457,6 +8806,17 @@ def update_user(user_id):
         
         if full_name is not None:
             user.full_name = full_name
+
+        if phone is not None:
+            user.phone = (phone or '').strip() or None
+
+        if email is not None:
+            normalized_email = normalize_email(email)
+            if normalized_email:
+                existing = User.query.filter(User.email == normalized_email, User.id != user.id).first()
+                if existing:
+                    return jsonify({'success': False, 'message': 'Пользователь с такой электронной почтой уже существует'}), 400
+            user.email = normalized_email or None
         
         if role_id is not None:
             user.role_id = role_id or None

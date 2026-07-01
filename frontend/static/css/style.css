@@ -2974,6 +2974,51 @@ body.login-page .password-field .password-toggle:focus-visible {
     transform: translateX(130%);
 }
 
+.google-login-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    width: 100%;
+    min-height: 46px;
+    margin-top: 12px;
+    border: 1px solid rgba(226, 232, 240, .88);
+    border-radius: 12px;
+    background: #fff;
+    color: #1f2937;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 700;
+    transition: transform .2s ease, border-color .2s ease, box-shadow .2s ease;
+}
+
+.google-login-btn svg {
+    width: 20px;
+    height: 20px;
+    flex: 0 0 auto;
+}
+
+.google-login-btn:hover {
+    transform: translateY(-1px);
+    border-color: rgba(148, 163, 184, .9);
+    box-shadow: 0 10px 24px rgba(15, 23, 42, .12);
+}
+
+.login-link-btn {
+    display: inline-flex;
+    justify-content: center;
+    width: 100%;
+    margin-top: 12px;
+    border: 0;
+    background: transparent;
+    color: #f8fafc;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 4px;
+}
+
 .login-ticker {
     position: fixed;
     left: 0;

@@ -35,7 +35,7 @@ async function loadUsers() {
         console.error('Ошибка загрузки пользователей:', error);
         const tbody = document.getElementById('users-table-body');
         if (tbody) {
-            tbody.innerHTML = '<tr><td colspan="9" class="info-text">Ошибка загрузки данных</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="11" class="info-text">Ошибка загрузки данных</td></tr>';
         }
     }
 }
@@ -77,7 +77,7 @@ function renderUsersTable() {
     if (!tbody) return;
 
     if (allUsers.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="9" class="info-text">Сотрудники не найдены</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="11" class="info-text">Сотрудники не найдены</td></tr>';
         return;
     }
 
@@ -108,13 +108,14 @@ function renderUsersTable() {
 
         return `
             <tr>
-                <td class="mobile-staff-card-cell" colspan="9">
+                <td class="mobile-staff-card-cell" colspan="11">
                     <div class="mobile-staff-card">
                         <div class="mobile-staff-main">
                             ${mobilePhoto}
                             <div class="mobile-staff-info">
                                 <div class="mobile-staff-name">${escapeHtml(displayName)}</div>
                                 <div class="mobile-staff-role">${escapeHtml(roleName)}</div>
+                                <div class="mobile-staff-role">${escapeHtml(user.phone || user.email || '')}</div>
                             </div>
                         </div>
                         <div class="mobile-staff-side">
@@ -138,6 +139,8 @@ function renderUsersTable() {
                 <td class="desktop-user-cell" data-label="Фото">${photoCell}</td>
                 <td class="desktop-user-cell" data-label="Логин">${escapeHtml(user.username)}</td>
                 <td class="desktop-user-cell" data-label="Полное имя">${escapeHtml(displayName)}</td>
+                <td class="desktop-user-cell" data-label="Телефон">${escapeHtml(user.phone || '-')}</td>
+                <td class="desktop-user-cell" data-label="Email">${escapeHtml(user.email || '-')}</td>
                 <td class="desktop-user-cell" data-label="Роль">${escapeHtml(roleName)}</td>
                 <td class="desktop-user-cell" data-label="Зарплата">${escapeHtml(salaryLabel)}</td>
                 <td class="desktop-user-cell" data-label="Сумма зарплаты">${escapeHtml(salaryAmountLabel)}</td>
@@ -385,6 +388,8 @@ async function editUser(userId) {
 
         document.getElementById('user-username').value = user.username;
         document.getElementById('user-full-name').value = user.full_name || '';
+        document.getElementById('user-phone').value = user.phone || '';
+        document.getElementById('user-email').value = user.email || '';
         document.getElementById('user-role-id').value = user.role_id || '';
         document.getElementById('user-salary-type').value = user.salary_type || 'fixed';
         document.getElementById('user-fixed-salary').value = user.fixed_salary || '';
@@ -429,6 +434,8 @@ async function saveUser(event) {
     const editId = document.getElementById('edit-user-id').value;
     const username = document.getElementById('user-username').value.trim();
     const fullName = document.getElementById('user-full-name').value.trim();
+    const phone = document.getElementById('user-phone').value.trim();
+    const email = document.getElementById('user-email').value.trim();
     const password = document.getElementById('user-password').value;
     const roleId = document.getElementById('user-role-id').value;
     const salaryType = document.getElementById('user-salary-type').value;
@@ -456,6 +463,8 @@ async function saveUser(event) {
         const data = new FormData();
         data.append('username', username);
         data.append('full_name', fullName);
+        data.append('phone', phone);
+        data.append('email', email);
         data.append('role_id', roleId || '');
         data.append('salary_type', salaryType || 'fixed');
         data.append('fixed_salary', salaryType === 'fixed' ? (fixedSalary || '') : '');

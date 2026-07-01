@@ -29,7 +29,12 @@ class User(UserMixin, db.Model):
     role_id = db.Column(db.Integer, db.ForeignKey('roles.id'), nullable=True)  # Новая система ролей
     group_id = db.Column(db.Integer, db.ForeignKey('groups.id'), nullable=True)  # Для учителей - их группа
     full_name = db.Column(db.String(200))  # Полное имя пользователя
+    phone = db.Column(db.String(30))  # Телефон сотрудника
+    email = db.Column(db.String(255), unique=True, nullable=True)  # Email для Google входа и восстановления
+    google_sub = db.Column(db.String(255), unique=True, nullable=True)  # ID Google аккаунта
     photo_path = db.Column(db.String(300))  # Фото для Face ID / турникета
+    password_reset_token_hash = db.Column(db.String(128), nullable=True)
+    password_reset_expires_at = db.Column(db.DateTime, nullable=True)
     salary_type = db.Column(db.String(20), default='fixed')  # fixed | floating
     fixed_salary = db.Column(db.Float, nullable=True)
     is_active = db.Column(db.Boolean, default=True)  # Активен ли пользователь

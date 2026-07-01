@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Мой аккаунт - {{ system_name }}</title>
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='uploads/favicon.png') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        body { background: #f5f7fb; }
+        .account-shell {
+            min-height: 100vh;
+            padding: 28px;
+            background: #f5f7fb;
+        }
+        .account-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        .account-header h1 {
+            margin: 0;
+            color: #0f172a;
+            font-size: 28px;
+            letter-spacing: 0;
+        }
+        .account-grid {
+            display: grid;
+            grid-template-columns: minmax(260px, 340px) minmax(0, 1fr);
+            gap: 18px;
+            align-items: start;
+        }
+        .account-panel {
+            border: 1px solid #e4ddd6;
+            border-radius: 8px;
+            background: #fff;
+            padding: 18px;
+            box-shadow: 0 10px 28px rgba(15, 23, 42, .06);
+        }
+        .account-panel h2 {
+            margin: 0 0 14px;
+            color: #0f172a;
+            font-size: 18px;
+            letter-spacing: 0;
+        }
+        .account-avatar {
+            display: grid;
+            gap: 14px;
+            justify-items: center;
+        }
+        .account-avatar img,
+        .account-avatar-placeholder {
+            width: min(220px, 100%);
+            aspect-ratio: 1;
+            border-radius: 8px;
+            object-fit: cover;
+            border: 1px solid #e4ddd6;
+            background: #f8f7f6;
+        }
+        .account-avatar-placeholder {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #94a3b8;
+            font-size: 48px;
+            font-weight: 700;
+        }
+        .account-file-row {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 8px;
+            width: 100%;
+        }
+        .account-file-row input[type="file"] {
+            width: 100%;
+            font-size: 13px;
+        }
+        .account-form {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 14px;
+        }
+        .account-form .full { grid-column: 1 / -1; }
+        .account-form label {
+            display: grid;
+            gap: 7px;
+            color: #334155;
+            font-size: 13px;
+            font-weight: 700;
+        }
+        .account-form input,
+        .account-form select {
+            width: 100%;
+            min-height: 42px;
+            border: 1px solid #d8d0c8;
+            border-radius: 8px;
+            padding: 0 12px;
+            background: #fff;
+            color: #0f172a;
+            font-size: 14px;
+        }
+        .account-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 16px;
+        }
+        .account-status {
+            min-height: 20px;
+            margin-top: 12px;
+            color: #64748b;
+            font-size: 13px;
+        }
+        .account-status.error { color: #dc2626; }
+        .account-status.success { color: #059669; }
+        .google-state {
+            display: inline-flex;
+            align-items: center;
+            min-height: 32px;
+            padding: 0 10px;
+            border-radius: 999px;
+            background: #f1f5f9;
+            color: #475569;
+            font-size: 13px;
+            font-weight: 700;
+        }
+        @media (max-width: 900px) {
+            .account-shell { padding: 16px 12px 92px; }
+            .account-grid,
+            .account-form { grid-template-columns: 1fr; }
+            .account-header h1 { font-size: 24px; }
+        }
+    </style>
+</head>
+
+<body>
+    {% include '_sidebar.html' %}
+    <main class="main-content game-main-content">
+        <div class="account-shell">
+            <div class="account-header">
+                <h1>Мой аккаунт</h1>
+                <span class="google-state" id="account-google-state">Google: ...</span>
+            </div>
+
+            <div class="account-grid">
+                <section class="account-panel">
+                    <h2>Аватар</h2>
+                    <div class="account-avatar">
+                        <img id="account-avatar-img" alt="Аватар" style="display:none;">
+                        <div id="account-avatar-placeholder" class="account-avatar-placeholder">A</div>
+                        <div class="account-file-row">
+                            <input id="account-photo" type="file" accept="image/*">
+                            <button id="account-remove-photo" class="btn-secondary" type="button">Удалить фото</button>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="account-panel">
+                    <h2>Основная информация</h2>
+                    <form id="account-form">
+                        <div class="account-form">
+                            <label>
+                                ФИО
+                                <input id="account-full-name" type="text" autocomplete="name">
+                            </label>
+                            <label>
+                                Логин
+                                <input id="account-username" type="text" disabled>
+                            </label>
+                            <label>
+                                Номер телефона
+                                <input id="account-phone" type="tel" autocomplete="tel">
+                            </label>
+                            <label>
+                                Электронная почта
+                                <input id="account-email" type="email" autocomplete="email">
+                            </label>
+                            <label class="full">
+                                Роль
+                                <select id="account-role"></select>
+                            </label>
+                        </div>
+                        <div class="account-actions">
+                            <button class="btn-primary" type="submit">Сохранить</button>
+                        </div>
+                        <div id="account-status" class="account-status"></div>
+                    </form>
+                </section>
+
+                <section class="account-panel" style="grid-column: 1 / -1;">
+                    <h2>Безопасность</h2>
+                    <form id="password-form">
+                        <div class="account-form">
+                            <label>
+                                Текущий пароль
+                                <input id="current-password" type="password" autocomplete="current-password">
+                            </label>
+                            <label>
+                                Новый пароль
+                                <input id="new-password" type="password" autocomplete="new-password">
+                            </label>
+                            <label>
+                                Подтвердить новый пароль
+                                <input id="confirm-password" type="password" autocomplete="new-password">
+                            </label>
+                        </div>
+                        <div class="account-actions">
+                            <button class="btn-primary" type="submit">Изменить пароль</button>
+                        </div>
+                        <div id="password-status" class="account-status"></div>
+                    </form>
+                </section>
+            </div>
+        </div>
+    </main>
+    <script src="{{ url_for('static', filename='js/my_account.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/service-lock-overlay.js') }}"></script>
+</body>
+
+</html>
