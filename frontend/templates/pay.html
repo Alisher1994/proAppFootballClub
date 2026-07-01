@@ -18,12 +18,12 @@
         }
         .pay-bg-video {
             position: fixed;
-            right: -40px;
-            bottom: -24px;
-            width: min(34vw, 420px);
-            min-width: 260px;
-            height: min(54vh, 520px);
-            object-fit: cover;
+            right: 18px;
+            bottom: 0;
+            width: min(32vw, 360px);
+            min-width: 240px;
+            height: min(78vh, 720px);
+            object-fit: contain;
             object-position: center bottom;
             opacity: .13;
             pointer-events: none;
@@ -352,6 +352,14 @@
             .pay-methods { grid-template-columns: 1fr; }
             .pay-header { justify-content: stretch; }
             .pay-header .btn-secondary { width: 100%; justify-content: center; }
+            .pay-bg-video {
+                right: -8px;
+                bottom: 0;
+                width: 62vw;
+                min-width: 220px;
+                height: 72vh;
+                opacity: .11;
+            }
         }
     </style>
 </head>
