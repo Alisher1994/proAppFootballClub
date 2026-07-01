@@ -20,6 +20,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from flask_bcrypt import Bcrypt
 from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.utils import secure_filename
 from sqlalchemy import func, or_
 from sqlalchemy.orm import joinedload
@@ -106,6 +107,7 @@ basedir = os.path.abspath(os.path.dirname(__file__))
 app = Flask(__name__, 
             template_folder='frontend/templates',
             static_folder='frontend/static')
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 
 # Конфигурация для production/development
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key-change-in-production')
