@@ -99,11 +99,12 @@ function renderUsersTable() {
         const salaryAmountLabel = hasFixedSalary
             ? `${Number(user.fixed_salary).toLocaleString('ru-RU')} сум`
             : '-';
-        const photoCell = user.photo_url
-            ? `<img src="${escapeHtml(user.photo_url)}" alt="${escapeHtml(displayName)}" style="width:42px;height:42px;object-fit:cover;border-radius:8px;border:1px solid var(--theme-border);">`
+        const listPhotoUrl = user.photo_thumb_url || user.photo_url;
+        const photoCell = listPhotoUrl
+            ? `<img src="${escapeHtml(listPhotoUrl)}" alt="${escapeHtml(displayName)}" style="width:42px;height:42px;object-fit:cover;border-radius:8px;border:1px solid var(--theme-border);">`
             : '<span style="color:#94a3b8;font-size:12px;">Нет фото</span>';
-        const mobilePhoto = user.photo_url
-            ? `<img class="mobile-staff-photo" src="${escapeHtml(user.photo_url)}" alt="${escapeHtml(displayName)}">`
+        const mobilePhoto = listPhotoUrl
+            ? `<img class="mobile-staff-photo" src="${escapeHtml(listPhotoUrl)}" alt="${escapeHtml(displayName)}">`
             : `<span class="mobile-staff-photo mobile-staff-photo-placeholder">${escapeHtml((displayName || 'С').trim().charAt(0).toUpperCase())}</span>`;
 
         return `

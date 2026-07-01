@@ -2304,7 +2304,8 @@ def inject_system_name():
         return {
             'system_name': SYSTEM_NAME_CACHE,
             'system_logo_url': SYSTEM_LOGO_URL_CACHE,
-            'system_square_logo_url': SYSTEM_SQUARE_LOGO_URL_CACHE
+            'system_square_logo_url': SYSTEM_SQUARE_LOGO_URL_CACHE,
+            'user_photo_thumb_url': build_user_photo_thumb_url
         }
         
     try:
@@ -2320,7 +2321,8 @@ def inject_system_name():
     return {
         'system_name': SYSTEM_NAME_CACHE,
         'system_logo_url': SYSTEM_LOGO_URL_CACHE,
-        'system_square_logo_url': SYSTEM_SQUARE_LOGO_URL_CACHE
+        'system_square_logo_url': SYSTEM_SQUARE_LOGO_URL_CACHE,
+        'user_photo_thumb_url': build_user_photo_thumb_url
     }
 
 
@@ -2617,6 +2619,7 @@ def get_my_account():
         'role_id': current_user.role_id,
         'role_name': role_name,
         'photo_url': build_photo_url(current_user.photo_path),
+        'photo_thumb_url': build_user_photo_thumb_url(current_user.photo_path),
         'google_linked': bool(getattr(current_user, 'google_sub', None)),
         'can_change_role': current_user.has_permission('users', 'edit')
     })
@@ -2650,21 +2653,13 @@ def update_my_account():
         if remove_photo and current_user.photo_path:
             old_path = current_user.photo_path
             current_user.photo_path = None
-            try:
-                if os.path.exists(old_path):
-                    os.remove(old_path)
-            except Exception as photo_error:
-                print(f"Ошибка при удалении фото аккаунта: {photo_error}")
+            delete_user_photo_files(old_path)
 
         photo = request.files.get('photo') if request.files else None
         if photo and photo.filename:
             old_path = current_user.photo_path
             current_user.photo_path = save_user_photo(photo, current_user.id)
-            try:
-                if old_path and os.path.exists(old_path):
-                    os.remove(old_path)
-            except Exception as photo_error:
-                print(f"Ошибка при удалении старого фото аккаунта: {photo_error}")
+            delete_user_photo_files(old_path)
 
         queue_hikvision_person('staff', current_user.id, 'account_updated')
         db.session.commit()
@@ -2732,6 +2727,36 @@ def build_photo_url(photo_path):
     return url_for('static', filename=path)
 
 
+def get_user_photo_thumb_path(photo_path):
+    if not photo_path:
+        return None
+    directory, filename = os.path.split(photo_path)
+    name, ext = os.path.splitext(filename)
+    if not name:
+        return None
+    return os.path.join(directory, f"{name}_thumb{ext or '.jpg'}")
+
+
+def build_user_photo_thumb_url(photo_path):
+    if not photo_path:
+        return url_for('static', filename='uploads/avatar_ccount_thumb.png')
+    thumb_path = get_user_photo_thumb_path(photo_path)
+    if thumb_path and os.path.exists(thumb_path):
+        return build_photo_url(thumb_path)
+    return build_photo_url(photo_path) or url_for('static', filename='uploads/avatar_ccount_thumb.png')
+
+
+def delete_user_photo_files(photo_path):
+    if not photo_path:
+        return
+    for path in {photo_path, get_user_photo_thumb_path(photo_path)}:
+        try:
+            if path and os.path.exists(path):
+                os.remove(path)
+        except Exception as photo_error:
+            print(f"Ошибка при удалении фото сотрудника: {photo_error}")
+
+
 def save_tournament_team_logo(logo_file, old_logo_path=None):
     if not logo_file or not logo_file.filename:
         return old_logo_path
@@ -2768,6 +2793,14 @@ def save_user_photo(photo_file, user_id):
     filename = f"user_{user_id}_{int(time.time())}{ext}"
     filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
     photo_file.save(filepath)
+    try:
+        with Image.open(filepath) as image:
+            image = image.convert('RGB')
+            image.thumbnail((160, 160), Image.LANCZOS)
+            thumb_path = get_user_photo_thumb_path(filepath)
+            image.save(thumb_path, quality=82, optimize=True)
+    except Exception as thumb_error:
+        print(f"Ошибка при создании миниатюры сотрудника: {thumb_error}")
     return os.path.join('frontend', 'static', 'uploads', filename)
 
 
@@ -8681,6 +8714,7 @@ def get_users():
             'is_active': user.is_active,
             'photo_path': user.photo_path,
             'photo_url': build_photo_url(user.photo_path),
+            'photo_thumb_url': build_user_photo_thumb_url(user.photo_path),
             'salary_type': getattr(user, 'salary_type', 'fixed') or 'fixed',
             'fixed_salary': getattr(user, 'fixed_salary', None),
             'trainer_group_ids': primary_group_ids,
@@ -8832,21 +8866,13 @@ def update_user(user_id):
         if remove_photo and user.photo_path:
             old_path = user.photo_path
             user.photo_path = None
-            try:
-                if os.path.exists(old_path):
-                    os.remove(old_path)
-            except Exception as photo_error:
-                print(f"Ошибка при удалении фото сотрудника: {photo_error}")
+            delete_user_photo_files(old_path)
 
         photo = request.files.get('photo') if request.files else None
         if photo and photo.filename:
             old_path = user.photo_path
             user.photo_path = save_user_photo(photo, user.id)
-            try:
-                if old_path and os.path.exists(old_path):
-                    os.remove(old_path)
-            except Exception as photo_error:
-                print(f"Ошибка при удалении старого фото сотрудника: {photo_error}")
+            delete_user_photo_files(old_path)
 
         if is_trainer_role_id(user.role_id) or user.role in TRAINER_ROLE_NAMES:
             sync_user_primary_trainer_groups(user, parse_int_list_payload(data, 'trainer_group_ids'))
@@ -8891,11 +8917,7 @@ def delete_user(user_id):
                 return jsonify({'success': False, 'message': 'Нельзя удалить последнего администратора'}), 400
         
         if user.photo_path:
-            try:
-                if os.path.exists(user.photo_path):
-                    os.remove(user.photo_path)
-            except Exception as photo_error:
-                print(f"Ошибка при удалении фото сотрудника: {photo_error}")
+            delete_user_photo_files(user.photo_path)
 
         db.session.delete(user)
         queue_hikvision_person('staff', user_id, 'staff_deleted', action='delete', employee_no=f"900000{user_id}")

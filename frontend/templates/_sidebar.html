@@ -165,15 +165,9 @@
     <!-- Карточка аккаунта закреплена внизу -->
     <div class="sidebar-footer">
         <a href="{{ url_for('my_account_page') }}" class="sidebar-user-card sidebar-account-card" data-tooltip="Мой аккаунт">
-            {% if current_user.photo_path %}
             <img class="sidebar-account-avatar"
-                src="{{ url_for('static', filename=current_user.photo_path.replace('frontend/static/', '').replace('\\', '/').lstrip('/')) }}"
+                src="{{ user_photo_thumb_url(current_user.photo_path) }}"
                 alt="{{ current_user.full_name or current_user.username }}">
-            {% else %}
-            <img class="sidebar-account-avatar"
-                src="{{ url_for('static', filename='uploads/avatar_ccount.png') }}"
-                alt="{{ current_user.full_name or current_user.username }}">
-            {% endif %}
             <span class="sidebar-account-text">
                 <span class="sidebar-user-name">{{ current_user.full_name or current_user.username }}</span>
                 <span class="sidebar-user-role">{{ current_user.role_obj.name if current_user.role_obj else current_user.role }}</span>
