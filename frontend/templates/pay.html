@@ -40,9 +40,31 @@
         .pay-header {
             display: flex;
             align-items: center;
-            justify-content: flex-end;
+            justify-content: space-between;
             gap: 16px;
             margin-bottom: 14px;
+        }
+        .pay-lang {
+            display: inline-flex;
+            gap: 4px;
+            padding: 4px;
+            border: 1px solid #e4ddd6;
+            border-radius: 9px;
+            background: #fff;
+        }
+        .pay-lang button {
+            min-width: 36px;
+            height: 28px;
+            border: 0;
+            border-radius: 7px;
+            background: transparent;
+            color: #64748b;
+            font: 600 12px/1 var(--ui-font-family);
+            cursor: pointer;
+        }
+        .pay-lang button.active {
+            background: #fff7ed;
+            color: #d96f00;
         }
         .pay-grid {
             display: block;
@@ -452,7 +474,11 @@
     </video>
     <main class="pay-shell">
         <header class="pay-header">
-            <a class="btn-secondary" href="{{ url_for('login') }}">Войти в систему</a>
+            <div class="pay-lang" aria-label="Язык">
+                <button type="button" data-pay-lang="ru" class="active">RU</button>
+                <button type="button" data-pay-lang="uz">UZ</button>
+            </div>
+            <a class="btn-secondary" href="{{ url_for('login') }}" data-i18n="login">Войти в систему</a>
         </header>
 
         <div class="pay-grid">
@@ -462,25 +488,25 @@
                 </div>
                 <form class="pay-form" id="pay-form">
                     <div class="pay-mode" aria-label="Способ поиска ученика">
-                        <label><input type="radio" name="pay_lookup_mode" value="group" checked>По группе</label>
-                        <label><input type="radio" name="pay_lookup_mode" value="phone">По телефону</label>
+                        <label><input type="radio" name="pay_lookup_mode" value="group" checked><span data-i18n="byGroup">По группе</span></label>
+                        <label><input type="radio" name="pay_lookup_mode" value="phone"><span data-i18n="byPhone">По телефону</span></label>
                     </div>
 
                     <label id="pay-phone-step" class="pay-step-hidden">
-                        Телефон
+                        <span data-i18n="phone">Телефон</span>
                         <input id="pay-phone" type="text" inputmode="tel" autocomplete="off" value="+998 " placeholder="+998 XX XXX XX XX">
                     </label>
                     <div class="pay-student-picks pay-step-hidden" id="pay-phone-results"></div>
 
                     <label id="pay-group-step">
-                        Группа
+                        <span data-i18n="group">Группа</span>
                         <div class="pay-combobox">
                             <input id="pay-group" type="text" autocomplete="off" placeholder="Введите название группы">
                             <div class="pay-dropdown" id="pay-group-list"></div>
                         </div>
                     </label>
                     <label id="pay-student-step" class="pay-step-hidden">
-                        Ученик
+                        <span data-i18n="student">Ученик</span>
                         <div class="pay-combobox">
                             <input id="pay-student" type="text" autocomplete="off" placeholder="Сначала выберите группу" disabled>
                             <div class="pay-dropdown" id="pay-student-list"></div>
@@ -490,32 +516,34 @@
                     <div class="pay-summary" id="pay-summary" style="display:none;"></div>
 
                     <label class="pay-period pay-step-hidden" id="pay-period-step">
-                        Месяц оплаты
+                        <span data-i18n="payMonth">Месяц оплаты</span>
                         <select id="pay-period"></select>
                     </label>
 
                     <label id="pay-method-step" class="pay-step-hidden">
-                        Способ оплаты
+                        <span data-i18n="payMethod">Способ оплаты</span>
                         <div class="pay-methods" id="pay-methods"></div>
                     </label>
 
                     <label class="pay-consent pay-step-hidden" id="pay-consent-step">
                         <input type="checkbox" id="pay-consent" required>
                         <span>
-                            Я принимаю <a href="{{ url_for('legal_page', section='offer', lang='ru') }}" target="_blank">пользовательское соглашение</a>,
-                            <a href="{{ url_for('legal_page', section='privacy', lang='ru') }}" target="_blank">политику конфиденциальности</a>
-                            и <a href="{{ url_for('legal_page', section='refund', lang='ru') }}" target="_blank">правила оплаты и возврата</a>.
+                            <span data-i18n="acceptPrefix">Я принимаю</span>
+                            <a class="pay-legal-link" data-section="offer" href="{{ url_for('legal_page', section='offer', lang='ru') }}" target="_blank" data-i18n="termsLink">пользовательское соглашение</a>,
+                            <a class="pay-legal-link" data-section="privacy" href="{{ url_for('legal_page', section='privacy', lang='ru') }}" target="_blank" data-i18n="privacyLink">политику конфиденциальности</a>
+                            <span data-i18n="acceptAnd">и</span>
+                            <a class="pay-legal-link" data-section="refund" href="{{ url_for('legal_page', section='refund', lang='ru') }}" target="_blank" data-i18n="refundLink">правила оплаты и возврата</a>.
                         </span>
                     </label>
 
-                    <button class="btn-primary pay-step-hidden" id="pay-submit" type="submit" disabled>Перейти к оформлению</button>
+                    <button class="btn-primary pay-step-hidden" id="pay-submit" type="submit" disabled data-i18n="submit">Перейти к оформлению</button>
                     <div class="pay-result" id="pay-result"></div>
                     <div class="pay-provider-box" id="pay-provider-box"></div>
 
                     <div class="pay-links">
-                        <a href="{{ url_for('legal_page', section='privacy', lang='ru') }}" target="_blank"><span class="pay-link-icon">i</span>Политика конфиденциальности</a>
-                        <a href="{{ url_for('legal_page', section='offer', lang='ru') }}" target="_blank"><span class="pay-link-icon">✓</span>Пользовательское соглашение</a>
-                        <a href="{{ url_for('legal_page', section='refund', lang='ru') }}" target="_blank"><span class="pay-link-icon">₽</span>Правила оплаты и возврата</a>
+                        <a class="pay-legal-link" data-section="privacy" href="{{ url_for('legal_page', section='privacy', lang='ru') }}" target="_blank"><span class="pay-link-icon">i</span><span data-i18n="privacyDoc">Политика конфиденциальности</span></a>
+                        <a class="pay-legal-link" data-section="offer" href="{{ url_for('legal_page', section='offer', lang='ru') }}" target="_blank"><span class="pay-link-icon">✓</span><span data-i18n="termsDoc">Пользовательское соглашение</span></a>
+                        <a class="pay-legal-link" data-section="refund" href="{{ url_for('legal_page', section='refund', lang='ru') }}" target="_blank"><span class="pay-link-icon">₽</span><span data-i18n="refundDoc">Правила оплаты и возврата</span></a>
                     </div>
                 </form>
             </section>
@@ -523,7 +551,7 @@
     </main>
 
     <script>
-        const state = { groups: [], methods: [], students: [], phoneStudents: [], selectedGroup: null, selectedStudent: null, selectedStudents: [], selectedPeriod: null, mode: 'group' };
+        const state = { groups: [], methods: [], students: [], phoneStudents: [], selectedGroup: null, selectedStudent: null, selectedStudents: [], selectedPeriod: null, mode: 'group', lang: 'ru' };
         const periodStep = document.getElementById('pay-period-step');
         const periodSelect = document.getElementById('pay-period');
         const groupInput = document.getElementById('pay-group');
@@ -544,7 +572,86 @@
         const consentStep = document.getElementById('pay-consent-step');
         const consentInput = document.getElementById('pay-consent');
 
-        const monthNames = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
+        const i18n = {
+            ru: {
+                login: 'Войти в систему',
+                byGroup: 'По группе',
+                byPhone: 'По телефону',
+                phone: 'Телефон',
+                group: 'Группа',
+                student: 'Ученик',
+                payMonth: 'Месяц оплаты',
+                payMethod: 'Способ оплаты',
+                acceptPrefix: 'Я принимаю',
+                termsLink: 'пользовательское соглашение',
+                privacyLink: 'политику конфиденциальности',
+                acceptAnd: 'и',
+                refundLink: 'правила оплаты и возврата',
+                submit: 'Перейти к оформлению',
+                privacyDoc: 'Политика конфиденциальности',
+                termsDoc: 'Пользовательское соглашение',
+                refundDoc: 'Правила оплаты и возврата',
+                groupPlaceholder: 'Введите название группы',
+                studentBeforeGroup: 'Сначала выберите группу',
+                studentLoading: 'Загрузка...',
+                studentPlaceholder: 'Введите ФИО ученика',
+                nothingFound: 'Ничего не найдено',
+                noStudentsPhone: 'По этому номеру ученики не найдены',
+                searching: 'Ищем учеников...',
+                noUnpaid: 'Нет неоплаченных месяцев',
+                chooseMonth: 'Выберите месяц оплаты',
+                month: 'Месяц',
+                tariff: 'Тариф',
+                amountDue: 'К оплате',
+                noGroup: 'Без группы',
+                paid: 'Оплачено',
+                monthsShort: 'мес.',
+                soon: ' скоро',
+                checkoutFailed: 'Не удалось подготовить оплату',
+                providerNote: 'После подключения API здесь будет переход на защищенную страницу платежной системы.',
+                months: ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь']
+            },
+            uz: {
+                login: 'Tizimga kirish',
+                byGroup: 'Guruh bo‘yicha',
+                byPhone: 'Telefon bo‘yicha',
+                phone: 'Telefon',
+                group: 'Guruh',
+                student: 'O‘quvchi',
+                payMonth: 'To‘lov oyi',
+                payMethod: 'To‘lov usuli',
+                acceptPrefix: 'Men',
+                termsLink: 'foydalanuvchi kelishuvi',
+                privacyLink: 'maxfiylik siyosati',
+                acceptAnd: 'va',
+                refundLink: 'to‘lov va qaytarish qoidalarini qabul qilaman',
+                submit: 'Rasmiylashtirishga o‘tish',
+                privacyDoc: 'Maxfiylik siyosati',
+                termsDoc: 'Foydalanuvchi kelishuvi',
+                refundDoc: 'To‘lov va qaytarish qoidalari',
+                groupPlaceholder: 'Guruh nomini kiriting',
+                studentBeforeGroup: 'Avval guruhni tanlang',
+                studentLoading: 'Yuklanmoqda...',
+                studentPlaceholder: 'O‘quvchi F.I.Sh. ni kiriting',
+                nothingFound: 'Hech narsa topilmadi',
+                noStudentsPhone: 'Bu raqam bo‘yicha o‘quvchi topilmadi',
+                searching: 'O‘quvchilar qidirilmoqda...',
+                noUnpaid: 'To‘lanmagan oylar yo‘q',
+                chooseMonth: 'To‘lov oyini tanlang',
+                month: 'Oy',
+                tariff: 'Tarif',
+                amountDue: 'To‘lov summasi',
+                noGroup: 'Guruhsiz',
+                paid: 'To‘langan',
+                monthsShort: 'oy',
+                soon: ' tez orada',
+                checkoutFailed: 'To‘lovni tayyorlab bo‘lmadi',
+                providerNote: 'API ulangandan keyin bu yerda to‘lov tizimining himoyalangan sahifasiga o‘tish bo‘ladi.',
+                months: ['Yanvar', 'Fevral', 'Mart', 'Aprel', 'May', 'Iyun', 'Iyul', 'Avgust', 'Sentabr', 'Oktabr', 'Noyabr', 'Dekabr']
+            }
+        };
+        const t = key => (i18n[state.lang] && i18n[state.lang][key]) || i18n.ru[key] || key;
+        const monthNames = () => t('months');
         const money = value => `${Number(value || 0).toLocaleString('ru-RU')} сум`;
         const escapeHtml = value => String(value || '').replace(/[&<>"']/g, char => ({
             '&': '&amp;',
@@ -579,7 +686,33 @@
         }
 
         function periodLabel(period) {
-            return `${monthNames[period.month - 1]} ${period.year}`;
+            return `${monthNames()[period.month - 1]} ${period.year}`;
+        }
+
+        function updateLegalLinks() {
+            document.querySelectorAll('.pay-legal-link').forEach(link => {
+                const section = link.dataset.section || 'privacy';
+                link.href = `/legal?section=${encodeURIComponent(section)}&lang=${encodeURIComponent(state.lang)}`;
+            });
+        }
+
+        function applyLanguage(lang) {
+            state.lang = lang === 'uz' ? 'uz' : 'ru';
+            document.documentElement.lang = state.lang;
+            document.querySelectorAll('[data-i18n]').forEach(node => {
+                node.textContent = t(node.dataset.i18n);
+            });
+            document.querySelectorAll('[data-pay-lang]').forEach(button => {
+                button.classList.toggle('active', button.dataset.payLang === state.lang);
+            });
+            groupInput.placeholder = t('groupPlaceholder');
+            studentInput.placeholder = state.selectedGroup ? t('studentPlaceholder') : t('studentBeforeGroup');
+            updateLegalLinks();
+            renderMethods();
+            renderPhoneResults();
+            renderPeriodOptions();
+            renderSummary();
+            syncSubmit();
         }
 
         function findStudentPeriod(student, period) {
@@ -600,7 +733,7 @@
         function renderDropdown(box, items, field, onSelect) {
             const visible = items.slice(0, 40);
             if (!visible.length) {
-                box.innerHTML = '<div class="pay-empty">Ничего не найдено</div>';
+                box.innerHTML = `<div class="pay-empty">${t('nothingFound')}</div>`;
                 box.classList.add('open');
                 return;
             }
@@ -676,9 +809,9 @@
                     <input type="checkbox" value="${student.id}" ${selectedIds.has(student.id) ? 'checked' : ''}>
                     <span class="pay-student-pick-main">
                         <span class="pay-student-pick-name">${escapeHtml(student.full_name)}</span>
-                        <span class="pay-student-pick-meta">${escapeHtml(student.group_name || 'Без группы')} · ${escapeHtml(student.tariff.name)}</span>
+                        <span class="pay-student-pick-meta">${escapeHtml(student.group_name || t('noGroup'))} · ${escapeHtml(student.tariff.name)}</span>
                     </span>
-                    <span class="pay-student-pick-amount">${(student.unpaid_periods || []).length ? `${(student.unpaid_periods || []).length} мес.` : 'Оплачено'}</span>
+                    <span class="pay-student-pick-amount">${(student.unpaid_periods || []).length ? `${(student.unpaid_periods || []).length} ${t('monthsShort')}` : t('paid')}</span>
                 </label>
             `).join('');
             phoneResults.querySelectorAll('input[type="checkbox"]').forEach(input => {
@@ -718,13 +851,13 @@
             ));
 
             if (!sorted.length) {
-                periodSelect.innerHTML = '<option value="">Нет неоплаченных месяцев</option>';
+                periodSelect.innerHTML = `<option value="">${t('noUnpaid')}</option>`;
                 renderSummary();
                 syncSubmit();
                 return;
             }
 
-            periodSelect.innerHTML = '<option value="">Выберите месяц оплаты</option>' + sorted.map(period => (
+            periodSelect.innerHTML = `<option value="">${t('chooseMonth')}</option>` + sorted.map(period => (
                 `<option value="${periodKey(period)}">${periodLabel(period)}</option>`
             )).join('');
             syncSubmit();
@@ -735,7 +868,7 @@
                 <label class="pay-method ${method.enabled ? '' : 'disabled'}">
                     <input type="radio" name="pay_method" value="${method.key}" ${method.enabled ? '' : 'disabled'}>
                     ${method.logo_url ? `<img class="pay-method-logo" src="${method.logo_url}" alt="">` : ''}
-                    <span class="pay-method-name">${method.name}${method.enabled ? '' : ' скоро'}</span>
+                    <span class="pay-method-name">${method.name}${method.enabled ? '' : t('soon')}</span>
                 </label>
             `).join('');
             methodsBox.querySelectorAll('input').forEach(input => input.addEventListener('change', syncSubmit));
@@ -757,18 +890,18 @@
             if (state.selectedStudents.length === 1) {
                 const s = state.selectedStudents[0];
                 summaryBox.innerHTML = `
-                    <div class="pay-summary-row"><span>Месяц</span><strong>${periodLabel(state.selectedPeriod)}</strong></div>
-                    <div class="pay-summary-row"><span>Тариф</span><strong>${s.tariff.name}</strong></div>
-                    <div class="pay-summary-row"><span>К оплате</span><strong>${money(total)}</strong></div>
+                    <div class="pay-summary-row"><span>${t('month')}</span><strong>${periodLabel(state.selectedPeriod)}</strong></div>
+                    <div class="pay-summary-row"><span>${t('tariff')}</span><strong>${s.tariff.name}</strong></div>
+                    <div class="pay-summary-row"><span>${t('amountDue')}</span><strong>${money(total)}</strong></div>
                 `;
                 return;
             }
             summaryBox.innerHTML = `
-                <div class="pay-summary-row"><span>Месяц</span><strong>${periodLabel(state.selectedPeriod)}</strong></div>
+                <div class="pay-summary-row"><span>${t('month')}</span><strong>${periodLabel(state.selectedPeriod)}</strong></div>
                 ${state.selectedStudents.map(student => `
                     <div class="pay-summary-row"><span>${escapeHtml(student.full_name)}</span><strong>${money(getStudentPeriodAmount(student))}</strong></div>
                 `).join('')}
-                <div class="pay-summary-row"><span>К оплате</span><strong>${money(total)}</strong></div>
+                <div class="pay-summary-row"><span>${t('amountDue')}</span><strong>${money(total)}</strong></div>
             `;
         }
 
@@ -787,13 +920,13 @@
             renderSummary();
             studentInput.disabled = true;
             studentInput.value = '';
-            studentInput.placeholder = 'Загрузка...';
+            studentInput.placeholder = t('studentLoading');
             studentList.innerHTML = '';
             const response = await fetch(`/api/pay/students?group_id=${encodeURIComponent(groupId)}`);
             const data = await response.json();
             state.students = data.students || [];
             studentInput.disabled = false;
-            studentInput.placeholder = 'Введите ФИО ученика';
+            studentInput.placeholder = t('studentPlaceholder');
             syncSubmit();
         }
 
@@ -808,18 +941,18 @@
                 syncSubmit();
                 return;
             }
-            phoneResults.innerHTML = '<div class="pay-empty">Ищем учеников...</div>';
+            phoneResults.innerHTML = `<div class="pay-empty">${t('searching')}</div>`;
             phoneResults.classList.remove('pay-step-hidden');
             const response = await fetch(`/api/pay/students-by-phone?phone=${encodeURIComponent(phoneInput.value)}`);
             const data = await response.json();
             if (!data.success) {
-                phoneResults.innerHTML = `<div class="pay-empty">${escapeHtml(data.message || 'Ничего не найдено')}</div>`;
+                phoneResults.innerHTML = `<div class="pay-empty">${escapeHtml(data.message || t('nothingFound'))}</div>`;
                 syncSubmit();
                 return;
             }
             state.phoneStudents = data.students || [];
             if (!state.phoneStudents.length) {
-                phoneResults.innerHTML = '<div class="pay-empty">По этому номеру ученики не найдены</div>';
+                phoneResults.innerHTML = `<div class="pay-empty">${t('noStudentsPhone')}</div>`;
                 syncSubmit();
                 return;
             }
@@ -852,7 +985,7 @@
             groupInput.value = '';
             studentInput.value = '';
             studentInput.disabled = true;
-            studentInput.placeholder = 'Сначала выберите группу';
+            studentInput.placeholder = t('studentBeforeGroup');
             phoneInput.value = '+998 ';
             phoneResults.innerHTML = '';
             resetPaymentProgress();
@@ -887,7 +1020,7 @@
                 state.students = [];
                 studentInput.disabled = true;
                 studentInput.value = '';
-                studentInput.placeholder = 'Сначала выберите группу';
+                studentInput.placeholder = t('studentBeforeGroup');
                 syncSubmit();
             }
             showGroupOptions();
@@ -914,6 +1047,9 @@
 
         document.querySelectorAll('input[name="pay_lookup_mode"]').forEach(input => {
             input.addEventListener('change', () => switchLookupMode(input.value));
+        });
+        document.querySelectorAll('[data-pay-lang]').forEach(button => {
+            button.addEventListener('click', () => applyLanguage(button.dataset.payLang));
         });
         periodSelect.addEventListener('change', handlePeriodChange);
         phoneInput.addEventListener('focus', () => ensureUzPhonePrefix(phoneInput));
@@ -952,7 +1088,7 @@
             });
             const data = await response.json();
             if (!data.success) {
-                resultBox.textContent = data.message || 'Не удалось подготовить оплату';
+                resultBox.textContent = data.message || t('checkoutFailed');
                 resultBox.classList.add('error');
                 return;
             }
@@ -962,13 +1098,14 @@
             providerBox.innerHTML = `
                 <strong>${checkout.method.name}: ${money(checkout.amount)}</strong>
                 ${checkout.students && checkout.students.length > 1 ? `<div class="pay-note">${checkout.students.map(item => `${escapeHtml(item.student_name)} - ${money(item.amount)}`).join('<br>')}</div>` : ''}
-                <div class="pay-note">После подключения API здесь будет переход на защищенную страницу платежной системы.</div>
+                <div class="pay-note">${t('providerNote')}</div>
                 ${checkout.method.qr_url ? `<img src="${checkout.method.qr_url}" alt="${checkout.method.name} QR">` : ''}
             `;
         });
 
+        applyLanguage('ru');
         loadOptions().catch(() => {
-            resultBox.textContent = 'Не удалось загрузить данные для оплаты';
+            resultBox.textContent = t('checkoutFailed');
             resultBox.classList.add('error');
         });
     </script>
