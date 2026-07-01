@@ -513,6 +513,7 @@ class ClubSettings(db.Model):
     payment_oson_enabled = db.Column(db.Boolean, default=False)  # Включен Oson
     payment_oson_qr_url = db.Column(db.String(500), nullable=True)  # QR для Oson
     payment_transfer_enabled = db.Column(db.Boolean, default=False)  # Включен Перечисление
+    payment_provider_configs = db.Column(db.Text, nullable=True)  # JSON-конфиг API/sandbox для платежных провайдеров
     expense_categories = db.Column(db.Text, nullable=True)  # JSON-массив статей расхода
     service_controls = db.Column(db.Text, nullable=True)  # JSON-конфиг включения/выключения сервисов
     access_block_day = db.Column(db.Integer, default=10)  # День месяца, с которого долг блокирует доступ
@@ -564,6 +565,18 @@ class ClubSettings(db.Model):
                 'doorNo': int(item.get('doorNo') or 1),
             })
         self.hikvision_devices = json.dumps(clean, ensure_ascii=False) if clean else None
+
+    def get_payment_provider_configs(self):
+        if not self.payment_provider_configs:
+            return {}
+        try:
+            data = json.loads(self.payment_provider_configs)
+            return data if isinstance(data, dict) else {}
+        except Exception:
+            return {}
+
+    def set_payment_provider_configs(self, configs):
+        self.payment_provider_configs = json.dumps(configs or {}, ensure_ascii=False) if configs else None
 
 
 class RewardType(db.Model):

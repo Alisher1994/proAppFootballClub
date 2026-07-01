@@ -1430,6 +1430,8 @@ def ensure_club_settings_columns():
             conn.execute(db.text("ALTER TABLE club_settings ADD COLUMN payment_oson_qr_url VARCHAR(500)"))
         if 'payment_transfer_enabled' not in columns:
             conn.execute(db.text("ALTER TABLE club_settings ADD COLUMN payment_transfer_enabled BOOLEAN DEFAULT 0"))
+        if 'payment_provider_configs' not in columns:
+            conn.execute(db.text("ALTER TABLE club_settings ADD COLUMN payment_provider_configs TEXT"))
         if 'expense_categories' not in columns:
             conn.execute(db.text("ALTER TABLE club_settings ADD COLUMN expense_categories TEXT"))
         if 'service_controls' not in columns:
@@ -6692,6 +6694,7 @@ def get_club_settings():
         'payment_oson_enabled': bool(getattr(settings, 'payment_oson_enabled', False)),
         'payment_oson_qr_url': getattr(settings, 'payment_oson_qr_url', '') or '',
         'payment_transfer_enabled': bool(getattr(settings, 'payment_transfer_enabled', False)),
+        'payment_provider_configs': settings.get_payment_provider_configs() if hasattr(settings, 'get_payment_provider_configs') else {},
         'access_block_day': int(getattr(settings, 'access_block_day', 10) or 10),
         'access_payment_policy': get_access_payment_policy(settings),
         'hikvision_daily_sync_time': get_hikvision_daily_sync_time(settings),
@@ -6708,6 +6711,100 @@ def get_club_settings():
         'cashier_phone': getattr(settings, 'cashier_phone', '') or '',
         'expense_categories': expense_categories
     })
+
+
+def normalize_payment_provider_configs(raw_configs):
+    if not isinstance(raw_configs, dict):
+        return {}
+
+    allowed_providers = {'payme', 'click', 'uzum', 'oson', 'paynet', 'xazna'}
+    allowed_fields = {
+        'enabled', 'mode', 'merchant_id', 'service_id', 'cashbox_id',
+        'merchant_user_id', 'secret_key', 'token', 'endpoint_url',
+        'checkout_url', 'callback_url', 'account_key', 'test_amount',
+        'notes'
+    }
+    max_lengths = {
+        'notes': 1000,
+        'secret_key': 500,
+        'token': 500,
+        'endpoint_url': 500,
+        'checkout_url': 500,
+        'callback_url': 500,
+    }
+    normalized = {}
+    for provider, config in raw_configs.items():
+        provider_key = str(provider or '').strip().lower()
+        if provider_key not in allowed_providers or not isinstance(config, dict):
+            continue
+        clean = {}
+        for field, value in config.items():
+            field_key = str(field or '').strip()
+            if field_key not in allowed_fields:
+                continue
+            if field_key == 'enabled':
+                clean[field_key] = bool(value)
+                continue
+            if field_key == 'mode':
+                mode = str(value or '').strip().lower()
+                clean[field_key] = mode if mode in {'sandbox', 'production'} else 'sandbox'
+                continue
+            text_value = str(value or '').strip()
+            limit = max_lengths.get(field_key, 200)
+            clean[field_key] = text_value[:limit]
+        normalized[provider_key] = clean
+    return normalized
+
+
+@app.route('/api/payments/<provider>/callback', methods=['GET', 'POST'])
+def payment_provider_callback(provider):
+    provider_key = (provider or '').strip().lower()
+    if provider_key not in {'payme', 'click', 'uzum', 'oson', 'paynet', 'xazna'}:
+        return jsonify({'success': False, 'message': 'Unknown payment provider'}), 404
+
+    settings = get_club_settings_instance()
+    provider_configs = settings.get_payment_provider_configs()
+    provider_config = provider_configs.get(provider_key, {})
+    if not provider_config.get('enabled'):
+        if provider_key == 'payme':
+            payload = request.get_json(silent=True) or {}
+            return jsonify({
+                'jsonrpc': '2.0',
+                'id': payload.get('id'),
+                'error': {
+                    'code': -32504,
+                    'message': {
+                        'ru': 'Платежный провайдер не включен',
+                        'uz': 'Tolov provayderi yoqilmagan',
+                        'en': 'Payment provider is not enabled'
+                    }
+                }
+            })
+        if provider_key == 'click':
+            return jsonify({'error': -9, 'error_note': 'Payment provider is not enabled'})
+        return jsonify({'success': False, 'message': 'Payment provider is not enabled'}), 403
+
+    if provider_key == 'payme':
+        payload = request.get_json(silent=True) or {}
+        return jsonify({
+            'jsonrpc': '2.0',
+            'id': payload.get('id'),
+            'error': {
+                'code': -31001,
+                'message': {
+                    'ru': 'Обработчик оплаты подготовлен, но еще не подключен к учету оплат',
+                    'uz': 'Tolov ishlovchisi tayyor, lekin hisobga ulanmagan',
+                    'en': 'Payment handler is prepared but not connected to accounting yet'
+                }
+            }
+        }), 501
+    if provider_key == 'click':
+        return jsonify({'error': -4, 'error_note': 'Payment handler is prepared but not connected yet'}), 501
+    return jsonify({
+        'success': False,
+        'provider': provider_key,
+        'message': 'Payment handler is prepared but not connected yet'
+    }), 501
 
 
 @app.route('/api/club-settings', methods=['PUT'])
@@ -6758,6 +6855,11 @@ def update_club_settings():
         payment_oson_enabled = get_bool_setting('payment_oson_enabled', getattr(settings, 'payment_oson_enabled', False))
         payment_oson_qr_url = get_str_setting('payment_oson_qr_url', getattr(settings, 'payment_oson_qr_url', '') or '')
         payment_transfer_enabled = get_bool_setting('payment_transfer_enabled', getattr(settings, 'payment_transfer_enabled', False))
+        payment_provider_configs = normalize_payment_provider_configs(
+            data.get('payment_provider_configs')
+            if 'payment_provider_configs' in data
+            else settings.get_payment_provider_configs()
+        )
         access_block_day = int(data.get('access_block_day', getattr(settings, 'access_block_day', 10) or 10))
         access_payment_policy = (data.get('access_payment_policy') or getattr(settings, 'access_payment_policy', '') or 'partial_current_month').strip()
         hikvision_daily_sync_time = (data.get('hikvision_daily_sync_time') or getattr(settings, 'hikvision_daily_sync_time', '') or '03:00').strip()
@@ -6844,6 +6946,7 @@ def update_club_settings():
         settings.payment_oson_enabled = payment_oson_enabled
         settings.payment_oson_qr_url = payment_oson_qr_url if payment_oson_qr_url else None
         settings.payment_transfer_enabled = payment_transfer_enabled
+        settings.set_payment_provider_configs(payment_provider_configs)
         settings.access_block_day = access_block_day
         settings.access_payment_policy = access_payment_policy
         settings.hikvision_daily_sync_time = hikvision_daily_sync_time

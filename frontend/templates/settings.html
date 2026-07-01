@@ -1015,6 +1015,99 @@
             display: block;
         }
 
+        .payment-provider-setup {
+            margin-top: 18px;
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+        }
+
+        .payment-provider-card {
+            border: 1px solid #e4ddd6;
+            border-radius: 10px;
+            background: #fff;
+            padding: 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .payment-provider-card-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .payment-provider-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #5f6673;
+            font-size: 14px;
+            line-height: 18px;
+            font-weight: 600;
+        }
+
+        .payment-provider-title svg {
+            width: 17px;
+            height: 17px;
+            color: #ff8a00;
+            stroke-width: 1.7;
+        }
+
+        .payment-provider-doc {
+            color: #8a9099;
+            font-size: 12px;
+            line-height: 16px;
+            text-decoration: none;
+        }
+
+        .payment-provider-doc:hover {
+            color: #ff8a00;
+        }
+
+        .payment-provider-fields {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+        }
+
+        .payment-provider-field {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .payment-provider-field.is-wide {
+            grid-column: 1 / -1;
+        }
+
+        .payment-provider-field label,
+        .payment-provider-field span {
+            color: #5f6673;
+            font-size: 12px;
+            line-height: 15px;
+            font-weight: 600;
+        }
+
+        .payment-provider-note {
+            color: #8a9099;
+            font-size: 12px;
+            line-height: 17px;
+            margin: 0;
+        }
+
+        .payment-provider-example {
+            border-radius: 8px;
+            background: #f8f7f6;
+            border: 1px solid #ece7e2;
+            padding: 9px 10px;
+            color: #5f6673;
+            font-size: 12px;
+            line-height: 17px;
+        }
+
         .form-row {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
@@ -1023,6 +1116,11 @@
 
         @media (max-width: 768px) {
             .payment-method-list {
+                grid-template-columns: 1fr;
+            }
+
+            .payment-provider-setup,
+            .payment-provider-fields {
                 grid-template-columns: 1fr;
             }
 
@@ -2643,6 +2741,16 @@
                                                     </label>
                                                 </div>
                                             </div>
+                                        </div>
+
+                                        <div style="margin-top: 22px;">
+                                            <h4 style="margin: 0 0 8px 0; font-size: 15px; color: var(--theme-text-primary);">
+                                                Настройка API и песочницы
+                                            </h4>
+                                            <p class="payment-provider-note">
+                                                Заполните эти поля тестовыми данными из кабинетов. Callback URL можно отдавать провайдеру сразу, а переключение в production сделаем после проверки песочницы.
+                                            </p>
+                                            <div id="paymentProviderConfigs" class="payment-provider-setup"></div>
                                         </div>
                                     </div>
 

@@ -25,6 +25,65 @@ const ACCESS_POLICY_INFO = {
         example: 'Пример: лимит 1 месяц, есть долг за июнь и оплата за июль - проход открыт. Долг за май и июнь - проход закрыт.'
     }
 };
+let paymentProviderConfigs = {};
+const PAYMENT_PROVIDER_DEFINITIONS = [
+    {
+        id: 'payme',
+        title: 'Payme',
+        docsUrl: 'https://developer.help.paycom.uz/',
+        note: 'Merchant API: JSON-RPC callback с CheckPerformTransaction, CreateTransaction, PerformTransaction, CancelTransaction.',
+        example: 'Sandbox: merchant_id + secret/test key. Account key обычно student_id или payment_id.'
+    },
+    {
+        id: 'click',
+        title: 'Click',
+        docsUrl: 'https://docs.click.uz/',
+        note: 'Merchant Billing API: prepare/complete callback, service_id, merchant_id, merchant_user_id и secret_key.',
+        example: 'Sandbox: проверьте sign_string и action 0/1 на тестовой оплате.'
+    },
+    {
+        id: 'uzum',
+        title: 'Uzum Bank',
+        docsUrl: 'https://developer.uzumbank.uz/',
+        note: 'Подготовлено под Checkout/Merchant/Dynamic QR: ID мерчанта, сервис, секрет и callback.',
+        example: 'После выдачи кабинета внесем точный endpoint песочницы и метод оплаты.'
+    },
+    {
+        id: 'oson',
+        title: 'OSON',
+        docsUrl: 'https://docs.oson.com/',
+        note: 'Подготовлено под кассу/merchant account: cashbox/service ID, secret/token и callback статусов.',
+        example: 'Для теста нужен ключ кассы и тестовый endpoint из кабинета OSON.'
+    },
+    {
+        id: 'paynet',
+        title: 'Paynet',
+        docsUrl: 'https://docs.developer.paynet.my/docs',
+        note: 'Ссылки ведут на Malaysia PayNet. Для узбекского Paynet оставляем поля как заготовку до кабинета/документации.',
+        example: 'Не включайте production, пока Paynet не даст локальные параметры интеграции.'
+    },
+    {
+        id: 'xazna',
+        title: 'Xazna',
+        docsUrl: '',
+        note: 'Документация не найдена. Поля оставлены для ручного подключения после выдачи условий интеграции.',
+        example: 'Когда дадут доступ, добавим protocol/callback и проверим песочницу.'
+    }
+];
+const PAYMENT_PROVIDER_FIELDS = [
+    { key: 'merchant_id', label: 'Merchant ID', placeholder: 'merchant_id / m' },
+    { key: 'service_id', label: 'Service ID', placeholder: 'service_id' },
+    { key: 'cashbox_id', label: 'Cashbox / Terminal ID', placeholder: 'cashbox_id' },
+    { key: 'merchant_user_id', label: 'Merchant user ID', placeholder: 'merchant_user_id' },
+    { key: 'secret_key', label: 'Secret / test key', placeholder: 'sandbox secret', type: 'password', wide: true },
+    { key: 'token', label: 'Token', placeholder: 'api token', type: 'password', wide: true },
+    { key: 'endpoint_url', label: 'Sandbox endpoint', placeholder: 'https://...', wide: true },
+    { key: 'checkout_url', label: 'Checkout / pay URL', placeholder: 'https://...', wide: true },
+    { key: 'callback_url', label: 'Callback URL для кабинета', placeholder: '/api/payments/provider/callback', wide: true },
+    { key: 'account_key', label: 'Account key', placeholder: 'student_id или payment_id' },
+    { key: 'test_amount', label: 'Тестовая сумма', placeholder: '1000' },
+    { key: 'notes', label: 'Заметки', placeholder: 'Что выдали в кабинете', wide: true }
+];
 
 async function initSettings() {
     attachWorkingDayToggles();
@@ -315,6 +374,98 @@ function setWorkingDays(days) {
     });
 }
 
+function getDefaultProviderCallback(providerId) {
+    return `${window.location.origin}/api/payments/${providerId}/callback`;
+}
+
+function renderPaymentProviderConfigs() {
+    const container = document.getElementById('paymentProviderConfigs');
+    if (!container) return;
+
+    container.innerHTML = PAYMENT_PROVIDER_DEFINITIONS.map((provider) => {
+        const config = paymentProviderConfigs[provider.id] || {};
+        const mode = config.mode === 'production' ? 'production' : 'sandbox';
+        const fieldsHtml = PAYMENT_PROVIDER_FIELDS.map((field) => {
+            const fieldValue = field.key === 'callback_url'
+                ? (config[field.key] || getDefaultProviderCallback(provider.id))
+                : (config[field.key] || '');
+            const type = field.type || 'text';
+            const wideClass = field.wide ? ' is-wide' : '';
+            return `
+                <div class="payment-provider-field${wideClass}">
+                    <label for="payment_${provider.id}_${field.key}">${escapeHtml(field.label)}</label>
+                    <input
+                        type="${type}"
+                        id="payment_${provider.id}_${field.key}"
+                        class="form-input-modern"
+                        data-payment-provider="${provider.id}"
+                        data-payment-field="${field.key}"
+                        value="${escapeHtml(fieldValue)}"
+                        placeholder="${escapeHtml(field.placeholder || '')}">
+                </div>
+            `;
+        }).join('');
+
+        const docsLink = provider.docsUrl
+            ? `<a href="${escapeHtml(provider.docsUrl)}" target="_blank" rel="noopener" class="payment-provider-doc">Документация</a>`
+            : '<span class="payment-provider-doc">Документации нет</span>';
+
+        return `
+            <div class="payment-provider-card" data-provider-card="${provider.id}">
+                <div class="payment-provider-card-header">
+                    <div>
+                        <div class="payment-provider-title">
+                            <i data-lucide="plug-zap"></i>
+                            <span>${escapeHtml(provider.title)}</span>
+                        </div>
+                        <p class="payment-provider-note">${escapeHtml(provider.note)}</p>
+                    </div>
+                    <label class="switch-toggle" title="Включить API-интеграцию">
+                        <input type="checkbox" data-payment-provider="${provider.id}" data-payment-field="enabled" ${config.enabled ? 'checked' : ''}>
+                        <span class="switch-slider"></span>
+                    </label>
+                </div>
+                <div class="payment-provider-fields">
+                    <div class="payment-provider-field">
+                        <span>Режим</span>
+                        <select class="form-input-modern" data-payment-provider="${provider.id}" data-payment-field="mode">
+                            <option value="sandbox" ${mode === 'sandbox' ? 'selected' : ''}>Sandbox</option>
+                            <option value="production" ${mode === 'production' ? 'selected' : ''}>Production</option>
+                        </select>
+                    </div>
+                    ${fieldsHtml}
+                </div>
+                <div class="payment-provider-example">${escapeHtml(provider.example)} ${docsLink}</div>
+            </div>
+        `;
+    }).join('');
+
+    container.querySelectorAll('input, select').forEach((element) => {
+        element.addEventListener('input', () => updateSettingsFormDirtyState(document.getElementById('settingsForm')));
+        element.addEventListener('change', () => updateSettingsFormDirtyState(document.getElementById('settingsForm')));
+    });
+    if (window.lucide) window.lucide.createIcons();
+}
+
+function collectPaymentProviderConfigs() {
+    const configs = {};
+    document.querySelectorAll('[data-provider-card]').forEach((card) => {
+        const providerId = card.dataset.providerCard;
+        const config = {};
+        card.querySelectorAll('[data-payment-field]').forEach((element) => {
+            const field = element.dataset.paymentField;
+            if (!field) return;
+            if (element.type === 'checkbox') {
+                config[field] = element.checked;
+            } else {
+                config[field] = (element.value || '').trim();
+            }
+        });
+        configs[providerId] = config;
+    });
+    return configs;
+}
+
 async function loadSettings() {
     try {
         const resp = await fetch('/api/club-settings');
@@ -419,6 +570,10 @@ async function loadSettings() {
         if (osonEnabledEl) osonEnabledEl.checked = !!data.payment_oson_enabled;
         if (osonQrEl) osonQrEl.value = data.payment_oson_qr_url || '';
         if (transferEnabledEl) transferEnabledEl.checked = !!data.payment_transfer_enabled;
+        paymentProviderConfigs = data.payment_provider_configs && typeof data.payment_provider_configs === 'object'
+            ? data.payment_provider_configs
+            : {};
+        renderPaymentProviderConfigs();
 
         // Статьи расхода
         expenseCategories = Array.isArray(data.expense_categories) ? data.expense_categories : [];
@@ -815,6 +970,7 @@ function gatherAllSettings() {
         payment_oson_enabled: document.getElementById('payment_oson_enabled')?.checked || false,
         payment_oson_qr_url: (document.getElementById('payment_oson_qr_url')?.value || '').trim(),
         payment_transfer_enabled: document.getElementById('payment_transfer_enabled')?.checked || false,
+        payment_provider_configs: collectPaymentProviderConfigs(),
         expense_categories: expenseCategories
     };
 }
