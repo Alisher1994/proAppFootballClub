@@ -41,11 +41,25 @@
             flex-direction: column;
         }
         .pay-header {
-            display: flex;
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
             align-items: center;
-            justify-content: space-between;
             gap: 16px;
             margin-bottom: 14px;
+        }
+        .pay-header .btn-secondary {
+            justify-self: end;
+        }
+        .pay-header-logo {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-width: 0;
+        }
+        .pay-header-logo img {
+            width: 120px;
+            max-height: 54px;
+            object-fit: contain;
         }
         .pay-lang {
             position: relative;
@@ -118,15 +132,13 @@
             padding: 22px 20px 28px;
             box-shadow: 0 8px 22px rgba(15, 23, 42, .045);
         }
-        .pay-logo-center {
+        .pay-card-title {
             display: flex;
             justify-content: center;
             margin-bottom: 16px;
-        }
-        .pay-logo-center img {
-            width: 138px;
-            max-height: 81px;
-            object-fit: contain;
+            color: #334155;
+            font: 700 17px/1.2 var(--ui-font-family);
+            text-align: center;
         }
         .pay-form {
             display: grid;
@@ -606,8 +618,19 @@
         }
         @media (max-width: 860px) {
             .pay-methods { grid-template-columns: 1fr; }
-            .pay-header { justify-content: stretch; }
-            .pay-header .btn-secondary { width: 100%; justify-content: center; }
+            .pay-header {
+                grid-template-columns: auto 1fr auto;
+                gap: 10px;
+            }
+            .pay-header-logo img {
+                width: 100px;
+            }
+            .pay-header .btn-secondary {
+                min-width: 0;
+                width: auto;
+                padding-inline: 12px;
+                justify-content: center;
+            }
             .pay-mode {
                 grid-template-columns: repeat(2, 78px);
             }
@@ -649,14 +672,15 @@
                     </button>
                 </div>
             </div>
+            <div class="pay-header-logo">
+                <img src="{{ system_logo_url }}" alt="{{ system_name }}">
+            </div>
             <a class="btn-secondary" href="{{ url_for('login') }}" data-i18n="login">Войти в систему</a>
         </header>
 
         <div class="pay-grid">
             <section class="pay-panel">
-                <div class="pay-logo-center">
-                    <img src="{{ system_logo_url }}" alt="{{ system_name }}">
-                </div>
+                <div class="pay-card-title" data-i18n="payTitle">Оплата обучения</div>
                 <form class="pay-form" id="pay-form">
                     <div class="pay-mode" aria-label="Способ поиска ученика">
                         <label>
@@ -751,6 +775,7 @@
         const i18n = {
             ru: {
                 login: 'Войти в систему',
+                payTitle: 'Оплата обучения',
                 byGroup: 'По группе',
                 byPhone: 'По телефону',
                 phone: 'Телефон',
@@ -789,6 +814,7 @@
             },
             uz: {
                 login: 'Tizimga kirish',
+                payTitle: 'Ta’lim uchun to‘lov',
                 byGroup: 'Guruh bo‘yicha',
                 byPhone: 'Telefon bo‘yicha',
                 phone: 'Telefon',
