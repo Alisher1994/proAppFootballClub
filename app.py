@@ -2501,7 +2501,11 @@ def login():
         else:
             return jsonify({'success': False, 'message': 'Неверный логин или пароль'}), 401
     
-    return render_template('login.html', reset_token=request.args.get('reset_token', ''))
+    return render_template(
+        'login.html',
+        reset_token=request.args.get('reset_token', ''),
+        google_auth_enabled=bool(GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET)
+    )
 
 
 @app.route('/auth/google')
@@ -2653,19 +2657,35 @@ def pay_page():
     return render_template('pay.html')
 
 
+@app.route('/legal')
+def legal_page():
+    section = (request.args.get('section') or 'privacy').strip()
+    lang = (request.args.get('lang') or 'ru').strip()
+    if section not in {'privacy', 'offer', 'refund'}:
+        section = 'privacy'
+    if lang not in {'ru', 'uz', 'en'}:
+        lang = 'ru'
+    return render_template('legal.html', active_section=section, active_lang=lang)
+
+
+def normalize_legal_lang():
+    lang = (request.args.get('lang') or 'ru').strip()
+    return lang if lang in {'ru', 'uz', 'en'} else 'ru'
+
+
 @app.route('/privacy-policy')
 def privacy_policy_page():
-    return render_template('privacy_policy.html')
+    return render_template('legal.html', active_section='privacy', active_lang=normalize_legal_lang())
 
 
 @app.route('/terms')
 def terms_page():
-    return render_template('terms.html')
+    return render_template('legal.html', active_section='offer', active_lang=normalize_legal_lang())
 
 
 @app.route('/payment-terms')
 def payment_terms_page():
-    return render_template('payment_terms.html')
+    return render_template('legal.html', active_section='refund', active_lang=normalize_legal_lang())
 
 
 @app.route('/api/pay/options', methods=['GET'])
@@ -2681,9 +2701,9 @@ def public_pay_options():
         'groups': [{'id': group.id, 'name': group.name} for group in groups],
         'methods': get_public_payment_methods(settings),
         'legal': {
-            'privacy_policy': url_for('privacy_policy_page'),
-            'terms': url_for('terms_page'),
-            'payment_terms': url_for('payment_terms_page'),
+            'privacy_policy': url_for('legal_page', section='privacy', lang='ru'),
+            'terms': url_for('legal_page', section='offer', lang='ru'),
+            'payment_terms': url_for('legal_page', section='refund', lang='ru'),
         }
     })
 

@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="{{ active_lang or 'ru' }}">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Документы - {{ system_name }}</title>
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='uploads/favicon.png') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        body {
+            margin: 0;
+            background: #f7f4f1;
+            color: #111827;
+            font-family: var(--ui-font-family);
+        }
+        .legal-shell {
+            max-width: 1040px;
+            margin: 0 auto;
+            padding: 28px 18px 52px;
+        }
+        .legal-card {
+            display: grid;
+            grid-template-columns: 260px minmax(0, 1fr);
+            gap: 0;
+            min-height: 560px;
+            border: 1px solid #e4ddd6;
+            border-radius: 8px;
+            background: #fff;
+            box-shadow: 0 8px 22px rgba(15, 23, 42, .045);
+            overflow: hidden;
+        }
+        .legal-side {
+            border-right: 1px solid #e4ddd6;
+            background: #fbfaf9;
+            padding: 18px;
+        }
+        .legal-logo {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 18px;
+        }
+        .legal-logo img {
+            width: 104px;
+            max-height: 58px;
+            object-fit: contain;
+        }
+        .legal-nav {
+            display: grid;
+            gap: 8px;
+        }
+        .legal-nav button {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            min-height: 40px;
+            border: 1px solid transparent;
+            border-radius: 8px;
+            background: transparent;
+            color: #334155;
+            padding: 0 10px;
+            text-align: left;
+            font: 600 13px/1.2 var(--ui-font-family);
+            cursor: pointer;
+        }
+        .legal-nav button.active {
+            border-color: #e4ddd6;
+            background: #fff;
+            color: #111827;
+        }
+        .legal-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: #111827;
+            color: #fff;
+            font-size: 12px;
+            flex: 0 0 auto;
+        }
+        .legal-content {
+            padding: 24px 28px 30px;
+        }
+        .legal-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 18px;
+        }
+        .legal-title {
+            margin: 0;
+            color: #111827;
+            font-size: 22px;
+            font-weight: 700;
+            letter-spacing: 0;
+        }
+        .legal-lang {
+            display: inline-flex;
+            gap: 4px;
+            padding: 3px;
+            border: 1px solid #e4ddd6;
+            border-radius: 8px;
+            background: #f8f7f6;
+        }
+        .legal-lang button {
+            min-width: 38px;
+            height: 30px;
+            border: 0;
+            border-radius: 6px;
+            background: transparent;
+            color: #475569;
+            font: 700 12px/1 var(--ui-font-family);
+            cursor: pointer;
+        }
+        .legal-lang button.active {
+            background: #111827;
+            color: #fff;
+        }
+        .legal-body h2 {
+            margin: 20px 0 8px;
+            color: #111827;
+            font-size: 16px;
+            font-weight: 700;
+        }
+        .legal-body p,
+        .legal-body li {
+            margin: 0 0 10px;
+            color: #475569;
+            font-size: 14px;
+            line-height: 1.62;
+        }
+        .legal-body ul {
+            margin: 0 0 12px;
+            padding-left: 18px;
+        }
+        .legal-actions {
+            margin-top: 22px;
+        }
+        .legal-actions a {
+            color: #d96f00;
+            font-weight: 700;
+            text-decoration: none;
+            font-size: 13px;
+        }
+        @media (max-width: 760px) {
+            .legal-card { grid-template-columns: 1fr; }
+            .legal-side { border-right: 0; border-bottom: 1px solid #e4ddd6; }
+            .legal-content { padding: 20px 18px 24px; }
+            .legal-top { align-items: flex-start; flex-direction: column; }
+        }
+    </style>
+</head>
+
+<body>
+    <main class="legal-shell">
+        <section class="legal-card">
+            <aside class="legal-side">
+                <div class="legal-logo">
+                    <img src="{{ system_logo_url }}" alt="{{ system_name }}">
+                </div>
+                <nav class="legal-nav" aria-label="Разделы документов">
+                    <button type="button" data-section="privacy"><span class="legal-icon">i</span><span data-label="privacy"></span></button>
+                    <button type="button" data-section="offer"><span class="legal-icon">✓</span><span data-label="offer"></span></button>
+                    <button type="button" data-section="refund"><span class="legal-icon">₽</span><span data-label="refund"></span></button>
+                </nav>
+            </aside>
+            <article class="legal-content">
+                <div class="legal-top">
+                    <h1 class="legal-title" id="legal-title"></h1>
+                    <div class="legal-lang" aria-label="Язык документа">
+                        <button type="button" data-lang="ru">RU</button>
+                        <button type="button" data-lang="uz">UZ</button>
+                        <button type="button" data-lang="en">EN</button>
+                    </div>
+                </div>
+                <div class="legal-body" id="legal-body"></div>
+                <div class="legal-actions">
+                    <a href="{{ url_for('pay_page') }}" id="legal-back"></a>
+                </div>
+            </article>
+        </section>
+    </main>
+
+    <script>
+        const initialSection = "{{ active_section or 'privacy' }}";
+        const initialLang = "{{ active_lang or 'ru' }}";
+        const labels = {
+            ru: { privacy: 'Политика конфиденциальности', offer: 'Публичная оферта', refund: 'Возврат средств', back: 'Вернуться к оплате' },
+            uz: { privacy: 'Maxfiylik siyosati', offer: 'Ommaviy oferta', refund: 'To‘lov va qaytarish', back: 'To‘lovga qaytish' },
+            en: { privacy: 'Privacy Policy', offer: 'Public Offer', refund: 'Payments and Refunds', back: 'Back to payment' }
+        };
+        const docs = {
+            ru: {
+                privacy: `
+                    <p>Настоящая политика описывает, какие персональные данные обрабатываются системой {{ system_name }} при учете учеников, посещаемости и оформлении оплат.</p>
+                    <h2>Какие данные обрабатываются</h2>
+                    <p>Мы можем обрабатывать ФИО ученика и родителя, номер телефона, группу, тариф, историю оплат, данные посещаемости и технические данные обращения к сервису.</p>
+                    <h2>Цели обработки</h2>
+                    <p>Данные используются для ведения учета обучения, связи с родителями, отображения суммы оплаты, подтверждения платежей и исполнения обязательств клуба.</p>
+                    <h2>Платежные данные</h2>
+                    <p>Номер карты, срок действия, CVV и SMS-коды не вводятся и не хранятся в нашей системе. Такие данные обрабатываются только на стороне платежной системы.</p>
+                `,
+                offer: `
+                    <p>Используя сервис {{ system_name }}, пользователь подтверждает согласие с правилами оформления оплат и обработки информации, необходимой для предоставления услуг клуба.</p>
+                    <h2>Предмет соглашения</h2>
+                    <p>Сервис позволяет просматривать данные, необходимые для оплаты обучения ученика: группу, ФИО, тариф и сумму к оплате.</p>
+                    <h2>Обязанности пользователя</h2>
+                    <p>Пользователь обязуется выбирать корректного ученика и проверять сумму перед переходом к оплате.</p>
+                    <h2>Ограничение ответственности</h2>
+                    <p>Сервис не запрашивает и не хранит данные банковских карт. Платеж подтверждается на стороне платежного провайдера.</p>
+                `,
+                refund: `
+                    <p>Оплата обучения производится по тарифу, заранее закрепленному за выбранным учеником в системе клуба.</p>
+                    <h2>Порядок оплаты</h2>
+                    <p>Пользователь выбирает группу и ученика. Система автоматически отображает тариф, сумму за текущий месяц и доступные способы оплаты.</p>
+                    <h2>Карточные данные</h2>
+                    <p>Данные карты вводятся только на защищенной стороне платежной системы. Сервис {{ system_name }} не хранит карточные данные и не выполняет автосписания.</p>
+                    <h2>Возврат</h2>
+                    <p>Вопросы возврата рассматриваются администрацией клуба индивидуально согласно фактическому оказанию услуг и внутренним правилам клуба.</p>
+                `
+            },
+            uz: {
+                privacy: `
+                    <p>Ushbu siyosat {{ system_name }} tizimida o‘quvchilar, davomat va to‘lovlarni rasmiylashtirish jarayonida qanday shaxsiy ma’lumotlar qayta ishlanishini tushuntiradi.</p>
+                    <h2>Qanday ma’lumotlar qayta ishlanadi</h2>
+                    <p>O‘quvchi va ota-ona F.I.Sh., telefon raqami, guruh, tarif, to‘lov tarixi, davomat va servisdan foydalanish bo‘yicha texnik ma’lumotlar qayta ishlanishi mumkin.</p>
+                    <h2>Qayta ishlash maqsadi</h2>
+                    <p>Ma’lumotlar ta’lim hisobini yuritish, ota-onalar bilan aloqa qilish, to‘lov summasini ko‘rsatish va to‘lovlarni tasdiqlash uchun ishlatiladi.</p>
+                    <h2>To‘lov kartasi ma’lumotlari</h2>
+                    <p>Karta raqami, amal qilish muddati, CVV va SMS-kodlar bizning tizimimizda kiritilmaydi va saqlanmaydi. Ular faqat to‘lov tizimi tomonida qayta ishlanadi.</p>
+                `,
+                offer: `
+                    <p>{{ system_name }} servisidan foydalanish orqali foydalanuvchi klub xizmatlari uchun zarur bo‘lgan to‘lov va ma’lumotlarni qayta ishlash shartlariga rozilik bildiradi.</p>
+                    <h2>Kelishuv predmeti</h2>
+                    <p>Servis o‘quvchi to‘lovi uchun zarur ma’lumotlarni ko‘rsatadi: guruh, F.I.Sh., tarif va to‘lov summasi.</p>
+                    <h2>Foydalanuvchi majburiyatlari</h2>
+                    <p>Foydalanuvchi to‘g‘ri o‘quvchini tanlashi va to‘lovdan oldin summani tekshirishi kerak.</p>
+                    <h2>Mas’uliyat cheklovi</h2>
+                    <p>Servis bank kartasi ma’lumotlarini so‘ramaydi va saqlamaydi. To‘lov to‘lov provayderi tomonida tasdiqlanadi.</p>
+                `,
+                refund: `
+                    <p>Ta’lim uchun to‘lov tizimda o‘quvchiga oldindan biriktirilgan tarif bo‘yicha amalga oshiriladi.</p>
+                    <h2>To‘lov tartibi</h2>
+                    <p>Foydalanuvchi guruh va o‘quvchini tanlaydi. Tizim avtomatik ravishda tarif, joriy oy summasi va mavjud to‘lov usullarini ko‘rsatadi.</p>
+                    <h2>Karta ma’lumotlari</h2>
+                    <p>Karta ma’lumotlari faqat himoyalangan to‘lov tizimi sahifasida kiritiladi. {{ system_name }} karta ma’lumotlarini saqlamaydi va avtomatik yechib olishni bajarmaydi.</p>
+                    <h2>Qaytarish</h2>
+                    <p>Qaytarish masalalari klub ma’muriyati tomonidan ko‘rsatilgan xizmatlar va klub ichki qoidalariga muvofiq alohida ko‘rib chiqiladi.</p>
+                `
+            },
+            en: {
+                privacy: `
+                    <p>This policy explains what personal data is processed by {{ system_name }} for student records, attendance and payment preparation.</p>
+                    <h2>Data we process</h2>
+                    <p>We may process student and parent names, phone numbers, group, tariff, payment history, attendance data and technical service usage data.</p>
+                    <h2>Purpose</h2>
+                    <p>Data is used to manage education records, contact parents, display payment amounts, confirm payments and fulfill club obligations.</p>
+                    <h2>Payment card data</h2>
+                    <p>Card number, expiration date, CVV and SMS codes are not entered or stored in our system. Such data is processed only by the payment provider.</p>
+                `,
+                offer: `
+                    <p>By using {{ system_name }}, the user agrees to the payment preparation rules and processing of information required to provide club services.</p>
+                    <h2>Subject</h2>
+                    <p>The service displays information required for student tuition payment: group, name, tariff and payable amount.</p>
+                    <h2>User responsibility</h2>
+                    <p>The user must choose the correct student and check the amount before proceeding to payment.</p>
+                    <h2>Liability limitation</h2>
+                    <p>The service does not request or store bank card data. Payment confirmation is handled by the payment provider.</p>
+                `,
+                refund: `
+                    <p>Tuition payment is made according to the tariff already assigned to the selected student in the club system.</p>
+                    <h2>Payment process</h2>
+                    <p>The user selects a group and student. The system automatically displays the tariff, current month amount and available payment methods.</p>
+                    <h2>Card data</h2>
+                    <p>Card data is entered only on the secure payment provider side. {{ system_name }} does not store card data and does not perform automatic charges.</p>
+                    <h2>Refunds</h2>
+                    <p>Refund requests are reviewed individually by the club administration according to services actually provided and internal club rules.</p>
+                `
+            }
+        };
+
+        let currentSection = ['privacy', 'offer', 'refund'].includes(initialSection) ? initialSection : 'privacy';
+        let currentLang = ['ru', 'uz', 'en'].includes(initialLang) ? initialLang : 'ru';
+
+        function renderLegal() {
+            document.documentElement.lang = currentLang;
+            document.getElementById('legal-title').textContent = labels[currentLang][currentSection];
+            document.getElementById('legal-body').innerHTML = docs[currentLang][currentSection];
+            document.getElementById('legal-back').textContent = labels[currentLang].back;
+            document.querySelectorAll('[data-section]').forEach(button => {
+                const section = button.dataset.section;
+                button.classList.toggle('active', section === currentSection);
+                button.querySelector('[data-label]').textContent = labels[currentLang][section];
+            });
+            document.querySelectorAll('[data-lang]').forEach(button => {
+                button.classList.toggle('active', button.dataset.lang === currentLang);
+            });
+            const url = new URL(window.location.href);
+            url.searchParams.set('section', currentSection);
+            url.searchParams.set('lang', currentLang);
+            window.history.replaceState({}, '', url);
+        }
+
+        document.querySelectorAll('[data-section]').forEach(button => {
+            button.addEventListener('click', () => {
+                currentSection = button.dataset.section;
+                renderLegal();
+            });
+        });
+        document.querySelectorAll('[data-lang]').forEach(button => {
+            button.addEventListener('click', () => {
+                currentLang = button.dataset.lang;
+                renderLegal();
+            });
+        });
+        renderLegal();
+    </script>
+</body>
+
+</html>

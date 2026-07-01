@@ -45,8 +45,8 @@ loginForm.addEventListener('submit', async (e) => {
     const errorDiv = document.getElementById('error-message');
     const params = new URLSearchParams(window.location.search);
     const resetToken = resetPasswordForm?.dataset.resetToken || '';
+    const silentErrors = new Set(['google_not_configured']);
     const errorMap = {
-        google_not_configured: 'Google авторизация еще не настроена.',
         google_user_not_found: 'Пользователь с данной электронной почтой не найден.',
         google_cancelled: 'Вход через Google отменен.',
         google_state: 'Сессия Google входа устарела. Попробуйте еще раз.',
@@ -63,7 +63,7 @@ loginForm.addEventListener('submit', async (e) => {
     }
 
     const error = params.get('error');
-    if (error && errorDiv) {
+    if (error && !silentErrors.has(error) && errorDiv) {
         errorDiv.textContent = errorMap[error] || 'Ошибка входа';
     }
 })();

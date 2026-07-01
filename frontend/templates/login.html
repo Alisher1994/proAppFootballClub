@@ -46,6 +46,7 @@
                 <a class="google-login-btn" href="{{ url_for('pay_page') }}">
                     <span>Оплатить обучение</span>
                 </a>
+                {% if google_auth_enabled %}
                 <a class="google-login-btn" href="{{ url_for('google_login') }}">
                     <svg viewBox="0 0 48 48" aria-hidden="true">
                         <path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.5l6.7-6.7C35.6 2.5 30.3 0 24 0 14.6 0 6.5 5.4 2.6 13.2l7.8 6.1C12.2 13.6 17.5 9.5 24 9.5z"/>
@@ -55,12 +56,8 @@
                     </svg>
                     <span>Войти через Google</span>
                 </a>
+                {% endif %}
                 <button type="button" id="forgotPasswordBtn" class="login-link-btn">Забыли пароль?</button>
-                <div class="login-legal-links">
-                    <a href="{{ url_for('privacy_policy_page') }}" target="_blank">Конфиденциальность</a>
-                    <a href="{{ url_for('terms_page') }}" target="_blank">Соглашение</a>
-                    <a href="{{ url_for('payment_terms_page') }}" target="_blank">Оплата и возврат</a>
-                </div>
                 <div id="error-message" class="error"></div>
             </form>
             <form id="forgotPasswordForm" style="display:none;">
@@ -84,6 +81,11 @@
                 <button type="submit" class="btn-primary">Сохранить пароль</button>
                 <div id="reset-message" class="error"></div>
             </form>
+            <div class="login-legal-links">
+                <a href="{{ url_for('legal_page', section='privacy', lang='ru') }}" target="_blank">Конфиденциальность</a>
+                <a href="{{ url_for('legal_page', section='offer', lang='ru') }}" target="_blank">Соглашение</a>
+                <a href="{{ url_for('legal_page', section='refund', lang='ru') }}" target="_blank">Оплата и возврат</a>
+            </div>
         </div>
     </div>
 

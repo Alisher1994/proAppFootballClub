@@ -42,8 +42,8 @@
             margin-bottom: 18px;
         }
         .pay-logo-center img {
-            width: 92px;
-            max-height: 54px;
+            width: 138px;
+            max-height: 81px;
             object-fit: contain;
         }
         .pay-form {
@@ -108,6 +108,14 @@
             font-weight: 800;
             cursor: pointer;
         }
+        .pay-form .pay-method {
+            display: flex;
+            grid-template-columns: none;
+            flex-direction: row;
+            align-items: center;
+            justify-content: flex-start;
+            gap: 10px;
+        }
         .pay-method input { display: none; }
         .pay-method-logo {
             width: 38px;
@@ -139,14 +147,19 @@
         }
         .pay-consent {
             display: flex;
-            align-items: flex-start;
+            align-items: center;
             gap: 10px;
             color: #475569;
             font-size: 13px;
             line-height: 1.45;
         }
+        .pay-form .pay-consent {
+            display: flex;
+            grid-template-columns: none;
+            flex-direction: row;
+        }
         .pay-consent input {
-            margin-top: 3px;
+            margin: 0;
             flex: 0 0 auto;
         }
         .pay-consent input[type="checkbox"] {
@@ -165,8 +178,12 @@
             width: 8px;
             height: 8px;
             transform: scale(0);
-            background: #111827;
+            background: #fff;
             clip-path: polygon(14% 44%, 0 58%, 38% 96%, 100% 20%, 86% 6%, 36% 68%);
+        }
+        .pay-consent input[type="checkbox"]:checked {
+            border-color: #ff8a00;
+            background: #ff8a00;
         }
         .pay-consent input[type="checkbox"]:checked::before {
             transform: scale(1);
@@ -176,6 +193,12 @@
             border-radius: 8px;
             font-size: 13px;
             font-weight: 800;
+        }
+        #pay-submit:disabled {
+            opacity: .45;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
         }
         .pay-consent a {
             color: #d96f00;
@@ -244,6 +267,9 @@
             margin-top: 10px;
             border-radius: 8px;
         }
+        .pay-step-hidden {
+            display: none !important;
+        }
         @media (max-width: 860px) {
             .pay-methods { grid-template-columns: 1fr; }
             .pay-summary { grid-template-columns: 1fr; }
@@ -265,12 +291,12 @@
                     <img src="{{ system_logo_url }}" alt="{{ system_name }}">
                 </div>
                 <form class="pay-form" id="pay-form">
-                    <label>
+                    <label id="pay-group-step">
                         Группа
                         <input id="pay-group" type="text" list="pay-group-list" autocomplete="off" placeholder="Введите название группы">
                         <datalist id="pay-group-list"></datalist>
                     </label>
-                    <label>
+                    <label id="pay-student-step" class="pay-step-hidden">
                         Ученик
                         <input id="pay-student" type="text" list="pay-student-list" autocomplete="off" placeholder="Сначала выберите группу" disabled>
                         <datalist id="pay-student-list"></datalist>
@@ -278,28 +304,28 @@
 
                     <div class="pay-summary" id="pay-summary" style="display:none;"></div>
 
-                    <label>
+                    <label id="pay-method-step" class="pay-step-hidden">
                         Способ оплаты
                         <div class="pay-methods" id="pay-methods"></div>
                     </label>
 
-                    <label class="pay-consent">
+                    <label class="pay-consent pay-step-hidden" id="pay-consent-step">
                         <input type="checkbox" id="pay-consent" required>
                         <span>
-                            Я принимаю <a href="{{ url_for('terms_page') }}" target="_blank">пользовательское соглашение</a>,
-                            <a href="{{ url_for('privacy_policy_page') }}" target="_blank">политику конфиденциальности</a>
-                            и <a href="{{ url_for('payment_terms_page') }}" target="_blank">правила оплаты и возврата</a>.
+                            Я принимаю <a href="{{ url_for('legal_page', section='offer', lang='ru') }}" target="_blank">пользовательское соглашение</a>,
+                            <a href="{{ url_for('legal_page', section='privacy', lang='ru') }}" target="_blank">политику конфиденциальности</a>
+                            и <a href="{{ url_for('legal_page', section='refund', lang='ru') }}" target="_blank">правила оплаты и возврата</a>.
                         </span>
                     </label>
 
-                    <button class="btn-primary" id="pay-submit" type="submit" disabled>Перейти к оплате</button>
+                    <button class="btn-primary pay-step-hidden" id="pay-submit" type="submit" disabled>Перейти к оформлению</button>
                     <div class="pay-result" id="pay-result"></div>
                     <div class="pay-provider-box" id="pay-provider-box"></div>
 
                     <div class="pay-links">
-                        <a href="{{ url_for('privacy_policy_page') }}" target="_blank"><span class="pay-link-icon">i</span>Политика конфиденциальности</a>
-                        <a href="{{ url_for('terms_page') }}" target="_blank"><span class="pay-link-icon">✓</span>Пользовательское соглашение</a>
-                        <a href="{{ url_for('payment_terms_page') }}" target="_blank"><span class="pay-link-icon">₽</span>Правила оплаты и возврата</a>
+                        <a href="{{ url_for('legal_page', section='privacy', lang='ru') }}" target="_blank"><span class="pay-link-icon">i</span>Политика конфиденциальности</a>
+                        <a href="{{ url_for('legal_page', section='offer', lang='ru') }}" target="_blank"><span class="pay-link-icon">✓</span>Пользовательское соглашение</a>
+                        <a href="{{ url_for('legal_page', section='refund', lang='ru') }}" target="_blank"><span class="pay-link-icon">₽</span>Правила оплаты и возврата</a>
                     </div>
                 </form>
             </section>
@@ -317,12 +343,25 @@
         const submitBtn = document.getElementById('pay-submit');
         const resultBox = document.getElementById('pay-result');
         const providerBox = document.getElementById('pay-provider-box');
+        const studentStep = document.getElementById('pay-student-step');
+        const methodStep = document.getElementById('pay-method-step');
+        const consentStep = document.getElementById('pay-consent-step');
+        const consentInput = document.getElementById('pay-consent');
 
         const money = value => `${Number(value || 0).toLocaleString('ru-RU')} сум`;
 
         function syncSubmit() {
             const method = document.querySelector('input[name="pay_method"]:checked');
-            submitBtn.disabled = !state.selectedStudent || !method || !document.getElementById('pay-consent').checked;
+            const hasGroup = Boolean(state.selectedGroup);
+            const hasStudent = Boolean(state.selectedStudent);
+            const hasMethod = Boolean(method);
+            const hasConsent = Boolean(consentInput.checked);
+
+            studentStep.classList.toggle('pay-step-hidden', !hasGroup);
+            methodStep.classList.toggle('pay-step-hidden', !hasStudent);
+            consentStep.classList.toggle('pay-step-hidden', !hasMethod);
+            submitBtn.classList.toggle('pay-step-hidden', !hasMethod);
+            submitBtn.disabled = !(hasGroup && hasStudent && hasMethod && hasConsent);
         }
 
         function findByName(items, value, field = 'name') {
@@ -364,6 +403,7 @@
                 `<option value="${group.name}"></option>`
             )).join('');
             renderMethods();
+            syncSubmit();
         }
 
         async function loadStudents(groupId) {
@@ -389,8 +429,15 @@
             state.selectedGroup = group;
             state.selectedStudent = null;
             studentInput.value = '';
+            consentInput.checked = false;
+            document.querySelectorAll('input[name="pay_method"]').forEach(input => { input.checked = false; });
+            providerBox.style.display = 'none';
+            providerBox.innerHTML = '';
+            resultBox.textContent = '';
+            resultBox.classList.remove('error');
             renderSummary();
             if (group) {
+                syncSubmit();
                 loadStudents(group.id);
             } else {
                 state.students = [];
@@ -403,11 +450,17 @@
 
         studentInput.addEventListener('input', () => {
             state.selectedStudent = findByName(state.students, studentInput.value, 'full_name');
+            consentInput.checked = false;
+            document.querySelectorAll('input[name="pay_method"]').forEach(input => { input.checked = false; });
+            providerBox.style.display = 'none';
+            providerBox.innerHTML = '';
+            resultBox.textContent = '';
+            resultBox.classList.remove('error');
             renderSummary();
             syncSubmit();
         });
 
-        document.getElementById('pay-consent').addEventListener('change', syncSubmit);
+        consentInput.addEventListener('change', syncSubmit);
 
         document.getElementById('pay-form').addEventListener('submit', async (event) => {
             event.preventDefault();
@@ -422,7 +475,7 @@
                 body: JSON.stringify({
                     student_id: state.selectedStudent?.id,
                     method: method?.value,
-                    accepted_terms: document.getElementById('pay-consent').checked
+                    accepted_terms: consentInput.checked
                 })
             });
             const data = await response.json();

@@ -3020,6 +3020,20 @@ body.login-page .password-field .password-toggle:focus-visible {
     white-space: nowrap;
 }
 
+.login-box .login-link-btn {
+    min-height: auto !important;
+    height: auto !important;
+    width: auto !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    color: #475569 !important;
+    font-size: 13px !important;
+    font-weight: 500 !important;
+}
+
 .login-link-btn:hover {
     color: #111827;
     text-decoration: underline;
