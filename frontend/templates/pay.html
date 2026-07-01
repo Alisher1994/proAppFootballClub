@@ -84,6 +84,48 @@
             color: #0f172a;
             font-size: 14px;
         }
+        .pay-mode {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 8px;
+        }
+        .pay-mode label {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 40px;
+            border: 1px solid #e4ddd6;
+            border-radius: 8px;
+            background: #fff;
+            color: #475569;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .pay-mode input { display: none; }
+        .pay-mode label:has(input:checked) {
+            border-color: #ff8a00;
+            background: #fff7ed;
+            color: #d96f00;
+        }
+        .pay-period {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 140px;
+            gap: 10px;
+        }
+        .pay-period label {
+            display: grid;
+            gap: 7px;
+        }
+        .pay-period select {
+            min-height: 42px;
+            border: 1px solid #d8d0c8;
+            border-radius: 8px;
+            padding: 0 12px;
+            background: #fff;
+            color: #0f172a;
+            font: 500 14px/1 var(--ui-font-family);
+        }
         .pay-combobox {
             position: relative;
         }
@@ -142,6 +184,51 @@
             color: #94a3b8;
             font-size: 13px;
             font-weight: 500;
+        }
+        .pay-student-picks {
+            display: grid;
+            gap: 8px;
+        }
+        .pay-student-pick {
+            display: flex !important;
+            grid-template-columns: none !important;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px !important;
+            min-height: 48px;
+            padding: 10px 12px;
+            border: 1px solid #e4ddd6;
+            border-radius: 8px;
+            background: #fff;
+            cursor: pointer;
+        }
+        .pay-student-pick input {
+            width: 16px;
+            height: 16px;
+            accent-color: #ff8a00;
+            flex: 0 0 auto;
+        }
+        .pay-student-pick-main {
+            display: grid;
+            gap: 3px;
+            min-width: 0;
+            margin-right: auto;
+        }
+        .pay-student-pick-name {
+            color: #111827;
+            font-size: 13px;
+            font-weight: 700;
+        }
+        .pay-student-pick-meta {
+            color: #64748b;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        .pay-student-pick-amount {
+            color: #111827;
+            font-size: 13px;
+            font-weight: 700;
+            white-space: nowrap;
         }
         .pay-summary {
             display: grid;
@@ -350,6 +437,7 @@
         }
         @media (max-width: 860px) {
             .pay-methods { grid-template-columns: 1fr; }
+            .pay-period { grid-template-columns: 1fr; }
             .pay-header { justify-content: stretch; }
             .pay-header .btn-secondary { width: 100%; justify-content: center; }
             .pay-bg-video {
@@ -379,6 +467,28 @@
                     <img src="{{ system_logo_url }}" alt="{{ system_name }}">
                 </div>
                 <form class="pay-form" id="pay-form">
+                    <div class="pay-period">
+                        <label>
+                            Месяц оплаты
+                            <select id="pay-month"></select>
+                        </label>
+                        <label>
+                            Год
+                            <select id="pay-year"></select>
+                        </label>
+                    </div>
+
+                    <div class="pay-mode" aria-label="Способ поиска ученика">
+                        <label><input type="radio" name="pay_lookup_mode" value="group" checked>По группе</label>
+                        <label><input type="radio" name="pay_lookup_mode" value="phone">По телефону</label>
+                    </div>
+
+                    <label id="pay-phone-step" class="pay-step-hidden">
+                        Телефон
+                        <input id="pay-phone" type="text" inputmode="tel" autocomplete="off" value="+998 " placeholder="+998 XX XXX XX XX">
+                    </label>
+                    <div class="pay-student-picks pay-step-hidden" id="pay-phone-results"></div>
+
                     <label id="pay-group-step">
                         Группа
                         <div class="pay-combobox">
@@ -425,11 +535,17 @@
     </main>
 
     <script>
-        const state = { groups: [], methods: [], students: [], selectedGroup: null, selectedStudent: null };
+        const state = { groups: [], methods: [], students: [], phoneStudents: [], selectedGroup: null, selectedStudent: null, selectedStudents: [], mode: 'group' };
+        const monthSelect = document.getElementById('pay-month');
+        const yearSelect = document.getElementById('pay-year');
         const groupInput = document.getElementById('pay-group');
         const groupList = document.getElementById('pay-group-list');
+        const groupStep = document.getElementById('pay-group-step');
         const studentInput = document.getElementById('pay-student');
         const studentList = document.getElementById('pay-student-list');
+        const phoneStep = document.getElementById('pay-phone-step');
+        const phoneInput = document.getElementById('pay-phone');
+        const phoneResults = document.getElementById('pay-phone-results');
         const methodsBox = document.getElementById('pay-methods');
         const summaryBox = document.getElementById('pay-summary');
         const submitBtn = document.getElementById('pay-submit');
@@ -440,6 +556,7 @@
         const consentStep = document.getElementById('pay-consent-step');
         const consentInput = document.getElementById('pay-consent');
 
+        const monthNames = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
         const money = value => `${Number(value || 0).toLocaleString('ru-RU')} сум`;
         const escapeHtml = value => String(value || '').replace(/[&<>"']/g, char => ({
             '&': '&amp;',
@@ -451,16 +568,38 @@
 
         function syncSubmit() {
             const method = document.querySelector('input[name="pay_method"]:checked');
+            const isGroupMode = state.mode === 'group';
             const hasGroup = Boolean(state.selectedGroup);
-            const hasStudent = Boolean(state.selectedStudent);
+            const hasStudent = state.selectedStudents.length > 0;
             const hasMethod = Boolean(method);
             const hasConsent = Boolean(consentInput.checked);
 
-            studentStep.classList.toggle('pay-step-hidden', !hasGroup);
+            groupStep.classList.toggle('pay-step-hidden', !isGroupMode);
+            phoneStep.classList.toggle('pay-step-hidden', isGroupMode);
+            phoneResults.classList.toggle('pay-step-hidden', isGroupMode || state.phoneStudents.length === 0);
+            studentStep.classList.toggle('pay-step-hidden', !isGroupMode || !hasGroup);
             methodStep.classList.toggle('pay-step-hidden', !hasStudent);
             consentStep.classList.toggle('pay-step-hidden', !hasMethod);
             submitBtn.classList.toggle('pay-step-hidden', !hasMethod);
-            submitBtn.disabled = !(hasGroup && hasStudent && hasMethod && hasConsent);
+            submitBtn.disabled = !((isGroupMode ? hasGroup : true) && hasStudent && hasMethod && hasConsent);
+        }
+
+        function initPeriodSelects() {
+            const now = new Date();
+            const currentYear = now.getFullYear();
+            const currentMonth = now.getMonth() + 1;
+            monthSelect.innerHTML = monthNames.map((name, index) => (
+                `<option value="${index + 1}">${name}</option>`
+            )).join('');
+            yearSelect.innerHTML = [currentYear, currentYear - 1, currentYear - 2].map(year => (
+                `<option value="${year}">${year}</option>`
+            )).join('');
+            monthSelect.value = String(currentMonth);
+            yearSelect.value = String(currentYear);
+        }
+
+        function getPayPeriodParams() {
+            return `month=${encodeURIComponent(monthSelect.value)}&year=${encodeURIComponent(yearSelect.value)}`;
         }
 
         function findByName(items, value, field = 'name') {
@@ -502,6 +641,8 @@
         }
 
         function resetPaymentProgress() {
+            state.selectedStudents = [];
+            state.selectedStudent = null;
             consentInput.checked = false;
             document.querySelectorAll('input[name="pay_method"]').forEach(input => { input.checked = false; });
             providerBox.style.display = 'none';
@@ -513,6 +654,7 @@
         function selectGroup(group) {
             state.selectedGroup = group;
             state.selectedStudent = null;
+            state.selectedStudents = [];
             groupInput.value = group.name;
             studentInput.value = '';
             resetPaymentProgress();
@@ -523,9 +665,40 @@
 
         function selectStudent(student) {
             state.selectedStudent = student;
+            state.selectedStudents = [student];
             studentInput.value = student.full_name;
             resetPaymentProgress();
+            state.selectedStudent = student;
+            state.selectedStudents = [student];
             renderSummary();
+            syncSubmit();
+        }
+
+        function renderPhoneResults() {
+            if (!state.phoneStudents.length) {
+                phoneResults.innerHTML = '';
+                syncSubmit();
+                return;
+            }
+            const selectedIds = new Set(state.selectedStudents.map(student => student.id));
+            phoneResults.innerHTML = state.phoneStudents.map(student => `
+                <label class="pay-student-pick">
+                    <input type="checkbox" value="${student.id}" ${selectedIds.has(student.id) ? 'checked' : ''}>
+                    <span class="pay-student-pick-main">
+                        <span class="pay-student-pick-name">${escapeHtml(student.full_name)}</span>
+                        <span class="pay-student-pick-meta">${escapeHtml(student.group_name || 'Без группы')} · ${escapeHtml(student.tariff.name)}</span>
+                    </span>
+                    <span class="pay-student-pick-amount">${money(student.amount_due || student.tariff.price)}</span>
+                </label>
+            `).join('');
+            phoneResults.querySelectorAll('input[type="checkbox"]').forEach(input => {
+                input.addEventListener('change', () => {
+                    const ids = new Set(Array.from(phoneResults.querySelectorAll('input[type="checkbox"]:checked')).map(item => Number(item.value)));
+                    state.selectedStudents = state.phoneStudents.filter(student => ids.has(student.id));
+                    renderSummary();
+                    syncSubmit();
+                });
+            });
             syncSubmit();
         }
 
@@ -541,16 +714,26 @@
         }
 
         function renderSummary() {
-            const s = state.selectedStudent;
-            if (!s) {
+            if (!state.selectedStudents.length) {
                 summaryBox.style.display = 'none';
                 summaryBox.innerHTML = '';
                 return;
             }
             summaryBox.style.display = 'grid';
+            const total = state.selectedStudents.reduce((sum, student) => sum + Number(student.amount_due || student.tariff.price || 0), 0);
+            if (state.selectedStudents.length === 1) {
+                const s = state.selectedStudents[0];
+                summaryBox.innerHTML = `
+                    <div class="pay-summary-row"><span>Тариф</span><strong>${s.tariff.name}</strong></div>
+                    <div class="pay-summary-row"><span>К оплате</span><strong>${money(total)}</strong></div>
+                `;
+                return;
+            }
             summaryBox.innerHTML = `
-                <div class="pay-summary-row"><span>Тариф</span><strong>${s.tariff.name}</strong></div>
-                <div class="pay-summary-row"><span>К оплате</span><strong>${money(s.amount_due || s.tariff.price)}</strong></div>
+                ${state.selectedStudents.map(student => `
+                    <div class="pay-summary-row"><span>${escapeHtml(student.full_name)}</span><strong>${money(student.amount_due || student.tariff.price)}</strong></div>
+                `).join('')}
+                <div class="pay-summary-row"><span>К оплате</span><strong>${money(total)}</strong></div>
             `;
         }
 
@@ -565,16 +748,90 @@
 
         async function loadStudents(groupId) {
             state.selectedStudent = null;
+            state.selectedStudents = [];
             renderSummary();
             studentInput.disabled = true;
             studentInput.value = '';
             studentInput.placeholder = 'Загрузка...';
             studentList.innerHTML = '';
-            const response = await fetch(`/api/pay/students?group_id=${encodeURIComponent(groupId)}`);
+            const response = await fetch(`/api/pay/students?group_id=${encodeURIComponent(groupId)}&${getPayPeriodParams()}`);
             const data = await response.json();
             state.students = data.students || [];
             studentInput.disabled = false;
             studentInput.placeholder = 'Введите ФИО ученика';
+            syncSubmit();
+        }
+
+        async function searchStudentsByPhone() {
+            const digits = phoneInput.value.replace(/\D/g, '');
+            state.phoneStudents = [];
+            state.selectedStudents = [];
+            renderSummary();
+            renderPhoneResults();
+            if (digits.length < 9) {
+                syncSubmit();
+                return;
+            }
+            phoneResults.innerHTML = '<div class="pay-empty">Ищем учеников...</div>';
+            phoneResults.classList.remove('pay-step-hidden');
+            const response = await fetch(`/api/pay/students-by-phone?phone=${encodeURIComponent(phoneInput.value)}&${getPayPeriodParams()}`);
+            const data = await response.json();
+            if (!data.success) {
+                phoneResults.innerHTML = `<div class="pay-empty">${escapeHtml(data.message || 'Ничего не найдено')}</div>`;
+                syncSubmit();
+                return;
+            }
+            state.phoneStudents = data.students || [];
+            if (!state.phoneStudents.length) {
+                phoneResults.innerHTML = '<div class="pay-empty">По этому номеру ученики не найдены</div>';
+                syncSubmit();
+                return;
+            }
+            if (state.phoneStudents.length === 1) {
+                state.selectedStudents = [state.phoneStudents[0]];
+            }
+            renderPhoneResults();
+            renderSummary();
+            syncSubmit();
+        }
+
+        function ensureUzPhonePrefix(input) {
+            if (!input.value.trim()) {
+                input.value = '+998 ';
+                return;
+            }
+            const digits = input.value.replace(/\D/g, '');
+            if (digits && !digits.startsWith('998') && digits.length <= 9) {
+                input.value = `+998 ${digits}`;
+            }
+        }
+
+        function switchLookupMode(mode) {
+            state.mode = mode;
+            state.selectedGroup = null;
+            state.selectedStudent = null;
+            state.selectedStudents = [];
+            state.phoneStudents = [];
+            groupInput.value = '';
+            studentInput.value = '';
+            studentInput.disabled = true;
+            studentInput.placeholder = 'Сначала выберите группу';
+            phoneInput.value = '+998 ';
+            phoneResults.innerHTML = '';
+            resetPaymentProgress();
+            renderSummary();
+            syncSubmit();
+        }
+
+        function handlePeriodChange() {
+            resetPaymentProgress();
+            renderSummary();
+            if (state.mode === 'group' && state.selectedGroup) {
+                loadStudents(state.selectedGroup.id);
+            }
+            if (state.mode === 'phone') {
+                searchStudentsByPhone();
+            }
             syncSubmit();
         }
 
@@ -617,6 +874,18 @@
         studentInput.addEventListener('focus', () => showStudentOptions(true));
         studentInput.addEventListener('click', () => showStudentOptions(Boolean(state.selectedStudent)));
 
+        document.querySelectorAll('input[name="pay_lookup_mode"]').forEach(input => {
+            input.addEventListener('change', () => switchLookupMode(input.value));
+        });
+        monthSelect.addEventListener('change', handlePeriodChange);
+        yearSelect.addEventListener('change', handlePeriodChange);
+        phoneInput.addEventListener('focus', () => ensureUzPhonePrefix(phoneInput));
+        phoneInput.addEventListener('input', () => {
+            ensureUzPhonePrefix(phoneInput);
+            window.clearTimeout(phoneInput._paySearchTimer);
+            phoneInput._paySearchTimer = window.setTimeout(searchStudentsByPhone, 350);
+        });
+
         document.addEventListener('click', event => {
             if (!event.target.closest('.pay-combobox')) {
                 groupList.classList.remove('open');
@@ -637,7 +906,9 @@
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    student_id: state.selectedStudent?.id,
+                    student_ids: state.selectedStudents.map(student => student.id),
+                    month: Number(monthSelect.value),
+                    year: Number(yearSelect.value),
                     method: method?.value,
                     accepted_terms: consentInput.checked
                 })
@@ -653,11 +924,13 @@
             providerBox.style.display = 'block';
             providerBox.innerHTML = `
                 <strong>${checkout.method.name}: ${money(checkout.amount)}</strong>
+                ${checkout.students && checkout.students.length > 1 ? `<div class="pay-note">${checkout.students.map(item => `${escapeHtml(item.student_name)} - ${money(item.amount)}`).join('<br>')}</div>` : ''}
                 <div class="pay-note">После подключения API здесь будет переход на защищенную страницу платежной системы.</div>
                 ${checkout.method.qr_url ? `<img src="${checkout.method.qr_url}" alt="${checkout.method.name} QR">` : ''}
             `;
         });
 
+        initPeriodSelects();
         loadOptions().catch(() => {
             resultBox.textContent = 'Не удалось загрузить данные для оплаты';
             resultBox.classList.add('error');

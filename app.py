@@ -2710,6 +2710,9 @@ def public_pay_options():
 
 @app.route('/api/pay/students', methods=['GET'])
 def public_pay_students():
+    year, month, period_error = get_public_pay_period()
+    if period_error:
+        return jsonify({'success': False, 'message': period_error}), 400
     group_id = request.args.get('group_id', type=int)
     if not group_id:
         return jsonify({'success': False, 'message': 'Выберите группу'}), 400
@@ -2719,8 +2722,16 @@ def public_pay_students():
         Student.status == 'active'
     ).order_by(Student.full_name.asc()).all()
 
+    items = build_public_pay_students_payload(students, year, month)
+
+    return jsonify({'success': True, 'students': items})
+
+
+def build_public_pay_students_payload(students, year=None, month=None):
     today = get_local_date()
-    paid_map = get_month_paid_map(today.year, today.month)
+    year = year or today.year
+    month = month or today.month
+    paid_map = get_month_paid_map(year, month)
     items = []
     for student in students:
         tariff_price = float(student.tariff.price or 0) if student.tariff else 0
@@ -2730,6 +2741,8 @@ def public_pay_students():
             'id': student.id,
             'full_name': student.full_name,
             'student_number': student.student_number,
+            'phone': student.phone or '',
+            'parent_phone': student.parent_phone or '',
             'group_id': student.group_id,
             'group_name': student.group.name if student.group else '',
             'tariff': {
@@ -2740,58 +2753,102 @@ def public_pay_students():
             },
             'paid_this_month': paid,
             'amount_due': amount_due,
-            'payment_month': today.month,
-            'payment_year': today.year,
+            'payment_month': month,
+            'payment_year': year,
         })
+    return items
 
-    return jsonify({'success': True, 'students': items})
+
+@app.route('/api/pay/students-by-phone', methods=['GET'])
+def public_pay_students_by_phone():
+    year, month, period_error = get_public_pay_period()
+    if period_error:
+        return jsonify({'success': False, 'message': period_error}), 400
+    phone = (request.args.get('phone') or '').strip()
+    phone_digits = normalize_phone(phone)
+    if len(phone_digits) < 7:
+        return jsonify({'success': False, 'message': 'Введите номер телефона'}), 400
+
+    candidates = Student.query.options(joinedload(Student.group), joinedload(Student.tariff)).filter(
+        Student.status == 'active',
+        or_(Student.phone.isnot(None), Student.parent_phone.isnot(None))
+    ).order_by(Student.full_name.asc()).all()
+    students = [
+        student for student in candidates
+        if phones_match(student.phone, phone) or phones_match(student.parent_phone, phone)
+    ]
+    return jsonify({'success': True, 'students': build_public_pay_students_payload(students, year, month)})
 
 
 @app.route('/api/pay/checkout', methods=['POST'])
 def public_pay_checkout():
     data = request.get_json(silent=True) or {}
-    student_id = data.get('student_id')
+    year, month, period_error = get_public_pay_period(data)
+    if period_error:
+        return jsonify({'success': False, 'message': period_error}), 400
+    raw_student_ids = data.get('student_ids')
+    if raw_student_ids is None:
+        raw_student_ids = [data.get('student_id')] if data.get('student_id') else []
+    student_ids = []
+    for value in raw_student_ids:
+        try:
+            student_ids.append(int(value))
+        except (TypeError, ValueError):
+            pass
+    student_ids = sorted(set(student_ids))
     method_key = (data.get('method') or '').strip()
     accepted = bool(data.get('accepted_terms'))
 
     if not accepted:
         return jsonify({'success': False, 'message': 'Подтвердите согласие с условиями оплаты'}), 400
-    if not student_id:
+    if not student_ids:
         return jsonify({'success': False, 'message': 'Выберите ученика'}), 400
     if not method_key:
         return jsonify({'success': False, 'message': 'Выберите способ оплаты'}), 400
 
-    student = Student.query.options(joinedload(Student.group), joinedload(Student.tariff)).filter(
-        Student.id == student_id,
+    students = Student.query.options(joinedload(Student.group), joinedload(Student.tariff)).filter(
+        Student.id.in_(student_ids),
         Student.status == 'active'
-    ).first()
-    if not student:
+    ).order_by(Student.full_name.asc()).all()
+    if len(students) != len(student_ids):
         return jsonify({'success': False, 'message': 'Ученик не найден'}), 404
-    if not student.tariff:
-        return jsonify({'success': False, 'message': 'У ученика не указан тариф. Обратитесь к администратору.'}), 400
+    without_tariff = [student.full_name for student in students if not student.tariff]
+    if without_tariff:
+        return jsonify({'success': False, 'message': f"У ученика не указан тариф: {', '.join(without_tariff)}"}), 400
 
     methods = get_public_payment_methods()
     method = next((item for item in methods if item['key'] == method_key), None)
     if not method or not method.get('enabled'):
         return jsonify({'success': False, 'message': 'Этот способ оплаты пока не подключен'}), 400
 
-    today = get_local_date()
-    paid = float(get_month_paid_map(today.year, today.month).get(student.id, 0) or 0)
-    tariff_price = float(student.tariff.price or 0)
-    amount_due = max(0, tariff_price - paid)
+    paid_map = get_month_paid_map(year, month)
+    checkout_students = []
+    total_amount = 0
+    for student in students:
+        paid = float(paid_map.get(student.id, 0) or 0)
+        tariff_price = float(student.tariff.price or 0)
+        amount_due = max(0, tariff_price - paid)
+        payable_amount = amount_due or tariff_price
+        total_amount += payable_amount
+        checkout_students.append({
+            'student_id': student.id,
+            'student_name': student.full_name,
+            'group_name': student.group.name if student.group else '',
+            'tariff_name': student.tariff.name,
+            'amount': payable_amount,
+            'paid_this_month': paid,
+        })
 
     return jsonify({
         'success': True,
         'message': 'Оплата подготовлена. Карточные данные вводятся только на стороне платежной системы.',
         'checkout': {
-            'student_id': student.id,
-            'student_name': student.full_name,
-            'group_name': student.group.name if student.group else '',
-            'tariff_name': student.tariff.name,
-            'amount': amount_due or tariff_price,
+            'student_ids': student_ids,
+            'students': checkout_students,
+            'amount': total_amount,
             'method': method,
-            'month': today.month,
-            'year': today.year,
+            'month': month,
+            'year': year,
             'status': 'provider_pending',
         }
     })
@@ -2890,6 +2947,35 @@ def change_my_password():
 # ===== ПОРТАЛ ДЛЯ РОДИТЕЛЕЙ/УЧЕНИКОВ =====
 def normalize_phone(value: str) -> str:
     return ''.join(ch for ch in (value or '') if ch.isdigit())
+
+
+def format_uz_phone(value: str):
+    digits = normalize_phone(value)
+    if not digits:
+        return None
+    if len(digits) == 9:
+        digits = '998' + digits
+    elif len(digits) > 12 and digits.startswith('998'):
+        digits = digits[:12]
+    if len(digits) == 12 and digits.startswith('998'):
+        return f"+{digits[:3]} {digits[3:5]} {digits[5:8]} {digits[8:10]} {digits[10:12]}"
+    return value.strip() if value else None
+
+
+def get_public_pay_period(data=None):
+    today = get_local_date()
+    min_year = today.year - 2
+    source = data if data is not None else request.values
+    try:
+        year = int(source.get('year') or today.year)
+        month = int(source.get('month') or today.month)
+    except (TypeError, ValueError):
+        return None, None, 'Некорректный период оплаты'
+    if year < min_year or year > today.year:
+        return None, None, 'Выберите год из доступного периода'
+    if month < 1 or month > 12:
+        return None, None, 'Выберите месяц оплаты'
+    return year, month, None
 
 
 def phones_match(a: str, b: str) -> bool:
@@ -3489,8 +3575,8 @@ def get_students_list():
 def add_student():
     try:
         full_name = request.form.get('full_name')
-        phone = request.form.get('phone')
-        parent_phone = request.form.get('parent_phone')
+        phone = format_uz_phone(request.form.get('phone'))
+        parent_phone = format_uz_phone(request.form.get('parent_phone'))
         photo = request.files.get('photo')
         
         # Новые поля
@@ -3753,9 +3839,9 @@ def update_student(student_id):
         if 'school_number' in request.form:
             student.school_number = request.form['school_number'] or None
         if 'phone' in request.form:
-            student.phone = request.form['phone'] or None
+            student.phone = format_uz_phone(request.form['phone'])
         if 'parent_phone' in request.form:
-            student.parent_phone = request.form['parent_phone'] or None
+            student.parent_phone = format_uz_phone(request.form['parent_phone'])
         if 'status' in request.form:
             student.status = request.form['status']
             if request.form['status'] != 'blacklist':

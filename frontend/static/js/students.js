@@ -378,6 +378,38 @@ document.getElementById('citySelect')?.addEventListener('change', async (e) => {
     }
 });
 
+function normalizeUzPhoneInput(input) {
+    if (!input) return;
+    const digits = input.value.replace(/\D/g, '');
+    if (!digits) {
+        input.value = '';
+        return;
+    }
+    const local = digits.startsWith('998') ? digits.slice(3, 12) : digits.slice(0, 9);
+    if (!local) {
+        input.value = '+998 ';
+        return;
+    }
+    const parts = [];
+    if (local.slice(0, 2)) parts.push(local.slice(0, 2));
+    if (local.slice(2, 5)) parts.push(local.slice(2, 5));
+    if (local.slice(5, 7)) parts.push(local.slice(5, 7));
+    if (local.slice(7, 9)) parts.push(local.slice(7, 9));
+    input.value = `+998 ${parts.join(' ')}`.trimEnd();
+}
+
+document.addEventListener('focusin', (event) => {
+    const input = event.target.closest('input[type="tel"][name="phone"], input[type="tel"][name="parent_phone"], #edit_phone, #edit_parent_phone');
+    if (input && !input.value.trim()) {
+        input.value = '+998 ';
+    }
+});
+
+document.addEventListener('input', (event) => {
+    const input = event.target.closest('input[type="tel"][name="phone"], input[type="tel"][name="parent_phone"], #edit_phone, #edit_parent_phone');
+    if (input) normalizeUzPhoneInput(input);
+});
+
 // Загрузка данных для формы редактирования
 async function loadEditFormData() {
     // Загрузить города

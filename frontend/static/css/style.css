@@ -2974,6 +2974,27 @@ body.login-page .password-field .password-toggle:focus-visible {
     transform: translateX(130%);
 }
 
+.login-divider {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    max-width: 176px;
+    margin: 12px auto 0;
+    color: #94a3b8;
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1;
+}
+
+.login-divider::before,
+.login-divider::after {
+    content: "";
+    height: 1px;
+    flex: 1;
+    background: #e5e7eb;
+}
+
 .google-login-btn {
     display: inline-flex;
     align-items: center;
@@ -2981,7 +3002,7 @@ body.login-page .password-field .password-toggle:focus-visible {
     width: 42px;
     height: 42px;
     min-height: 42px;
-    margin: 12px auto 0;
+    margin: 10px auto 0;
     border: 1px solid rgba(226, 232, 240, .88);
     border-radius: 50%;
     background: #fff;
