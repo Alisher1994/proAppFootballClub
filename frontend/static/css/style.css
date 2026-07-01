@@ -3019,6 +3019,26 @@ body.login-page .password-field .password-toggle:focus-visible {
     text-underline-offset: 4px;
 }
 
+.login-legal-links {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px 12px;
+    margin-top: 14px;
+    font-size: 12px;
+}
+
+.login-legal-links a {
+    color: rgba(248, 250, 252, .9);
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.login-legal-links a:hover {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
 .login-ticker {
     position: fixed;
     left: 0;

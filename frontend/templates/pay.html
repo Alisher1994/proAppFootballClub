@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Оплата - {{ system_name }}</title>
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='uploads/favicon.png') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        body {
+            margin: 0;
+            background: #f7f4f1;
+            color: #0f172a;
+            font-family: var(--ui-font-family);
+        }
+        .pay-shell {
+            max-width: 980px;
+            margin: 0 auto;
+            padding: 28px 18px 44px;
+        }
+        .pay-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            margin-bottom: 18px;
+        }
+        .pay-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-width: 0;
+        }
+        .pay-brand img {
+            width: 58px;
+            max-height: 42px;
+            object-fit: contain;
+        }
+        .pay-brand h1 {
+            margin: 0;
+            color: #334155;
+            font-size: 24px;
+            letter-spacing: 0;
+        }
+        .pay-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 320px;
+            gap: 16px;
+            align-items: start;
+        }
+        .pay-panel {
+            border: 1px solid #e4ddd6;
+            border-radius: 8px;
+            background: #fff;
+            padding: 18px;
+            box-shadow: 0 8px 22px rgba(15, 23, 42, .045);
+        }
+        .pay-panel h2 {
+            margin: 0 0 14px;
+            color: #334155;
+            font-size: 18px;
+        }
+        .pay-form {
+            display: grid;
+            gap: 14px;
+        }
+        .pay-form label {
+            display: grid;
+            gap: 7px;
+            color: #334155;
+            font-size: 13px;
+            font-weight: 700;
+        }
+        .pay-form select {
+            min-height: 42px;
+            border: 1px solid #d8d0c8;
+            border-radius: 8px;
+            padding: 0 12px;
+            background: #fff;
+            color: #0f172a;
+            font-size: 14px;
+        }
+        .pay-summary {
+            display: grid;
+            gap: 10px;
+            margin-top: 4px;
+            padding: 14px;
+            border: 1px solid #e4ddd6;
+            border-radius: 8px;
+            background: #f8f7f6;
+        }
+        .pay-summary-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            color: #475569;
+            font-size: 14px;
+        }
+        .pay-summary-row strong {
+            color: #0f172a;
+            text-align: right;
+        }
+        .pay-methods {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+        }
+        .pay-method {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            min-height: 42px;
+            border: 1px solid #d8d0c8;
+            border-radius: 8px;
+            background: #fff;
+            color: #334155;
+            font-weight: 700;
+            cursor: pointer;
+        }
+        .pay-method input { display: none; }
+        .pay-method-logo {
+            width: 34px;
+            height: 24px;
+            object-fit: contain;
+            flex: 0 0 auto;
+        }
+        .pay-method-name {
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .pay-method:has(input:checked) {
+            border-color: #ff8a00;
+            background: #fff6eb;
+            color: #d96f00;
+        }
+        .pay-method.disabled {
+            opacity: .45;
+            cursor: not-allowed;
+        }
+        .pay-consent {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            color: #475569;
+            font-size: 13px;
+            line-height: 1.45;
+        }
+        .pay-consent input {
+            margin-top: 3px;
+            flex: 0 0 auto;
+        }
+        .pay-consent a,
+        .pay-links a {
+            color: #d96f00;
+            font-weight: 700;
+            text-decoration: none;
+        }
+        .pay-links {
+            display: grid;
+            gap: 10px;
+            color: #475569;
+            font-size: 14px;
+        }
+        .pay-note {
+            margin-top: 12px;
+            color: #64748b;
+            font-size: 13px;
+            line-height: 1.45;
+        }
+        .pay-result {
+            min-height: 20px;
+            margin-top: 12px;
+            color: #059669;
+            font-size: 14px;
+            font-weight: 700;
+        }
+        .pay-result.error { color: #dc2626; }
+        .pay-provider-box {
+            display: none;
+            margin-top: 12px;
+            padding: 14px;
+            border: 1px solid #e4ddd6;
+            border-radius: 8px;
+            background: #fff;
+        }
+        .pay-provider-box img {
+            display: block;
+            max-width: 180px;
+            max-height: 180px;
+            margin-top: 10px;
+            border-radius: 8px;
+        }
+        @media (max-width: 860px) {
+            .pay-grid { grid-template-columns: 1fr; }
+            .pay-methods { grid-template-columns: 1fr; }
+            .pay-header { align-items: flex-start; flex-direction: column; }
+        }
+    </style>
+</head>
+
+<body>
+    <main class="pay-shell">
+        <header class="pay-header">
+            <div class="pay-brand">
+                <img src="{{ system_logo_url }}" alt="{{ system_name }}">
+                <h1>Оплата обучения</h1>
+            </div>
+            <a class="btn-secondary" href="{{ url_for('login') }}">Войти в систему</a>
+        </header>
+
+        <div class="pay-grid">
+            <section class="pay-panel">
+                <h2>Оформление оплаты</h2>
+                <form class="pay-form" id="pay-form">
+                    <label>
+                        Группа
+                        <select id="pay-group" required>
+                            <option value="">Выберите группу</option>
+                        </select>
+                    </label>
+                    <label>
+                        Ученик
+                        <select id="pay-student" required disabled>
+                            <option value="">Сначала выберите группу</option>
+                        </select>
+                    </label>
+
+                    <div class="pay-summary" id="pay-summary" style="display:none;"></div>
+
+                    <label>
+                        Способ оплаты
+                        <div class="pay-methods" id="pay-methods"></div>
+                    </label>
+
+                    <label class="pay-consent">
+                        <input type="checkbox" id="pay-consent" required>
+                        <span>
+                            Я принимаю <a href="{{ url_for('terms_page') }}" target="_blank">пользовательское соглашение</a>,
+                            <a href="{{ url_for('privacy_policy_page') }}" target="_blank">политику конфиденциальности</a>
+                            и <a href="{{ url_for('payment_terms_page') }}" target="_blank">правила оплаты и возврата</a>.
+                        </span>
+                    </label>
+
+                    <button class="btn-primary" id="pay-submit" type="submit" disabled>Перейти к оплате</button>
+                    <div class="pay-result" id="pay-result"></div>
+                    <div class="pay-provider-box" id="pay-provider-box"></div>
+                </form>
+            </section>
+
+            <aside class="pay-panel">
+                <h2>Документы</h2>
+                <div class="pay-links">
+                    <a href="{{ url_for('privacy_policy_page') }}" target="_blank">Политика конфиденциальности</a>
+                    <a href="{{ url_for('terms_page') }}" target="_blank">Пользовательское соглашение</a>
+                    <a href="{{ url_for('payment_terms_page') }}" target="_blank">Правила оплаты и возврата</a>
+                </div>
+                <div class="pay-note">
+                    Данные банковской карты, срок действия, CVV и SMS-коды не вводятся и не хранятся в этой системе.
+                    Подтверждение оплаты выполняется на стороне платежной системы.
+                </div>
+            </aside>
+        </div>
+    </main>
+
+    <script>
+        const state = { groups: [], methods: [], students: [], selectedStudent: null };
+        const groupSelect = document.getElementById('pay-group');
+        const studentSelect = document.getElementById('pay-student');
+        const methodsBox = document.getElementById('pay-methods');
+        const summaryBox = document.getElementById('pay-summary');
+        const submitBtn = document.getElementById('pay-submit');
+        const resultBox = document.getElementById('pay-result');
+        const providerBox = document.getElementById('pay-provider-box');
+
+        const money = value => `${Number(value || 0).toLocaleString('ru-RU')} сум`;
+
+        function syncSubmit() {
+            const method = document.querySelector('input[name="pay_method"]:checked');
+            submitBtn.disabled = !state.selectedStudent || !method || !document.getElementById('pay-consent').checked;
+        }
+
+        function renderMethods() {
+            methodsBox.innerHTML = state.methods.map(method => `
+                <label class="pay-method ${method.enabled ? '' : 'disabled'}">
+                    <input type="radio" name="pay_method" value="${method.key}" ${method.enabled ? '' : 'disabled'}>
+                    ${method.logo_url ? `<img class="pay-method-logo" src="${method.logo_url}" alt="">` : ''}
+                    <span class="pay-method-name">${method.name}${method.enabled ? '' : ' скоро'}</span>
+                </label>
+            `).join('');
+            methodsBox.querySelectorAll('input').forEach(input => input.addEventListener('change', syncSubmit));
+        }
+
+        function renderSummary() {
+            const s = state.selectedStudent;
+            if (!s) {
+                summaryBox.style.display = 'none';
+                summaryBox.innerHTML = '';
+                return;
+            }
+            summaryBox.style.display = 'grid';
+            summaryBox.innerHTML = `
+                <div class="pay-summary-row"><span>Ученик</span><strong>${s.full_name}</strong></div>
+                <div class="pay-summary-row"><span>Группа</span><strong>${s.group_name || '-'}</strong></div>
+                <div class="pay-summary-row"><span>Тариф</span><strong>${s.tariff.name}</strong></div>
+                <div class="pay-summary-row"><span>Количество занятий</span><strong>${s.tariff.lessons_count || '-'}</strong></div>
+                <div class="pay-summary-row"><span>Цена тарифа</span><strong>${money(s.tariff.price)}</strong></div>
+                <div class="pay-summary-row"><span>Оплачено за месяц</span><strong>${money(s.paid_this_month)}</strong></div>
+                <div class="pay-summary-row"><span>К оплате</span><strong>${money(s.amount_due || s.tariff.price)}</strong></div>
+            `;
+        }
+
+        async function loadOptions() {
+            const response = await fetch('/api/pay/options');
+            const data = await response.json();
+            state.groups = data.groups || [];
+            state.methods = data.methods || [];
+            groupSelect.innerHTML = '<option value="">Выберите группу</option>' + state.groups.map(group => (
+                `<option value="${group.id}">${group.name}</option>`
+            )).join('');
+            renderMethods();
+        }
+
+        async function loadStudents(groupId) {
+            state.selectedStudent = null;
+            renderSummary();
+            studentSelect.disabled = true;
+            studentSelect.innerHTML = '<option value="">Загрузка...</option>';
+            const response = await fetch(`/api/pay/students?group_id=${encodeURIComponent(groupId)}`);
+            const data = await response.json();
+            state.students = data.students || [];
+            studentSelect.disabled = false;
+            studentSelect.innerHTML = '<option value="">Выберите ученика</option>' + state.students.map(student => (
+                `<option value="${student.id}">${student.full_name}</option>`
+            )).join('');
+            syncSubmit();
+        }
+
+        groupSelect.addEventListener('change', () => {
+            if (groupSelect.value) {
+                loadStudents(groupSelect.value);
+            } else {
+                state.students = [];
+                state.selectedStudent = null;
+                studentSelect.disabled = true;
+                studentSelect.innerHTML = '<option value="">Сначала выберите группу</option>';
+                renderSummary();
+                syncSubmit();
+            }
+        });
+
+        studentSelect.addEventListener('change', () => {
+            state.selectedStudent = state.students.find(student => String(student.id) === String(studentSelect.value)) || null;
+            renderSummary();
+            syncSubmit();
+        });
+
+        document.getElementById('pay-consent').addEventListener('change', syncSubmit);
+
+        document.getElementById('pay-form').addEventListener('submit', async (event) => {
+            event.preventDefault();
+            resultBox.textContent = '';
+            resultBox.classList.remove('error');
+            providerBox.style.display = 'none';
+            providerBox.innerHTML = '';
+            const method = document.querySelector('input[name="pay_method"]:checked');
+            const response = await fetch('/api/pay/checkout', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    student_id: state.selectedStudent?.id,
+                    method: method?.value,
+                    accepted_terms: document.getElementById('pay-consent').checked
+                })
+            });
+            const data = await response.json();
+            if (!data.success) {
+                resultBox.textContent = data.message || 'Не удалось подготовить оплату';
+                resultBox.classList.add('error');
+                return;
+            }
+            const checkout = data.checkout;
+            resultBox.textContent = data.message;
+            providerBox.style.display = 'block';
+            providerBox.innerHTML = `
+                <strong>${checkout.method.name}: ${money(checkout.amount)}</strong>
+                <div class="pay-note">После подключения API здесь будет переход на защищенную страницу платежной системы.</div>
+                ${checkout.method.qr_url ? `<img src="${checkout.method.qr_url}" alt="${checkout.method.name} QR">` : ''}
+            `;
+        });
+
+        loadOptions().catch(() => {
+            resultBox.textContent = 'Не удалось загрузить данные для оплаты';
+            resultBox.classList.add('error');
+        });
+    </script>
+</body>
+
+</html>

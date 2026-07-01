@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Политика конфиденциальности - {{ system_name }}</title>
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='uploads/favicon.png') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        body { margin:0; background:#f7f4f1; color:#0f172a; font-family:var(--ui-font-family); }
+        .legal-page { max-width: 920px; margin: 0 auto; padding: 34px 18px 56px; }
+        .legal-card { background:#fff; border:1px solid #e4ddd6; border-radius:8px; padding:26px; box-shadow:0 8px 22px rgba(15,23,42,.045); }
+        h1 { margin:0 0 18px; font-size:28px; color:#334155; }
+        h2 { margin:22px 0 10px; font-size:18px; color:#334155; }
+        p, li { line-height:1.65; color:#475569; font-size:15px; }
+        a { color:#d96f00; font-weight:700; text-decoration:none; }
+    </style>
+</head>
+<body>
+    <main class="legal-page">
+        <article class="legal-card">
+            <h1>Политика конфиденциальности</h1>
+            <p>Настоящая политика описывает, какие персональные данные обрабатываются системой {{ system_name }} при учете учеников, посещаемости и оформлении оплат.</p>
+            <h2>Какие данные обрабатываются</h2>
+            <p>Мы можем обрабатывать ФИО ученика и родителя, номер телефона, группу, тариф, историю оплат, данные посещаемости и технические данные обращения к сервису.</p>
+            <h2>Цели обработки</h2>
+            <p>Данные используются для ведения учета обучения, связи с родителями, отображения суммы оплаты, подтверждения платежей и исполнения обязательств клуба.</p>
+            <h2>Платежные данные</h2>
+            <p>Номер карты, срок действия, CVV и SMS-коды не вводятся и не хранятся в нашей системе. Такие данные обрабатываются только на стороне платежной системы.</p>
+            <h2>Передача данных</h2>
+            <p>Для проведения платежа в платежную систему могут передаваться сумма, идентификатор операции, имя ученика или назначение платежа. Полные карточные данные не передаются через нашу систему.</p>
+            <h2>Контакты</h2>
+            <p>По вопросам обработки персональных данных обратитесь к администрации клуба.</p>
+            <p><a href="{{ url_for('pay_page') }}">Вернуться к оплате</a></p>
+        </article>
+    </main>
+</body>
+</html>

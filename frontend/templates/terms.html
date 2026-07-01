@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Пользовательское соглашение - {{ system_name }}</title>
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='uploads/favicon.png') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        body { margin:0; background:#f7f4f1; color:#0f172a; font-family:var(--ui-font-family); }
+        .legal-page { max-width: 920px; margin: 0 auto; padding: 34px 18px 56px; }
+        .legal-card { background:#fff; border:1px solid #e4ddd6; border-radius:8px; padding:26px; box-shadow:0 8px 22px rgba(15,23,42,.045); }
+        h1 { margin:0 0 18px; font-size:28px; color:#334155; }
+        h2 { margin:22px 0 10px; font-size:18px; color:#334155; }
+        p, li { line-height:1.65; color:#475569; font-size:15px; }
+        a { color:#d96f00; font-weight:700; text-decoration:none; }
+    </style>
+</head>
+<body>
+    <main class="legal-page">
+        <article class="legal-card">
+            <h1>Пользовательское соглашение</h1>
+            <p>Используя сервис {{ system_name }}, пользователь подтверждает согласие с правилами оформления оплат и обработки информации, необходимой для предоставления услуг клуба.</p>
+            <h2>Предмет соглашения</h2>
+            <p>Сервис позволяет просматривать данные, необходимые для оплаты обучения ученика: группу, ФИО, тариф и сумму к оплате.</p>
+            <h2>Обязанности пользователя</h2>
+            <p>Пользователь обязуется выбирать корректного ученика и проверять сумму перед переходом к оплате.</p>
+            <h2>Ограничение ответственности</h2>
+            <p>Сервис не запрашивает и не хранит данные банковских карт. Платеж подтверждается на стороне платежного провайдера.</p>
+            <h2>Изменения условий</h2>
+            <p>Администрация клуба может обновлять условия. Актуальная версия публикуется на этой странице.</p>
+            <p><a href="{{ url_for('pay_page') }}">Вернуться к оплате</a></p>
+        </article>
+    </main>
+</body>
+</html>

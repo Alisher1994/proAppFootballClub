@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Правила оплаты и возврата - {{ system_name }}</title>
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='uploads/favicon.png') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        body { margin:0; background:#f7f4f1; color:#0f172a; font-family:var(--ui-font-family); }
+        .legal-page { max-width: 920px; margin: 0 auto; padding: 34px 18px 56px; }
+        .legal-card { background:#fff; border:1px solid #e4ddd6; border-radius:8px; padding:26px; box-shadow:0 8px 22px rgba(15,23,42,.045); }
+        h1 { margin:0 0 18px; font-size:28px; color:#334155; }
+        h2 { margin:22px 0 10px; font-size:18px; color:#334155; }
+        p, li { line-height:1.65; color:#475569; font-size:15px; }
+        a { color:#d96f00; font-weight:700; text-decoration:none; }
+    </style>
+</head>
+<body>
+    <main class="legal-page">
+        <article class="legal-card">
+            <h1>Правила оплаты и возврата</h1>
+            <p>Оплата обучения производится по тарифу, заранее закрепленному за выбранным учеником в системе клуба.</p>
+            <h2>Порядок оплаты</h2>
+            <p>Пользователь выбирает группу и ученика. Система автоматически отображает тариф, сумму за текущий месяц и доступные способы оплаты.</p>
+            <h2>Карточные данные</h2>
+            <p>Данные карты вводятся только на защищенной стороне платежной системы. Сервис {{ system_name }} не хранит карточные данные и не выполняет автосписания.</p>
+            <h2>Подтверждение оплаты</h2>
+            <p>Оплата считается выполненной после успешного подтверждения платежной системой и отражения операции в системе клуба.</p>
+            <h2>Возврат</h2>
+            <p>Вопросы возврата рассматриваются администрацией клуба индивидуально согласно фактическому оказанию услуг и внутренним правилам клуба.</p>
+            <p><a href="{{ url_for('pay_page') }}">Вернуться к оплате</a></p>
+        </article>
+    </main>
+</body>
+</html>

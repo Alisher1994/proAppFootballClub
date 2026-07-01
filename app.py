@@ -231,6 +231,55 @@ def redirect_after_login(user):
         return '/teacher-attendance'
     return '/dashboard'
 
+
+def get_public_payment_methods(settings=None):
+    settings = settings or get_club_settings_instance()
+    methods = [
+        {
+            'key': 'click',
+            'name': 'Click',
+            'enabled': bool(getattr(settings, 'payment_click_enabled', False)),
+            'qr_url': getattr(settings, 'payment_click_qr_url', None),
+            'logo_url': url_for('static', filename='uploads/click.png'),
+        },
+        {
+            'key': 'payme',
+            'name': 'Payme',
+            'enabled': bool(getattr(settings, 'payment_payme_enabled', False)),
+            'qr_url': getattr(settings, 'payment_payme_qr_url', None),
+            'logo_url': url_for('static', filename='uploads/payme.png'),
+        },
+        {
+            'key': 'uzum',
+            'name': 'Uzum',
+            'enabled': bool(getattr(settings, 'payment_uzum_enabled', False)),
+            'qr_url': getattr(settings, 'payment_uzum_qr_url', None),
+            'logo_url': url_for('static', filename='uploads/uzum.png'),
+        },
+        {
+            'key': 'paynet',
+            'name': 'Paynet',
+            'enabled': bool(getattr(settings, 'payment_paynet_enabled', False)),
+            'qr_url': getattr(settings, 'payment_paynet_qr_url', None),
+            'logo_url': url_for('static', filename='uploads/paynet.png'),
+        },
+        {
+            'key': 'multicard',
+            'name': 'Multicard',
+            'enabled': bool(getattr(settings, 'payment_multicard_enabled', False)),
+            'qr_url': getattr(settings, 'payment_multicard_qr_url', None),
+            'logo_url': url_for('static', filename='uploads/multicard.png'),
+        },
+        {
+            'key': 'oson',
+            'name': 'Oson',
+            'enabled': bool(getattr(settings, 'payment_oson_enabled', False)),
+            'qr_url': getattr(settings, 'payment_oson_qr_url', None),
+            'logo_url': url_for('static', filename='uploads/oson.jpeg'),
+        },
+    ]
+    return methods
+
 class VideoCamera(object):
     def __init__(self, url):
         # Если url похож на индекс камеры (0, 1...), превращаем в int
@@ -2597,6 +2646,135 @@ def reset_password():
 def logout():
     logout_user()
     return redirect(url_for('login'))
+
+
+@app.route('/pay')
+def pay_page():
+    return render_template('pay.html')
+
+
+@app.route('/privacy-policy')
+def privacy_policy_page():
+    return render_template('privacy_policy.html')
+
+
+@app.route('/terms')
+def terms_page():
+    return render_template('terms.html')
+
+
+@app.route('/payment-terms')
+def payment_terms_page():
+    return render_template('payment_terms.html')
+
+
+@app.route('/api/pay/options', methods=['GET'])
+def public_pay_options():
+    ensure_club_settings_columns()
+    settings = get_club_settings_instance()
+    groups = Group.query.join(Student, Student.group_id == Group.id).filter(
+        Student.status == 'active'
+    ).distinct().order_by(Group.name.asc()).all()
+
+    return jsonify({
+        'success': True,
+        'groups': [{'id': group.id, 'name': group.name} for group in groups],
+        'methods': get_public_payment_methods(settings),
+        'legal': {
+            'privacy_policy': url_for('privacy_policy_page'),
+            'terms': url_for('terms_page'),
+            'payment_terms': url_for('payment_terms_page'),
+        }
+    })
+
+
+@app.route('/api/pay/students', methods=['GET'])
+def public_pay_students():
+    group_id = request.args.get('group_id', type=int)
+    if not group_id:
+        return jsonify({'success': False, 'message': 'Выберите группу'}), 400
+
+    students = Student.query.options(joinedload(Student.group), joinedload(Student.tariff)).filter(
+        Student.group_id == group_id,
+        Student.status == 'active'
+    ).order_by(Student.full_name.asc()).all()
+
+    today = get_local_date()
+    paid_map = get_month_paid_map(today.year, today.month)
+    items = []
+    for student in students:
+        tariff_price = float(student.tariff.price or 0) if student.tariff else 0
+        paid = float(paid_map.get(student.id, 0) or 0)
+        amount_due = max(0, tariff_price - paid)
+        items.append({
+            'id': student.id,
+            'full_name': student.full_name,
+            'student_number': student.student_number,
+            'group_id': student.group_id,
+            'group_name': student.group.name if student.group else '',
+            'tariff': {
+                'id': student.tariff_id,
+                'name': student.tariff.name if student.tariff else 'Тариф не указан',
+                'price': tariff_price,
+                'lessons_count': student.tariff.lessons_count if student.tariff else None,
+            },
+            'paid_this_month': paid,
+            'amount_due': amount_due,
+            'payment_month': today.month,
+            'payment_year': today.year,
+        })
+
+    return jsonify({'success': True, 'students': items})
+
+
+@app.route('/api/pay/checkout', methods=['POST'])
+def public_pay_checkout():
+    data = request.get_json(silent=True) or {}
+    student_id = data.get('student_id')
+    method_key = (data.get('method') or '').strip()
+    accepted = bool(data.get('accepted_terms'))
+
+    if not accepted:
+        return jsonify({'success': False, 'message': 'Подтвердите согласие с условиями оплаты'}), 400
+    if not student_id:
+        return jsonify({'success': False, 'message': 'Выберите ученика'}), 400
+    if not method_key:
+        return jsonify({'success': False, 'message': 'Выберите способ оплаты'}), 400
+
+    student = Student.query.options(joinedload(Student.group), joinedload(Student.tariff)).filter(
+        Student.id == student_id,
+        Student.status == 'active'
+    ).first()
+    if not student:
+        return jsonify({'success': False, 'message': 'Ученик не найден'}), 404
+    if not student.tariff:
+        return jsonify({'success': False, 'message': 'У ученика не указан тариф. Обратитесь к администратору.'}), 400
+
+    methods = get_public_payment_methods()
+    method = next((item for item in methods if item['key'] == method_key), None)
+    if not method or not method.get('enabled'):
+        return jsonify({'success': False, 'message': 'Этот способ оплаты пока не подключен'}), 400
+
+    today = get_local_date()
+    paid = float(get_month_paid_map(today.year, today.month).get(student.id, 0) or 0)
+    tariff_price = float(student.tariff.price or 0)
+    amount_due = max(0, tariff_price - paid)
+
+    return jsonify({
+        'success': True,
+        'message': 'Оплата подготовлена. Карточные данные вводятся только на стороне платежной системы.',
+        'checkout': {
+            'student_id': student.id,
+            'student_name': student.full_name,
+            'group_name': student.group.name if student.group else '',
+            'tariff_name': student.tariff.name,
+            'amount': amount_due or tariff_price,
+            'method': method,
+            'month': today.month,
+            'year': today.year,
+            'status': 'provider_pending',
+        }
+    })
 
 
 @app.route('/my-account')
