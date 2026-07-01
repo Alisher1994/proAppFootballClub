@@ -68,11 +68,13 @@ loginForm.addEventListener('submit', async (e) => {
     }
 })();
 
-document.getElementById('forgotPasswordBtn')?.addEventListener('click', () => {
+document.getElementById('forgotPasswordBtn')?.addEventListener('click', (event) => {
+    event.preventDefault();
     showLoginPanel('forgot');
 });
 
-document.getElementById('backToLoginFromForgot')?.addEventListener('click', () => {
+document.getElementById('backToLoginFromForgot')?.addEventListener('click', (event) => {
+    event.preventDefault();
     showLoginPanel('login');
 });
 

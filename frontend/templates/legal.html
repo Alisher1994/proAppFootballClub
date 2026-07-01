@@ -72,12 +72,13 @@
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            width: 22px;
-            height: 22px;
+            width: 18px;
+            height: 18px;
             border-radius: 50%;
-            background: #111827;
-            color: #fff;
-            font-size: 12px;
+            background: #eef1f5;
+            color: #64748b;
+            font-size: 10px;
+            font-weight: 700;
             flex: 0 0 auto;
         }
         .legal-content {
@@ -106,7 +107,7 @@
             background: #f8f7f6;
         }
         .legal-lang button {
-            min-width: 38px;
+            min-width: 42px;
             height: 30px;
             border: 0;
             border-radius: 6px;
@@ -114,10 +115,20 @@
             color: #475569;
             font: 700 12px/1 var(--ui-font-family);
             cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
         }
         .legal-lang button.active {
             background: #111827;
             color: #fff;
+        }
+        .legal-flag {
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            flex: 0 0 auto;
         }
         .legal-body h2 {
             margin: 20px 0 8px;
@@ -171,9 +182,18 @@
                 <div class="legal-top">
                     <h1 class="legal-title" id="legal-title"></h1>
                     <div class="legal-lang" aria-label="Язык документа">
-                        <button type="button" data-lang="ru">RU</button>
-                        <button type="button" data-lang="uz">UZ</button>
-                        <button type="button" data-lang="en">EN</button>
+                        <button type="button" data-lang="ru">
+                            <svg class="legal-flag" viewBox="0 0 18 18" aria-hidden="true"><clipPath id="flag-ru"><circle cx="9" cy="9" r="9"/></clipPath><g clip-path="url(#flag-ru)"><path fill="#fff" d="M0 0h18v6H0z"/><path fill="#1c57a7" d="M0 6h18v6H0z"/><path fill="#d52b1e" d="M0 12h18v6H0z"/></g></svg>
+                            RU
+                        </button>
+                        <button type="button" data-lang="uz">
+                            <svg class="legal-flag" viewBox="0 0 18 18" aria-hidden="true"><clipPath id="flag-uz"><circle cx="9" cy="9" r="9"/></clipPath><g clip-path="url(#flag-uz)"><path fill="#1eb6d9" d="M0 0h18v5.2H0z"/><path fill="#fff" d="M0 6.4h18v5.2H0z"/><path fill="#1f9d55" d="M0 12.8h18V18H0z"/><path fill="#d91f26" d="M0 5.2h18v1.2H0zM0 11.6h18v1.2H0z"/><circle cx="4" cy="2.6" r="1.25" fill="#fff"/></g></svg>
+                            UZ
+                        </button>
+                        <button type="button" data-lang="en">
+                            <svg class="legal-flag" viewBox="0 0 18 18" aria-hidden="true"><clipPath id="flag-en"><circle cx="9" cy="9" r="9"/></clipPath><g clip-path="url(#flag-en)"><path fill="#0a3161" d="M0 0h18v18H0z"/><path stroke="#fff" stroke-width="3" d="m0 0 18 18M18 0 0 18"/><path stroke="#b31942" stroke-width="1.5" d="m0 0 18 18M18 0 0 18"/><path fill="#fff" d="M7 0h4v18H7zM0 7h18v4H0z"/><path fill="#b31942" d="M7.8 0h2.4v18H7.8zM0 7.8h18v2.4H0z"/></g></svg>
+                            EN
+                        </button>
                     </div>
                 </div>
                 <div class="legal-body" id="legal-body"></div>

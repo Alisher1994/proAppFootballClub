@@ -66,9 +66,68 @@
             color: #0f172a;
             font-size: 14px;
         }
+        .pay-combobox {
+            position: relative;
+        }
+        .pay-combobox input {
+            width: 100%;
+        }
+        .pay-combobox::after {
+            content: "";
+            position: absolute;
+            right: 14px;
+            top: 50%;
+            width: 0;
+            height: 0;
+            border-left: 4px solid transparent;
+            border-right: 4px solid transparent;
+            border-top: 5px solid #64748b;
+            transform: translateY(-50%);
+            pointer-events: none;
+        }
+        .pay-dropdown {
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: calc(100% + 5px);
+            z-index: 20;
+            display: none;
+            max-height: 240px;
+            overflow-y: auto;
+            border: 1px solid #e4ddd6;
+            border-radius: 8px;
+            background: #fff;
+            box-shadow: 0 16px 34px rgba(15, 23, 42, .12);
+            padding: 5px;
+        }
+        .pay-dropdown.open {
+            display: grid;
+            gap: 2px;
+        }
+        .pay-option {
+            border: 0;
+            border-radius: 6px;
+            background: transparent;
+            color: #1f2937;
+            padding: 9px 10px;
+            text-align: left;
+            font: 500 13px/1.25 var(--ui-font-family);
+            cursor: pointer;
+        }
+        .pay-option:hover,
+        .pay-option:focus-visible {
+            background: #f7f4f1;
+            outline: none;
+        }
+        .pay-empty {
+            padding: 10px;
+            color: #94a3b8;
+            font-size: 13px;
+            font-weight: 500;
+        }
         .pay-summary {
             display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
+            grid-template-columns: 1fr;
             gap: 10px;
             margin-top: 4px;
             padding: 14px;
@@ -211,15 +270,15 @@
             gap: 10px 16px;
             padding-top: 10px;
             border-top: 1px solid #e4ddd6;
-            font-size: 13px;
+            font-size: 12px;
             font-family: var(--ui-font-family);
         }
         .pay-links a {
             display: inline-flex;
             align-items: center;
             gap: 6px;
-            color: #111827;
-            font-weight: 800;
+            color: #475569;
+            font-weight: 600;
             text-decoration: none;
         }
         .pay-links a:hover {
@@ -230,12 +289,13 @@
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            width: 18px;
-            height: 18px;
+            width: 16px;
+            height: 16px;
             border-radius: 50%;
-            background: #111827;
-            color: #fff;
-            font-size: 11px;
+            background: #eef1f5;
+            color: #64748b;
+            font-size: 10px;
+            font-weight: 700;
             line-height: 1;
         }
         .pay-note {
@@ -272,7 +332,6 @@
         }
         @media (max-width: 860px) {
             .pay-methods { grid-template-columns: 1fr; }
-            .pay-summary { grid-template-columns: 1fr; }
             .pay-header { justify-content: stretch; }
             .pay-header .btn-secondary { width: 100%; justify-content: center; }
         }
@@ -293,13 +352,17 @@
                 <form class="pay-form" id="pay-form">
                     <label id="pay-group-step">
                         Группа
-                        <input id="pay-group" type="text" list="pay-group-list" autocomplete="off" placeholder="Введите название группы">
-                        <datalist id="pay-group-list"></datalist>
+                        <div class="pay-combobox">
+                            <input id="pay-group" type="text" autocomplete="off" placeholder="Введите название группы">
+                            <div class="pay-dropdown" id="pay-group-list"></div>
+                        </div>
                     </label>
                     <label id="pay-student-step" class="pay-step-hidden">
                         Ученик
-                        <input id="pay-student" type="text" list="pay-student-list" autocomplete="off" placeholder="Сначала выберите группу" disabled>
-                        <datalist id="pay-student-list"></datalist>
+                        <div class="pay-combobox">
+                            <input id="pay-student" type="text" autocomplete="off" placeholder="Сначала выберите группу" disabled>
+                            <div class="pay-dropdown" id="pay-student-list"></div>
+                        </div>
                     </label>
 
                     <div class="pay-summary" id="pay-summary" style="display:none;"></div>
@@ -349,6 +412,13 @@
         const consentInput = document.getElementById('pay-consent');
 
         const money = value => `${Number(value || 0).toLocaleString('ru-RU')} сум`;
+        const escapeHtml = value => String(value || '').replace(/[&<>"']/g, char => ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;'
+        }[char]));
 
         function syncSubmit() {
             const method = document.querySelector('input[name="pay_method"]:checked');
@@ -367,6 +437,67 @@
         function findByName(items, value, field = 'name') {
             const normalized = (value || '').trim().toLowerCase();
             return items.find(item => String(item[field] || '').trim().toLowerCase() === normalized) || null;
+        }
+
+        function renderDropdown(box, items, field, onSelect) {
+            const visible = items.slice(0, 40);
+            if (!visible.length) {
+                box.innerHTML = '<div class="pay-empty">Ничего не найдено</div>';
+                box.classList.add('open');
+                return;
+            }
+            box.innerHTML = visible.map(item => (
+                `<button class="pay-option" type="button" data-id="${item.id}">${escapeHtml(item[field])}</button>`
+            )).join('');
+            box.classList.add('open');
+            box.querySelectorAll('.pay-option').forEach(button => {
+                button.addEventListener('click', () => {
+                    const item = visible.find(entry => String(entry.id) === button.dataset.id);
+                    if (item) onSelect(item);
+                    box.classList.remove('open');
+                });
+            });
+        }
+
+        function showGroupOptions() {
+            const query = groupInput.value.trim().toLowerCase();
+            const items = state.groups.filter(group => String(group.name || '').toLowerCase().includes(query));
+            renderDropdown(groupList, items, 'name', selectGroup);
+        }
+
+        function showStudentOptions() {
+            if (studentInput.disabled) return;
+            const query = studentInput.value.trim().toLowerCase();
+            const items = state.students.filter(student => String(student.full_name || '').toLowerCase().includes(query));
+            renderDropdown(studentList, items, 'full_name', selectStudent);
+        }
+
+        function resetPaymentProgress() {
+            consentInput.checked = false;
+            document.querySelectorAll('input[name="pay_method"]').forEach(input => { input.checked = false; });
+            providerBox.style.display = 'none';
+            providerBox.innerHTML = '';
+            resultBox.textContent = '';
+            resultBox.classList.remove('error');
+        }
+
+        function selectGroup(group) {
+            state.selectedGroup = group;
+            state.selectedStudent = null;
+            groupInput.value = group.name;
+            studentInput.value = '';
+            resetPaymentProgress();
+            renderSummary();
+            syncSubmit();
+            loadStudents(group.id);
+        }
+
+        function selectStudent(student) {
+            state.selectedStudent = student;
+            studentInput.value = student.full_name;
+            resetPaymentProgress();
+            renderSummary();
+            syncSubmit();
         }
 
         function renderMethods() {
@@ -399,9 +530,6 @@
             const data = await response.json();
             state.groups = data.groups || [];
             state.methods = data.methods || [];
-            groupList.innerHTML = state.groups.map(group => (
-                `<option value="${group.name}"></option>`
-            )).join('');
             renderMethods();
             syncSubmit();
         }
@@ -418,46 +546,51 @@
             state.students = data.students || [];
             studentInput.disabled = false;
             studentInput.placeholder = 'Введите ФИО ученика';
-            studentList.innerHTML = state.students.map(student => (
-                `<option value="${student.full_name}"></option>`
-            )).join('');
             syncSubmit();
         }
 
         groupInput.addEventListener('input', () => {
             const group = findByName(state.groups, groupInput.value, 'name');
-            state.selectedGroup = group;
-            state.selectedStudent = null;
-            studentInput.value = '';
-            consentInput.checked = false;
-            document.querySelectorAll('input[name="pay_method"]').forEach(input => { input.checked = false; });
-            providerBox.style.display = 'none';
-            providerBox.innerHTML = '';
-            resultBox.textContent = '';
-            resultBox.classList.remove('error');
+            resetPaymentProgress();
             renderSummary();
             if (group) {
-                syncSubmit();
-                loadStudents(group.id);
+                selectGroup(group);
+                groupList.classList.remove('open');
+                return;
             } else {
+                state.selectedGroup = null;
+                state.selectedStudent = null;
                 state.students = [];
                 studentInput.disabled = true;
+                studentInput.value = '';
                 studentInput.placeholder = 'Сначала выберите группу';
-                studentList.innerHTML = '';
                 syncSubmit();
             }
+            showGroupOptions();
         });
 
         studentInput.addEventListener('input', () => {
-            state.selectedStudent = findByName(state.students, studentInput.value, 'full_name');
-            consentInput.checked = false;
-            document.querySelectorAll('input[name="pay_method"]').forEach(input => { input.checked = false; });
-            providerBox.style.display = 'none';
-            providerBox.innerHTML = '';
-            resultBox.textContent = '';
-            resultBox.classList.remove('error');
+            const student = findByName(state.students, studentInput.value, 'full_name');
+            resetPaymentProgress();
+            if (student) {
+                selectStudent(student);
+                studentList.classList.remove('open');
+                return;
+            }
+            state.selectedStudent = null;
             renderSummary();
             syncSubmit();
+            showStudentOptions();
+        });
+
+        groupInput.addEventListener('focus', showGroupOptions);
+        studentInput.addEventListener('focus', showStudentOptions);
+
+        document.addEventListener('click', event => {
+            if (!event.target.closest('.pay-combobox')) {
+                groupList.classList.remove('open');
+                studentList.classList.remove('open');
+            }
         });
 
         consentInput.addEventListener('change', syncSubmit);

@@ -43,9 +43,6 @@
                 </div>
                 
                 <button type="submit" class="btn-primary">Войти</button>
-                <a class="google-login-btn" href="{{ url_for('pay_page') }}">
-                    <span>Оплатить обучение</span>
-                </a>
                 {% if google_auth_enabled %}
                 <a class="google-login-btn" href="{{ url_for('google_login') }}">
                     <svg viewBox="0 0 48 48" aria-hidden="true">
@@ -57,7 +54,7 @@
                     <span>Войти через Google</span>
                 </a>
                 {% endif %}
-                <button type="button" id="forgotPasswordBtn" class="login-link-btn">Забыли пароль?</button>
+                <a href="#" id="forgotPasswordBtn" class="login-link-btn">Забыли пароль?</a>
                 <div id="error-message" class="error"></div>
             </form>
             <form id="forgotPasswordForm" style="display:none;">
@@ -66,7 +63,7 @@
                     <input type="email" id="forgot-email" required>
                 </div>
                 <button type="submit" class="btn-primary">Отправить ссылку</button>
-                <button type="button" class="login-link-btn" id="backToLoginFromForgot">Вернуться ко входу</button>
+                <a href="#" class="login-link-btn" id="backToLoginFromForgot">Вернуться ко входу</a>
                 <div id="forgot-message" class="error"></div>
             </form>
             <form id="resetPasswordForm" data-reset-token="{{ reset_token or '' }}" style="display:none;">
