@@ -15,55 +15,40 @@
             font-family: var(--ui-font-family);
         }
         .pay-shell {
-            max-width: 980px;
+            max-width: 760px;
             margin: 0 auto;
-            padding: 28px 18px 44px;
+            padding: 24px 18px 44px;
         }
         .pay-header {
             display: flex;
             align-items: center;
-            justify-content: space-between;
+            justify-content: flex-end;
             gap: 16px;
-            margin-bottom: 18px;
-        }
-        .pay-brand {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            min-width: 0;
-        }
-        .pay-brand img {
-            width: 58px;
-            max-height: 42px;
-            object-fit: contain;
-        }
-        .pay-brand h1 {
-            margin: 0;
-            color: #334155;
-            font-size: 24px;
-            letter-spacing: 0;
+            margin-bottom: 14px;
         }
         .pay-grid {
-            display: grid;
-            grid-template-columns: minmax(0, 1fr) 320px;
-            gap: 16px;
-            align-items: start;
+            display: block;
         }
         .pay-panel {
             border: 1px solid #e4ddd6;
             border-radius: 8px;
             background: #fff;
-            padding: 18px;
+            padding: 20px;
             box-shadow: 0 8px 22px rgba(15, 23, 42, .045);
         }
-        .pay-panel h2 {
-            margin: 0 0 14px;
-            color: #334155;
-            font-size: 18px;
+        .pay-logo-center {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 18px;
+        }
+        .pay-logo-center img {
+            width: 92px;
+            max-height: 54px;
+            object-fit: contain;
         }
         .pay-form {
             display: grid;
-            gap: 14px;
+            gap: 13px;
         }
         .pay-form label {
             display: grid;
@@ -72,7 +57,7 @@
             font-size: 13px;
             font-weight: 700;
         }
-        .pay-form select {
+        .pay-form input[type="text"] {
             min-height: 42px;
             border: 1px solid #d8d0c8;
             border-radius: 8px;
@@ -83,6 +68,7 @@
         }
         .pay-summary {
             display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
             gap: 10px;
             margin-top: 4px;
             padding: 14px;
@@ -95,11 +81,12 @@
             justify-content: space-between;
             gap: 12px;
             color: #475569;
-            font-size: 14px;
+            font-size: 13px;
         }
         .pay-summary-row strong {
             color: #0f172a;
             text-align: right;
+            font-size: 14px;
         }
         .pay-methods {
             display: grid;
@@ -109,22 +96,27 @@
         .pay-method {
             display: flex;
             align-items: center;
-            justify-content: center;
+            justify-content: flex-start;
             gap: 10px;
-            min-height: 42px;
+            min-height: 44px;
+            padding: 0 12px;
             border: 1px solid #d8d0c8;
             border-radius: 8px;
             background: #fff;
             color: #334155;
-            font-weight: 700;
+            font-size: 13px;
+            font-weight: 800;
             cursor: pointer;
         }
         .pay-method input { display: none; }
         .pay-method-logo {
-            width: 34px;
+            width: 38px;
             height: 24px;
             object-fit: contain;
             flex: 0 0 auto;
+            filter: grayscale(1);
+            opacity: .72;
+            transition: filter .18s ease, opacity .18s ease;
         }
         .pay-method-name {
             min-width: 0;
@@ -136,6 +128,10 @@
             border-color: #ff8a00;
             background: #fff6eb;
             color: #d96f00;
+        }
+        .pay-method:has(input:checked) .pay-method-logo {
+            filter: grayscale(0);
+            opacity: 1;
         }
         .pay-method.disabled {
             opacity: .45;
@@ -153,17 +149,71 @@
             margin-top: 3px;
             flex: 0 0 auto;
         }
-        .pay-consent a,
-        .pay-links a {
+        .pay-consent input[type="checkbox"] {
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border: 1.5px solid #111827;
+            border-radius: 3px;
+            background: #fff;
+            display: inline-grid;
+            place-content: center;
+            cursor: pointer;
+        }
+        .pay-consent input[type="checkbox"]::before {
+            content: "";
+            width: 8px;
+            height: 8px;
+            transform: scale(0);
+            background: #111827;
+            clip-path: polygon(14% 44%, 0 58%, 38% 96%, 100% 20%, 86% 6%, 36% 68%);
+        }
+        .pay-consent input[type="checkbox"]:checked::before {
+            transform: scale(1);
+        }
+        #pay-submit {
+            min-height: 42px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 800;
+        }
+        .pay-consent a {
             color: #d96f00;
             font-weight: 700;
             text-decoration: none;
         }
         .pay-links {
-            display: grid;
-            gap: 10px;
-            color: #475569;
-            font-size: 14px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px 16px;
+            padding-top: 10px;
+            border-top: 1px solid #e4ddd6;
+            font-size: 13px;
+            font-family: var(--ui-font-family);
+        }
+        .pay-links a {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            color: #111827;
+            font-weight: 800;
+            text-decoration: none;
+        }
+        .pay-links a:hover {
+            text-decoration: underline;
+            text-underline-offset: 3px;
+        }
+        .pay-link-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #111827;
+            color: #fff;
+            font-size: 11px;
+            line-height: 1;
         }
         .pay-note {
             margin-top: 12px;
@@ -195,9 +245,10 @@
             border-radius: 8px;
         }
         @media (max-width: 860px) {
-            .pay-grid { grid-template-columns: 1fr; }
             .pay-methods { grid-template-columns: 1fr; }
-            .pay-header { align-items: flex-start; flex-direction: column; }
+            .pay-summary { grid-template-columns: 1fr; }
+            .pay-header { justify-content: stretch; }
+            .pay-header .btn-secondary { width: 100%; justify-content: center; }
         }
     </style>
 </head>
@@ -205,28 +256,24 @@
 <body>
     <main class="pay-shell">
         <header class="pay-header">
-            <div class="pay-brand">
-                <img src="{{ system_logo_url }}" alt="{{ system_name }}">
-                <h1>Оплата обучения</h1>
-            </div>
             <a class="btn-secondary" href="{{ url_for('login') }}">Войти в систему</a>
         </header>
 
         <div class="pay-grid">
             <section class="pay-panel">
-                <h2>Оформление оплаты</h2>
+                <div class="pay-logo-center">
+                    <img src="{{ system_logo_url }}" alt="{{ system_name }}">
+                </div>
                 <form class="pay-form" id="pay-form">
                     <label>
                         Группа
-                        <select id="pay-group" required>
-                            <option value="">Выберите группу</option>
-                        </select>
+                        <input id="pay-group" type="text" list="pay-group-list" autocomplete="off" placeholder="Введите название группы">
+                        <datalist id="pay-group-list"></datalist>
                     </label>
                     <label>
                         Ученик
-                        <select id="pay-student" required disabled>
-                            <option value="">Сначала выберите группу</option>
-                        </select>
+                        <input id="pay-student" type="text" list="pay-student-list" autocomplete="off" placeholder="Сначала выберите группу" disabled>
+                        <datalist id="pay-student-list"></datalist>
                     </label>
 
                     <div class="pay-summary" id="pay-summary" style="display:none;"></div>
@@ -248,28 +295,23 @@
                     <button class="btn-primary" id="pay-submit" type="submit" disabled>Перейти к оплате</button>
                     <div class="pay-result" id="pay-result"></div>
                     <div class="pay-provider-box" id="pay-provider-box"></div>
+
+                    <div class="pay-links">
+                        <a href="{{ url_for('privacy_policy_page') }}" target="_blank"><span class="pay-link-icon">i</span>Политика конфиденциальности</a>
+                        <a href="{{ url_for('terms_page') }}" target="_blank"><span class="pay-link-icon">✓</span>Пользовательское соглашение</a>
+                        <a href="{{ url_for('payment_terms_page') }}" target="_blank"><span class="pay-link-icon">₽</span>Правила оплаты и возврата</a>
+                    </div>
                 </form>
             </section>
-
-            <aside class="pay-panel">
-                <h2>Документы</h2>
-                <div class="pay-links">
-                    <a href="{{ url_for('privacy_policy_page') }}" target="_blank">Политика конфиденциальности</a>
-                    <a href="{{ url_for('terms_page') }}" target="_blank">Пользовательское соглашение</a>
-                    <a href="{{ url_for('payment_terms_page') }}" target="_blank">Правила оплаты и возврата</a>
-                </div>
-                <div class="pay-note">
-                    Данные банковской карты, срок действия, CVV и SMS-коды не вводятся и не хранятся в этой системе.
-                    Подтверждение оплаты выполняется на стороне платежной системы.
-                </div>
-            </aside>
         </div>
     </main>
 
     <script>
-        const state = { groups: [], methods: [], students: [], selectedStudent: null };
-        const groupSelect = document.getElementById('pay-group');
-        const studentSelect = document.getElementById('pay-student');
+        const state = { groups: [], methods: [], students: [], selectedGroup: null, selectedStudent: null };
+        const groupInput = document.getElementById('pay-group');
+        const groupList = document.getElementById('pay-group-list');
+        const studentInput = document.getElementById('pay-student');
+        const studentList = document.getElementById('pay-student-list');
         const methodsBox = document.getElementById('pay-methods');
         const summaryBox = document.getElementById('pay-summary');
         const submitBtn = document.getElementById('pay-submit');
@@ -281,6 +323,11 @@
         function syncSubmit() {
             const method = document.querySelector('input[name="pay_method"]:checked');
             submitBtn.disabled = !state.selectedStudent || !method || !document.getElementById('pay-consent').checked;
+        }
+
+        function findByName(items, value, field = 'name') {
+            const normalized = (value || '').trim().toLowerCase();
+            return items.find(item => String(item[field] || '').trim().toLowerCase() === normalized) || null;
         }
 
         function renderMethods() {
@@ -303,12 +350,7 @@
             }
             summaryBox.style.display = 'grid';
             summaryBox.innerHTML = `
-                <div class="pay-summary-row"><span>Ученик</span><strong>${s.full_name}</strong></div>
-                <div class="pay-summary-row"><span>Группа</span><strong>${s.group_name || '-'}</strong></div>
                 <div class="pay-summary-row"><span>Тариф</span><strong>${s.tariff.name}</strong></div>
-                <div class="pay-summary-row"><span>Количество занятий</span><strong>${s.tariff.lessons_count || '-'}</strong></div>
-                <div class="pay-summary-row"><span>Цена тарифа</span><strong>${money(s.tariff.price)}</strong></div>
-                <div class="pay-summary-row"><span>Оплачено за месяц</span><strong>${money(s.paid_this_month)}</strong></div>
                 <div class="pay-summary-row"><span>К оплате</span><strong>${money(s.amount_due || s.tariff.price)}</strong></div>
             `;
         }
@@ -318,8 +360,8 @@
             const data = await response.json();
             state.groups = data.groups || [];
             state.methods = data.methods || [];
-            groupSelect.innerHTML = '<option value="">Выберите группу</option>' + state.groups.map(group => (
-                `<option value="${group.id}">${group.name}</option>`
+            groupList.innerHTML = state.groups.map(group => (
+                `<option value="${group.name}"></option>`
             )).join('');
             renderMethods();
         }
@@ -327,33 +369,40 @@
         async function loadStudents(groupId) {
             state.selectedStudent = null;
             renderSummary();
-            studentSelect.disabled = true;
-            studentSelect.innerHTML = '<option value="">Загрузка...</option>';
+            studentInput.disabled = true;
+            studentInput.value = '';
+            studentInput.placeholder = 'Загрузка...';
+            studentList.innerHTML = '';
             const response = await fetch(`/api/pay/students?group_id=${encodeURIComponent(groupId)}`);
             const data = await response.json();
             state.students = data.students || [];
-            studentSelect.disabled = false;
-            studentSelect.innerHTML = '<option value="">Выберите ученика</option>' + state.students.map(student => (
-                `<option value="${student.id}">${student.full_name}</option>`
+            studentInput.disabled = false;
+            studentInput.placeholder = 'Введите ФИО ученика';
+            studentList.innerHTML = state.students.map(student => (
+                `<option value="${student.full_name}"></option>`
             )).join('');
             syncSubmit();
         }
 
-        groupSelect.addEventListener('change', () => {
-            if (groupSelect.value) {
-                loadStudents(groupSelect.value);
+        groupInput.addEventListener('input', () => {
+            const group = findByName(state.groups, groupInput.value, 'name');
+            state.selectedGroup = group;
+            state.selectedStudent = null;
+            studentInput.value = '';
+            renderSummary();
+            if (group) {
+                loadStudents(group.id);
             } else {
                 state.students = [];
-                state.selectedStudent = null;
-                studentSelect.disabled = true;
-                studentSelect.innerHTML = '<option value="">Сначала выберите группу</option>';
-                renderSummary();
+                studentInput.disabled = true;
+                studentInput.placeholder = 'Сначала выберите группу';
+                studentList.innerHTML = '';
                 syncSubmit();
             }
         });
 
-        studentSelect.addEventListener('change', () => {
-            state.selectedStudent = state.students.find(student => String(student.id) === String(studentSelect.value)) || null;
+        studentInput.addEventListener('input', () => {
+            state.selectedStudent = findByName(state.students, studentInput.value, 'full_name');
             renderSummary();
             syncSubmit();
         });

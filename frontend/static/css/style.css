@@ -2943,7 +2943,7 @@ body.login-page .password-field .password-toggle:focus-visible {
     font-family: var(--ui-font-family) !important;
     font-size: 14px;
     font-style: normal;
-    font-weight: 700;
+    font-weight: 600;
     letter-spacing: 0;
     text-transform: none;
     text-shadow: none;
@@ -2988,7 +2988,7 @@ body.login-page .password-field .password-toggle:focus-visible {
     color: #1f2937;
     text-decoration: none;
     font-size: 14px;
-    font-weight: 700;
+    font-weight: 600;
     transition: transform .2s ease, border-color .2s ease, box-shadow .2s ease;
 }
 
@@ -3007,35 +3007,44 @@ body.login-page .password-field .password-toggle:focus-visible {
 .login-link-btn {
     display: inline-flex;
     justify-content: center;
-    width: 100%;
-    margin-top: 12px;
+    width: auto;
+    margin: 12px auto 0;
+    padding: 0;
     border: 0;
     background: transparent;
-    color: #f8fafc;
-    font-size: 14px;
-    font-weight: 700;
+    color: #475569;
+    font-size: 13px;
+    font-weight: 500;
     cursor: pointer;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.login-link-btn:hover {
+    color: #111827;
     text-decoration: underline;
-    text-underline-offset: 4px;
+    text-underline-offset: 3px;
 }
 
 .login-legal-links {
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
-    gap: 8px 12px;
-    margin-top: 14px;
+    gap: 6px 14px;
+    margin-top: 16px;
     font-size: 12px;
+    line-height: 1.3;
 }
 
-.login-legal-links a {
-    color: rgba(248, 250, 252, .9);
-    text-decoration: none;
+.login-box .login-legal-links a {
+    color: #111827 !important;
+    text-decoration: none !important;
     font-weight: 600;
 }
 
-.login-legal-links a:hover {
-    text-decoration: underline;
+.login-box .login-legal-links a:hover {
+    text-decoration: none !important;
+    color: #d96f00 !important;
     text-underline-offset: 3px;
 }
 
