@@ -1421,7 +1421,7 @@ def ensure_club_settings_columns():
         if 'payment_paynet_qr_url' not in columns:
             conn.execute(db.text("ALTER TABLE club_settings ADD COLUMN payment_paynet_qr_url VARCHAR(500)"))
         if 'payment_multicard_enabled' not in columns:
-            conn.execute(db.text("ALTER TABLE club_settings ADD COLUMN payment_multicard_enabled BOOLEAN DEFAULT 0"))
+            conn.execute(db.text("ALTER TABLE club_settings ADD COLUMN payment_multicard_enabled BOOLEAN DEFAULT FALSE"))
         if 'payment_multicard_qr_url' not in columns:
             conn.execute(db.text("ALTER TABLE club_settings ADD COLUMN payment_multicard_qr_url VARCHAR(500)"))
         if 'payment_oson_enabled' not in columns:
