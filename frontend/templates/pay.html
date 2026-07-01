@@ -150,8 +150,9 @@
         }
         .pay-mode {
             display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 10px;
+            grid-template-columns: repeat(2, 132px);
+            justify-content: center;
+            gap: 12px;
         }
         .pay-mode label {
             display: flex;
@@ -159,14 +160,15 @@
             align-items: center;
             justify-content: center;
             gap: 8px;
-            min-height: 86px;
+            aspect-ratio: 1 / 1;
             border: 1px solid #e4ddd6;
-            border-radius: 10px;
+            border-radius: 8px;
             background: #f7f4f1;
             color: #475569;
             font-size: 13px;
             font-weight: 600;
             cursor: pointer;
+            padding: 12px;
             transition: border-color .18s ease, background-color .18s ease, color .18s ease;
         }
         .pay-mode input { display: none; }
@@ -182,6 +184,50 @@
         }
         .pay-mode label:has(input:checked) .pay-mode-icon {
             color: #d96f00;
+        }
+        .pay-group-section {
+            display: grid;
+            gap: 9px;
+            color: #334155;
+            font-size: 13px;
+            font-weight: 700;
+        }
+        .pay-group-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
+            gap: 10px;
+        }
+        .pay-group-card {
+            min-height: 118px;
+            aspect-ratio: 1 / 1;
+            border: 1px solid #e4ddd6;
+            border-radius: 8px;
+            background: #f7f4f1;
+            color: #334155;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            padding: 12px;
+            text-align: center;
+            font: 600 13px/1.25 var(--ui-font-family);
+            transition: border-color .18s ease, background-color .18s ease, color .18s ease, box-shadow .18s ease;
+        }
+        .pay-group-card:hover {
+            border-color: #ffc178;
+            background: #fffaf4;
+        }
+        .pay-group-card.active {
+            border-color: #ff8a00;
+            background: #fff7ed;
+            color: #d96f00;
+            box-shadow: 0 8px 18px rgba(255, 138, 0, .1);
+        }
+        .pay-group-icon {
+            width: 24px;
+            height: 24px;
         }
         .pay-period {
             display: grid;
@@ -510,6 +556,12 @@
             .pay-methods { grid-template-columns: 1fr; }
             .pay-header { justify-content: stretch; }
             .pay-header .btn-secondary { width: 100%; justify-content: center; }
+            .pay-mode {
+                grid-template-columns: repeat(2, minmax(112px, 132px));
+            }
+            .pay-group-cards {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
             .pay-bg-video {
                 right: -8px;
                 bottom: 0;
@@ -553,19 +605,12 @@
                     <div class="pay-mode" aria-label="Способ поиска ученика">
                         <label>
                             <input type="radio" name="pay_lookup_mode" value="group" checked>
-                            <svg class="pay-mode-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                                <path d="M16 21v-2a4 4 0 0 0-8 0v2"/>
-                                <circle cx="12" cy="7" r="4"/>
-                                <path d="M22 21v-2a4 4 0 0 0-3-3.87"/>
-                                <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-                            </svg>
+                            <i data-lucide="users" class="pay-mode-icon" aria-hidden="true"></i>
                             <span data-i18n="byGroup">По группе</span>
                         </label>
                         <label>
                             <input type="radio" name="pay_lookup_mode" value="phone">
-                            <svg class="pay-mode-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                                <path d="M22 16.92v3a2 2 0 0 1-2.18 2A19.8 19.8 0 0 1 3.08 5.18 2 2 0 0 1 5.06 3h3a2 2 0 0 1 2 1.72c.12.9.32 1.77.6 2.61a2 2 0 0 1-.45 2.11L9 10.65a16 16 0 0 0 4.35 4.35l1.21-1.21a2 2 0 0 1 2.11-.45c.84.28 1.71.48 2.61.6A2 2 0 0 1 22 16.92z"/>
-                            </svg>
+                            <i data-lucide="phone" class="pay-mode-icon" aria-hidden="true"></i>
                             <span data-i18n="byPhone">По телефону</span>
                         </label>
                     </div>
@@ -576,13 +621,10 @@
                     </label>
                     <div class="pay-student-picks pay-step-hidden" id="pay-phone-results"></div>
 
-                    <label id="pay-group-step">
+                    <section id="pay-group-step" class="pay-group-section">
                         <span data-i18n="group">Группа</span>
-                        <div class="pay-combobox">
-                            <input id="pay-group" type="text" autocomplete="off" placeholder="Введите название группы">
-                            <div class="pay-dropdown" id="pay-group-list"></div>
-                        </div>
-                    </label>
+                        <div class="pay-group-cards" id="pay-group-cards"></div>
+                    </section>
                     <label id="pay-student-step" class="pay-step-hidden">
                         <span data-i18n="student">Ученик</span>
                         <div class="pay-combobox">
@@ -622,19 +664,19 @@
             </section>
         </div>
         <div class="pay-links">
-            <a class="pay-legal-link" data-section="privacy" href="{{ url_for('legal_page', section='privacy', lang='ru') }}" target="_blank"><span class="pay-link-icon">i</span><span data-i18n="privacyDoc">Политика конфиденциальности</span></a>
-            <a class="pay-legal-link" data-section="offer" href="{{ url_for('legal_page', section='offer', lang='ru') }}" target="_blank"><span class="pay-link-icon">✓</span><span data-i18n="termsDoc">Пользовательское соглашение</span></a>
-            <a class="pay-legal-link" data-section="refund" href="{{ url_for('legal_page', section='refund', lang='ru') }}" target="_blank"><span class="pay-link-icon">₽</span><span data-i18n="refundDoc">Правила оплаты и возврата</span></a>
+            <a class="pay-legal-link" data-section="privacy" href="{{ url_for('legal_page', section='privacy', lang='ru') }}" target="_blank"><i data-lucide="info" class="pay-link-icon" aria-hidden="true"></i><span data-i18n="privacyDoc">Политика конфиденциальности</span></a>
+            <a class="pay-legal-link" data-section="offer" href="{{ url_for('legal_page', section='offer', lang='ru') }}" target="_blank"><i data-lucide="check" class="pay-link-icon" aria-hidden="true"></i><span data-i18n="termsDoc">Пользовательское соглашение</span></a>
+            <a class="pay-legal-link" data-section="refund" href="{{ url_for('legal_page', section='refund', lang='ru') }}" target="_blank"><i data-lucide="receipt" class="pay-link-icon" aria-hidden="true"></i><span data-i18n="refundDoc">Правила оплаты и возврата</span></a>
         </div>
     </main>
 
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
     <script>
         const state = { groups: [], methods: [], students: [], phoneStudents: [], selectedGroup: null, selectedStudent: null, selectedStudents: [], selectedPeriod: null, mode: 'group', lang: 'ru' };
         const periodStep = document.getElementById('pay-period-step');
         const periodSelect = document.getElementById('pay-period');
-        const groupInput = document.getElementById('pay-group');
-        const groupList = document.getElementById('pay-group-list');
         const groupStep = document.getElementById('pay-group-step');
+        const groupCards = document.getElementById('pay-group-cards');
         const studentInput = document.getElementById('pay-student');
         const studentList = document.getElementById('pay-student-list');
         const phoneStep = document.getElementById('pay-phone-step');
@@ -731,6 +773,9 @@
         const t = key => (i18n[state.lang] && i18n[state.lang][key]) || i18n.ru[key] || key;
         const monthNames = () => t('months');
         const money = value => `${Number(value || 0).toLocaleString('ru-RU')} сум`;
+        const refreshIcons = () => {
+            if (window.lucide) window.lucide.createIcons();
+        };
         const escapeHtml = value => String(value || '').replace(/[&<>"']/g, char => ({
             '&': '&amp;',
             '<': '&lt;',
@@ -787,14 +832,15 @@
             if (activeLangButton) {
                 document.getElementById('pay-lang-toggle').innerHTML = activeLangButton.innerHTML;
             }
-            groupInput.placeholder = t('groupPlaceholder');
             studentInput.placeholder = state.selectedGroup ? t('studentPlaceholder') : t('studentBeforeGroup');
             updateLegalLinks();
+            renderGroupCards();
             renderMethods();
             renderPhoneResults();
             renderPeriodOptions();
             renderSummary();
             syncSubmit();
+            refreshIcons();
         }
 
         function findStudentPeriod(student, period) {
@@ -832,10 +878,25 @@
             });
         }
 
-        function showGroupOptions(showAll = false) {
-            const query = showAll ? '' : groupInput.value.trim().toLowerCase();
-            const items = state.groups.filter(group => String(group.name || '').toLowerCase().includes(query));
-            renderDropdown(groupList, items, 'name', selectGroup);
+        function renderGroupCards() {
+            if (!groupCards) return;
+            if (!state.groups.length) {
+                groupCards.innerHTML = `<div class="pay-empty">${t('nothingFound')}</div>`;
+                return;
+            }
+            groupCards.innerHTML = state.groups.map(group => `
+                <button type="button" class="pay-group-card ${state.selectedGroup?.id === group.id ? 'active' : ''}" data-id="${group.id}">
+                    <i data-lucide="users" class="pay-group-icon" aria-hidden="true"></i>
+                    <span>${escapeHtml(group.name)}</span>
+                </button>
+            `).join('');
+            groupCards.querySelectorAll('.pay-group-card').forEach(button => {
+                button.addEventListener('click', () => {
+                    const group = state.groups.find(item => String(item.id) === button.dataset.id);
+                    if (group) selectGroup(group);
+                });
+            });
+            refreshIcons();
         }
 
         function showStudentOptions(showAll = false) {
@@ -861,9 +922,9 @@
             state.selectedGroup = group;
             state.selectedStudent = null;
             state.selectedStudents = [];
-            groupInput.value = group.name;
             studentInput.value = '';
             resetPaymentProgress();
+            renderGroupCards();
             renderSummary();
             syncSubmit();
             loadStudents(group.id);
@@ -992,6 +1053,7 @@
             const data = await response.json();
             state.groups = data.groups || [];
             state.methods = data.methods || [];
+            renderGroupCards();
             renderMethods();
             syncSubmit();
         }
@@ -1064,13 +1126,13 @@
             state.selectedStudent = null;
             state.selectedStudents = [];
             state.phoneStudents = [];
-            groupInput.value = '';
             studentInput.value = '';
             studentInput.disabled = true;
             studentInput.placeholder = t('studentBeforeGroup');
             phoneInput.value = '+998 ';
             phoneResults.innerHTML = '';
             resetPaymentProgress();
+            renderGroupCards();
             renderSummary();
             syncSubmit();
         }
@@ -1088,26 +1150,6 @@
             syncSubmit();
         }
 
-        groupInput.addEventListener('input', () => {
-            const group = findByName(state.groups, groupInput.value, 'name');
-            resetPaymentProgress();
-            renderSummary();
-            if (group) {
-                selectGroup(group);
-                groupList.classList.remove('open');
-                return;
-            } else {
-                state.selectedGroup = null;
-                state.selectedStudent = null;
-                state.students = [];
-                studentInput.disabled = true;
-                studentInput.value = '';
-                studentInput.placeholder = t('studentBeforeGroup');
-                syncSubmit();
-            }
-            showGroupOptions();
-        });
-
         studentInput.addEventListener('input', () => {
             const student = findByName(state.students, studentInput.value, 'full_name');
             resetPaymentProgress();
@@ -1122,8 +1164,6 @@
             showStudentOptions();
         });
 
-        groupInput.addEventListener('focus', () => showGroupOptions(true));
-        groupInput.addEventListener('click', () => showGroupOptions(Boolean(state.selectedGroup)));
         studentInput.addEventListener('focus', () => showStudentOptions(true));
         studentInput.addEventListener('click', () => showStudentOptions(Boolean(state.selectedStudent)));
 
@@ -1152,7 +1192,6 @@
 
         document.addEventListener('click', event => {
             if (!event.target.closest('.pay-combobox')) {
-                groupList.classList.remove('open');
                 studentList.classList.remove('open');
             }
             if (!event.target.closest('.pay-lang')) {
