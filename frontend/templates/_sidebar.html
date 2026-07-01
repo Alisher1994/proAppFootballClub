@@ -162,34 +162,103 @@
         {% endif %}
     </nav>
 
-    <!-- Кнопка выхода закреплена внизу -->
+    <!-- Карточка аккаунта закреплена внизу -->
     <div class="sidebar-footer">
-        <div class="sidebar-user-card">
-            <div class="sidebar-user-system">{{ system_name }}</div>
-            <div class="sidebar-user-name">{{ current_user.full_name or current_user.username }}</div>
-            <div class="sidebar-user-role">{{ current_user.role_obj.name if current_user.role_obj else current_user.role }}</div>
-        </div>
-        <div class="sidebar-footer-actions">
-            <a href="{{ url_for('my_account_page') }}" class="sidebar-logout-btn" data-tooltip="Мой аккаунт">
-                <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M20 21a8 8 0 0 0-16 0" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                    <circle cx="12" cy="7" r="4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                </svg>
-                <span>Аккаунт</span>
-            </a>
-            <a href="{{ url_for('logout') }}" class="sidebar-logout-btn" data-tooltip="Выход">
-                <svg class="sidebar-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path
-                        d="M9 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V5C3 4.46957 3.21071 3.96086 3.58579 3.58579C3.96086 3.21071 4.46957 3 5 3H9M16 17L21 12M21 12L16 7M21 12H9"
-                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                </svg>
-                <span>Выход</span>
-            </a>
-        </div>
+        <a href="{{ url_for('my_account_page') }}" class="sidebar-user-card sidebar-account-card" data-tooltip="Мой аккаунт">
+            {% if current_user.photo_path %}
+            <img class="sidebar-account-avatar"
+                src="{{ url_for('static', filename=current_user.photo_path.replace('frontend/static/', '').replace('\\', '/').lstrip('/')) }}"
+                alt="{{ current_user.full_name or current_user.username }}">
+            {% else %}
+            <img class="sidebar-account-avatar"
+                src="{{ url_for('static', filename='uploads/avatar_ccount.png') }}"
+                alt="{{ current_user.full_name or current_user.username }}">
+            {% endif %}
+            <span class="sidebar-account-text">
+                <span class="sidebar-user-name">{{ current_user.full_name or current_user.username }}</span>
+                <span class="sidebar-user-role">{{ current_user.role_obj.name if current_user.role_obj else current_user.role }}</span>
+            </span>
+        </a>
     </div>
 </div>
 
 <style>
+    .sidebar .sidebar-account-card {
+        display: grid !important;
+        grid-template-columns: 42px minmax(0, 1fr);
+        align-items: center;
+        gap: 10px;
+        margin: 0;
+        padding: 9px 10px;
+        text-decoration: none;
+        color: var(--theme-text-primary);
+        background: rgba(255, 255, 255, .88) !important;
+        border: 1px solid rgba(228, 221, 214, .92) !important;
+        border-radius: 10px !important;
+        box-shadow: none !important;
+        transition: background .18s ease, border-color .18s ease;
+    }
+
+    .sidebar .sidebar-account-card:hover {
+        background: #ffffff !important;
+        border-color: rgba(255, 138, 0, .35) !important;
+    }
+
+    .sidebar-account-avatar {
+        width: 42px;
+        height: 42px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 1px solid #e4ddd6;
+        background: #f8f7f6;
+        flex: 0 0 auto;
+    }
+
+    .sidebar-account-text {
+        display: grid;
+        gap: 2px;
+        min-width: 0;
+    }
+
+    .sidebar .sidebar-account-card .sidebar-user-name,
+    .sidebar .sidebar-account-card .sidebar-user-role {
+        display: block;
+        margin: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .sidebar .sidebar-account-card .sidebar-user-name {
+        color: #0f172a;
+        font-size: 13px;
+        font-weight: 700;
+    }
+
+    .sidebar .sidebar-account-card .sidebar-user-role {
+        color: #64748b;
+        font-size: 12px;
+        font-weight: 500;
+    }
+
+    .sidebar.collapsed .sidebar-account-card {
+        display: flex !important;
+        justify-content: center;
+        width: 44px;
+        height: 44px;
+        padding: 0;
+        margin: 0 auto;
+    }
+
+    .sidebar.collapsed .sidebar-account-text {
+        display: none;
+    }
+
+    .sidebar.collapsed .sidebar-account-avatar {
+        width: 34px;
+        height: 34px;
+    }
+
     /* ==========================================================================
    MOBILE NAVIGATION STYLES
    ========================================================================== */

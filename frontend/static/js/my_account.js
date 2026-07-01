@@ -1,5 +1,8 @@
 let accountData = null;
 let removePhoto = false;
+let initialProfileState = null;
+let initialPasswordState = '';
+const defaultAvatarUrl = '/static/uploads/avatar_ccount.png';
 
 function setStatus(id, message, type = '') {
     const node = document.getElementById(id);
@@ -8,49 +11,51 @@ function setStatus(id, message, type = '') {
     node.className = `account-status ${type}`;
 }
 
-function setAvatar(url, fallbackText) {
+function setAvatar(url) {
     const img = document.getElementById('account-avatar-img');
-    const placeholder = document.getElementById('account-avatar-placeholder');
-    if (!img || !placeholder) return;
-    if (url) {
-        img.src = url;
-        img.style.display = 'block';
-        placeholder.style.display = 'none';
-    } else {
-        img.removeAttribute('src');
-        img.style.display = 'none';
-        placeholder.textContent = (fallbackText || 'A').trim().charAt(0).toUpperCase();
-        placeholder.style.display = 'flex';
-    }
+    if (!img) return;
+    img.src = url || defaultAvatarUrl;
 }
 
-async function loadRoles(selectedRoleId, canChangeRole, roleName) {
-    const roleSelect = document.getElementById('account-role');
-    if (!roleSelect) return;
-    if (!canChangeRole) {
-        roleSelect.innerHTML = `<option value="${selectedRoleId || ''}">${roleName || '-'}</option>`;
-        roleSelect.disabled = true;
-        return;
-    }
-    const response = await fetch('/api/roles');
-    const roles = response.ok ? await response.json() : [];
-    roleSelect.innerHTML = roles.map(role => (
-        `<option value="${role.id}" ${String(role.id) === String(selectedRoleId || '') ? 'selected' : ''}>${escapeHtml(role.name)}</option>`
-    )).join('');
-    roleSelect.disabled = false;
+function getProfileState() {
+    return JSON.stringify({
+        full_name: document.getElementById('account-full-name')?.value.trim() || '',
+        phone: document.getElementById('account-phone')?.value.trim() || '',
+        email: document.getElementById('account-email')?.value.trim() || '',
+        hasPhotoFile: Boolean(document.getElementById('account-photo')?.files?.[0]),
+        removePhoto
+    });
+}
+
+function syncProfileButton() {
+    const button = document.getElementById('account-save-btn');
+    if (!button) return;
+    button.disabled = !initialProfileState || getProfileState() === initialProfileState;
+}
+
+function syncPasswordButton() {
+    const button = document.getElementById('password-save-btn');
+    if (!button) return;
+    const current = document.getElementById('current-password')?.value || '';
+    const next = document.getElementById('new-password')?.value || '';
+    const confirm = document.getElementById('confirm-password')?.value || '';
+    const state = JSON.stringify({ current, next, confirm });
+    button.disabled = state === initialPasswordState || !current || !next || !confirm;
 }
 
 async function loadAccount() {
     const response = await fetch('/api/my-account');
     accountData = await response.json();
 
-    document.getElementById('account-username').value = accountData.username || '';
+    document.getElementById('account-username').textContent = accountData.username || '-';
     document.getElementById('account-full-name').value = accountData.full_name || '';
     document.getElementById('account-phone').value = accountData.phone || '';
     document.getElementById('account-email').value = accountData.email || '';
+    document.getElementById('account-role').textContent = accountData.role_name || accountData.role || '-';
     document.getElementById('account-google-state').textContent = accountData.google_linked ? 'Google: привязан' : 'Google: не привязан';
-    setAvatar(accountData.photo_url, accountData.full_name || accountData.username);
-    await loadRoles(accountData.role_id, accountData.can_change_role, accountData.role_name);
+    setAvatar(accountData.photo_url || defaultAvatarUrl);
+    initialProfileState = getProfileState();
+    syncProfileButton();
 }
 
 async function saveAccount(event) {
@@ -60,9 +65,6 @@ async function saveAccount(event) {
     data.append('phone', document.getElementById('account-phone').value.trim());
     data.append('email', document.getElementById('account-email').value.trim());
     data.append('remove_photo', removePhoto ? 'true' : 'false');
-    if (accountData?.can_change_role) {
-        data.append('role_id', document.getElementById('account-role').value || '');
-    }
     const photo = document.getElementById('account-photo').files[0];
     if (photo) data.append('photo', photo);
 
@@ -96,6 +98,8 @@ async function changePassword(event) {
         return;
     }
     document.getElementById('password-form').reset();
+    initialPasswordState = JSON.stringify({ current: '', next: '', confirm: '' });
+    syncPasswordButton();
     setStatus('password-status', result.message || 'Пароль обновлен', 'success');
 }
 
@@ -109,16 +113,26 @@ document.addEventListener('DOMContentLoaded', () => {
     loadAccount().catch(() => setStatus('account-status', 'Не удалось загрузить аккаунт', 'error'));
     document.getElementById('account-form')?.addEventListener('submit', saveAccount);
     document.getElementById('password-form')?.addEventListener('submit', changePassword);
+    ['account-full-name', 'account-phone', 'account-email'].forEach(id => {
+        document.getElementById(id)?.addEventListener('input', syncProfileButton);
+    });
+    initialPasswordState = JSON.stringify({ current: '', next: '', confirm: '' });
+    ['current-password', 'new-password', 'confirm-password'].forEach(id => {
+        document.getElementById(id)?.addEventListener('input', syncPasswordButton);
+    });
+    syncPasswordButton();
     document.getElementById('account-photo')?.addEventListener('change', (event) => {
         const file = event.target.files[0];
         if (file) {
             removePhoto = false;
-            setAvatar(URL.createObjectURL(file), accountData?.full_name || accountData?.username);
+            setAvatar(URL.createObjectURL(file));
+            syncProfileButton();
         }
     });
     document.getElementById('account-remove-photo')?.addEventListener('click', () => {
-        removePhoto = true;
+        removePhoto = Boolean(accountData?.photo_url);
         document.getElementById('account-photo').value = '';
-        setAvatar(null, accountData?.full_name || accountData?.username);
+        setAvatar(defaultAvatarUrl);
+        syncProfileButton();
     });
 });

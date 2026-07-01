@@ -33,6 +33,11 @@
             gap: 18px;
             align-items: start;
         }
+        .account-header-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
         .account-panel {
             border: 1px solid #e4ddd6;
             border-radius: 8px;
@@ -47,36 +52,85 @@
             letter-spacing: 0;
         }
         .account-avatar {
-            display: grid;
-            gap: 14px;
-            justify-items: center;
+            display: flex;
+            justify-content: center;
         }
-        .account-avatar img,
-        .account-avatar-placeholder {
+        .account-avatar-frame {
+            position: relative;
             width: min(220px, 100%);
             aspect-ratio: 1;
+            overflow: hidden;
             border-radius: 8px;
-            object-fit: cover;
             border: 1px solid #e4ddd6;
             background: #f8f7f6;
         }
-        .account-avatar-placeholder {
+        .account-avatar-frame img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+        .account-avatar-frame input[type="file"] {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            opacity: 0;
+            pointer-events: none;
+            overflow: hidden;
+        }
+        .account-avatar-overlay {
+            position: absolute;
+            inset: 0;
             display: flex;
             align-items: center;
             justify-content: center;
-            color: #94a3b8;
-            font-size: 48px;
-            font-weight: 700;
+            background: rgba(15, 23, 42, .46);
+            opacity: 0;
+            transition: opacity .18s ease;
         }
-        .account-file-row {
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 8px;
-            width: 100%;
+        .account-avatar-frame:hover .account-avatar-overlay,
+        .account-avatar-frame:focus-within .account-avatar-overlay {
+            opacity: 1;
         }
-        .account-file-row input[type="file"] {
-            width: 100%;
+        .account-avatar-pick {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 38px;
+            padding: 0 14px;
+            border: 1px solid rgba(255, 255, 255, .72);
+            border-radius: 999px;
+            background: rgba(255, 255, 255, .92);
+            color: #0f172a;
             font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+        .account-avatar-reset {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 34px;
+            height: 34px;
+            border: 0;
+            border-radius: 50%;
+            background: rgba(15, 23, 42, .82);
+            color: #fff;
+            font-size: 22px;
+            line-height: 1;
+            cursor: pointer;
+            opacity: 0;
+            transition: opacity .18s ease, transform .18s ease;
+        }
+        .account-avatar-frame:hover .account-avatar-reset,
+        .account-avatar-frame:focus-within .account-avatar-reset {
+            opacity: 1;
+        }
+        .account-avatar-reset:hover {
+            transform: scale(1.06);
         }
         .account-form {
             display: grid;
@@ -116,6 +170,23 @@
         }
         .account-status.error { color: #dc2626; }
         .account-status.success { color: #059669; }
+        .account-readonly {
+            min-height: 42px;
+            display: flex;
+            align-items: center;
+            padding: 0 12px;
+            border: 1px solid #e4ddd6;
+            border-radius: 8px;
+            background: #f8f7f6;
+            color: #475569;
+            font-size: 14px;
+        }
+        .account-actions .btn-primary:disabled {
+            opacity: .45;
+            cursor: not-allowed;
+            transform: none !important;
+            box-shadow: none !important;
+        }
         .google-state {
             display: inline-flex;
             align-items: center;
@@ -142,18 +213,23 @@
         <div class="account-shell">
             <div class="account-header">
                 <h1>Мой аккаунт</h1>
-                <span class="google-state" id="account-google-state">Google: ...</span>
+                <div class="account-header-actions">
+                    <span class="google-state" id="account-google-state">Google: ...</span>
+                    <a class="btn-secondary" href="{{ url_for('logout') }}">Выход</a>
+                </div>
             </div>
 
             <div class="account-grid">
                 <section class="account-panel">
                     <h2>Аватар</h2>
                     <div class="account-avatar">
-                        <img id="account-avatar-img" alt="Аватар" style="display:none;">
-                        <div id="account-avatar-placeholder" class="account-avatar-placeholder">A</div>
-                        <div class="account-file-row">
+                        <div class="account-avatar-frame">
+                            <img id="account-avatar-img" alt="Аватар" src="{{ url_for('static', filename='uploads/avatar_ccount.png') }}">
                             <input id="account-photo" type="file" accept="image/*">
-                            <button id="account-remove-photo" class="btn-secondary" type="button">Удалить фото</button>
+                            <div class="account-avatar-overlay">
+                                <label class="account-avatar-pick" for="account-photo">Выбрать фото</label>
+                            </div>
+                            <button id="account-remove-photo" class="account-avatar-reset" type="button" aria-label="Сбросить фото">&times;</button>
                         </div>
                     </div>
                 </section>
@@ -168,7 +244,7 @@
                             </label>
                             <label>
                                 Логин
-                                <input id="account-username" type="text" disabled>
+                                <span id="account-username" class="account-readonly"></span>
                             </label>
                             <label>
                                 Номер телефона
@@ -180,11 +256,11 @@
                             </label>
                             <label class="full">
                                 Роль
-                                <select id="account-role"></select>
+                                <span id="account-role" class="account-readonly"></span>
                             </label>
                         </div>
                         <div class="account-actions">
-                            <button class="btn-primary" type="submit">Сохранить</button>
+                            <button class="btn-primary" id="account-save-btn" type="submit" disabled>Сохранить</button>
                         </div>
                         <div id="account-status" class="account-status"></div>
                     </form>
@@ -208,7 +284,7 @@
                             </label>
                         </div>
                         <div class="account-actions">
-                            <button class="btn-primary" type="submit">Изменить пароль</button>
+                            <button class="btn-primary" id="password-save-btn" type="submit" disabled>Изменить пароль</button>
                         </div>
                         <div id="password-status" class="account-status"></div>
                     </form>
