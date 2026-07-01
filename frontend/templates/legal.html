@@ -54,7 +54,7 @@
             align-items: center;
             gap: 10px;
             min-height: 40px;
-            border: 1px solid transparent;
+            border: 0;
             border-radius: 8px;
             background: transparent;
             color: #334155;
@@ -64,9 +64,12 @@
             cursor: pointer;
         }
         .legal-nav button.active {
-            border-color: #e4ddd6;
-            background: #fff;
-            color: #111827;
+            background: transparent;
+            color: #d96f00;
+        }
+        .legal-nav button.active .legal-icon {
+            background: #fff3e4;
+            color: #d96f00;
         }
         .legal-icon {
             display: inline-flex;
@@ -99,30 +102,58 @@
             letter-spacing: 0;
         }
         .legal-lang {
-            display: inline-flex;
-            gap: 4px;
-            padding: 3px;
+            position: relative;
+        }
+        .legal-lang-toggle,
+        .legal-lang-menu button {
+            height: 32px;
             border: 1px solid #e4ddd6;
             border-radius: 8px;
-            background: #f8f7f6;
-        }
-        .legal-lang button {
-            min-width: 42px;
-            height: 30px;
-            border: 0;
-            border-radius: 6px;
-            background: transparent;
+            background: #fff;
             color: #475569;
-            font: 700 12px/1 var(--ui-font-family);
+            font: 600 12px/1 var(--ui-font-family);
             cursor: pointer;
             display: inline-flex;
             align-items: center;
             justify-content: center;
             gap: 5px;
+            padding: 0 9px;
         }
-        .legal-lang button.active {
-            background: #111827;
-            color: #fff;
+        .legal-lang-toggle::after {
+            content: "";
+            width: 0;
+            height: 0;
+            border-left: 4px solid transparent;
+            border-right: 4px solid transparent;
+            border-top: 5px solid #94a3b8;
+            margin-left: 2px;
+        }
+        .legal-lang-menu {
+            position: absolute;
+            right: 0;
+            top: calc(100% + 6px);
+            display: none;
+            min-width: 96px;
+            padding: 5px;
+            border: 1px solid #e4ddd6;
+            border-radius: 9px;
+            background: #fff;
+            box-shadow: 0 14px 30px rgba(15, 23, 42, .12);
+            z-index: 10;
+        }
+        .legal-lang.open .legal-lang-menu {
+            display: grid;
+            gap: 3px;
+        }
+        .legal-lang-menu button {
+            width: 100%;
+            justify-content: flex-start;
+            border: 0;
+            background: transparent;
+        }
+        .legal-lang-menu button.active {
+            color: #d96f00;
+            background: #fff7ed;
         }
         .legal-flag {
             width: 15px;
@@ -182,6 +213,8 @@
                 <div class="legal-top">
                     <h1 class="legal-title" id="legal-title"></h1>
                     <div class="legal-lang" aria-label="Язык документа">
+                        <button type="button" class="legal-lang-toggle" id="legal-lang-toggle" aria-haspopup="true" aria-expanded="false"></button>
+                        <div class="legal-lang-menu" id="legal-lang-menu">
                         <button type="button" data-lang="ru">
                             <svg class="legal-flag" viewBox="0 0 18 18" aria-hidden="true"><clipPath id="flag-ru"><circle cx="9" cy="9" r="9"/></clipPath><g clip-path="url(#flag-ru)"><path fill="#fff" d="M0 0h18v6H0z"/><path fill="#1c57a7" d="M0 6h18v6H0z"/><path fill="#d52b1e" d="M0 12h18v6H0z"/></g></svg>
                             RU
@@ -194,6 +227,7 @@
                             <svg class="legal-flag" viewBox="0 0 18 18" aria-hidden="true"><clipPath id="flag-en"><circle cx="9" cy="9" r="9"/></clipPath><g clip-path="url(#flag-en)"><path fill="#0a3161" d="M0 0h18v18H0z"/><path stroke="#fff" stroke-width="3" d="m0 0 18 18M18 0 0 18"/><path stroke="#b31942" stroke-width="1.5" d="m0 0 18 18M18 0 0 18"/><path fill="#fff" d="M7 0h4v18H7zM0 7h18v4H0z"/><path fill="#b31942" d="M7.8 0h2.4v18H7.8zM0 7.8h18v2.4H0z"/></g></svg>
                             EN
                         </button>
+                        </div>
                     </div>
                 </div>
                 <div class="legal-body" id="legal-body"></div>
@@ -310,6 +344,10 @@
             document.getElementById('legal-title').textContent = labels[currentLang][currentSection];
             document.getElementById('legal-body').innerHTML = docs[currentLang][currentSection];
             document.getElementById('legal-back').textContent = labels[currentLang].back;
+            const activeLangButton = document.querySelector(`[data-lang="${currentLang}"]`);
+            if (activeLangButton) {
+                document.getElementById('legal-lang-toggle').innerHTML = activeLangButton.innerHTML;
+            }
             document.querySelectorAll('[data-section]').forEach(button => {
                 const section = button.dataset.section;
                 button.classList.toggle('active', section === currentSection);
@@ -333,8 +371,21 @@
         document.querySelectorAll('[data-lang]').forEach(button => {
             button.addEventListener('click', () => {
                 currentLang = button.dataset.lang;
+                document.querySelector('.legal-lang').classList.remove('open');
+                document.getElementById('legal-lang-toggle').setAttribute('aria-expanded', 'false');
                 renderLegal();
             });
+        });
+        document.getElementById('legal-lang-toggle').addEventListener('click', () => {
+            const langBox = document.querySelector('.legal-lang');
+            const isOpen = langBox.classList.toggle('open');
+            document.getElementById('legal-lang-toggle').setAttribute('aria-expanded', String(isOpen));
+        });
+        document.addEventListener('click', event => {
+            if (!event.target.closest('.legal-lang')) {
+                document.querySelector('.legal-lang').classList.remove('open');
+                document.getElementById('legal-lang-toggle').setAttribute('aria-expanded', 'false');
+            }
         });
         renderLegal();
     </script>

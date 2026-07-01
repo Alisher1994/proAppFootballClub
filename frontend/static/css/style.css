@@ -2978,12 +2978,12 @@ body.login-page .password-field .password-toggle:focus-visible {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 10px;
-    width: 100%;
-    min-height: 46px;
-    margin-top: 12px;
+    width: 42px;
+    height: 42px;
+    min-height: 42px;
+    margin: 12px auto 0;
     border: 1px solid rgba(226, 232, 240, .88);
-    border-radius: 12px;
+    border-radius: 50%;
     background: #fff;
     color: #1f2937;
     text-decoration: none;
@@ -2993,8 +2993,8 @@ body.login-page .password-field .password-toggle:focus-visible {
 }
 
 .google-login-btn svg {
-    width: 20px;
-    height: 20px;
+    width: 21px;
+    height: 21px;
     flex: 0 0 auto;
 }
 

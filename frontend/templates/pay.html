@@ -10,14 +10,32 @@
     <style>
         body {
             margin: 0;
-            background: #f7f4f1;
+            background: #fff;
             color: #0f172a;
             font-family: var(--ui-font-family);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        .pay-bg-video {
+            position: fixed;
+            right: -40px;
+            bottom: -24px;
+            width: min(34vw, 420px);
+            min-width: 260px;
+            height: min(54vh, 520px);
+            object-fit: cover;
+            object-position: center bottom;
+            opacity: .13;
+            pointer-events: none;
+            z-index: 0;
+            filter: saturate(.9);
         }
         .pay-shell {
             max-width: 760px;
             margin: 0 auto;
             padding: 24px 18px 44px;
+            position: relative;
+            z-index: 1;
         }
         .pay-header {
             display: flex;
@@ -339,6 +357,9 @@
 </head>
 
 <body>
+    <video class="pay-bg-video" autoplay muted loop playsinline aria-hidden="true">
+        <source src="{{ url_for('static', filename='uploads/sidebar_soccer_bg.mp4') }}" type="video/mp4">
+    </video>
     <main class="pay-shell">
         <header class="pay-header">
             <a class="btn-secondary" href="{{ url_for('login') }}">Войти в систему</a>
