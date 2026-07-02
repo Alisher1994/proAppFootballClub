@@ -5036,7 +5036,7 @@ textarea:focus,
 
 .access-filters {
     display: grid;
-    grid-template-columns: 160px 180px 160px minmax(260px, 1fr);
+    grid-template-columns: 150px 150px 180px 160px minmax(260px, 1fr);
     gap: 10px;
     margin-bottom: 14px;
 }
@@ -5100,17 +5100,17 @@ textarea:focus,
 
 .access-table th:nth-child(2),
 .access-table td:nth-child(2) {
-    width: 120px;
+    width: 70px;
 }
 
 .access-table th:nth-child(3),
 .access-table td:nth-child(3) {
-    width: 90px;
+    width: 120px;
 }
 
-.access-table th:nth-child(5),
-.access-table td:nth-child(5) {
-    width: 180px;
+.access-table th:nth-child(4),
+.access-table td:nth-child(4) {
+    width: 90px;
 }
 
 .access-table th:nth-child(6),
@@ -5120,6 +5120,11 @@ textarea:focus,
 
 .access-table th:nth-child(7),
 .access-table td:nth-child(7) {
+    width: 180px;
+}
+
+.access-table th:nth-child(8),
+.access-table td:nth-child(8) {
     width: 120px;
 }
 
@@ -5131,6 +5136,34 @@ textarea:focus,
     margin-top: 3px;
     color: #8090a6;
     font-size: .7rem;
+}
+
+.access-photo-thumb {
+    width: 42px;
+    height: 42px;
+    border: 1px solid #dfe7f0;
+    border-radius: 8px;
+    background: #f6f8fb;
+    color: #52667f;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    padding: 0;
+    font-size: .72rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.access-photo-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.access-photo-fallback {
+    cursor: default;
 }
 
 .access-pill,
@@ -5229,6 +5262,73 @@ textarea:focus,
     cursor: default;
 }
 
+.access-photo-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: rgba(15, 23, 42, .64);
+}
+
+.access-photo-dialog {
+    position: relative;
+    width: min(720px, 96vw);
+    max-height: 92vh;
+    border-radius: 10px;
+    background: #fff;
+    box-shadow: 0 24px 70px rgba(15, 23, 42, .35);
+    overflow: hidden;
+}
+
+.access-photo-close {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    z-index: 1;
+    width: 36px;
+    height: 36px;
+    border: 1px solid rgba(255, 255, 255, .45);
+    border-radius: 8px;
+    background: rgba(15, 23, 42, .72);
+    color: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+.access-photo-stage {
+    min-height: 320px;
+    max-height: calc(92vh - 72px);
+    background: #0f172a;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.access-photo-stage img {
+    max-width: 100%;
+    max-height: calc(92vh - 72px);
+    object-fit: contain;
+    display: block;
+}
+
+.access-photo-caption {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 14px 16px;
+    color: #17243a;
+}
+
+.access-photo-caption span {
+    color: #64748b;
+    font-size: .82rem;
+}
+
 @media (max-width: 900px) {
     .access-log-page {
         padding: 16px 12px 86px;
@@ -5248,7 +5348,15 @@ textarea:focus,
     }
 
     .access-table {
-        min-width: 900px;
+        min-width: 980px;
+    }
+
+    .access-photo-modal {
+        padding: 12px;
+    }
+
+    .access-photo-stage {
+        min-height: 260px;
     }
 }
 

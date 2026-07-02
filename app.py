@@ -5056,7 +5056,59 @@ def apply_attendance_to_access_log(log):
     return attendance, created
 
 
+def find_access_photo_value(value, depth=0):
+    if not value or depth > 5:
+        return None
+    if isinstance(value, str):
+        raw = value.strip()
+        if raw.startswith('data:image/') or raw.startswith(('http://', 'https://', '/ISAPI/', '/doc/', '/pic/', '/picture/', '/Streaming/')):
+            return raw
+        return None
+    if isinstance(value, list):
+        for item in value:
+            found = find_access_photo_value(item, depth + 1)
+            if found:
+                return found
+        return None
+    if not isinstance(value, dict):
+        return None
+
+    preferred_keys = [
+        'access_photo_data_url', 'access_photo_url', 'pictureURL', 'pictureUrl', 'picUrl', 'picURL',
+        'capturePicUrl', 'capturePicURL', 'snapPicUrl', 'snapPicURL', 'facePicUrl', 'facePicURL',
+        'imageUrl', 'imageURL', 'photoUrl', 'photoURL', 'picture', 'capturePic', 'facePic', 'pic',
+    ]
+    for key in preferred_keys:
+        if key in value:
+            found = find_access_photo_value(value.get(key), depth + 1)
+            if found:
+                return found
+    for item in value.values():
+        found = find_access_photo_value(item, depth + 1)
+        if found:
+            return found
+    return None
+
+
+def access_log_photo_urls(log):
+    access_photo_url = find_access_photo_value(log.get_raw_event())
+    if access_photo_url and not access_photo_url.startswith(('data:image/', 'http://', 'https://')):
+        access_photo_url = None
+    person_photo_url = None
+    if log.person_type == 'student':
+        student = log.student or (db.session.get(Student, log.student_id) if log.student_id else None)
+        if student:
+            person_photo_url = build_photo_url(student.photo_path)
+    elif log.person_type == 'staff':
+        user_id = parse_staff_user_id(log.employee_no)
+        user = db.session.get(User, user_id) if user_id else None
+        if user:
+            person_photo_url = build_user_photo_thumb_url(user.photo_path)
+    return access_photo_url, person_photo_url
+
+
 def access_log_to_dict(log):
+    access_photo_url, person_photo_url = access_log_photo_urls(log)
     return {
         'id': log.id,
         'event_uid': log.event_uid,
@@ -5073,6 +5125,8 @@ def access_log_to_dict(log):
         'event_date': log.event_date.isoformat() if log.event_date else None,
         'result': log.result,
         'source': log.source,
+        'access_photo_url': access_photo_url,
+        'person_photo_url': person_photo_url,
     }
 
 
@@ -5357,6 +5411,8 @@ def access_log_list():
     ensure_access_logs_table()
     query = AccessLog.query
     selected_date = request.args.get('date')
+    start_date = request.args.get('start_date') or selected_date
+    end_date = request.args.get('end_date') or selected_date
     direction = (request.args.get('direction') or '').strip()
     result_filter = (request.args.get('result') or '').strip()
     search = (request.args.get('search') or '').strip()
@@ -5364,11 +5420,14 @@ def access_log_list():
     per_page = request.args.get('per_page', default=50, type=int) or 50
     per_page = min(100, max(10, per_page))
 
-    if selected_date:
+    if start_date or end_date:
         try:
-            query = query.filter(AccessLog.event_date == datetime.strptime(selected_date, '%Y-%m-%d').date())
+            if start_date:
+                query = query.filter(AccessLog.event_date >= datetime.strptime(start_date, '%Y-%m-%d').date())
+            if end_date:
+                query = query.filter(AccessLog.event_date <= datetime.strptime(end_date, '%Y-%m-%d').date())
         except ValueError:
-            return jsonify({'success': False, 'message': 'Некорректная дата'}), 400
+            return jsonify({'success': False, 'message': 'Некорректный период'}), 400
     if direction in {'entry', 'exit'}:
         query = query.filter(AccessLog.direction == direction)
     if result_filter in {'granted', 'denied', 'error'}:
@@ -5478,7 +5537,12 @@ def hikvision_access_event():
         result=result_value,
         source=str(data.get('source') or 'hikvision')[:40],
     )
-    log.set_raw_event(data.get('raw_event') or data)
+    raw_event = data.get('raw_event') if isinstance(data.get('raw_event'), dict) else {}
+    stored_event = {**raw_event}
+    for key in ('access_photo_data_url', 'access_photo_url', 'access_photo_error'):
+        if data.get(key):
+            stored_event[key] = data.get(key)
+    log.set_raw_event(stored_event or data)
     db.session.add(log)
     if attendance and not log.attendance_id:
         db.session.flush()

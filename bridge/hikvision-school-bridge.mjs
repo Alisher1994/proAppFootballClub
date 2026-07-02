@@ -666,6 +666,69 @@ function getAccessEventUid(device, event) {
   return `${device.name || 'terminal'}:${device.ip}:${serial || `${employeeNo}:${time}:${event.major || ''}:${event.minor || ''}`}`;
 }
 
+function findAccessPhotoValue(value, depth = 0) {
+  if (!value || depth > 4) return '';
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (/^(data:image\/|https?:\/\/|\/ISAPI\/|\/doc\/|\/pic\/|\/picture\/|\/Streaming\/)/i.test(trimmed)) return trimmed;
+    return '';
+  }
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const found = findAccessPhotoValue(item, depth + 1);
+      if (found) return found;
+    }
+    return '';
+  }
+  if (typeof value !== 'object') return '';
+
+  const preferred = [
+    'access_photo_data_url', 'access_photo_url', 'pictureURL', 'pictureUrl', 'picUrl', 'picURL',
+    'capturePicUrl', 'capturePicURL', 'snapPicUrl', 'snapPicURL', 'facePicUrl', 'facePicURL',
+    'imageUrl', 'imageURL', 'photoUrl', 'photoURL', 'picture', 'capturePic', 'facePic', 'pic'
+  ];
+  for (const key of preferred) {
+    if (Object.prototype.hasOwnProperty.call(value, key)) {
+      const found = findAccessPhotoValue(value[key], depth + 1);
+      if (found) return found;
+    }
+  }
+  for (const item of Object.values(value)) {
+    const found = findAccessPhotoValue(item, depth + 1);
+    if (found) return found;
+  }
+  return '';
+}
+
+async function fetchAccessPhotoDataUrl(device, event) {
+  const photoRef = findAccessPhotoValue(event);
+  if (!photoRef || photoRef.startsWith('data:image/')) {
+    return { access_photo_data_url: photoRef || '', access_photo_url: photoRef || '' };
+  }
+
+  try {
+    const protocol = (device.protocol || 'https').toLowerCase();
+    const base = `${protocol}://${device.ip}:${device.port || (protocol === 'https' ? 443 : 80)}`;
+    const url = new URL(photoRef, base);
+    const sameDevice = url.hostname === device.ip;
+    if (!sameDevice) return { access_photo_url: photoRef };
+
+    const path = `${url.pathname}${url.search || ''}`;
+    const res = await requestDigest(device, 'GET', path, null, {}, CONFIG.deviceProbeTimeoutMs);
+    assertOk('access-photo', res);
+    const contentType = String(res.headers['content-type'] || 'image/jpeg').split(';')[0] || 'image/jpeg';
+    if (!contentType.startsWith('image/') || !res.buffer?.length || res.buffer.length > 650000) {
+      return { access_photo_url: photoRef };
+    }
+    return {
+      access_photo_url: photoRef,
+      access_photo_data_url: `data:${contentType};base64,${res.buffer.toString('base64')}`,
+    };
+  } catch (error) {
+    return { access_photo_url: photoRef, access_photo_error: humanError(error) };
+  }
+}
+
 function trimSeenEvents() {
   if (accessEventSeen.size <= 2000) return;
   const keep = Array.from(accessEventSeen).slice(-1000);
@@ -710,6 +773,7 @@ async function sendAccessEvent(device, event) {
 
   const direction = device.name === 'exit' ? 'exit' : 'entry';
   const name = event.name || event.employeeName || event.userName || '';
+  const photoPayload = await fetchAccessPhotoDataUrl(device, event);
   const payload = {
     event_uid: eventUid,
     employee_no: employeeNo,
@@ -720,6 +784,7 @@ async function sendAccessEvent(device, event) {
     event_time: getAccessEventTime(event),
     result: getAccessResult(event),
     source: 'hikvision-acs-event',
+    ...photoPayload,
     raw_event: event,
   };
 

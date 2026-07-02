@@ -47,12 +47,45 @@ function attendanceStatus(log) {
     return { label: 'Нет отметки', className: 'missed' };
 }
 
+function initialsFromName(name) {
+    return String(name || '?')
+        .trim()
+        .split(/\s+/)
+        .slice(0, 2)
+        .map((part) => part.charAt(0))
+        .join('')
+        .toUpperCase() || '?';
+}
+
+function photoUrlForLog(log) {
+    return log.access_photo_url || log.person_photo_url || '';
+}
+
+function renderAccessPhoto(log) {
+    const label = escapeHtml(log.full_name || log.employee_no || 'Фото прохода');
+    if (log.access_photo_url) {
+        return `
+            <button type="button" class="access-photo-thumb" data-photo-url="${escapeHtml(log.access_photo_url)}" data-photo-title="${label}" data-photo-meta="${escapeHtml(formatAccessDateTime(log.event_time))}">
+                <img src="${escapeHtml(log.access_photo_url)}" alt="${label}" loading="lazy">
+            </button>
+        `;
+    }
+    if (log.person_photo_url) {
+        return `
+            <span class="access-photo-thumb access-photo-fallback" title="Фото профиля">
+                <img src="${escapeHtml(log.person_photo_url)}" alt="${label}" loading="lazy">
+            </span>
+        `;
+    }
+    return `<span class="access-photo-thumb access-photo-fallback">${escapeHtml(initialsFromName(log.full_name || log.employee_no))}</span>`;
+}
+
 function renderAccessLogs(logs) {
     const body = document.getElementById('accessLogBody');
     if (!body) return;
 
     if (!logs.length) {
-        body.innerHTML = '<tr><td colspan="7" class="access-empty">Записей пока нет</td></tr>';
+        body.innerHTML = '<tr><td colspan="8" class="access-empty">Записей пока нет</td></tr>';
         return;
     }
 
@@ -63,6 +96,7 @@ function renderAccessLogs(logs) {
         return `
             <tr>
                 <td>${formatAccessDateTime(log.event_time)}</td>
+                <td>${renderAccessPhoto(log)}</td>
                 <td><span class="access-pill access-${direction}">${directionLabel(direction)}</span></td>
                 <td class="access-id">${escapeHtml(log.employee_no || '-')}</td>
                 <td>
@@ -75,6 +109,14 @@ function renderAccessLogs(logs) {
             </tr>
         `;
     }).join('');
+
+    body.querySelectorAll('.access-photo-thumb[data-photo-url]').forEach((button) => {
+        button.addEventListener('click', () => openAccessPhotoModal(
+            button.dataset.photoUrl,
+            button.dataset.photoTitle,
+            button.dataset.photoMeta
+        ));
+    });
 }
 
 function renderAccessPagination(pagination = {}) {
@@ -99,12 +141,14 @@ function renderAccessPagination(pagination = {}) {
 async function loadAccessLogs({ resetPage = false } = {}) {
     if (resetPage) accessState.page = 1;
     const params = new URLSearchParams();
-    const date = document.getElementById('accessDateFilter')?.value;
+    const startDate = document.getElementById('accessStartDateFilter')?.value;
+    const endDate = document.getElementById('accessEndDateFilter')?.value;
     const direction = document.getElementById('accessDirectionFilter')?.value;
     const result = document.getElementById('accessResultFilter')?.value;
     const search = document.getElementById('accessSearchFilter')?.value.trim();
 
-    if (date) params.set('date', date);
+    if (startDate) params.set('start_date', startDate);
+    if (endDate) params.set('end_date', endDate);
     if (direction) params.set('direction', direction);
     if (result) params.set('result', result);
     if (search) params.set('search', search);
@@ -118,7 +162,7 @@ async function loadAccessLogs({ resetPage = false } = {}) {
         renderAccessPagination(data.pagination || {});
     } catch (error) {
         const body = document.getElementById('accessLogBody');
-        if (body) body.innerHTML = '<tr><td colspan="7" class="access-empty access-error">Не удалось загрузить журнал</td></tr>';
+        if (body) body.innerHTML = '<tr><td colspan="8" class="access-empty access-error">Не удалось загрузить журнал</td></tr>';
         renderAccessPagination({ page: 1, pages: 1, total: 0, per_page: accessState.perPage });
     }
 }
@@ -128,12 +172,38 @@ function debounceAccessLoad() {
     accessState.timer = setTimeout(() => loadAccessLogs({ resetPage: true }), 250);
 }
 
+function openAccessPhotoModal(photoUrl, title, meta) {
+    const modal = document.getElementById('accessPhotoModal');
+    const image = document.getElementById('accessPhotoImage');
+    const titleEl = document.getElementById('accessPhotoTitle');
+    const metaEl = document.getElementById('accessPhotoMeta');
+    if (!modal || !image) return;
+    image.src = photoUrl;
+    image.alt = title || 'Фото прохода';
+    if (titleEl) titleEl.textContent = title || 'Фото прохода';
+    if (metaEl) metaEl.textContent = meta || '';
+    modal.hidden = false;
+    modal.style.display = 'flex';
+}
+
+function closeAccessPhotoModal() {
+    const modal = document.getElementById('accessPhotoModal');
+    const image = document.getElementById('accessPhotoImage');
+    if (!modal) return;
+    modal.hidden = true;
+    modal.style.display = 'none';
+    if (image) image.removeAttribute('src');
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     const today = new Date();
-    const dateInput = document.getElementById('accessDateFilter');
-    if (dateInput) dateInput.value = today.toISOString().slice(0, 10);
+    const todayValue = today.toISOString().slice(0, 10);
+    const startDateInput = document.getElementById('accessStartDateFilter');
+    const endDateInput = document.getElementById('accessEndDateFilter');
+    if (startDateInput) startDateInput.value = todayValue;
+    if (endDateInput) endDateInput.value = todayValue;
 
-    ['accessDateFilter', 'accessDirectionFilter', 'accessResultFilter'].forEach((id) => {
+    ['accessStartDateFilter', 'accessEndDateFilter', 'accessDirectionFilter', 'accessResultFilter'].forEach((id) => {
         document.getElementById(id)?.addEventListener('change', () => loadAccessLogs({ resetPage: true }));
     });
     document.getElementById('accessSearchFilter')?.addEventListener('input', debounceAccessLoad);
@@ -149,6 +219,13 @@ document.addEventListener('DOMContentLoaded', () => {
             accessState.page += 1;
             loadAccessLogs();
         }
+    });
+    document.getElementById('accessPhotoClose')?.addEventListener('click', closeAccessPhotoModal);
+    document.getElementById('accessPhotoModal')?.addEventListener('click', (event) => {
+        if (event.target.id === 'accessPhotoModal') closeAccessPhotoModal();
+    });
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') closeAccessPhotoModal();
     });
     loadAccessLogs();
 });
