@@ -5136,6 +5136,29 @@ def access_log_to_dict(log):
     }
 
 
+def merge_access_photo_payload(log, data):
+    if not log or not isinstance(data, dict):
+        return False
+
+    raw_event = log.get_raw_event()
+    changed = False
+    incoming_raw = data.get('raw_event') if isinstance(data.get('raw_event'), dict) else {}
+    for key in (
+        'access_photo_data_url', 'access_photo_url', 'access_photo_error',
+        'pictureData', 'pictureBase64', 'picData', 'picBase64',
+        'capturePicData', 'capturePicBase64', 'facePicData', 'facePicBase64',
+        'imageData', 'imageBase64', 'pictureURL', 'pictureUrl',
+    ):
+        value = data.get(key) or incoming_raw.get(key)
+        if value and raw_event.get(key) != value:
+            raw_event[key] = value
+            changed = True
+
+    if changed:
+        log.set_raw_event(raw_event)
+    return changed
+
+
 def staff_employee_no(user_id):
     return f"900000{user_id}"
 
@@ -5487,13 +5510,17 @@ def hikvision_access_event():
         if existing:
             attendance_created = False
             attendance = existing.attendance
+            raw_updated = merge_access_photo_payload(existing, data)
             if existing.person_type != 'staff' and not existing.attendance_id and existing.result == 'granted':
                 attendance, attendance_created = apply_attendance_to_access_log(existing)
                 if attendance:
-                    db.session.commit()
+                    raw_updated = True
+            if raw_updated:
+                db.session.commit()
             return jsonify({
                 'success': True,
                 'duplicate': True,
+                'raw_event_updated': raw_updated,
                 'log': access_log_to_dict(existing),
                 'attendance_created': attendance_created,
                 'attendance_id': attendance.id if attendance else None,

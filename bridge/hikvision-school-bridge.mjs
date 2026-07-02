@@ -24,6 +24,10 @@ const CONFIG = {
   offlineBackoffMs: Number(process.env.HIK_OFFLINE_BACKOFF_MS || 60000),
   heartbeatIntervalMs: Number(process.env.BRIDGE_HEARTBEAT_INTERVAL_MS || 5000),
   accessEventPollIntervalMs: Number(process.env.HIK_ACCESS_EVENT_POLL_INTERVAL_MS || 5000),
+  accessBackfillFrom: process.env.HIK_ACCESS_BACKFILL_FROM || '',
+  accessBackfillTo: process.env.HIK_ACCESS_BACKFILL_TO || '',
+  accessBackfillOnly: (process.env.HIK_ACCESS_BACKFILL_ONLY || 'false') === 'true',
+  accessBackfillWindowMs: Number(process.env.HIK_ACCESS_BACKFILL_WINDOW_MS || 10 * 60 * 1000),
   bridgeId: process.env.BRIDGE_ID || 'hikvision-school-bridge',
   defaultDoorRight: process.env.HIK_DOOR_RIGHT || '1',
   defaultPlanTemplateNo: process.env.HIK_PLAN_TEMPLATE_NO || '1',
@@ -822,6 +826,60 @@ async function pollAccessEvents() {
     }
     accessEventPollState.set(key, endedAt);
   }));
+}
+
+function parseBackfillDate(value, endOfDay = false) {
+  const raw = String(value || '').trim();
+  if (!raw) return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+    return new Date(`${raw}T${endOfDay ? '23:59:59' : '00:00:00'}+05:00`);
+  }
+  const date = new Date(raw);
+  if (Number.isNaN(date.getTime())) return null;
+  return date;
+}
+
+async function backfillAccessEvents() {
+  const from = parseBackfillDate(CONFIG.accessBackfillFrom, false);
+  const to = parseBackfillDate(CONFIG.accessBackfillTo, true) || new Date();
+  if (!from || Number.isNaN(from.getTime())) {
+    throw new Error(`invalid HIK_ACCESS_BACKFILL_FROM: ${CONFIG.accessBackfillFrom}`);
+  }
+  if (to <= from) {
+    throw new Error(`invalid backfill range: ${from.toISOString()}..${to.toISOString()}`);
+  }
+
+  const windowMs = Math.max(60 * 1000, Number(CONFIG.accessBackfillWindowMs || 10 * 60 * 1000));
+  console.log(`[access-backfill] start ${from.toISOString()} -> ${to.toISOString()}, window ${Math.round(windowMs / 60000)}m`);
+
+  for (const device of CONFIG.devices) {
+    let sent = 0;
+    let windows = 0;
+    const probe = await probeDevice(device);
+    if (!probe.ok) {
+      console.warn(`[access-backfill] ${deviceShortLabel(device.name)} ${device.ip}: терминал недоступен: ${humanError(probe.message)}`);
+      continue;
+    }
+
+    for (let startedAt = new Date(from); startedAt < to; startedAt = new Date(startedAt.getTime() + windowMs)) {
+      const endedAt = new Date(Math.min(startedAt.getTime() + windowMs, to.getTime()));
+      windows += 1;
+      try {
+        const events = await queryAccessEvents(device, startedAt, endedAt);
+        for (const event of events) {
+          await sendAccessEvent(device, event);
+          sent += 1;
+        }
+        if (events.length >= 40) {
+          console.warn(`[access-backfill] ${deviceShortLabel(device.name)} ${device.ip}: окно ${startedAt.toISOString()} содержит ${events.length} событий, возможно есть ещё.`);
+        }
+      } catch (error) {
+        console.error(`[access-backfill] ${deviceShortLabel(device.name)} ${device.ip}: ${startedAt.toISOString()}-${endedAt.toISOString()}: ${humanError(error)}`);
+      }
+    }
+    console.log(`[access-backfill] ${deviceShortLabel(device.name)} ${device.ip}: окон ${windows}, отправлено событий ${sent}`);
+  }
+  console.log('[access-backfill] done');
 }
 
 async function downloadPhoto(url) {
@@ -1840,6 +1898,10 @@ async function main() {
   console.log(`[bridge] ${CONFIG.devices.length} Hikvision terminal(s) -> ${CONFIG.serverUrl}`);
   console.log(`[bridge] command polling ${CONFIG.commandPollIntervalMs}ms, daily full sync ${CONFIG.dailySyncTime} Asia/Tashkent`);
   console.log(`[bridge] access event polling ${CONFIG.accessEventPollIntervalMs}ms`);
+  if (CONFIG.accessBackfillFrom) {
+    await backfillAccessEvents();
+    if (CONFIG.accessBackfillOnly) return;
+  }
   setAction('idle');
   setInterval(() => sendHeartbeat(), CONFIG.heartbeatIntervalMs);
   // Запускаем стартовую синхронизацию в фоновом режиме (без await), чтобы не блокировать опрос команд
