@@ -745,6 +745,7 @@ async function queryAccessEvents(device, startedAt, endedAt) {
       maxResults: 40,
       major: 0,
       minor: 0,
+      picEnable: true,
       startTime: formatHikvisionTime(startedAt),
       endTime: formatHikvisionTime(endedAt),
     },
