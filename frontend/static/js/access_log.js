@@ -47,39 +47,17 @@ function attendanceStatus(log) {
     return { label: 'Нет отметки', className: 'missed' };
 }
 
-function initialsFromName(name) {
-    return String(name || '?')
-        .trim()
-        .split(/\s+/)
-        .slice(0, 2)
-        .map((part) => part.charAt(0))
-        .join('')
-        .toUpperCase() || '?';
-}
-
-function photoUrlForLog(log) {
-    return log.access_photo_url || log.person_photo_url || '';
-}
-
 function renderAccessPhoto(log) {
     const rawLabel = log.full_name || log.employee_no || 'Фото прохода';
     const label = escapeHtml(rawLabel);
-    const initials = escapeHtml(initialsFromName(rawLabel));
     if (log.access_photo_url) {
         return `
-            <button type="button" class="access-photo-thumb" data-photo-url="${escapeHtml(log.access_photo_url)}" data-photo-title="${label}" data-photo-meta="${escapeHtml(formatAccessDateTime(log.event_time))}" data-fallback="${initials}">
+            <button type="button" class="access-photo-thumb" data-photo-url="${escapeHtml(log.access_photo_url)}" data-photo-title="${label}" data-photo-meta="${escapeHtml(formatAccessDateTime(log.event_time))}">
                 <img src="${escapeHtml(log.access_photo_url)}" alt="${label}" loading="lazy">
             </button>
         `;
     }
-    if (log.person_photo_url) {
-        return `
-            <span class="access-photo-thumb access-photo-fallback" title="Фото профиля" data-fallback="${initials}">
-                <img src="${escapeHtml(log.person_photo_url)}" alt="${label}" loading="lazy">
-            </span>
-        `;
-    }
-    return `<span class="access-photo-thumb access-photo-fallback">${initials}</span>`;
+    return '<span class="access-photo-none" title="Фото прохода нет">-</span>';
 }
 
 function replaceBrokenAccessPhoto(img) {
@@ -87,7 +65,7 @@ function replaceBrokenAccessPhoto(img) {
     if (!holder) return;
     holder.removeAttribute('data-photo-url');
     holder.classList.add('access-photo-fallback');
-    holder.innerHTML = escapeHtml(holder.dataset.fallback || '?');
+    holder.outerHTML = '<span class="access-photo-none" title="Фото прохода не загрузилось">-</span>';
 }
 
 function renderAccessLogs(logs) {

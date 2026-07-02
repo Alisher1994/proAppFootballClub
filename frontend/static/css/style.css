@@ -5166,6 +5166,19 @@ textarea:focus,
     cursor: default;
 }
 
+.access-photo-none {
+    width: 42px;
+    height: 42px;
+    border: 1px dashed #d7e2ef;
+    border-radius: 8px;
+    color: #9aa8ba;
+    background: #fafbfc;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+}
+
 .access-pill,
 .access-status {
     display: inline-flex;
