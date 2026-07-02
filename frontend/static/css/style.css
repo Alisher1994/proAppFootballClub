@@ -5288,7 +5288,7 @@ textarea:focus,
 
 .access-photo-dialog {
     position: relative;
-    width: min(720px, 96vw);
+    width: min(1040px, 96vw);
     max-height: 92vh;
     border-radius: 10px;
     background: #fff;
@@ -5322,11 +5322,48 @@ textarea:focus,
     justify-content: center;
 }
 
+.access-photo-compare {
+    align-items: stretch;
+    gap: 1px;
+}
+
+.access-photo-panel {
+    flex: 1 1 0;
+    min-width: 0;
+    margin: 0;
+    background: #0f172a;
+    display: flex;
+    flex-direction: column;
+}
+
+.access-photo-panel figcaption {
+    padding: 10px 14px;
+    color: #dbeafe;
+    background: rgba(15, 23, 42, .92);
+    font-size: .78rem;
+    font-weight: 700;
+}
+
+.access-photo-panel img,
+.access-system-photo-empty {
+    flex: 1 1 auto;
+    min-height: 280px;
+}
+
 .access-photo-stage img {
     max-width: 100%;
     max-height: calc(92vh - 72px);
     object-fit: contain;
     display: block;
+    margin: auto;
+}
+
+.access-system-photo-empty {
+    color: #94a3b8;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
 }
 
 .access-photo-caption {
@@ -5370,6 +5407,17 @@ textarea:focus,
 
     .access-photo-stage {
         min-height: 260px;
+    }
+
+    .access-photo-compare {
+        flex-direction: column;
+        max-height: none;
+    }
+
+    .access-photo-panel img,
+    .access-system-photo-empty {
+        min-height: 220px;
+        max-height: 42vh;
     }
 }
 

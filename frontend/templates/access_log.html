@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Журнал проходов</title>
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='uploads/favicon.png') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=2026070304">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=2026070305">
 </head>
 
 <body>
@@ -97,8 +97,16 @@
                     <path d="m6 6 12 12" />
                 </svg>
             </button>
-            <div class="access-photo-stage">
-                <img id="accessPhotoImage" alt="">
+            <div class="access-photo-stage access-photo-compare">
+                <figure class="access-photo-panel">
+                    <figcaption>Фото терминала</figcaption>
+                    <img id="accessPhotoImage" alt="">
+                </figure>
+                <figure class="access-photo-panel">
+                    <figcaption>Фото в системе</figcaption>
+                    <img id="accessSystemPhotoImage" alt="" hidden>
+                    <div class="access-system-photo-empty" id="accessSystemPhotoEmpty" hidden>Нет фото</div>
+                </figure>
             </div>
             <div class="access-photo-caption">
                 <strong id="accessPhotoTitle">Фото прохода</strong>
@@ -107,7 +115,7 @@
         </div>
     </div>
 
-    <script src="{{ url_for('static', filename='js/access_log.js') }}?v=2026070304"></script>
+    <script src="{{ url_for('static', filename='js/access_log.js') }}?v=2026070305"></script>
 </body>
 
 </html>

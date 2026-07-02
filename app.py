@@ -5097,8 +5097,20 @@ def access_log_photo_url(log):
     return access_photo_url
 
 
+def access_log_person_photo_url(log):
+    if log.person_type == 'student':
+        student = log.student or (db.session.get(Student, log.student_id) if log.student_id else None)
+        return build_photo_url(student.photo_path) if student else None
+    if log.person_type == 'staff':
+        user_id = parse_staff_user_id(log.employee_no)
+        user = db.session.get(User, user_id) if user_id else None
+        return build_user_photo_thumb_url(user.photo_path) if user else None
+    return None
+
+
 def access_log_to_dict(log):
     access_photo_url = access_log_photo_url(log)
+    person_photo_url = access_log_person_photo_url(log)
     return {
         'id': log.id,
         'event_uid': log.event_uid,
@@ -5116,6 +5128,7 @@ def access_log_to_dict(log):
         'result': log.result,
         'source': log.source,
         'access_photo_url': access_photo_url,
+        'person_photo_url': person_photo_url,
     }
 
 

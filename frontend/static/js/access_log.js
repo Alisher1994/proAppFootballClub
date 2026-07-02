@@ -52,7 +52,7 @@ function renderAccessPhoto(log) {
     const label = escapeHtml(rawLabel);
     if (log.access_photo_url) {
         return `
-            <button type="button" class="access-photo-thumb" data-photo-url="${escapeHtml(log.access_photo_url)}" data-photo-title="${label}" data-photo-meta="${escapeHtml(formatAccessDateTime(log.event_time))}">
+            <button type="button" class="access-photo-thumb" data-photo-url="${escapeHtml(log.access_photo_url)}" data-system-photo-url="${escapeHtml(log.person_photo_url || '')}" data-photo-title="${label}" data-photo-meta="${escapeHtml(formatAccessDateTime(log.event_time))}">
                 <img src="${escapeHtml(log.access_photo_url)}" alt="${label}" loading="lazy">
             </button>
         `;
@@ -101,6 +101,7 @@ function renderAccessLogs(logs) {
     body.querySelectorAll('.access-photo-thumb[data-photo-url]').forEach((button) => {
         button.addEventListener('click', () => openAccessPhotoModal(
             button.dataset.photoUrl,
+            button.dataset.systemPhotoUrl,
             button.dataset.photoTitle,
             button.dataset.photoMeta
         ));
@@ -163,14 +164,28 @@ function debounceAccessLoad() {
     accessState.timer = setTimeout(() => loadAccessLogs({ resetPage: true }), 250);
 }
 
-function openAccessPhotoModal(photoUrl, title, meta) {
+function openAccessPhotoModal(photoUrl, systemPhotoUrl, title, meta) {
     const modal = document.getElementById('accessPhotoModal');
     const image = document.getElementById('accessPhotoImage');
+    const systemImage = document.getElementById('accessSystemPhotoImage');
+    const systemEmpty = document.getElementById('accessSystemPhotoEmpty');
     const titleEl = document.getElementById('accessPhotoTitle');
     const metaEl = document.getElementById('accessPhotoMeta');
     if (!modal || !image) return;
     image.src = photoUrl;
     image.alt = title || 'Фото прохода';
+    if (systemImage && systemEmpty) {
+        if (systemPhotoUrl) {
+            systemImage.src = systemPhotoUrl;
+            systemImage.alt = title || 'Фото в системе';
+            systemImage.hidden = false;
+            systemEmpty.hidden = true;
+        } else {
+            systemImage.hidden = true;
+            systemImage.removeAttribute('src');
+            systemEmpty.hidden = false;
+        }
+    }
     if (titleEl) titleEl.textContent = title || 'Фото прохода';
     if (metaEl) metaEl.textContent = meta || '';
     modal.hidden = false;
@@ -180,10 +195,12 @@ function openAccessPhotoModal(photoUrl, title, meta) {
 function closeAccessPhotoModal() {
     const modal = document.getElementById('accessPhotoModal');
     const image = document.getElementById('accessPhotoImage');
+    const systemImage = document.getElementById('accessSystemPhotoImage');
     if (!modal) return;
     modal.hidden = true;
     modal.style.display = 'none';
     if (image) image.removeAttribute('src');
+    if (systemImage) systemImage.removeAttribute('src');
 }
 
 document.addEventListener('DOMContentLoaded', () => {
