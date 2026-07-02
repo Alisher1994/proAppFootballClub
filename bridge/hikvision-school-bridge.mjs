@@ -671,6 +671,7 @@ function findAccessPhotoValue(value, depth = 0) {
   if (typeof value === 'string') {
     const trimmed = value.trim();
     if (/^(data:image\/|https?:\/\/|\/ISAPI\/|\/doc\/|\/pic\/|\/picture\/|\/Streaming\/)/i.test(trimmed)) return trimmed;
+    if (/^\/9j\/[A-Za-z0-9+/=\r\n]+$/.test(trimmed) && trimmed.length > 200) return `data:image/jpeg;base64,${trimmed}`;
     return '';
   }
   if (Array.isArray(value)) {
@@ -685,7 +686,9 @@ function findAccessPhotoValue(value, depth = 0) {
   const preferred = [
     'access_photo_data_url', 'access_photo_url', 'pictureURL', 'pictureUrl', 'picUrl', 'picURL',
     'capturePicUrl', 'capturePicURL', 'snapPicUrl', 'snapPicURL', 'facePicUrl', 'facePicURL',
-    'imageUrl', 'imageURL', 'photoUrl', 'photoURL', 'picture', 'capturePic', 'facePic', 'pic'
+    'imageUrl', 'imageURL', 'photoUrl', 'photoURL', 'pictureData', 'pictureBase64',
+    'picData', 'picBase64', 'capturePicData', 'capturePicBase64', 'facePicData',
+    'facePicBase64', 'imageData', 'imageBase64', 'picture', 'capturePic', 'facePic', 'pic'
   ];
   for (const key of preferred) {
     if (Object.prototype.hasOwnProperty.call(value, key)) {

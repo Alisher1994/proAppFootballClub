@@ -5063,6 +5063,8 @@ def find_access_photo_value(value, depth=0):
         raw = value.strip()
         if raw.startswith('data:image/') or raw.startswith(('http://', 'https://', '/ISAPI/', '/doc/', '/pic/', '/picture/', '/Streaming/')):
             return raw
+        if raw.startswith('/9j/') and len(raw) > 200:
+            return f"data:image/jpeg;base64,{raw}"
         return None
     if isinstance(value, list):
         for item in value:
@@ -5076,7 +5078,9 @@ def find_access_photo_value(value, depth=0):
     preferred_keys = [
         'access_photo_data_url', 'access_photo_url', 'pictureURL', 'pictureUrl', 'picUrl', 'picURL',
         'capturePicUrl', 'capturePicURL', 'snapPicUrl', 'snapPicURL', 'facePicUrl', 'facePicURL',
-        'imageUrl', 'imageURL', 'photoUrl', 'photoURL', 'picture', 'capturePic', 'facePic', 'pic',
+        'imageUrl', 'imageURL', 'photoUrl', 'photoURL', 'pictureData', 'pictureBase64',
+        'picData', 'picBase64', 'capturePicData', 'capturePicBase64', 'facePicData',
+        'facePicBase64', 'imageData', 'imageBase64', 'picture', 'capturePic', 'facePic', 'pic',
     ]
     for key in preferred_keys:
         if key in value:
