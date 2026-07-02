@@ -5160,6 +5160,21 @@ textarea:focus,
     background: #e9f9ef;
 }
 
+.access-status-attended {
+    color: #07843d;
+    background: #e9f9ef;
+}
+
+.access-status-missed {
+    color: #7c5362;
+    background: #fff1f5;
+}
+
+.access-status-staff {
+    color: #45566f;
+    background: #f1f5f9;
+}
+
 .access-status-denied {
     color: #b45309;
     background: #fff3df;

@@ -35,7 +35,16 @@ function directionLabel(direction) {
 function resultLabel(result) {
     if (result === 'denied') return 'Отклонён';
     if (result === 'error') return 'Ошибка';
-    return 'Пропущен';
+    return 'Проход разрешён';
+}
+
+function attendanceStatus(log) {
+    if (log.result === 'denied') return { label: 'Отклонён', className: 'denied' };
+    if (log.result === 'error') return { label: 'Ошибка', className: 'error' };
+    if (log.person_type === 'staff') return { label: 'Сотрудник', className: 'staff' };
+    if (log.person_type !== 'student') return { label: 'Не найден', className: 'missed' };
+    if (log.attendance_id) return { label: 'Отмечен', className: 'attended' };
+    return { label: 'Нет отметки', className: 'missed' };
 }
 
 function renderAccessLogs(logs) {
@@ -49,8 +58,8 @@ function renderAccessLogs(logs) {
 
     body.innerHTML = logs.map((log) => {
         const direction = log.direction === 'exit' ? 'exit' : 'entry';
-        const result = ['denied', 'error'].includes(log.result) ? log.result : 'granted';
         const terminal = [log.device_name, log.device_ip].filter(Boolean).join(' · ') || '-';
+        const status = attendanceStatus(log);
         return `
             <tr>
                 <td>${formatAccessDateTime(log.event_time)}</td>
@@ -62,7 +71,7 @@ function renderAccessLogs(logs) {
                 </td>
                 <td>${escapeHtml(log.group_name || '-')}</td>
                 <td>${escapeHtml(terminal)}</td>
-                <td><span class="access-status access-status-${result}">${resultLabel(result)}</span></td>
+                <td><span class="access-status access-status-${status.className}" title="${escapeHtml(resultLabel(log.result))}">${status.label}</span></td>
             </tr>
         `;
     }).join('');

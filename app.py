@@ -5011,10 +5011,48 @@ def create_or_update_attendance_from_access(student, direction, event_dt):
             created = True
         elif not attendance.check_in or event_dt < attendance.check_in:
             attendance.check_in = event_dt
-    elif direction == 'exit' and attendance:
-        if not attendance.check_out or event_dt > attendance.check_out:
+    elif direction == 'exit':
+        if not attendance:
+            attendance = Attendance(
+                student_id=student.id,
+                date=attendance_date,
+                check_in=None,
+                check_out=event_dt,
+                lesson_deducted=not student.club_funded,
+                is_late=False,
+                late_minutes=0,
+            )
+            db.session.add(attendance)
+            db.session.flush()
+            created = True
+        elif not attendance.check_out or event_dt > attendance.check_out:
             attendance.check_out = event_dt
 
+    return attendance, created
+
+
+def apply_attendance_to_access_log(log):
+    if not log or log.person_type == 'staff' or log.result != 'granted':
+        return None, False
+
+    student = log.student or (db.session.get(Student, log.student_id) if log.student_id else None)
+    if not student:
+        employee_no = str(log.employee_no or '').strip()
+        if employee_no.isdigit():
+            student = db.session.get(Student, int(employee_no))
+
+    if not student:
+        return None, False
+
+    event_dt = log.event_time or get_local_datetime()
+    attendance, created = create_or_update_attendance_from_access(student, log.direction, event_dt)
+    if attendance:
+        log.student_id = student.id
+        log.attendance_id = attendance.id
+        log.person_type = 'student'
+        log.full_name = student.full_name
+        log.group_id = student.group_id
+        log.group_name = student.group.name if student.group else None
     return attendance, created
 
 
@@ -5349,6 +5387,15 @@ def access_log_list():
         .limit(per_page)\
         .all()
 
+    repaired = False
+    for log in logs:
+        if log.person_type != 'staff' and not log.attendance_id and log.result == 'granted':
+            attendance, _ = apply_attendance_to_access_log(log)
+            if attendance:
+                repaired = True
+    if repaired:
+        db.session.commit()
+
     return jsonify({
         'success': True,
         'logs': [access_log_to_dict(log) for log in logs],
@@ -5373,7 +5420,19 @@ def hikvision_access_event():
     if event_uid:
         existing = AccessLog.query.filter_by(event_uid=event_uid).first()
         if existing:
-            return jsonify({'success': True, 'duplicate': True, 'log': access_log_to_dict(existing)})
+            attendance_created = False
+            attendance = existing.attendance
+            if existing.person_type != 'staff' and not existing.attendance_id and existing.result == 'granted':
+                attendance, attendance_created = apply_attendance_to_access_log(existing)
+                if attendance:
+                    db.session.commit()
+            return jsonify({
+                'success': True,
+                'duplicate': True,
+                'log': access_log_to_dict(existing),
+                'attendance_created': attendance_created,
+                'attendance_id': attendance.id if attendance else None,
+            })
 
     employee_no = str(data.get('employee_no') or data.get('employeeNo') or data.get('employeeNoString') or '').strip()
     direction = (data.get('direction') or data.get('device_name') or '').strip().lower()
