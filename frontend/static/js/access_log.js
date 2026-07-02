@@ -62,22 +62,32 @@ function photoUrlForLog(log) {
 }
 
 function renderAccessPhoto(log) {
-    const label = escapeHtml(log.full_name || log.employee_no || 'Фото прохода');
+    const rawLabel = log.full_name || log.employee_no || 'Фото прохода';
+    const label = escapeHtml(rawLabel);
+    const initials = escapeHtml(initialsFromName(rawLabel));
     if (log.access_photo_url) {
         return `
-            <button type="button" class="access-photo-thumb" data-photo-url="${escapeHtml(log.access_photo_url)}" data-photo-title="${label}" data-photo-meta="${escapeHtml(formatAccessDateTime(log.event_time))}">
+            <button type="button" class="access-photo-thumb" data-photo-url="${escapeHtml(log.access_photo_url)}" data-photo-title="${label}" data-photo-meta="${escapeHtml(formatAccessDateTime(log.event_time))}" data-fallback="${initials}">
                 <img src="${escapeHtml(log.access_photo_url)}" alt="${label}" loading="lazy">
             </button>
         `;
     }
     if (log.person_photo_url) {
         return `
-            <span class="access-photo-thumb access-photo-fallback" title="Фото профиля">
+            <span class="access-photo-thumb access-photo-fallback" title="Фото профиля" data-fallback="${initials}">
                 <img src="${escapeHtml(log.person_photo_url)}" alt="${label}" loading="lazy">
             </span>
         `;
     }
-    return `<span class="access-photo-thumb access-photo-fallback">${escapeHtml(initialsFromName(log.full_name || log.employee_no))}</span>`;
+    return `<span class="access-photo-thumb access-photo-fallback">${initials}</span>`;
+}
+
+function replaceBrokenAccessPhoto(img) {
+    const holder = img.closest('.access-photo-thumb');
+    if (!holder) return;
+    holder.removeAttribute('data-photo-url');
+    holder.classList.add('access-photo-fallback');
+    holder.innerHTML = escapeHtml(holder.dataset.fallback || '?');
 }
 
 function renderAccessLogs(logs) {
@@ -116,6 +126,9 @@ function renderAccessLogs(logs) {
             button.dataset.photoTitle,
             button.dataset.photoMeta
         ));
+    });
+    body.querySelectorAll('.access-photo-thumb img').forEach((img) => {
+        img.addEventListener('error', () => replaceBrokenAccessPhoto(img), { once: true });
     });
 }
 

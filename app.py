@@ -5092,7 +5092,7 @@ def find_access_photo_value(value, depth=0):
 
 def access_log_photo_urls(log):
     access_photo_url = find_access_photo_value(log.get_raw_event())
-    if access_photo_url and not access_photo_url.startswith(('data:image/', 'http://', 'https://')):
+    if access_photo_url and not access_photo_url.startswith('data:image/'):
         access_photo_url = None
     person_photo_url = None
     if log.person_type == 'student':

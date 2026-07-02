@@ -711,21 +711,22 @@ async function fetchAccessPhotoDataUrl(device, event) {
     const base = `${protocol}://${device.ip}:${device.port || (protocol === 'https' ? 443 : 80)}`;
     const url = new URL(photoRef, base);
     const sameDevice = url.hostname === device.ip;
-    if (!sameDevice) return { access_photo_url: photoRef };
+    if (!sameDevice) return {};
 
     const path = `${url.pathname}${url.search || ''}`;
     const res = await requestDigest(device, 'GET', path, null, {}, CONFIG.deviceProbeTimeoutMs);
     assertOk('access-photo', res);
     const contentType = String(res.headers['content-type'] || 'image/jpeg').split(';')[0] || 'image/jpeg';
     if (!contentType.startsWith('image/') || !res.buffer?.length || res.buffer.length > 650000) {
-      return { access_photo_url: photoRef };
+      return {};
     }
+    const dataUrl = `data:${contentType};base64,${res.buffer.toString('base64')}`;
     return {
-      access_photo_url: photoRef,
-      access_photo_data_url: `data:${contentType};base64,${res.buffer.toString('base64')}`,
+      access_photo_url: dataUrl,
+      access_photo_data_url: dataUrl,
     };
   } catch (error) {
-    return { access_photo_url: photoRef, access_photo_error: humanError(error) };
+    return { access_photo_error: humanError(error) };
   }
 }
 
