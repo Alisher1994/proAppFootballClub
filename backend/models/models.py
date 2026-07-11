@@ -309,6 +309,8 @@ class Payment(db.Model):
     lessons_added = db.Column(db.Integer, nullable=False)  # Сколько занятий добавлено
     is_full_payment = db.Column(db.Boolean, default=True)  # Полная оплата или частичная
     payment_date = db.Column(db.DateTime, default=get_local_datetime)
+    # Момент внесения записи в CRM. Не путать с payment_date, которую выбирает кассир.
+    created_at = db.Column(db.DateTime, default=get_local_datetime, index=True)
     tariff_name = db.Column(db.String(100))  # Дублируем название тарифа для истории
     notes = db.Column(db.Text)
     created_by = db.Column(db.Integer, db.ForeignKey('users.id'))

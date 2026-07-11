@@ -536,7 +536,7 @@ RU_MONTHS = {
 
 
 def ensure_payment_type_column():
-    """Проверяет и добавляет колонку payment_type в таблицу payments"""
+    """Проверяет служебные колонки таблицы payments."""
     try:
         inspector = db.inspect(db.engine)
         tables = inspector.get_table_names()
@@ -558,6 +558,19 @@ def ensure_payment_type_column():
                 db.session.rollback()
                 if "duplicate column" not in str(e).lower() and "already exists" not in str(e).lower():
                     print(f"Ошибка при добавлении payment_type: {e}")
+
+        # Старые платежи нельзя достоверно датировать задним числом, поэтому
+        # оставляем created_at у них NULL. Новые записи заполняются моделью.
+        if 'created_at' not in columns:
+            try:
+                db.session.execute(db.text("ALTER TABLE payments ADD COLUMN created_at TIMESTAMP NULL"))
+                db.session.execute(db.text("CREATE INDEX IF NOT EXISTS idx_payments_created_at ON payments (created_at)"))
+                db.session.commit()
+                print("✓ Добавлена фактическая дата создания платежа")
+            except Exception as e:
+                db.session.rollback()
+                if "duplicate column" not in str(e).lower() and "already exists" not in str(e).lower():
+                    print(f"Ошибка при добавлении payments.created_at: {e}")
     except Exception as e:
         print(f"Ошибка при проверке колонки payment_type: {e}")
 
@@ -6489,6 +6502,9 @@ def get_income_stats():
     payments_list = [{
         'id': p.Payment.id,
         'payment_date': p.Payment.payment_date.isoformat(),
+        # В БД локальное время Ташкента хранится без offset; передаём его явно,
+        # чтобы браузер в любом часовом поясе показал правильный момент.
+        'created_at': f"{p.Payment.created_at.isoformat()}+05:00" if p.Payment.created_at else None,
         'student_id': p.Payment.student_id,
         'student_name': p.student_name,
         'group_id': p.group_id,

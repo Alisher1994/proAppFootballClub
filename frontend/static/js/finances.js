@@ -1883,7 +1883,7 @@ function resetIncomeFilters() {
 function renderIncomeTable(payments) {
     const tbody = document.getElementById('income-table-body');
     if (payments.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: #95a5a6;">Нет данных</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; color: #95a5a6;">Нет данных</td></tr>';
         return;
     }
 
@@ -1902,11 +1902,15 @@ function renderIncomeTable(payments) {
 
     tbody.innerHTML = payments.map(p => {
         const date = new Date(p.payment_date).toLocaleDateString('ru-RU');
+        const createdAt = p.created_at
+            ? new Date(p.created_at).toLocaleString('ru-RU', { timeZone: 'Asia/Tashkent' })
+            : 'Нет данных';
         const paymentType = paymentTypeMap[p.payment_type] || p.payment_type || 'Наличные';
 
         return `
             <tr>
                 <td>${date}</td>
+                <td>${createdAt}</td>
                 <td>${p.student_name}</td>
                 <td>${p.group_name || '-'}</td>
                 <td>${p.tariff_name || '-'}</td>
