@@ -10883,6 +10883,14 @@ with app.app_context():
 # ---------------------------------------------
 
 # Запуск планировщика (для продакшена и локальной разработки)
+# Минимальные совместимые миграции должны выполняться и при импорте приложения
+# Gunicorn. Полная init_db() в production намеренно не запускается.
+try:
+    with app.app_context():
+        ensure_payment_type_column()
+except Exception as e:
+    print(f"⚠️ Не удалось проверить структуру payments: {e}")
+
 # Используем try-except, чтобы ошибка планировщика не валила всё приложение
 try:
     if not app.debug or os.environ.get('WERKZEUG_RUN_MAIN') == 'true':
