@@ -436,7 +436,9 @@ function renderExpenseTable(expenses) {
     }
 
     tbody.innerHTML = expenses.map(e => {
-        const date = e.expense_date ? new Date(e.expense_date).toLocaleDateString('ru-RU') : '-';
+        const date = e.expense_date
+            ? new Date(e.expense_date).toLocaleString('ru-RU', { timeZone: 'Asia/Tashkent' })
+            : '-';
         const source = (e.expense_source === 'bank') ? 'Из р/с банка' : 'Из кассы';
         // Преобразовать Encashment обратно в Инкассация для отображения
         const displayCategory = e.category === 'Encashment' ? 'Инкассация' : e.category;

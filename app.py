@@ -7145,7 +7145,9 @@ def get_expense_stats():
     
     expenses_list = [{
         'id': e.id,
-        'expense_date': e.expense_date.isoformat(),
+        # expense_date у расходов является фактическим моментом создания записи
+        # и хранится как локальное время Ташкента без offset.
+        'expense_date': f"{e.expense_date.isoformat()}+05:00",
         'category': e.category,
         'amount': e.amount,
         'description': e.description,
