@@ -1739,6 +1739,12 @@ def ensure_access_logs_table():
                 'face_similarity': "ALTER TABLE access_logs ADD COLUMN face_similarity FLOAT",
                 'face_verification_reason': "ALTER TABLE access_logs ADD COLUMN face_verification_reason VARCHAR(300)",
                 'face_verified_at': "ALTER TABLE access_logs ADD COLUMN face_verified_at TIMESTAMP",
+                'identified_student_id': "ALTER TABLE access_logs ADD COLUMN identified_student_id INTEGER",
+                'identified_full_name': "ALTER TABLE access_logs ADD COLUMN identified_full_name VARCHAR(200)",
+                'identified_employee_no': "ALTER TABLE access_logs ADD COLUMN identified_employee_no VARCHAR(40)",
+                'identified_group_name': "ALTER TABLE access_logs ADD COLUMN identified_group_name VARCHAR(100)",
+                'identified_similarity': "ALTER TABLE access_logs ADD COLUMN identified_similarity FLOAT",
+                'face_identified_at': "ALTER TABLE access_logs ADD COLUMN face_identified_at TIMESTAMP",
                 'raw_event': "ALTER TABLE access_logs ADD COLUMN raw_event TEXT",
                 'created_at': "ALTER TABLE access_logs ADD COLUMN created_at TIMESTAMP",
             }
@@ -1748,6 +1754,10 @@ def ensure_access_logs_table():
             conn.execute(db.text(
                 "CREATE INDEX IF NOT EXISTS idx_access_logs_face_status "
                 "ON access_logs (face_verification_status)"
+            ))
+            conn.execute(db.text(
+                "CREATE INDEX IF NOT EXISTS idx_access_logs_identified_student "
+                "ON access_logs (identified_student_id)"
             ))
     except Exception as e:
         db.session.rollback()
@@ -5174,6 +5184,7 @@ def access_log_to_dict(log, photo_available=None):
         photo_available = bool(access_log_photo_url(log))
     access_photo_url = url_for('access_log_photo_file', log_id=log.id) if photo_available and log.id else None
     person_photo_url = access_log_person_photo_url(log)
+    identified_student = log.identified_student if log.identified_student_id else None
     return {
         'id': log.id,
         'event_uid': log.event_uid,
@@ -5192,6 +5203,13 @@ def access_log_to_dict(log, photo_available=None):
         'source': log.source,
         'access_photo_url': access_photo_url,
         'person_photo_url': person_photo_url,
+        'identified_student_id': log.identified_student_id,
+        'identified_full_name': log.identified_full_name,
+        'identified_employee_no': log.identified_employee_no,
+        'identified_group_name': log.identified_group_name,
+        'identified_photo_url': build_photo_url(identified_student.photo_path) if identified_student else None,
+        'identified_similarity': round(max(0.0, min(1.0, float(log.identified_similarity))) * 100, 1) if log.identified_similarity is not None else None,
+        'face_identified_at': log.face_identified_at.isoformat() if log.face_identified_at else None,
         'face_verification_status': log.face_verification_status,
         'face_similarity': round(max(0.0, min(1.0, float(log.face_similarity))) * 100, 1) if log.face_similarity is not None else None,
         'face_verification_reason': log.face_verification_reason,
@@ -5245,24 +5263,45 @@ def run_access_face_verify_worker():
         try:
             with app.app_context():
                 log = db.session.get(AccessLog, log_id)
-                if not log or log.face_verification_status in {'confirmed', 'suspicious', 'mismatch'}:
+                if not log or log.face_identified_at:
                     continue
                 if log.person_type != 'student' or not log.student_id:
                     log.face_verification_status = 'not_applicable'
                     log.face_verification_reason = 'Проверка выполняется только для учеников'
                     log.face_verified_at = get_local_datetime()
+                    log.face_identified_at = get_local_datetime()
                     db.session.commit()
                     continue
 
-                student = log.student or db.session.get(Student, log.student_id)
-                result = access_face_verifier.verify(
-                    access_log_photo_url(log),
-                    resolve_student_photo_path(student.photo_path if student else None),
+                students = Student.query.filter(
+                    Student.photo_path.isnot(None),
+                    Student.photo_path != '',
+                ).all()
+                group_ids = {item.group_id for item in students if item.group_id}
+                group_names = {
+                    item.id: item.name for item in Group.query.filter(Group.id.in_(group_ids)).all()
+                } if group_ids else {}
+                candidates = [{
+                    'id': item.id,
+                    'full_name': item.full_name,
+                    'employee_no': str(item.id),
+                    'group_name': group_names.get(item.group_id),
+                    'photo_path': resolve_student_photo_path(item.photo_path),
+                } for item in students]
+                result = access_face_verifier.identify_and_verify(
+                    access_log_photo_url(log), candidates, log.student_id,
                 )
                 log.face_verification_status = result.get('status') or 'unavailable'
                 log.face_similarity = result.get('similarity')
                 log.face_verification_reason = str(result.get('reason') or '')[:300] or None
                 log.face_verified_at = get_local_datetime()
+                identified = result.get('identified') or {}
+                log.identified_student_id = identified.get('id')
+                log.identified_full_name = identified.get('full_name')
+                log.identified_employee_no = identified.get('employee_no')
+                log.identified_group_name = identified.get('group_name')
+                log.identified_similarity = result.get('identified_similarity')
+                log.face_identified_at = get_local_datetime()
                 db.session.commit()
         except Exception as exc:
             print(f'Access face verification failed for log {log_id}: {type(exc).__name__}: {exc}')
@@ -5598,7 +5637,14 @@ def access_log_list():
         ))
     if search:
         like = f"%{search}%"
-        query = query.filter(or_(AccessLog.full_name.ilike(like), AccessLog.employee_no.ilike(like), AccessLog.group_name.ilike(like)))
+        query = query.filter(or_(
+            AccessLog.full_name.ilike(like),
+            AccessLog.employee_no.ilike(like),
+            AccessLog.group_name.ilike(like),
+            AccessLog.identified_full_name.ilike(like),
+            AccessLog.identified_employee_no.ilike(like),
+            AccessLog.identified_group_name.ilike(like),
+        ))
 
     total = query.count()
     pages = max(1, (total + per_page - 1) // per_page)
@@ -5607,6 +5653,7 @@ def access_log_list():
 
     logs = query.options(
         joinedload(AccessLog.student),
+        joinedload(AccessLog.identified_student),
         defer(AccessLog.raw_event),
     ).order_by(AccessLog.event_time.desc())\
         .offset((page - 1) * per_page)\
@@ -5623,7 +5670,7 @@ def access_log_list():
         db.session.commit()
 
     for log in logs:
-        if log.person_type == 'student' and not log.face_verification_status:
+        if log.person_type == 'student' and not log.face_identified_at:
             log.face_verification_status = 'pending'
             schedule_access_face_verification(log.id)
 
@@ -5701,13 +5748,19 @@ def hikvision_access_event():
                 existing.face_similarity = None
                 existing.face_verification_reason = None
                 existing.face_verified_at = None
+                existing.identified_student_id = None
+                existing.identified_full_name = None
+                existing.identified_employee_no = None
+                existing.identified_group_name = None
+                existing.identified_similarity = None
+                existing.face_identified_at = None
             if existing.person_type != 'staff' and not existing.attendance_id and existing.result == 'granted':
                 attendance, attendance_created = apply_attendance_to_access_log(existing)
                 if attendance:
                     raw_updated = True
             if raw_updated:
                 db.session.commit()
-            if existing.person_type == 'student' and existing.face_verification_status in {None, 'pending'}:
+            if existing.person_type == 'student' and not existing.face_identified_at:
                 schedule_access_face_verification(existing.id)
             return jsonify({
                 'success': True,

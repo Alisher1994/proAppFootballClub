@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Журнал проходов</title>
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='uploads/favicon.png') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=2026071401">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=2026071402">
 </head>
 
 <body>
@@ -52,7 +52,7 @@
                     <option value="unavailable">Не удалось проверить</option>
                     <option value="pending">Не проверено</option>
                 </select>
-                <input id="accessSearchFilter" type="search" placeholder="Поиск: ФИО, ID, группа">
+                <input id="accessSearchFilter" type="search" placeholder="Поиск: кто прошёл, кого определил, ID">
             </div>
 
             <div class="access-table-card">
@@ -63,7 +63,8 @@
                             <th>Фото</th>
                             <th>Направление</th>
                             <th>ID</th>
-                            <th>Ученик / сотрудник</th>
+                            <th>Кто прошёл на самом деле</th>
+                            <th>Кого определил терминал</th>
                             <th>Группа</th>
                             <th>Терминал</th>
                             <th>Сходство</th>
@@ -72,7 +73,7 @@
                     </thead>
                     <tbody id="accessLogBody">
                         <tr>
-                            <td colspan="9" class="access-empty">Загрузка...</td>
+                            <td colspan="10" class="access-empty">Загрузка...</td>
                         </tr>
                     </tbody>
                 </table>
@@ -108,11 +109,17 @@
             </button>
             <div class="access-photo-stage access-photo-compare">
                 <figure class="access-photo-panel">
-                    <figcaption>Фото терминала</figcaption>
+                    <figcaption>
+                        <span>Кто прошёл на самом деле</span>
+                        <strong id="accessActualPersonName">Определяется...</strong>
+                    </figcaption>
                     <img id="accessPhotoImage" alt="">
                 </figure>
                 <figure class="access-photo-panel">
-                    <figcaption>Фото в системе</figcaption>
+                    <figcaption>
+                        <span>Кого определил терминал</span>
+                        <strong id="accessClaimedPersonName">Неизвестно</strong>
+                    </figcaption>
                     <img id="accessSystemPhotoImage" alt="" hidden>
                     <div class="access-system-photo-empty" id="accessSystemPhotoEmpty" hidden>Нет фото</div>
                 </figure>
@@ -124,7 +131,7 @@
         </div>
     </div>
 
-    <script src="{{ url_for('static', filename='js/access_log.js') }}?v=2026071402"></script>
+    <script src="{{ url_for('static', filename='js/access_log.js') }}?v=2026071403"></script>
 </body>
 
 </html>

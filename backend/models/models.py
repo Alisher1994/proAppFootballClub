@@ -368,10 +368,17 @@ class AccessLog(db.Model):
     face_similarity = db.Column(db.Float, nullable=True)
     face_verification_reason = db.Column(db.String(300), nullable=True)
     face_verified_at = db.Column(db.DateTime, nullable=True)
+    identified_student_id = db.Column(db.Integer, db.ForeignKey('students.id'), nullable=True, index=True)
+    identified_full_name = db.Column(db.String(200), nullable=True)
+    identified_employee_no = db.Column(db.String(40), nullable=True)
+    identified_group_name = db.Column(db.String(100), nullable=True)
+    identified_similarity = db.Column(db.Float, nullable=True)
+    face_identified_at = db.Column(db.DateTime, nullable=True)
     raw_event = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime, default=get_local_datetime)
 
     student = db.relationship('Student', foreign_keys=[student_id], lazy=True)
+    identified_student = db.relationship('Student', foreign_keys=[identified_student_id], lazy=True)
     attendance = db.relationship('Attendance', foreign_keys=[attendance_id], lazy=True)
     group = db.relationship('Group', foreign_keys=[group_id], lazy=True)
 

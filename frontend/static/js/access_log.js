@@ -68,12 +68,29 @@ function renderAccessPhoto(log) {
     if (log.access_photo_url) {
         const verification = faceVerificationStatus(log);
         return `
-            <button type="button" class="access-photo-thumb" data-photo-url="${escapeHtml(log.access_photo_url)}" data-system-photo-url="${escapeHtml(log.person_photo_url || '')}" data-photo-title="${label}" data-photo-meta="${escapeHtml(formatAccessDateTime(log.event_time))}" data-photo-verification="${escapeHtml(log.face_verification_reason || verification.label)}">
+            <button type="button" class="access-photo-thumb" data-photo-url="${escapeHtml(log.access_photo_url)}" data-system-photo-url="${escapeHtml(log.person_photo_url || '')}" data-photo-title="${label}" data-photo-meta="${escapeHtml(formatAccessDateTime(log.event_time))}" data-photo-verification="${escapeHtml(log.face_verification_reason || verification.label)}" data-actual-name="${escapeHtml(actualPersonLabel(log))}" data-claimed-name="${label}">
                 <img src="${escapeHtml(log.access_photo_url)}" alt="${label}" loading="lazy">
             </button>
         `;
     }
     return '<span class="access-photo-none" title="Фото прохода нет">-</span>';
+}
+
+function actualPersonLabel(log) {
+    if (log.person_type !== 'student') return log.full_name || 'Проверка не применяется';
+    if (log.identified_full_name) return log.identified_full_name;
+    if (!log.face_identified_at || ['pending', 'processing'].includes(log.face_verification_status)) return 'Определяется...';
+    return 'Не удалось определить';
+}
+
+function renderActualPerson(log) {
+    const name = actualPersonLabel(log);
+    const score = log.person_type !== 'student'
+        ? 'Без серверной сверки'
+        : log.identified_similarity !== null && log.identified_similarity !== undefined
+        ? `Сходство ${Number(log.identified_similarity).toLocaleString('ru-RU', { maximumFractionDigits: 1 })}%`
+        : (log.face_identified_at ? 'Нет надёжного совпадения' : 'Проверка фото');
+    return `<strong>${escapeHtml(name)}</strong><div class="access-muted">${escapeHtml(score)}</div>`;
 }
 
 function replaceBrokenAccessPhoto(img) {
@@ -89,7 +106,7 @@ function renderAccessLogs(logs) {
     if (!body) return;
 
     if (!logs.length) {
-        body.innerHTML = '<tr><td colspan="9" class="access-empty">Записей пока нет</td></tr>';
+        body.innerHTML = '<tr><td colspan="10" class="access-empty">Записей пока нет</td></tr>';
         return;
     }
 
@@ -104,6 +121,7 @@ function renderAccessLogs(logs) {
                 <td>${renderAccessPhoto(log)}</td>
                 <td><span class="access-pill access-${direction}">${directionLabel(direction)}</span></td>
                 <td class="access-id">${escapeHtml(log.employee_no || '-')}</td>
+                <td>${renderActualPerson(log)}</td>
                 <td>
                     <strong>${escapeHtml(log.full_name || 'Неизвестно')}</strong>
                     <div class="access-muted">${log.person_type === 'staff' ? 'Сотрудник' : log.person_type === 'student' ? 'Ученик' : 'Не найден в системе'}</div>
@@ -122,7 +140,9 @@ function renderAccessLogs(logs) {
             button.dataset.systemPhotoUrl,
             button.dataset.photoTitle,
             button.dataset.photoMeta,
-            button.dataset.photoVerification
+            button.dataset.photoVerification,
+            button.dataset.actualName,
+            button.dataset.claimedName
         ));
     });
     body.querySelectorAll('.access-photo-thumb img').forEach((img) => {
@@ -203,7 +223,7 @@ async function loadAccessLogs({ resetPage = false } = {}) {
     } catch (error) {
         if (error.name === 'AbortError') return;
         const body = document.getElementById('accessLogBody');
-        if (body) body.innerHTML = '<tr><td colspan="9" class="access-empty access-error">Не удалось загрузить журнал</td></tr>';
+        if (body) body.innerHTML = '<tr><td colspan="10" class="access-empty access-error">Не удалось загрузить журнал</td></tr>';
         renderAccessPagination({ page: 1, pages: 1, total: 0, per_page: accessState.perPage });
     }
 }
@@ -220,13 +240,15 @@ function debounceAccessLoad() {
     accessState.timer = setTimeout(() => loadAccessLogs({ resetPage: true }), 250);
 }
 
-function openAccessPhotoModal(photoUrl, systemPhotoUrl, title, meta, verification) {
+function openAccessPhotoModal(photoUrl, systemPhotoUrl, title, meta, verification, actualName, claimedName) {
     const modal = document.getElementById('accessPhotoModal');
     const image = document.getElementById('accessPhotoImage');
     const systemImage = document.getElementById('accessSystemPhotoImage');
     const systemEmpty = document.getElementById('accessSystemPhotoEmpty');
     const titleEl = document.getElementById('accessPhotoTitle');
     const metaEl = document.getElementById('accessPhotoMeta');
+    const actualNameEl = document.getElementById('accessActualPersonName');
+    const claimedNameEl = document.getElementById('accessClaimedPersonName');
     if (!modal || !image) return;
     image.src = photoUrl;
     image.alt = title || 'Фото прохода';
@@ -244,6 +266,8 @@ function openAccessPhotoModal(photoUrl, systemPhotoUrl, title, meta, verificatio
     }
     if (titleEl) titleEl.textContent = title || 'Фото прохода';
     if (metaEl) metaEl.textContent = [meta, verification].filter(Boolean).join(' · ');
+    if (actualNameEl) actualNameEl.textContent = actualName || 'Не удалось определить';
+    if (claimedNameEl) claimedNameEl.textContent = claimedName || 'Неизвестно';
     modal.hidden = false;
     modal.style.display = 'flex';
 }

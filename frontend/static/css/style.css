@@ -5130,6 +5130,11 @@ textarea:focus,
 
 .access-table th:nth-child(9),
 .access-table td:nth-child(9) {
+    width: 170px;
+}
+
+.access-table th:nth-child(10),
+.access-table td:nth-child(10) {
     width: 120px;
 }
 
@@ -5402,6 +5407,21 @@ textarea:focus,
     background: rgba(15, 23, 42, .92);
     font-size: .78rem;
     font-weight: 700;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.access-photo-panel figcaption span {
+    color: #94a3b8;
+    font-size: .68rem;
+    font-weight: 600;
+}
+
+.access-photo-panel figcaption strong {
+    color: #fff;
+    font-size: .84rem;
+    font-weight: 700;
 }
 
 .access-photo-panel img,
@@ -5458,7 +5478,7 @@ textarea:focus,
     }
 
     .access-table {
-        min-width: 1150px;
+        min-width: 1350px;
     }
 
     .access-pagination {
