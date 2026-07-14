@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Панель управления</title>
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='uploads/favicon.png') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=2026071502">
     <style>
         /* Скроллбары */
         .tab-content-container::-webkit-scrollbar {
@@ -1381,9 +1381,9 @@
                     </div>
                 </div>
             </div>
-            <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
-            <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.9/dist/chart.umd.min.js"></script>
-            <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+            <script src="{{ url_for('static', filename='vendor/lucide-1.24.0.min.js') }}"></script>
+            <script src="{{ url_for('static', filename='vendor/chart-4.4.9.umd.min.js') }}"></script>
+            <script src="{{ url_for('static', filename='vendor/chartjs-plugin-datalabels-2.2.0.min.js') }}"></script>
             <script>
                 if (window.lucide) window.lucide.createIcons();
 
@@ -1730,11 +1730,36 @@
                     }
                 });
 
+                let financeAnalyticsCache = null;
+                let financeAnalyticsLoadedAt = 0;
+                let financeAnalyticsPromise = null;
+
+                function fetchFinanceAnalytics() {
+                    const now = Date.now();
+                    if (financeAnalyticsCache && now - financeAnalyticsLoadedAt < 15000) {
+                        return Promise.resolve(financeAnalyticsCache);
+                    }
+                    if (financeAnalyticsPromise) return financeAnalyticsPromise;
+                    financeAnalyticsPromise = fetch('/api/finances/analytics')
+                        .then((response) => {
+                            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                            return response.json();
+                        })
+                        .then((data) => {
+                            financeAnalyticsCache = data;
+                            financeAnalyticsLoadedAt = Date.now();
+                            return data;
+                        })
+                        .finally(() => {
+                            financeAnalyticsPromise = null;
+                        });
+                    return financeAnalyticsPromise;
+                }
+
                 // Функция загрузки аналитики финансов
                 async function loadAnalytics() {
                     try {
-                        const response = await fetch('/api/finances/analytics');
-                        const data = await response.json();
+                        const data = await fetchFinanceAnalytics();
 
                         // Таблица
                         const tbody = document.getElementById('analytics-table-body');
@@ -2183,9 +2208,7 @@
 
                 async function loadIncomeExpenseChart() {
                     try {
-                        const res = await fetch('/api/finances/analytics');
-                        if (!res.ok) return;
-                        const data = await res.json();
+                        const data = await fetchFinanceAnalytics();
                         if (!data || !Array.isArray(data.months)) return;
                         incomeExpenseMonthsCache = data.months;
                         drawIncomeExpenseChart(data.months);

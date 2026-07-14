@@ -5,6 +5,7 @@ const accessState = {
     pages: 1,
     verificationTimer: null,
     requestController: null,
+    pendingVerificationIds: new Set(),
 };
 
 function formatAccessDateTime(value) {
@@ -117,19 +118,19 @@ function renderAccessLogs(logs) {
         const status = attendanceStatus(log);
         const faceStatus = faceVerificationStatus(log);
         return `
-            <tr>
+            <tr data-log-id="${log.id}">
                 <td>${formatAccessDateTime(log.event_time)}</td>
                 <td>${renderAccessPhoto(log)}</td>
                 <td><span class="access-pill access-${direction}">${directionLabel(direction)}</span></td>
                 <td class="access-id">${escapeHtml(log.employee_no || '-')}</td>
-                <td>${renderActualPerson(log)}</td>
+                <td data-access-actual>${renderActualPerson(log)}</td>
                 <td>
                     <strong>${escapeHtml(log.full_name || 'Неизвестно')}</strong>
                     <div class="access-muted">${log.person_type === 'staff' ? 'Сотрудник' : log.person_type === 'student' ? 'Ученик' : 'Не найден в системе'}</div>
                 </td>
                 <td>${escapeHtml(log.group_name || '-')}</td>
                 <td>${escapeHtml(terminal)}</td>
-                <td><span class="access-face-status access-face-${faceStatus.className}" title="${escapeHtml(log.face_verification_reason || faceStatus.label)}">${faceStatus.label}</span></td>
+                <td><span data-access-face class="access-face-status access-face-${faceStatus.className}" title="${escapeHtml(log.face_verification_reason || faceStatus.label)}">${faceStatus.label}</span></td>
                 <td><span class="access-status access-status-${status.className}" title="${escapeHtml(resultLabel(log.result))}">${status.label}</span></td>
             </tr>
         `;
@@ -151,8 +152,63 @@ function renderAccessLogs(logs) {
     });
 
     clearTimeout(accessState.verificationTimer);
-    if (logs.some((log) => !log.face_verification_status || ['pending', 'processing'].includes(log.face_verification_status))) {
-        accessState.verificationTimer = setTimeout(() => loadAccessLogs(), 2500);
+    accessState.pendingVerificationIds = new Set(
+        logs
+            .filter((log) => !log.face_verification_status || ['pending', 'processing'].includes(log.face_verification_status))
+            .map((log) => Number(log.id))
+            .filter(Number.isFinite)
+    );
+    if (accessState.pendingVerificationIds.size) {
+        accessState.verificationTimer = setTimeout(pollAccessVerificationStatuses, 2500);
+    }
+}
+
+function updateAccessVerificationRows(logs) {
+    logs.forEach((log) => {
+        const row = document.querySelector(`#accessLogBody tr[data-log-id="${Number(log.id)}"]`);
+        if (!row) return;
+        const actual = row.querySelector('[data-access-actual]');
+        if (actual) actual.innerHTML = renderActualPerson(log);
+        const face = row.querySelector('[data-access-face]');
+        if (face) {
+            const status = faceVerificationStatus(log);
+            face.className = `access-face-status access-face-${status.className}`;
+            face.title = log.face_verification_reason || status.label;
+            face.textContent = status.label;
+        }
+        const photoButton = row.querySelector('.access-photo-thumb');
+        if (photoButton) {
+            const status = faceVerificationStatus(log);
+            photoButton.dataset.photoVerification = log.face_verification_reason || status.label;
+            photoButton.dataset.actualName = actualPersonLabel(log);
+        }
+    });
+}
+
+async function pollAccessVerificationStatuses() {
+    clearTimeout(accessState.verificationTimer);
+    const ids = [...accessState.pendingVerificationIds];
+    if (!ids.length) return;
+    try {
+        const response = await fetch(`/api/access-log/status?ids=${encodeURIComponent(ids.join(','))}`);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = await response.json();
+        const logs = data.logs || [];
+        updateAccessVerificationRows(logs);
+        const returnedIds = new Set(logs.map((log) => Number(log.id)));
+        ids.forEach((id) => {
+            if (!returnedIds.has(Number(id))) accessState.pendingVerificationIds.delete(Number(id));
+        });
+        logs.forEach((log) => {
+            if (log.face_verification_status && !['pending', 'processing'].includes(log.face_verification_status)) {
+                accessState.pendingVerificationIds.delete(Number(log.id));
+            }
+        });
+    } catch (error) {
+        console.warn('Не удалось обновить статусы сверки лиц', error);
+    }
+    if (accessState.pendingVerificationIds.size) {
+        accessState.verificationTimer = setTimeout(pollAccessVerificationStatuses, 2500);
     }
 }
 

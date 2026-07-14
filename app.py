@@ -183,6 +183,7 @@ access_face_verify_queue = queue.Queue()
 access_face_verify_queued = set()
 access_face_verify_lock = threading.Lock()
 access_face_verify_worker_started = False
+access_face_index_prewarm_started = False
 ACCESS_FACE_IDENTIFICATION_VERSION = 2
 photo_thumbnail_lock = threading.Lock()
 
@@ -3237,6 +3238,24 @@ def delete_user_photo_files(photo_path):
             print(f"Ошибка при удалении фото сотрудника: {photo_error}")
 
 
+def save_optimized_logo_upload(logo_file, filepath, max_size):
+    """Keep uploaded branding visually intact while preventing multi-megabyte originals."""
+    extension = os.path.splitext(filepath)[1].lower()
+    with Image.open(logo_file.stream) as image:
+        image = ImageOps.exif_transpose(image)
+        if image.width * image.height > 40_000_000:
+            raise ValueError('Изображение слишком большое')
+        image.thumbnail(max_size, Image.Resampling.LANCZOS)
+        if extension == '.png':
+            image.convert('RGBA' if 'A' in image.getbands() else 'RGB').save(
+                filepath, 'PNG', optimize=True, compress_level=9
+            )
+        elif extension in {'.jpg', '.jpeg'}:
+            image.convert('RGB').save(filepath, 'JPEG', quality=88, optimize=True, progressive=True)
+        else:
+            image.save(filepath, 'WEBP', quality=86, method=6)
+
+
 def save_tournament_team_logo(logo_file, old_logo_path=None):
     if not logo_file or not logo_file.filename:
         return old_logo_path
@@ -3248,7 +3267,7 @@ def save_tournament_team_logo(logo_file, old_logo_path=None):
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
     filename = f"tournament_team_logo_{int(time.time())}_{uuid.uuid4().hex[:8]}{ext}"
     filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-    logo_file.save(filepath)
+    save_optimized_logo_upload(logo_file, filepath, (640, 640))
 
     if old_logo_path:
         old_filename = old_logo_path.replace('\\', '/').split('/')[-1]
@@ -3887,6 +3906,7 @@ def add_student():
         if photo:
             photo_path = face_service.save_student_photo(photo, student.id)
             student.photo_path = photo_path
+            access_face_verifier.invalidate_candidate_index()
             
             encoding = face_service.extract_embedding(photo_path)
             if encoding is not None:
@@ -4142,6 +4162,7 @@ def update_student(student_id):
                 # Сохранить новое фото через сервис (возвращает корректный относительный путь)
                 photo_path = face_service.save_student_photo(photo, student.id)
                 student.photo_path = photo_path
+                access_face_verifier.invalidate_candidate_index()
                 # The previous ArcFace vector belongs to the replaced photo.
                 student.face_encoding = None
                 
@@ -5317,6 +5338,29 @@ def access_log_to_dict(log, photo_available=None):
     }
 
 
+def access_log_status_to_dict(log):
+    return {
+        'id': log.id,
+        'person_type': log.person_type,
+        'full_name': log.full_name,
+        'identified_student_id': log.identified_student_id,
+        'identified_full_name': log.identified_full_name,
+        'identified_employee_no': log.identified_employee_no,
+        'identified_group_name': log.identified_group_name,
+        'identified_similarity': round(max(0.0, min(1.0, float(log.identified_similarity))) * 100, 1) if log.identified_similarity is not None else None,
+        'identified_tentative': bool(
+            log.identified_student_id
+            and log.identified_similarity is not None
+            and float(log.identified_similarity) < access_face_verifier.confirm_threshold
+        ),
+        'face_identified_at': log.face_identified_at.isoformat() if log.face_identified_at else None,
+        'face_verification_status': log.face_verification_status,
+        'face_similarity': round(max(0.0, min(1.0, float(log.face_similarity))) * 100, 1) if log.face_similarity is not None else None,
+        'face_verification_reason': log.face_verification_reason,
+        'face_verified_at': log.face_verified_at.isoformat() if log.face_verified_at else None,
+    }
+
+
 def merge_access_photo_payload(log, data):
     if not log or not isinstance(data, dict):
         return False
@@ -5367,6 +5411,66 @@ def stored_student_face_embedding(student):
     return None
 
 
+def build_access_face_candidates():
+    students = Student.query.filter(
+        Student.photo_path.isnot(None),
+        Student.photo_path != '',
+    ).all()
+    group_ids = {item.group_id for item in students if item.group_id}
+    group_names = {
+        item.id: item.name for item in Group.query.filter(Group.id.in_(group_ids)).all()
+    } if group_ids else {}
+    candidates = [{
+        'id': item.id,
+        'full_name': item.full_name,
+        'employee_no': str(item.id),
+        'group_name': group_names.get(item.group_id),
+        'photo_path': resolve_student_photo_path(item.photo_path),
+        'embedding': stored_student_face_embedding(item),
+    } for item in students]
+    return students, candidates
+
+
+def persist_computed_face_embeddings(students, candidates):
+    students_by_id = {item.id: item for item in students}
+    changed = False
+    for candidate in candidates:
+        computed = candidate.get('computed_embedding')
+        target = students_by_id.get(candidate.get('id'))
+        if computed is not None and target is not None:
+            target.set_face_encoding(np.asarray(computed, dtype=np.float32))
+            changed = True
+    if changed:
+        db.session.commit()
+
+
+def prewarm_access_face_index():
+    """Load the model/index in background so the first terminal event does not pay cold-start cost."""
+    try:
+        with app.app_context():
+            students, candidates = build_access_face_candidates()
+            access_face_verifier.prepare_candidate_index(candidates)
+            persist_computed_face_embeddings(students, candidates)
+            print(f'✅ Индекс распознавания лиц подготовлен: {len(candidates)} учеников')
+    except Exception as exc:
+        print(f'⚠️ Предварительная загрузка распознавания не выполнена: {type(exc).__name__}: {exc}')
+
+
+def start_access_face_index_prewarm():
+    global access_face_index_prewarm_started
+    if os.environ.get('FACE_VERIFY_PREWARM', '1').strip().lower() in {'0', 'false', 'no'}:
+        return
+    with access_face_verify_lock:
+        if access_face_index_prewarm_started:
+            return
+        access_face_index_prewarm_started = True
+    threading.Thread(
+        target=prewarm_access_face_index,
+        daemon=True,
+        name='access-face-index-prewarm',
+    ).start()
+
+
 def run_access_face_verify_worker():
     while True:
         log_id = access_face_verify_queue.get()
@@ -5401,22 +5505,7 @@ def run_access_face_verify_worker():
                     db.session.commit()
                     continue
 
-                students = Student.query.filter(
-                    Student.photo_path.isnot(None),
-                    Student.photo_path != '',
-                ).all()
-                group_ids = {item.group_id for item in students if item.group_id}
-                group_names = {
-                    item.id: item.name for item in Group.query.filter(Group.id.in_(group_ids)).all()
-                } if group_ids else {}
-                candidates = [{
-                    'id': item.id,
-                    'full_name': item.full_name,
-                    'employee_no': str(item.id),
-                    'group_name': group_names.get(item.group_id),
-                    'photo_path': resolve_student_photo_path(item.photo_path),
-                    'embedding': stored_student_face_embedding(item),
-                } for item in students]
+                students, candidates = build_access_face_candidates()
                 result = access_face_verifier.identify_and_verify(
                     access_log_photo_url(log), candidates, log.student_id,
                 )
@@ -5432,13 +5521,8 @@ def run_access_face_verify_worker():
                 log.identified_similarity = result.get('identified_similarity')
                 log.face_identified_at = get_local_datetime()
                 log.face_identification_version = ACCESS_FACE_IDENTIFICATION_VERSION
-                students_by_id = {item.id: item for item in students}
-                for candidate in candidates:
-                    computed = candidate.get('computed_embedding')
-                    target = students_by_id.get(candidate.get('id'))
-                    if computed is not None and target is not None:
-                        target.set_face_encoding(np.asarray(computed, dtype=np.float32))
                 db.session.commit()
+                persist_computed_face_embeddings(students, candidates)
         except Exception as exc:
             print(f'Access face verification failed for log {log_id}: {type(exc).__name__}: {exc}')
             try:
@@ -5468,7 +5552,17 @@ def schedule_access_face_verification(log_id):
             return
         access_face_verify_queued.add(log_id)
         if not access_face_verify_worker_started:
-            threading.Thread(target=run_access_face_verify_worker, daemon=True, name='access-face-verifier').start()
+            try:
+                worker_count = int(os.environ.get('FACE_VERIFY_WORKERS', '2') or 2)
+            except (TypeError, ValueError):
+                worker_count = 2
+            worker_count = min(4, max(1, worker_count))
+            for worker_index in range(worker_count):
+                threading.Thread(
+                    target=run_access_face_verify_worker,
+                    daemon=True,
+                    name=f'access-face-verifier-{worker_index + 1}',
+                ).start()
             access_face_verify_worker_started = True
     access_face_verify_queue.put(log_id)
 
@@ -5900,6 +5994,27 @@ def access_log_photo_file(log_id):
     response.cache_control.private = True
     response.cache_control.max_age = 300
     return response
+
+
+@app.route('/api/access-log/status', methods=['GET'])
+@login_required
+def access_log_statuses():
+    """Return only mutable face-check fields for rows currently visible in the journal."""
+    if not current_user.has_permission('attendance', 'view'):
+        return jsonify({'success': False, 'message': 'Доступ запрещен'}), 403
+    raw_ids = (request.args.get('ids') or '').split(',')
+    log_ids = []
+    for value in raw_ids[:100]:
+        try:
+            log_id = int(value)
+        except (TypeError, ValueError):
+            continue
+        if log_id > 0:
+            log_ids.append(log_id)
+    if not log_ids:
+        return jsonify({'success': True, 'logs': []})
+    logs = AccessLog.query.filter(AccessLog.id.in_(set(log_ids))).all()
+    return jsonify({'success': True, 'logs': [access_log_status_to_dict(log) for log in logs]})
 
 
 @app.route('/api/hikvision/access-event', methods=['POST'])
@@ -7607,138 +7722,138 @@ def get_finance_employees():
 @app.route('/api/finances/analytics', methods=['GET'])
 @login_required
 def get_analytics():
-    """Аналитика по месяцам"""
-    from sqlalchemy import func, extract
-    from datetime import datetime, date
-    
-    # Получить данные за последние 12 месяцев
-    months_data = []
-    
-    for i in range(11, -1, -1):
-        target_date = date.today().replace(day=1)
-        month = target_date.month - i
-        year = target_date.year
-        
-        if month <= 0:
-            month += 12
-            year -= 1
-        
-        # Приход за месяц
-        income = db.session.query(func.sum(Payment.amount_paid)).filter(
-            extract('year', Payment.payment_date) == year,
-            extract('month', Payment.payment_date) == month
-        ).scalar() or 0
-        
-        # Расход за месяц
-        expense = db.session.query(func.sum(Expense.amount)).filter(
-            extract('year', Expense.expense_date) == year,
-            extract('month', Expense.expense_date) == month
-        ).scalar() or 0
-
-        debt = calculate_month_debt_total(year, month)
-        expectation = calculate_month_student_expectation(year, month)
-        
-        # Название месяца
-        month_names = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 
-                      'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек']
-        month_name = f"{month_names[month - 1]} {year}"
-        
-        months_data.append({
-            'month_name': month_name,
-            'income': income,
-            'expense': expense,
-            'balance': income - expense,
-            'debt': debt,
-            'expected': expectation['expected'],
-            'student_count': expectation['student_count'],
-            'new_student_count': expectation['new_student_count'],
-        })
-    
-    return jsonify({'months': months_data})
+    """Аналитика по месяцам одним набором агрегирующих запросов."""
+    today = get_local_date()
+    periods = []
+    year, month = today.year, today.month
+    for offset in range(11, -1, -1):
+        absolute_month = year * 12 + month - 1 - offset
+        periods.append((absolute_month // 12, absolute_month % 12 + 1))
+    return jsonify({'months': build_finance_months(periods, include_name=True)})
 
 
-@app.route('/api/finances/monthly', methods=['GET'])
-@login_required
-def get_finances_monthly():
-    """Данные по месяцам: приход, расход, остаток (приход - расход)"""
+def build_finance_months(periods, include_name=False):
+    """Return finance summaries while keeping SQL count independent of month count."""
     from calendar import monthrange
-    from sqlalchemy import func, extract
-    from datetime import date
+    from sqlalchemy import extract
 
-    # Получаем год из параметра запроса или используем текущий
-    year = request.args.get('year', type=int)
-    if not year:
-        year = date.today().year
+    if not periods:
+        return []
+    period_set = set(periods)
+    first_year, first_month = periods[0]
+    last_year, last_month = periods[-1]
+    start_date = date(first_year, first_month, 1)
+    if last_month == 12:
+        end_date = date(last_year + 1, 1, 1)
+    else:
+        end_date = date(last_year, last_month + 1, 1)
+    start_dt = datetime.combine(start_date, dt_time.min)
+    end_dt = datetime.combine(end_date, dt_time.min)
 
     income_rows = db.session.query(
+        extract('year', Payment.payment_date).label('year'),
         extract('month', Payment.payment_date).label('month'),
         func.coalesce(func.sum(Payment.amount_paid), 0).label('total'),
-    ).filter(extract('year', Payment.payment_date) == year).group_by(
-        extract('month', Payment.payment_date)
+    ).filter(
+        Payment.payment_date >= start_dt,
+        Payment.payment_date < end_dt,
+    ).group_by(
+        extract('year', Payment.payment_date),
+        extract('month', Payment.payment_date),
     ).all()
     expense_rows = db.session.query(
+        extract('year', Expense.expense_date).label('year'),
         extract('month', Expense.expense_date).label('month'),
         func.coalesce(func.sum(Expense.amount), 0).label('total'),
-    ).filter(extract('year', Expense.expense_date) == year).group_by(
-        extract('month', Expense.expense_date)
+    ).filter(
+        Expense.expense_date >= start_dt,
+        Expense.expense_date < end_dt,
+    ).group_by(
+        extract('year', Expense.expense_date),
+        extract('month', Expense.expense_date),
     ).all()
+    years = sorted({year for year, _ in periods})
     paid_rows = db.session.query(
+        Payment.payment_year,
         Payment.payment_month,
         Payment.student_id,
         func.coalesce(func.sum(Payment.amount_paid), 0),
     ).filter(
-        Payment.payment_year == year,
+        Payment.payment_year.in_(years),
         Payment.payment_month.isnot(None),
-    ).group_by(Payment.payment_month, Payment.student_id).all()
+    ).group_by(Payment.payment_year, Payment.payment_month, Payment.student_id).all()
     students = Student.query.options(joinedload(Student.tariff)).filter_by(status='active').all()
-
-    income_map = {int(row.month): float(row.total or 0) for row in income_rows if row.month}
-    expense_map = {int(row.month): float(row.total or 0) for row in expense_rows if row.month}
-    paid_map = {(int(month), student_id): float(total or 0) for month, student_id, total in paid_rows}
     settings = get_club_settings_instance()
+
+    income_map = {
+        (int(row.year), int(row.month)): float(row.total or 0)
+        for row in income_rows if row.year and row.month
+    }
+    expense_map = {
+        (int(row.year), int(row.month)): float(row.total or 0)
+        for row in expense_rows if row.year and row.month
+    }
+    paid_map = {
+        (int(year), int(month), student_id): float(total or 0)
+        for year, month, student_id, total in paid_rows
+        if year is not None and month is not None and (int(year), int(month)) in period_set
+    }
     global_start = normalize_month_pair(
         getattr(settings, 'access_debt_start_year', None),
         getattr(settings, 'access_debt_start_month', None),
     )
     today = get_local_date()
-
-    months = []
-    for month in range(1, 13):
+    month_names = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн',
+                   'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек']
+    result = []
+    for year, month in periods:
         month_start = date(year, month, 1)
         month_end = date(year, month, monthrange(year, month)[1])
         eligible = [
             student for student in students
             if not student.admission_date or student.admission_date <= month_end
         ]
-        income = income_map.get(month, 0)
-        expense = expense_map.get(month, 0)
+        income = income_map.get((year, month), 0.0)
+        expense = expense_map.get((year, month), 0.0)
         expected = sum(
             float(student.tariff.price or 0)
             for student in eligible
             if not student.club_funded and student.tariff
         )
-        debt = 0
+        debt = 0.0
         if (year, month) <= (today.year, today.month) and (not global_start or (year, month) >= global_start):
             debt = sum(
-                max(0, float(student.tariff.price or 0) - paid_map.get((month, student.id), 0))
+                max(0, float(student.tariff.price or 0) - paid_map.get((year, month, student.id), 0))
                 for student in eligible
                 if not student.club_funded and student.tariff
             )
-        new_student_count = sum(
-            1 for student in students
-            if student.admission_date and month_start <= student.admission_date <= month_end
-        )
-        months.append({
+        item = {
             'income': float(income),
             'expense': float(expense),
             'balance': float(income) - float(expense),
             'debt': float(debt),
             'expected': float(expected),
             'student_count': len(eligible),
-            'new_student_count': new_student_count,
-        })
+            'new_student_count': sum(
+                1 for student in students
+                if student.admission_date and month_start <= student.admission_date <= month_end
+            ),
+        }
+        if include_name:
+            item['month_name'] = f'{month_names[month - 1]} {year}'
+        result.append(item)
+    return result
 
-    return jsonify({'months': months})
+
+@app.route('/api/finances/monthly', methods=['GET'])
+@login_required
+def get_finances_monthly():
+    """Данные по месяцам: приход, расход, остаток (приход - расход)"""
+    # Получаем год из параметра запроса или используем текущий
+    year = request.args.get('year', type=int)
+    if not year:
+        year = date.today().year
+    return jsonify({'months': build_finance_months([(year, month) for month in range(1, 13)])})
 
 
 @app.route('/api/finances/payment-status-current', methods=['GET'])
@@ -8322,7 +8437,7 @@ def upload_club_logo():
         old_logo = getattr(settings, 'logo_path', None)
         filename = f"club_logo_{int(time.time())}{ext}"
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        logo_file.save(filepath)
+        save_optimized_logo_upload(logo_file, filepath, (1200, 500))
 
         settings.logo_path = filename
         db.session.commit()
@@ -8398,7 +8513,7 @@ def upload_club_square_logo():
         old_logo = getattr(settings, 'square_logo_path', None)
         filename = f"club_square_logo_{int(time.time())}{ext}"
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        logo_file.save(filepath)
+        save_optimized_logo_upload(logo_file, filepath, (640, 640))
 
         settings.square_logo_path = filename
         db.session.commit()
@@ -10353,6 +10468,7 @@ def delete_student_photo(student_id):
         
         student.photo_path = None
         student.face_encoding = None
+        access_face_verifier.invalidate_candidate_index()
         queue_hikvision_person('student', student.id, 'student_photo_deleted')
         db.session.commit()
         
@@ -11342,6 +11458,9 @@ try:
         ensure_payment_type_column()
 except Exception as e:
     print(f"⚠️ Не удалось проверить структуру payments: {e}")
+
+# Подготавливаем ArcFace и векторный индекс в фоне, не задерживая открытие сайта.
+start_access_face_index_prewarm()
 
 # Используем try-except, чтобы ошибка планировщика не валила всё приложение
 try:

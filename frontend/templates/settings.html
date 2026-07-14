@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Настройки клуба</title>
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='uploads/favicon.png') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=2026071502">
     <style>
         /* Кастомный скроллбар для модалок добавления/редактирования группы */
         #addGroupModal .modal-content::-webkit-scrollbar,
@@ -2411,7 +2411,7 @@
             border-bottom: 1px solid #ece7e2 !important;
         }
     </style>
-    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+    <script src="{{ url_for('static', filename='vendor/lucide-1.24.0.min.js') }}"></script>
 </head>
 
 <body class="settings-page">

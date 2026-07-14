@@ -15,7 +15,11 @@ class AccessFaceVerifier:
         self.model = None
         self.model_error = None
         self.lock = threading.Lock()
+        self.index_lock = threading.Lock()
         self.embedding_cache = {}
+        self.candidate_index_signature = None
+        self.candidate_index_items = []
+        self.candidate_index_matrix = None
         self.confirm_threshold = float(os.environ.get('FACE_VERIFY_CONFIRM_THRESHOLD', '0.45'))
         self.mismatch_threshold = float(os.environ.get('FACE_VERIFY_MISMATCH_THRESHOLD', '0.30'))
         self.identity_margin = float(os.environ.get('FACE_IDENTIFY_MARGIN', '0.05'))
@@ -35,6 +39,7 @@ class AccessFaceVerifier:
                     name='buffalo_s',
                     root=models_root,
                     providers=['CPUExecutionProvider'],
+                    allowed_modules=['detection', 'recognition'],
                 )
                 self.model.prepare(ctx_id=-1, det_size=(640, 640))
             except Exception as exc:
@@ -179,6 +184,57 @@ class AccessFaceVerifier:
             candidate['computed_embedding'] = embedding.tolist()
         return embedding
 
+    @staticmethod
+    def _candidate_signature(candidates):
+        return tuple(
+            (
+                candidate.get('id'),
+                candidate.get('photo_path'),
+                candidate.get('embedding') is not None,
+            )
+            for candidate in candidates
+        )
+
+    def invalidate_candidate_index(self):
+        with self.index_lock:
+            self.candidate_index_signature = None
+            self.candidate_index_items = []
+            self.candidate_index_matrix = None
+
+    def prepare_candidate_index(self, candidates):
+        """Build a normalized matrix once; warm events only perform one matrix product."""
+        import numpy as np
+
+        signature = self._candidate_signature(candidates)
+        with self.index_lock:
+            if signature == self.candidate_index_signature and self.candidate_index_matrix is not None:
+                return self.candidate_index_items, self.candidate_index_matrix
+
+            if self._load_model() is None:
+                return [], None
+
+            items = []
+            embeddings = []
+            # InsightFace sessions are kept behind the same lock during index construction.
+            with self.lock:
+                for candidate in candidates:
+                    embedding = self._candidate_embedding(candidate)
+                    if embedding is None:
+                        continue
+                    items.append({
+                        'id': candidate.get('id'),
+                        'full_name': candidate.get('full_name'),
+                        'employee_no': candidate.get('employee_no'),
+                        'group_name': candidate.get('group_name'),
+                    })
+                    embeddings.append(embedding)
+
+            matrix = np.ascontiguousarray(np.vstack(embeddings), dtype=np.float32) if embeddings else None
+            self.candidate_index_signature = signature
+            self.candidate_index_items = items
+            self.candidate_index_matrix = matrix
+            return items, matrix
+
     def identify_and_verify(self, access_photo_data_url, candidates, claimed_student_id):
         """Find the most likely student and independently verify the terminal claim."""
         access_image = self._decode_data_url(access_photo_data_url)
@@ -189,7 +245,10 @@ class AccessFaceVerifier:
         if model is None:
             return {'status': 'unavailable', 'reason': 'Модуль проверки лица временно недоступен'}
 
-        scores = []
+        indexed_candidates, candidate_matrix = self.prepare_candidate_index(candidates)
+        if candidate_matrix is None or not indexed_candidates:
+            return {'status': 'unavailable', 'reason': 'В базе нет доступных эталонных фотографий'}
+
         with self.lock:
             access_faces = model.get(access_image)
             access_face = self._largest_face(access_faces)
@@ -197,19 +256,19 @@ class AccessFaceVerifier:
             if access_embedding is None:
                 return {'status': 'unavailable', 'reason': 'На фото прохода лицо не найдено'}
 
-            for candidate in candidates:
-                reference_embedding = self._candidate_embedding(candidate)
-                if reference_embedding is None:
-                    continue
-                score = max(-1.0, min(1.0, float(reference_embedding @ access_embedding)))
-                scores.append((score, candidate))
-
-        if not scores:
-            return {'status': 'unavailable', 'reason': 'В базе нет доступных эталонных фотографий'}
-
-        scores.sort(key=lambda item: item[0], reverse=True)
-        best_score, best_candidate = scores[0]
-        claimed_score = next((score for score, item in scores if item.get('id') == claimed_student_id), None)
+        # All candidates are compared by optimized NumPy/BLAS code instead of a Python loop.
+        similarities = candidate_matrix @ access_embedding
+        best_index = int(similarities.argmax())
+        best_score = max(-1.0, min(1.0, float(similarities[best_index])))
+        best_candidate = indexed_candidates[best_index]
+        claimed_index = next(
+            (index for index, item in enumerate(indexed_candidates) if item.get('id') == claimed_student_id),
+            None,
+        )
+        claimed_score = (
+            max(-1.0, min(1.0, float(similarities[claimed_index])))
+            if claimed_index is not None else None
+        )
 
         best_is_claimed = best_candidate.get('id') == claimed_student_id
         alternative_is_clearer = (
@@ -237,7 +296,7 @@ class AccessFaceVerifier:
         result = {'status': status, 'similarity': claimed_score, 'reason': reason}
         # Do not name a student when even the best database match is weak.
         if status == 'confirmed':
-            claimed_candidate = next((item for _, item in scores if item.get('id') == claimed_student_id), None)
+            claimed_candidate = indexed_candidates[claimed_index] if claimed_index is not None else None
             result['identified'] = claimed_candidate
             result['identified_similarity'] = claimed_score
         elif best_score >= self.candidate_threshold:
