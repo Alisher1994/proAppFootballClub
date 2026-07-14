@@ -19,6 +19,7 @@ class AccessFaceVerifier:
         self.confirm_threshold = float(os.environ.get('FACE_VERIFY_CONFIRM_THRESHOLD', '0.45'))
         self.mismatch_threshold = float(os.environ.get('FACE_VERIFY_MISMATCH_THRESHOLD', '0.30'))
         self.identity_margin = float(os.environ.get('FACE_IDENTIFY_MARGIN', '0.05'))
+        self.candidate_threshold = float(os.environ.get('FACE_IDENTIFY_CANDIDATE_THRESHOLD', '0.35'))
 
     def _load_model(self):
         if self.model is not None or self.model_error:
@@ -160,6 +161,24 @@ class AccessFaceVerifier:
             self.embedding_cache[cache_key] = embedding
         return embedding
 
+    def _candidate_embedding(self, candidate):
+        import numpy as np
+
+        stored = candidate.get('embedding')
+        if stored is not None:
+            try:
+                embedding = np.asarray(stored, dtype=np.float32)
+                norm = float(np.linalg.norm(embedding))
+                if embedding.shape == (512,) and norm > 0:
+                    return embedding / norm
+            except Exception:
+                pass
+
+        embedding = self._reference_embedding(candidate.get('photo_path'))
+        if embedding is not None:
+            candidate['computed_embedding'] = embedding.tolist()
+        return embedding
+
     def identify_and_verify(self, access_photo_data_url, candidates, claimed_student_id):
         """Find the most likely student and independently verify the terminal claim."""
         access_image = self._decode_data_url(access_photo_data_url)
@@ -179,7 +198,7 @@ class AccessFaceVerifier:
                 return {'status': 'unavailable', 'reason': 'На фото прохода лицо не найдено'}
 
             for candidate in candidates:
-                reference_embedding = self._reference_embedding(candidate.get('photo_path'))
+                reference_embedding = self._candidate_embedding(candidate)
                 if reference_embedding is None:
                     continue
                 score = max(-1.0, min(1.0, float(reference_embedding @ access_embedding)))
@@ -221,7 +240,8 @@ class AccessFaceVerifier:
             claimed_candidate = next((item for _, item in scores if item.get('id') == claimed_student_id), None)
             result['identified'] = claimed_candidate
             result['identified_similarity'] = claimed_score
-        elif best_score >= self.confirm_threshold:
+        elif best_score >= self.candidate_threshold:
             result['identified'] = best_candidate
             result['identified_similarity'] = best_score
+            result['identified_tentative'] = True
         return result

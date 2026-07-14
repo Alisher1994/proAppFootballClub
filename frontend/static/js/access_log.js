@@ -58,6 +58,7 @@ function faceVerificationStatus(log) {
     if (status === 'suspicious') return { label: `Сомнительно${percent ? ` · ${percent}` : ''}`, className: 'suspicious' };
     if (status === 'mismatch') return { label: `Не совпадает${percent ? ` · ${percent}` : ''}`, className: 'mismatch' };
     if (status === 'unavailable') return { label: 'Не удалось проверить', className: 'unavailable' };
+    if (status === 'processing') return { label: 'Сверка...', className: 'pending' };
     if (status === 'not_applicable') return { label: '—', className: 'not-applicable' };
     return { label: 'Не проверено', className: 'pending' };
 }
@@ -78,7 +79,7 @@ function renderAccessPhoto(log) {
 
 function actualPersonLabel(log) {
     if (log.person_type !== 'student') return log.full_name || 'Проверка не применяется';
-    if (log.identified_full_name) return log.identified_full_name;
+    if (log.identified_full_name) return `${log.identified_tentative ? 'Предположительно: ' : ''}${log.identified_full_name}`;
     if (!log.face_identified_at || ['pending', 'processing'].includes(log.face_verification_status)) return 'Определяется...';
     return 'Не удалось определить';
 }

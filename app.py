@@ -167,6 +167,7 @@ access_face_verify_queue = queue.Queue()
 access_face_verify_queued = set()
 access_face_verify_lock = threading.Lock()
 access_face_verify_worker_started = False
+ACCESS_FACE_IDENTIFICATION_VERSION = 2
 
 # RTSP Настройки камеры Ezviz (Замените ВАШ_ПАРОЛЬ на реальный пароль от камеры)
 RTSP_URL = "rtsp://admin:UNZKZK@192.168.100.3:554/h264_stream"
@@ -1745,6 +1746,7 @@ def ensure_access_logs_table():
                 'identified_group_name': "ALTER TABLE access_logs ADD COLUMN identified_group_name VARCHAR(100)",
                 'identified_similarity': "ALTER TABLE access_logs ADD COLUMN identified_similarity FLOAT",
                 'face_identified_at': "ALTER TABLE access_logs ADD COLUMN face_identified_at TIMESTAMP",
+                'face_identification_version': "ALTER TABLE access_logs ADD COLUMN face_identification_version INTEGER",
                 'raw_event': "ALTER TABLE access_logs ADD COLUMN raw_event TEXT",
                 'created_at': "ALTER TABLE access_logs ADD COLUMN created_at TIMESTAMP",
             }
@@ -4055,6 +4057,8 @@ def update_student(student_id):
                 # Сохранить новое фото через сервис (возвращает корректный относительный путь)
                 photo_path = face_service.save_student_photo(photo, student.id)
                 student.photo_path = photo_path
+                # The previous ArcFace vector belongs to the replaced photo.
+                student.face_encoding = None
                 
                 # Создать новый face encoding через ArcFace
                 try:
@@ -5209,7 +5213,13 @@ def access_log_to_dict(log, photo_available=None):
         'identified_group_name': log.identified_group_name,
         'identified_photo_url': build_photo_url(identified_student.photo_path) if identified_student else None,
         'identified_similarity': round(max(0.0, min(1.0, float(log.identified_similarity))) * 100, 1) if log.identified_similarity is not None else None,
+        'identified_tentative': bool(
+            log.identified_student_id
+            and log.identified_similarity is not None
+            and float(log.identified_similarity) < access_face_verifier.confirm_threshold
+        ),
         'face_identified_at': log.face_identified_at.isoformat() if log.face_identified_at else None,
+        'face_identification_version': log.face_identification_version,
         'face_verification_status': log.face_verification_status,
         'face_similarity': round(max(0.0, min(1.0, float(log.face_similarity))) * 100, 1) if log.face_similarity is not None else None,
         'face_verification_reason': log.face_verification_reason,
@@ -5257,19 +5267,47 @@ def resolve_student_photo_path(photo_path):
     return next((path for path in candidates if os.path.isfile(path)), None)
 
 
+def stored_student_face_embedding(student):
+    try:
+        embedding = student.get_face_encoding()
+        if embedding is not None and len(embedding) == 512:
+            return embedding
+    except (TypeError, ValueError, json.JSONDecodeError):
+        pass
+    return None
+
+
 def run_access_face_verify_worker():
     while True:
         log_id = access_face_verify_queue.get()
         try:
             with app.app_context():
                 log = db.session.get(AccessLog, log_id)
-                if not log or log.face_identified_at:
+                if not log or (log.face_identified_at and log.face_identification_version == ACCESS_FACE_IDENTIFICATION_VERSION):
                     continue
+                stale_before = get_local_datetime() - timedelta(minutes=10)
+                if (
+                    log.face_verification_status == 'processing'
+                    and log.face_verified_at
+                    and log.face_verified_at > stale_before
+                ):
+                    continue
+                log.face_verification_status = 'processing'
+                log.face_verification_reason = 'Сервер индексирует и сравнивает лица'
+                log.face_verified_at = get_local_datetime()
+                log.identified_student_id = None
+                log.identified_full_name = None
+                log.identified_employee_no = None
+                log.identified_group_name = None
+                log.identified_similarity = None
+                log.face_identified_at = None
+                db.session.commit()
                 if log.person_type != 'student' or not log.student_id:
                     log.face_verification_status = 'not_applicable'
                     log.face_verification_reason = 'Проверка выполняется только для учеников'
                     log.face_verified_at = get_local_datetime()
                     log.face_identified_at = get_local_datetime()
+                    log.face_identification_version = ACCESS_FACE_IDENTIFICATION_VERSION
                     db.session.commit()
                     continue
 
@@ -5287,6 +5325,7 @@ def run_access_face_verify_worker():
                     'employee_no': str(item.id),
                     'group_name': group_names.get(item.group_id),
                     'photo_path': resolve_student_photo_path(item.photo_path),
+                    'embedding': stored_student_face_embedding(item),
                 } for item in students]
                 result = access_face_verifier.identify_and_verify(
                     access_log_photo_url(log), candidates, log.student_id,
@@ -5302,9 +5341,28 @@ def run_access_face_verify_worker():
                 log.identified_group_name = identified.get('group_name')
                 log.identified_similarity = result.get('identified_similarity')
                 log.face_identified_at = get_local_datetime()
+                log.face_identification_version = ACCESS_FACE_IDENTIFICATION_VERSION
+                students_by_id = {item.id: item for item in students}
+                for candidate in candidates:
+                    computed = candidate.get('computed_embedding')
+                    target = students_by_id.get(candidate.get('id'))
+                    if computed is not None and target is not None:
+                        target.set_face_encoding(np.asarray(computed, dtype=np.float32))
                 db.session.commit()
         except Exception as exc:
             print(f'Access face verification failed for log {log_id}: {type(exc).__name__}: {exc}')
+            try:
+                with app.app_context():
+                    failed_log = db.session.get(AccessLog, log_id)
+                    if failed_log and not failed_log.face_identified_at:
+                        failed_log.face_verification_status = 'unavailable'
+                        failed_log.face_verification_reason = f'Ошибка серверной сверки: {type(exc).__name__}'[:300]
+                        failed_log.face_verified_at = get_local_datetime()
+                        failed_log.face_identified_at = get_local_datetime()
+                        failed_log.face_identification_version = ACCESS_FACE_IDENTIFICATION_VERSION
+                        db.session.commit()
+            except Exception as save_exc:
+                print(f'Could not save face verification error for log {log_id}: {save_exc}')
         finally:
             with access_face_verify_lock:
                 access_face_verify_queued.discard(log_id)
@@ -5670,8 +5728,9 @@ def access_log_list():
         db.session.commit()
 
     for log in logs:
-        if log.person_type == 'student' and not log.face_identified_at:
-            log.face_verification_status = 'pending'
+        if log.person_type == 'student' and log.face_identification_version != ACCESS_FACE_IDENTIFICATION_VERSION:
+            if log.face_verification_status != 'processing':
+                log.face_verification_status = 'pending'
             schedule_access_face_verification(log.id)
 
     log_ids = [log.id for log in logs]
@@ -5754,6 +5813,7 @@ def hikvision_access_event():
                 existing.identified_group_name = None
                 existing.identified_similarity = None
                 existing.face_identified_at = None
+                existing.face_identification_version = None
             if existing.person_type != 'staff' and not existing.attendance_id and existing.result == 'granted':
                 attendance, attendance_created = apply_attendance_to_access_log(existing)
                 if attendance:

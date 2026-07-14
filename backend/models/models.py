@@ -374,6 +374,7 @@ class AccessLog(db.Model):
     identified_group_name = db.Column(db.String(100), nullable=True)
     identified_similarity = db.Column(db.Float, nullable=True)
     face_identified_at = db.Column(db.DateTime, nullable=True)
+    face_identification_version = db.Column(db.Integer, nullable=True)
     raw_event = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime, default=get_local_datetime)
 

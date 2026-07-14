@@ -5446,6 +5446,11 @@ textarea:focus,
     font-weight: 700;
 }
 
+.access-system-photo-empty[hidden],
+.access-photo-panel img[hidden] {
+    display: none !important;
+}
+
 .access-photo-caption {
     display: flex;
     flex-direction: column;

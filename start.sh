@@ -20,4 +20,4 @@ sleep 2
 
 # Запускаем веб-сервер
 echo "🚀 Starting Web Server (gunicorn)..."
-exec gunicorn app:app --bind 0.0.0.0:$PORT --workers 2 --timeout 120
+exec gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --threads 4 --worker-class gthread --timeout 120
