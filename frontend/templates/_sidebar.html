@@ -511,18 +511,28 @@
     document.addEventListener('DOMContentLoaded', () => {
         const sidebarVideo = document.querySelector('.sidebar-bg-video');
         const loadSidebarVideo = () => {
-            if (!sidebarVideo || window.matchMedia('(max-width: 900px)').matches || navigator.connection?.saveData) return;
+            const connection = navigator.connection;
+            if (
+                !sidebarVideo
+                || window.matchMedia('(max-width: 900px)').matches
+                || connection?.saveData
+                || ['slow-2g', '2g', '3g'].includes(connection?.effectiveType)
+            ) return;
             const source = sidebarVideo.querySelector('source[data-src]');
             if (!source || source.hasAttribute('src')) return;
             source.src = source.dataset.src;
             sidebarVideo.load();
             sidebarVideo.play().catch(() => {});
         };
-        if (document.readyState === 'complete') {
-            setTimeout(loadSidebarVideo, 300);
-        } else {
-            window.addEventListener('load', () => setTimeout(loadSidebarVideo, 300), { once: true });
-        }
+        const scheduleSidebarVideo = () => {
+            if ('requestIdleCallback' in window) {
+                window.requestIdleCallback(loadSidebarVideo, { timeout: 5000 });
+            } else {
+                setTimeout(loadSidebarVideo, 4000);
+            }
+        };
+        if (document.readyState === 'complete') scheduleSidebarVideo();
+        else window.addEventListener('load', scheduleSidebarVideo, { once: true });
 
         const moreBtn = document.getElementById('mobileMoreBtn');
         const closeMoreBtn = document.getElementById('closeMobileMore');

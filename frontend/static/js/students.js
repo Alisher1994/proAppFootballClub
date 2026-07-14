@@ -1,6 +1,6 @@
 const studentEditIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
 const studentTrashIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v5"/><path d="M14 11v5"/></svg>';
-const studentPhotoPlaceholderUrl = '/static/uploads/avatar_placeholder.png';
+const studentPhotoPlaceholderUrl = '/static/uploads/avatar_ccount_thumb.png';
 
 function studentPhotoPlaceholderHtml(selectBtnId) {
     return `
@@ -180,7 +180,7 @@ function buildGroupTeacherAvatar(group) {
     }
     const name = escapeHtml(teacher.full_name || teacher.username || 'Тренер');
     if (teacher.photo_url) {
-        return `<img class="group-picker-avatar" src="${escapeHtml(teacher.photo_url)}" alt="${name}" title="${name}">`;
+        return `<img class="group-picker-avatar" src="${escapeHtml(teacher.photo_url)}" alt="${name}" title="${name}" loading="lazy" decoding="async">`;
     }
     return `<span class="group-picker-avatar placeholder" title="${name}">${escapeHtml(teacher.initials || 'T')}</span>`;
 }

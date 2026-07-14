@@ -70,7 +70,7 @@ function renderAccessPhoto(log) {
         const verification = faceVerificationStatus(log);
         return `
             <button type="button" class="access-photo-thumb" data-photo-url="${escapeHtml(log.access_photo_url)}" data-system-photo-url="${escapeHtml(log.person_photo_url || '')}" data-photo-title="${label}" data-photo-meta="${escapeHtml(formatAccessDateTime(log.event_time))}" data-photo-verification="${escapeHtml(log.face_verification_reason || verification.label)}" data-actual-name="${escapeHtml(actualPersonLabel(log))}" data-claimed-name="${label}">
-                <img src="${escapeHtml(log.access_photo_url)}" alt="${label}" loading="lazy">
+                <img src="${escapeHtml(log.access_photo_thumb_url || log.access_photo_url)}" alt="${label}" loading="lazy" decoding="async">
             </button>
         `;
     }

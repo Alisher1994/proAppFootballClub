@@ -107,7 +107,7 @@ function teamById(id) {
 }
 
 function logoImg(url, className, alt = '') {
-    return url ? `<img class="${className}" src="${escapeHtml(url)}" alt="${escapeHtml(alt)}">` : '';
+    return url ? `<img class="${className}" src="${escapeHtml(url)}" alt="${escapeHtml(alt)}" loading="lazy" decoding="async">` : '';
 }
 
 function actionIcon(type) {
@@ -119,7 +119,7 @@ function actionIcon(type) {
 
 function systemSquareLogo(className = 'lineup-system-logo') {
     const url = window.SYSTEM_SQUARE_LOGO_URL || '/static/uploads/favicon.png';
-    return `<img class="${className}" src="${escapeHtml(url)}" alt="">`;
+    return `<img class="${className}" src="${escapeHtml(url)}" alt="" loading="lazy" decoding="async">`;
 }
 
 function toDateInput(value) {
@@ -481,7 +481,7 @@ async function loadStudentsForTeamPicker(selectedPlayerIds = null) {
     qs('teamPlayerPicker').innerHTML = players.length ? players.map((player) => `
         <label class="team-player-option">
             <input type="checkbox" value="${player.id}" ${selectedSet.has(Number(player.id)) ? 'checked' : ''}>
-            ${player.photo_url ? `<img src="${player.photo_url}" alt="">` : `<span class="avatar-fallback">${escapeHtml((player.name || '?').slice(0, 1))}</span>`}
+            ${player.photo_url ? `<img src="${player.photo_url}" alt="" loading="lazy" decoding="async">` : `<span class="avatar-fallback">${escapeHtml((player.name || '?').slice(0, 1))}</span>`}
             <span><strong>${escapeHtml(player.name)}</strong><small>${escapeHtml(player.group_name || '')}</small></span>
         </label>
     `).join('') : '<div class="empty-state small">В выбранных группах нет игроков.</div>';
@@ -555,7 +555,7 @@ function renderLineupPicker() {
                     const displayName = displayStudentName(player.name);
                     return `
                         <button class="lineup-player-choice" type="button" data-player-id="${player.id}">
-                            ${player.photo_url ? `<img src="${player.photo_url}" alt="">` : `<span class="avatar-fallback">${escapeHtml(displayName.slice(0, 1))}</span>`}
+                            ${player.photo_url ? `<img src="${player.photo_url}" alt="" loading="lazy" decoding="async">` : `<span class="avatar-fallback">${escapeHtml(displayName.slice(0, 1))}</span>`}
                             <span>
                                 <strong>${systemSquareLogo()}${escapeHtml(displayName)}</strong>
                                 <small>${player.number ? `№${escapeHtml(player.number)} · ` : ''}${escapeHtml(player.group_name || 'Без группы')}</small>
@@ -722,7 +722,7 @@ function renderLineup() {
                                     <div class="lineup-slot ${player ? 'filled' : 'empty'} ${slot.rowIndex <= 1 ? 'panel-up' : ''} ${isLineupActive || isEventActive ? 'active' : ''}" data-lineup-slot="${slot.order}" role="button" tabindex="0">
                                         ${player ? `
                                             <div class="lineup-avatar-wrap">
-                                                ${player.photo_url ? `<img src="${player.photo_url}" alt="">` : `<span class="pitch-avatar">${escapeHtml((player.student_name || '?').slice(0, 1))}</span>`}
+                                                ${player.photo_url ? `<img src="${player.photo_url}" alt="" loading="lazy" decoding="async">` : `<span class="pitch-avatar">${escapeHtml((player.student_name || '?').slice(0, 1))}</span>`}
                                                 ${renderLineupEventBadges(summary)}
                                             </div>
                                             <strong>${systemSquareLogo()}${escapeHtml(player.student_name)}</strong>
@@ -1167,7 +1167,7 @@ function renderPitchPoster() {
             <div class="pitch-row pitch-row-${rowIndex}" style="grid-template-columns: repeat(${count}, minmax(72px, 1fr));">
                 ${rowPlayers.map((player) => `
                     <div class="pitch-player">
-                        ${player.photo_url ? `<img src="${player.photo_url}" alt="">` : `<span class="pitch-avatar">${escapeHtml((player.student_name || '?').slice(0, 1))}</span>`}
+                        ${player.photo_url ? `<img src="${player.photo_url}" alt="" loading="lazy" decoding="async">` : `<span class="pitch-avatar">${escapeHtml((player.student_name || '?').slice(0, 1))}</span>`}
                         <strong>${escapeHtml(player.student_name)}</strong>
                         <span>${escapeHtml(player.position || 'Игрок')}${player.shirt_number ? ` · №${escapeHtml(player.shirt_number)}` : ''}</span>
                     </div>

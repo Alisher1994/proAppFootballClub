@@ -47,9 +47,9 @@ function renderPodium(rating, groupName) {
                     placeEmoji = '🥉';
                 }
                 
-                const photoUrl = student.photo_path ? 
-                    `/static/${student.photo_path.replace('frontend/static/', '').replace(/\\/g, '/')}` : 
-                    null;
+                const photoUrl = student.photo_url || (student.photo_path
+                    ? `/static/${student.photo_path.replace('frontend/static/', '').replace(/\\/g, '/')}`
+                    : null);
                 
                 const placeholderId = `placeholder-${student.student_id}-${groupName}`;
                 let medalClass = '';
@@ -81,7 +81,7 @@ function renderPodium(rating, groupName) {
                             <div class="podium-place ${medalClass}">${placeEmoji}</div>
                             <div class="podium-photo-wrapper">
                                 ${photoUrl ? 
-                                    `<img src="${photoUrl}" alt="${student.full_name}" class="podium-photo" onerror="document.getElementById('${placeholderId}').style.display='flex'; this.style.display='none';">` : 
+                                    `<img src="${photoUrl}" alt="${student.full_name}" class="podium-photo" loading="lazy" decoding="async" onerror="document.getElementById('${placeholderId}').style.display='flex'; this.style.display='none';">` :
                                     ''
                                 }
                                 <div id="${placeholderId}" class="avatar-placeholder" style="width: 80px; height: 80px; border-radius: 50%; margin: 0 auto; display: ${photoUrl ? 'none' : 'flex'}; align-items: center; justify-content: center; background: #e0e0e0; font-size: 32px; border: 4px solid #fff; box-shadow: 0 4px 12px rgba(0,0,0,0.2); position: relative; z-index: 5;">👤</div>
@@ -206,4 +206,3 @@ function triggerParticlesAnimation() {
 document.addEventListener('DOMContentLoaded', () => {
     loadAllGroupsRating();
 });
-

@@ -59,7 +59,7 @@
 
     function renderPhoto(row) {
         if (row.photo_url) {
-            return `<img class="staff-photo" src="${escapeHtml(row.photo_url)}" alt="">`;
+            return `<img class="staff-photo" src="${escapeHtml(row.photo_url)}" alt="" loading="lazy" decoding="async">`;
         }
         const initials = (row.full_name || row.username || '?').trim().slice(0, 1).toUpperCase();
         return `<span class="staff-photo">${escapeHtml(initials)}</span>`;

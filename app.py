@@ -1,4 +1,5 @@
 import os
+import io
 import json
 import base64
 import shutil
@@ -34,7 +35,7 @@ try:
     load_dotenv()
 except Exception:
     pass
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont, ImageOps
 import psutil
 try:
     import pynvml
@@ -157,6 +158,21 @@ bcrypt = Bcrypt(app)
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
 
+
+@app.after_request
+def add_asset_cache_headers(response):
+    """Avoid downloading the same shared CSS, JS and media on every tab change."""
+    if request.path.startswith('/static/') and response.status_code in {200, 206, 304}:
+        extension = os.path.splitext(request.path.lower())[1]
+        max_age = 3600 if extension in {'.css', '.js'} else (
+            2592000 if extension in {'.jpg', '.jpeg', '.png', '.webp', '.gif', '.svg', '.mp4', '.woff', '.woff2'}
+            else 86400
+        )
+        response.cache_control.public = True
+        response.cache_control.max_age = max_age
+        response.cache_control.no_cache = None
+    return response
+
 # --- БЛОК АВТОМАТИЧЕСКОЙ ИНИЦИАЛИЗАЦИИ ПЕРЕНЕСЕН В КОНЕЦ ФАЙЛА ---
 # (чтобы все функции были объявлены до их вызова)
 # ---------------------------------------------
@@ -168,6 +184,7 @@ access_face_verify_queued = set()
 access_face_verify_lock = threading.Lock()
 access_face_verify_worker_started = False
 ACCESS_FACE_IDENTIFICATION_VERSION = 2
+photo_thumbnail_lock = threading.Lock()
 
 # RTSP Настройки камеры Ezviz (Замените ВАШ_ПАРОЛЬ на реальный пароль от камеры)
 RTSP_URL = "rtsp://admin:UNZKZK@192.168.100.3:554/h264_stream"
@@ -1828,7 +1845,10 @@ def ensure_payment_indexes():
 
     ensure_index('attendance', 'idx_attendance_date_student', "CREATE INDEX IF NOT EXISTS idx_attendance_date_student ON attendance (date, student_id)")
     ensure_index('attendance', 'idx_attendance_student_date', "CREATE INDEX IF NOT EXISTS idx_attendance_student_date ON attendance (student_id, date)")
+    ensure_index('attendance', 'idx_attendance_check_in', "CREATE INDEX IF NOT EXISTS idx_attendance_check_in ON attendance (check_in)")
     ensure_index('students', 'idx_students_status_group', "CREATE INDEX IF NOT EXISTS idx_students_status_group ON students (status, group_id)")
+    ensure_index('student_rewards', 'idx_student_rewards_year_month_student', "CREATE INDEX IF NOT EXISTS idx_student_rewards_year_month_student ON student_rewards (year, month, student_id)")
+    ensure_index('expenses', 'idx_expenses_expense_date', "CREATE INDEX IF NOT EXISTS idx_expenses_expense_date ON expenses (expense_date)")
     ensure_index('access_logs', 'idx_access_logs_date_direction', "CREATE INDEX IF NOT EXISTS idx_access_logs_date_direction ON access_logs (event_date, direction)")
     ensure_index('access_logs', 'idx_access_logs_employee_time', "CREATE INDEX IF NOT EXISTS idx_access_logs_employee_time ON access_logs (employee_no, event_time)")
     ensure_index('access_logs', 'idx_access_logs_face_status', "CREATE INDEX IF NOT EXISTS idx_access_logs_face_status ON access_logs (face_verification_status)")
@@ -2448,6 +2468,7 @@ def inject_system_name():
 
 SERVICE_LOCK_BYPASS_PATH_PREFIXES = (
     '/static/',
+    '/media/photo-thumb/',
     '/favicon.ico',
     '/api/service-control/state',
     '/api/telegram/service-control/status',
@@ -3122,6 +3143,70 @@ def build_photo_url(photo_path):
     return url_for('static', filename=path)
 
 
+def normalize_static_photo_path(photo_path):
+    if not photo_path:
+        return None
+    path = str(photo_path).replace('\\', '/').lstrip('/')
+    changed = True
+    while changed:
+        changed = False
+        for prefix in ('frontend/', 'static/'):
+            if path.startswith(prefix):
+                path = path[len(prefix):]
+                changed = True
+    return path or None
+
+
+def build_photo_thumb_url(photo_path):
+    relative_path = normalize_static_photo_path(photo_path)
+    if not relative_path:
+        return None
+    return url_for('photo_thumbnail', filename=relative_path)
+
+
+@app.route('/media/photo-thumb/<path:filename>')
+def photo_thumbnail(filename):
+    """Create and cache a small photo only when a visible list item requests it."""
+    relative_path = normalize_static_photo_path(filename)
+    static_root = os.path.abspath(app.static_folder)
+    source_path = os.path.abspath(os.path.join(static_root, relative_path or ''))
+    try:
+        if os.path.commonpath([static_root, source_path]) != static_root:
+            return '', 404
+    except ValueError:
+        return '', 404
+    if not relative_path or not os.path.isfile(source_path):
+        return '', 404
+
+    try:
+        stat = os.stat(source_path)
+        cache_key = hashlib.sha1(
+            f'{relative_path}:{stat.st_mtime_ns}:{stat.st_size}'.encode('utf-8')
+        ).hexdigest()[:24]
+        cache_dir = os.path.join(app.config['UPLOAD_FOLDER'], '.thumb_cache')
+        cache_path = os.path.join(cache_dir, f'{cache_key}.jpg')
+        if not os.path.isfile(cache_path):
+            with photo_thumbnail_lock:
+                if not os.path.isfile(cache_path):
+                    os.makedirs(cache_dir, exist_ok=True)
+                    with Image.open(source_path) as image:
+                        image = ImageOps.exif_transpose(image).convert('RGB')
+                        image = ImageOps.fit(
+                            image,
+                            (192, 192),
+                            method=Image.Resampling.LANCZOS,
+                            centering=(0.5, 0.38),
+                        )
+                        image.save(cache_path, 'JPEG', quality=78, optimize=True, progressive=True)
+        response = send_file(cache_path, mimetype='image/jpeg', conditional=True, max_age=2592000)
+        response.cache_control.public = False
+        response.cache_control.private = True
+        return response
+    except Exception as exc:
+        print(f'Photo thumbnail failed for {relative_path}: {type(exc).__name__}: {exc}')
+        return '', 404
+
+
 def get_user_photo_thumb_path(photo_path):
     if not photo_path:
         return None
@@ -3138,7 +3223,7 @@ def build_user_photo_thumb_url(photo_path):
     thumb_path = get_user_photo_thumb_path(photo_path)
     if thumb_path and os.path.exists(thumb_path):
         return build_photo_url(thumb_path)
-    return build_photo_url(photo_path) or url_for('static', filename='uploads/avatar_ccount_thumb.png')
+    return build_photo_thumb_url(photo_path) or url_for('static', filename='uploads/avatar_ccount_thumb.png')
 
 
 def delete_user_photo_files(photo_path):
@@ -3590,7 +3675,7 @@ def get_students_list():
         for student in students:
             balance = balances.get(student.id, 0)
             group_name = student.group.name if student.group else 'Без группы'
-            photo_url = build_photo_url(student.photo_path)
+            photo_url = build_photo_thumb_url(student.photo_path)
             search_text = ' '.join(filter(None, [
                 student.full_name,
                 student.student_number,
@@ -3647,7 +3732,7 @@ def get_students_list():
                 'group_name': student.group.name if student.group else None,
                 'status': student.status,
                 'photo_path': student.photo_path,
-                'photo_url': build_photo_url(student.photo_path),
+                'photo_url': build_photo_thumb_url(student.photo_path),
                 'tariff_id': student.tariff_id,
                 'tariff_name': student.tariff.name if student.tariff else None,
                 'tariff_price': student.tariff.price if student.tariff else 0,
@@ -4315,7 +4400,7 @@ def serialize_tournament_team(team, include_players=False):
             'position': item.position,
             'group_id': item.student.group_id if item.student else None,
             'group_name': item.student.group.name if item.student and item.student.group else None,
-            'photo_url': build_photo_url(item.student.photo_path) if item.student and item.student.photo_path else None,
+            'photo_url': build_photo_thumb_url(item.student.photo_path) if item.student and item.student.photo_path else None,
             'player_type': 'internal',
         } for item in sorted(getattr(team, 'players', []), key=lambda row: ((row.student.full_name if row.student else ''), row.id))]
         payload['external_players'] = [{
@@ -4335,7 +4420,7 @@ def serialize_tournament_lineup(lineup):
         'student_id': lineup.student_id,
         'student_name': student.full_name if student else '-',
         'student_number': student.student_number if student else None,
-        'photo_url': build_photo_url(student.photo_path) if student and student.photo_path else None,
+        'photo_url': build_photo_thumb_url(student.photo_path) if student and student.photo_path else None,
         'team_side': lineup.team_side,
         'position': lineup.position,
         'shirt_number': lineup.shirt_number,
@@ -4932,7 +5017,7 @@ def tournament_players_api(tournament_id):
             'number': student.student_number,
             'group_id': student.group_id,
             'group_name': student.group.name if student.group else None,
-            'photo_url': build_photo_url(student.photo_path) if student.photo_path else None,
+            'photo_url': build_photo_thumb_url(student.photo_path) if student.photo_path else None,
         } for student in students]
     })
 
@@ -5187,6 +5272,10 @@ def access_log_to_dict(log, photo_available=None):
     if photo_available is None:
         photo_available = bool(access_log_photo_url(log))
     access_photo_url = url_for('access_log_photo_file', log_id=log.id) if photo_available and log.id else None
+    access_photo_thumb_url = (
+        url_for('access_log_photo_file', log_id=log.id, thumb=1)
+        if photo_available and log.id else None
+    )
     person_photo_url = access_log_person_photo_url(log)
     identified_student = log.identified_student if log.identified_student_id else None
     return {
@@ -5206,6 +5295,7 @@ def access_log_to_dict(log, photo_available=None):
         'result': log.result,
         'source': log.source,
         'access_photo_url': access_photo_url,
+        'access_photo_thumb_url': access_photo_thumb_url,
         'person_photo_url': person_photo_url,
         'identified_student_id': log.identified_student_id,
         'identified_full_name': log.identified_full_name,
@@ -5473,7 +5563,7 @@ def serialize_group_trainer_link(link):
         'username': user.username,
         'full_name': display_name,
         'role': link.role,
-        'photo_url': build_photo_url(user.photo_path),
+        'photo_url': build_user_photo_thumb_url(user.photo_path),
         'initials': initials
     }
 
@@ -5636,7 +5726,7 @@ def staff_timesheet_data():
             'full_name': user.full_name or user.username,
             'username': user.username,
             'role': user_role_name(user),
-            'photo_url': build_photo_url(user.photo_path),
+            'photo_url': build_user_photo_thumb_url(user.photo_path),
             'salary_type': getattr(user, 'salary_type', 'fixed') or 'fixed',
             'fixed_salary': float(user.fixed_salary or 0) if getattr(user, 'fixed_salary', None) is not None else None,
             'salary_paid': salary_paid,
@@ -5780,6 +5870,31 @@ def access_log_photo_file(log_id):
             return '', 404
     except Exception:
         return '', 404
+
+    if request.args.get('thumb') == '1':
+        try:
+            cache_key = hashlib.sha1(image_bytes).hexdigest()[:24]
+            cache_dir = os.path.join(app.config['UPLOAD_FOLDER'], '.thumb_cache')
+            cache_path = os.path.join(cache_dir, f'access_{log_id}_{cache_key}.jpg')
+            if not os.path.isfile(cache_path):
+                with photo_thumbnail_lock:
+                    if not os.path.isfile(cache_path):
+                        os.makedirs(cache_dir, exist_ok=True)
+                        with Image.open(io.BytesIO(image_bytes)) as image:
+                            image = ImageOps.exif_transpose(image).convert('RGB')
+                            image = ImageOps.fit(
+                                image,
+                                (160, 160),
+                                method=Image.Resampling.LANCZOS,
+                                centering=(0.5, 0.38),
+                            )
+                            image.save(cache_path, 'JPEG', quality=75, optimize=True, progressive=True)
+            response = send_file(cache_path, mimetype='image/jpeg', conditional=True, max_age=2592000)
+            response.cache_control.public = False
+            response.cache_control.private = True
+            return response
+        except Exception:
+            return '', 404
 
     response = Response(image_bytes, mimetype=mime_type)
     response.cache_control.private = True
@@ -6086,20 +6201,23 @@ def today_attendance():
     """Список присутствующих сегодня"""
     try:
         today = get_local_date()
-        records = Attendance.query.filter_by(date=today).all()
+        records = Attendance.query.options(
+            joinedload(Attendance.student).joinedload(Student.group),
+            joinedload(Attendance.student).joinedload(Student.tariff),
+        ).filter_by(date=today).all()
+        balances = calculate_student_balances_bulk([
+            record.student for record in records if record.student
+        ])
         
         result = []
         for record in records:
             if not record.student:
                 continue
                 
-            photo_url = None
-            if record.student.photo_path:
-                normalized_path = record.student.photo_path.replace('frontend/static/', '').replace('\\', '/').lstrip('/')
-                photo_url = url_for('static', filename=normalized_path)
+            photo_url = build_photo_thumb_url(record.student.photo_path)
             
             group_name = record.student.group.name if record.student.group else 'Без группы'
-            student_balance = calculate_student_balance(record.student)
+            student_balance = balances.get(record.student.id, 0)
             low_balance = (not record.student.club_funded) and (student_balance <= 0)
             
             # Безопасное получение времени
@@ -6165,7 +6283,10 @@ def all_attendance():
     student_id = request.args.get('student_id')
     
     # Базовый запрос
-    query = db.session.query(Attendance).join(Student)
+    query = db.session.query(Attendance).options(
+        joinedload(Attendance.student).joinedload(Student.group),
+        joinedload(Attendance.student).joinedload(Student.tariff),
+    ).join(Student)
     
     # Применение фильтров
     if year:
@@ -6182,6 +6303,9 @@ def all_attendance():
     
     # Сортировка по дате (сначала новые)
     records = query.order_by(Attendance.check_in.desc()).all()
+    balances = calculate_student_balances_bulk([
+        record.student for record in records if record.student
+    ])
     
     result = []
     for record in records:
@@ -6191,7 +6315,7 @@ def all_attendance():
             'student_name': record.student.full_name,
             'group_name': record.student.group.name if record.student.group else None,
             'check_in_time': record.check_in.isoformat(),
-            'balance': calculate_student_balance(record.student)
+            'balance': balances.get(record.student_id, 0)
         })
     
     return jsonify(result)
@@ -6208,33 +6332,33 @@ def get_attendance_analytics():
     if not year:
         year = date.today().year
     
-    # Посещаемость по месяцам
-    monthly_data = []
-    for month in range(1, 13):
-        count = db.session.query(func.count(Attendance.id)).filter(
-            extract('year', Attendance.check_in) == year,
-            extract('month', Attendance.check_in) == month
-        ).scalar() or 0
-        
-        month_names = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 
-                      'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек']
-        monthly_data.append({
-            'month': month,
-            'month_name': month_names[month - 1],
-            'count': count
-        })
+    # Одна агрегация вместо 12 отдельных запросов по месяцам.
+    monthly_rows = db.session.query(
+        extract('month', Attendance.check_in).label('month'),
+        func.count(Attendance.id).label('count'),
+    ).filter(
+        extract('year', Attendance.check_in) == year
+    ).group_by(extract('month', Attendance.check_in)).all()
+    monthly_counts = {int(row.month): int(row.count or 0) for row in monthly_rows if row.month}
+    month_names = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн',
+                   'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек']
+    monthly_data = [{
+        'month': month,
+        'month_name': month_names[month - 1],
+        'count': monthly_counts.get(month, 0),
+    } for month in range(1, 13)]
     
     # Посещаемость по дням недели (1=Пн, 7=Вс)
     # Получаем все записи за год и группируем по дням недели в Python
-    all_attendance = Attendance.query.filter(
+    attendance_times = db.session.query(Attendance.check_in).filter(
         extract('year', Attendance.check_in) == year
     ).all()
     
     weekday_counts = {i: 0 for i in range(1, 8)}  # 1=Пн, 7=Вс
-    for att in all_attendance:
-        if att.check_in:
+    for (check_in,) in attendance_times:
+        if check_in:
             # weekday() возвращает 0=Пн, 6=Вс, конвертируем в 1-7
-            weekday = att.check_in.weekday() + 1
+            weekday = check_in.weekday() + 1
             weekday_counts[weekday] = weekday_counts.get(weekday, 0) + 1
     
     weekday_data = [{
@@ -6258,20 +6382,17 @@ def get_attendance_analytics():
     } for g in group_stats]
     
     # Статистика опозданий
-    total_attendance = db.session.query(func.count(Attendance.id)).filter(
-        extract('year', Attendance.check_in) == year
-    ).scalar() or 0
-    
-    total_late = db.session.query(func.count(Attendance.id)).filter(
-        extract('year', Attendance.check_in) == year,
-        Attendance.is_late == True
-    ).scalar() or 0
-    
-    avg_late = db.session.query(func.avg(Attendance.late_minutes)).filter(
+    total_attendance = sum(monthly_counts.values())
+    total_late, avg_late = db.session.query(
+        func.count(Attendance.id),
+        func.avg(Attendance.late_minutes),
+    ).filter(
         extract('year', Attendance.check_in) == year,
         Attendance.is_late == True,
         Attendance.late_minutes.isnot(None)
-    ).scalar() or 0
+    ).one()
+    total_late = total_late or 0
+    avg_late = avg_late or 0
     
     late_percentage = round((total_late / total_attendance * 100) if total_attendance > 0 else 0, 1)
     
@@ -6371,6 +6492,7 @@ def get_groups_attendance_statistics():
                 'last_name': last_name,
                 'full_name': student.full_name,
                 'photo_path': student.photo_path,
+                'photo_url': build_photo_thumb_url(student.photo_path),
                 'has_attended': att is not None,
                 'check_in_time': check_in_time,
                 'check_in_datetime': check_in_datetime,
@@ -7539,6 +7661,7 @@ def get_analytics():
 @login_required
 def get_finances_monthly():
     """Данные по месяцам: приход, расход, остаток (приход - расход)"""
+    from calendar import monthrange
     from sqlalchemy import func, extract
     from datetime import date
 
@@ -7547,28 +7670,72 @@ def get_finances_monthly():
     if not year:
         year = date.today().year
 
+    income_rows = db.session.query(
+        extract('month', Payment.payment_date).label('month'),
+        func.coalesce(func.sum(Payment.amount_paid), 0).label('total'),
+    ).filter(extract('year', Payment.payment_date) == year).group_by(
+        extract('month', Payment.payment_date)
+    ).all()
+    expense_rows = db.session.query(
+        extract('month', Expense.expense_date).label('month'),
+        func.coalesce(func.sum(Expense.amount), 0).label('total'),
+    ).filter(extract('year', Expense.expense_date) == year).group_by(
+        extract('month', Expense.expense_date)
+    ).all()
+    paid_rows = db.session.query(
+        Payment.payment_month,
+        Payment.student_id,
+        func.coalesce(func.sum(Payment.amount_paid), 0),
+    ).filter(
+        Payment.payment_year == year,
+        Payment.payment_month.isnot(None),
+    ).group_by(Payment.payment_month, Payment.student_id).all()
+    students = Student.query.options(joinedload(Student.tariff)).filter_by(status='active').all()
+
+    income_map = {int(row.month): float(row.total or 0) for row in income_rows if row.month}
+    expense_map = {int(row.month): float(row.total or 0) for row in expense_rows if row.month}
+    paid_map = {(int(month), student_id): float(total or 0) for month, student_id, total in paid_rows}
+    settings = get_club_settings_instance()
+    global_start = normalize_month_pair(
+        getattr(settings, 'access_debt_start_year', None),
+        getattr(settings, 'access_debt_start_month', None),
+    )
+    today = get_local_date()
+
     months = []
-    # Последовательность месяцев: январь..декабрь выбранного года
-    for month in range(1, 12 + 1):
-        income = db.session.query(func.sum(Payment.amount_paid)).filter(
-            extract('year', Payment.payment_date) == year,
-            extract('month', Payment.payment_date) == month
-        ).scalar() or 0
-        expense = db.session.query(func.sum(Expense.amount)).filter(
-            extract('year', Expense.expense_date) == year,
-            extract('month', Expense.expense_date) == month
-        ).scalar() or 0
-        debt = calculate_month_debt_total(year, month)
-        expectation = calculate_month_student_expectation(year, month)
-        balance = float(income) - float(expense)
+    for month in range(1, 13):
+        month_start = date(year, month, 1)
+        month_end = date(year, month, monthrange(year, month)[1])
+        eligible = [
+            student for student in students
+            if not student.admission_date or student.admission_date <= month_end
+        ]
+        income = income_map.get(month, 0)
+        expense = expense_map.get(month, 0)
+        expected = sum(
+            float(student.tariff.price or 0)
+            for student in eligible
+            if not student.club_funded and student.tariff
+        )
+        debt = 0
+        if (year, month) <= (today.year, today.month) and (not global_start or (year, month) >= global_start):
+            debt = sum(
+                max(0, float(student.tariff.price or 0) - paid_map.get((month, student.id), 0))
+                for student in eligible
+                if not student.club_funded and student.tariff
+            )
+        new_student_count = sum(
+            1 for student in students
+            if student.admission_date and month_start <= student.admission_date <= month_end
+        )
         months.append({
             'income': float(income),
             'expense': float(expense),
-            'balance': balance,
+            'balance': float(income) - float(expense),
             'debt': float(debt),
-            'expected': expectation['expected'],
-            'student_count': expectation['student_count'],
-            'new_student_count': expectation['new_student_count'],
+            'expected': float(expected),
+            'student_count': len(eligible),
+            'new_student_count': new_student_count,
         })
 
     return jsonify({'months': months})
@@ -7788,7 +7955,7 @@ def get_trainers():
         'id': user.id,
         'username': user.username,
         'full_name': user.full_name or user.username,
-        'photo_url': build_photo_url(user.photo_path)
+        'photo_url': build_user_photo_thumb_url(user.photo_path)
     } for user in trainers])
 
 
@@ -9276,6 +9443,44 @@ def delete_student_card(student_id, card_id):
 
 # ===== РЕЙТИНГ УЧЕНИКОВ =====
 
+def query_rating_totals(year, month=None, group_id=None):
+    """Aggregate rating points in one query instead of one query per student."""
+    query = db.session.query(
+        Student.id.label('student_id'),
+        Student.group_id.label('group_id'),
+        Student.full_name.label('full_name'),
+        Student.photo_path.label('photo_path'),
+        StudentReward.month.label('month'),
+        func.coalesce(func.sum(StudentReward.points), 0).label('points'),
+    ).join(
+        StudentReward, StudentReward.student_id == Student.id
+    ).filter(
+        Student.status == 'active',
+        StudentReward.year == year,
+        ~StudentReward.reward_name.like('[УДАЛЕНО]%'),
+    )
+    if month is not None:
+        query = query.filter(StudentReward.month == month)
+    if group_id is not None:
+        query = query.filter(Student.group_id == group_id)
+    return query.group_by(
+        Student.id,
+        Student.group_id,
+        Student.full_name,
+        Student.photo_path,
+        StudentReward.month,
+    ).order_by(func.sum(StudentReward.points).desc()).all()
+
+
+def serialize_rating_row(row):
+    return {
+        'student_id': row.student_id,
+        'full_name': row.full_name,
+        'photo_path': row.photo_path,
+        'photo_url': build_photo_thumb_url(row.photo_path),
+        'points': int(row.points or 0),
+    }
+
 @app.route('/rating')
 @login_required
 def rating_page():
@@ -9295,24 +9500,10 @@ def get_group_rating(group_id):
         settings = get_club_settings_instance()
         podium_count = getattr(settings, 'podium_display_count', 20)
         
-        # Подсчитать баллы для всех учеников группы за текущий месяц
-        students_query = Student.query.filter_by(group_id=group_id, status='active')
-        
-        rating_data = []
-        for student in students_query.all():
-            total_points = get_student_points_sum(student.id, current_date.month, current_date.year)
-            
-            if total_points > 0:  # Показываем только тех, у кого есть баллы
-                rating_data.append({
-                    'student_id': student.id,
-                    'full_name': student.full_name,
-                    'photo_path': student.photo_path,
-                    'points': total_points
-                })
-        
-        # Сортировать по убыванию баллов и взять топ N
-        rating_data.sort(key=lambda x: x['points'], reverse=True)
-        rating_data = rating_data[:podium_count]
+        rating_data = [
+            serialize_rating_row(row)
+            for row in query_rating_totals(current_date.year, current_date.month, group_id)[:podium_count]
+        ]
         
         return jsonify({
             'rating': rating_data,
@@ -9338,31 +9529,18 @@ def get_all_groups_rating():
         # Получить все группы
         groups = Group.query.all()
         
+        rows_by_group = {}
+        for row in query_rating_totals(current_date.year, current_date.month):
+            bucket = rows_by_group.setdefault(row.group_id, [])
+            if len(bucket) < podium_count:
+                bucket.append(serialize_rating_row(row))
+
         result = []
         for group in groups:
-            # Подсчитать баллы для всех учеников группы за текущий месяц
-            students_query = Student.query.filter_by(group_id=group.id, status='active')
-            
-            rating_data = []
-            for student in students_query.all():
-                total_points = get_student_points_sum(student.id, current_date.month, current_date.year)
-                
-                if total_points > 0:  # Показываем только тех, у кого есть баллы
-                    rating_data.append({
-                        'student_id': student.id,
-                        'full_name': student.full_name,
-                        'photo_path': student.photo_path,
-                        'points': total_points
-                    })
-            
-            # Сортировать по убыванию баллов и взять топ N
-            rating_data.sort(key=lambda x: x['points'], reverse=True)
-            rating_data = rating_data[:podium_count]
-            
             result.append({
                 'group_id': group.id,
                 'group_name': group.name,
-                'rating': rating_data
+                'rating': rows_by_group.get(group.id, [])
             })
         
         return jsonify({
@@ -9387,49 +9565,26 @@ def get_winners_history():
         # Получить все группы
         groups = Group.query.all()
         
+        winners_map = {}
+        for row in query_rating_totals(year):
+            bucket = winners_map.setdefault((row.group_id, int(row.month)), [])
+            if len(bucket) < 3:
+                bucket.append(serialize_rating_row(row))
+
         result = {}
-        
         for group in groups:
             group_winners = []
-            
-            # Для каждого месяца года
             for month in range(1, 13):
-                # Подсчитать баллы для всех учеников группы за этот месяц
-                students_query = Student.query.filter_by(group_id=group.id, status='active')
-                
-                monthly_rating = []
-                for student in students_query.all():
-                    total_points = get_student_points_sum(student.id, month, year)
-                    
-                    if total_points > 0:
-                        monthly_rating.append({
-                            'student_id': student.id,
-                            'full_name': student.full_name,
-                            'photo_path': student.photo_path,
-                            'points': total_points
-                        })
-                
-                # Найти топ-3 учеников
-                if monthly_rating:
-                    monthly_rating.sort(key=lambda x: x['points'], reverse=True)
-                    top_three = monthly_rating[:3]  # Берем топ-3
-                    
-                    group_winners.append({
-                        'month': month,
-                        'students': top_three
-                    })
-                else:
-                    # Нет данных за этот месяц
-                    group_winners.append({
-                        'month': month,
-                        'students': [],
-                        'is_empty': True
-                    })
-            
+                students = winners_map.get((group.id, month), [])
+                group_winners.append({
+                    'month': month,
+                    'students': students,
+                    'is_empty': not students,
+                })
             result[group.id] = {
                 'group_id': group.id,
                 'group_name': group.name,
-                'winners': group_winners
+                'winners': group_winners,
             }
         
         return jsonify({
@@ -9508,7 +9663,7 @@ def get_users():
             'role_name': role_name,
             'is_active': user.is_active,
             'photo_path': user.photo_path,
-            'photo_url': build_photo_url(user.photo_path),
+            'photo_url': build_user_photo_thumb_url(user.photo_path),
             'photo_thumb_url': build_user_photo_thumb_url(user.photo_path),
             'salary_type': getattr(user, 'salary_type', 'fixed') or 'fixed',
             'fixed_salary': getattr(user, 'fixed_salary', None),

@@ -88,7 +88,7 @@ function renderTrainerChecklist(selectId) {
         const displayName = option.textContent.trim();
         const initial = (displayName || 'Т').trim().slice(0, 1).toUpperCase();
         const avatar = trainer.photo_url
-            ? `<img class="trainer-check-avatar" src="${escapeHtml(trainer.photo_url)}" alt="">`
+            ? `<img class="trainer-check-avatar" src="${escapeHtml(trainer.photo_url)}" alt="" loading="lazy" decoding="async">`
             : `<span class="trainer-check-avatar trainer-check-avatar-fallback">${escapeHtml(initial)}</span>`;
         return `
         <label class="trainer-check-option">

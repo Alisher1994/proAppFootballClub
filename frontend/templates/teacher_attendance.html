@@ -499,8 +499,8 @@
                 const statusClass = status ? status : '';
 
                 let photoHtml;
-                if (student.photo_path) {
-                    photoHtml = `<img src="${student.photo_path}" class="student-photo" alt="${student.full_name}">`;
+                if (student.photo_url || student.photo_path) {
+                    photoHtml = `<img src="${student.photo_url || student.photo_path}" class="student-photo" alt="${student.full_name}" loading="lazy" decoding="async">`;
                 } else {
                     const initials = student.full_name.split(' ').map(n => n[0]).join('').substring(0, 2);
                     photoHtml = `<div class="student-photo placeholder">${initials}</div>`;

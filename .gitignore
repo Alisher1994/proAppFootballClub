@@ -12,6 +12,7 @@ database/*.db
 # Загруженные файлы
 # frontend/static/uploads/*
 # !frontend/static/uploads/.gitkeep
+frontend/static/uploads/.thumb_cache/
 *.whl
 models/models/buffalo_s/*.zip
 models/models/buffalo_s/1k3d68.onnx

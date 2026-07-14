@@ -101,10 +101,10 @@ function renderUsersTable() {
             : '-';
         const listPhotoUrl = user.photo_thumb_url || user.photo_url;
         const photoCell = listPhotoUrl
-            ? `<img src="${escapeHtml(listPhotoUrl)}" alt="${escapeHtml(displayName)}" style="width:42px;height:42px;object-fit:cover;border-radius:8px;border:1px solid var(--theme-border);">`
+            ? `<img src="${escapeHtml(listPhotoUrl)}" alt="${escapeHtml(displayName)}" loading="lazy" decoding="async" style="width:42px;height:42px;object-fit:cover;border-radius:8px;border:1px solid var(--theme-border);">`
             : '<span style="color:#94a3b8;font-size:12px;">Нет фото</span>';
         const mobilePhoto = listPhotoUrl
-            ? `<img class="mobile-staff-photo" src="${escapeHtml(listPhotoUrl)}" alt="${escapeHtml(displayName)}">`
+            ? `<img class="mobile-staff-photo" src="${escapeHtml(listPhotoUrl)}" alt="${escapeHtml(displayName)}" loading="lazy" decoding="async">`
             : `<span class="mobile-staff-photo mobile-staff-photo-placeholder">${escapeHtml((displayName || 'С').trim().charAt(0).toUpperCase())}</span>`;
 
         return `

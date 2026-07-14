@@ -158,7 +158,7 @@ function renderGroups() {
         const trainer = [...(group.trainers || []), ...(group.assistants || [])][0];
         const trainerName = trainer ? (trainer.full_name || trainer.username || 'Тренер') : 'Тренер не назначен';
         const trainerAvatar = trainer?.photo_url
-            ? `<img class="group-trainer-avatar" src="${escapeHtml(trainer.photo_url)}" alt="">`
+            ? `<img class="group-trainer-avatar" src="${escapeHtml(trainer.photo_url)}" alt="" loading="lazy" decoding="async">`
             : `<span class="group-trainer-avatar">${escapeHtml((trainerName || '?').trim().slice(0, 1).toUpperCase())}</span>`;
 
         card.innerHTML = `
@@ -236,14 +236,18 @@ function renderStudents(animate = true) {
         const initials = (student.first_name?.[0] || '') + (student.last_name?.[0] || '');
 
         // Photo or Fallback
-        if (student.photo_path) {
+        if (student.photo_url || student.photo_path) {
             const img = document.createElement('img');
             img.className = 'student-photo';
             img.alt = student.first_name;
 
             // Clean path logic
-            const rawPath = student.photo_path.replace('frontend/static/', '').replace(/\\/g, '/').replace(/^\//, '');
-            img.src = `/static/${rawPath}`;
+            const rawPath = student.photo_path
+                ? student.photo_path.replace('frontend/static/', '').replace(/\\/g, '/').replace(/^\//, '')
+                : '';
+            img.src = student.photo_url || `/static/${rawPath}`;
+            img.loading = 'lazy';
+            img.decoding = 'async';
 
             img.onerror = function () {
                 // Replace img with fallback div
