@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Журнал проходов</title>
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='uploads/favicon.png') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=2026070305">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=2026071401">
 </head>
 
 <body>
@@ -44,6 +44,14 @@
                     <option value="denied">Отклонён</option>
                     <option value="error">Ошибка</option>
                 </select>
+                <select id="accessFaceStatusFilter">
+                    <option value="">Все проверки лица</option>
+                    <option value="confirmed">Подтверждено</option>
+                    <option value="suspicious">Сомнительно</option>
+                    <option value="mismatch">Не совпадает</option>
+                    <option value="unavailable">Не удалось проверить</option>
+                    <option value="pending">Не проверено</option>
+                </select>
                 <input id="accessSearchFilter" type="search" placeholder="Поиск: ФИО, ID, группа">
             </div>
 
@@ -58,12 +66,13 @@
                             <th>Ученик / сотрудник</th>
                             <th>Группа</th>
                             <th>Терминал</th>
+                            <th>Сходство</th>
                             <th>Статус</th>
                         </tr>
                     </thead>
                     <tbody id="accessLogBody">
                         <tr>
-                            <td colspan="8" class="access-empty">Загрузка...</td>
+                            <td colspan="9" class="access-empty">Загрузка...</td>
                         </tr>
                     </tbody>
                 </table>
@@ -77,7 +86,7 @@
                             <path d="m15 18-6-6 6-6" />
                         </svg>
                     </button>
-                    <span id="accessPageNumber">1 / 1</span>
+                    <div class="access-page-numbers" id="accessPageNumbers" aria-label="Страницы журнала"></div>
                     <button class="access-page-btn" id="accessNextPage" type="button" aria-label="Следующая страница">
                         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
                             stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -115,7 +124,7 @@
         </div>
     </div>
 
-    <script src="{{ url_for('static', filename='js/access_log.js') }}?v=2026070305"></script>
+    <script src="{{ url_for('static', filename='js/access_log.js') }}?v=2026071402"></script>
 </body>
 
 </html>

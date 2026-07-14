@@ -364,6 +364,10 @@ class AccessLog(db.Model):
     event_date = db.Column(db.Date, default=get_local_date, index=True)
     result = db.Column(db.String(30), default='granted')  # granted, denied, error
     source = db.Column(db.String(40), default='hikvision')
+    face_verification_status = db.Column(db.String(24), nullable=True)
+    face_similarity = db.Column(db.Float, nullable=True)
+    face_verification_reason = db.Column(db.String(300), nullable=True)
+    face_verified_at = db.Column(db.DateTime, nullable=True)
     raw_event = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime, default=get_local_datetime)
 

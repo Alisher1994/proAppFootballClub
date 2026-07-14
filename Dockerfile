@@ -1,7 +1,8 @@
 FROM python:3.11-slim
 
-# Минимальные зависимости (без dlib/OpenCV сборки) для Railway CPU
+# Системные библиотеки и компилятор для CPU InsightFace
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
     libsm6 \
     libxext6 \
     libxrender-dev \

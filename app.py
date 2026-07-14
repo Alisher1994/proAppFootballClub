@@ -1,5 +1,6 @@
 import os
 import json
+import base64
 import shutil
 import threading
 import time
@@ -15,7 +16,8 @@ import cv2
 import numpy as np
 from datetime import datetime, timedelta, date, timezone
 from datetime import time as dt_time
-from flask import Flask, render_template, request, redirect, url_for, jsonify, send_from_directory, send_file, session
+from flask import Flask, render_template, request, redirect, url_for, jsonify, send_from_directory, send_file, session, Response
+from flask_compress import Compress
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from flask_bcrypt import Bcrypt
@@ -23,7 +25,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.utils import secure_filename
 from sqlalchemy import func, or_
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, defer
 import pytz
 from email.message import EmailMessage
 from urllib.parse import urlencode
@@ -67,9 +69,10 @@ os.environ['FFMPEG_LOG_LEVEL'] = 'quiet'
 os.environ['ORT_TENSORRT_FP16_ENABLE'] = '1'
 
 from backend.models.models import db, User, Student, Payment, Attendance, AccessLog, Expense, Group, GroupTrainer, Tariff, ClubSettings, RewardType, StudentReward, CashTransfer, Role, RolePermission, CardType, StudentCard, Tournament, TournamentTeam, TournamentTeamSourceGroup, TournamentTeamPlayer, TournamentExternalPlayer, TournamentMatch, TournamentLineup, TournamentEvent, DeviceCommand, BridgeStatus
-# Face recognition permanently disabled per client; keep dummy service only.
+# Live camera recognition stays disabled; access-log verification is separate.
 USE_FACE = False
 from backend.services.face_stub import DummyFaceService as FaceService
+from backend.services.access_face_verifier import AccessFaceVerifier
 from backend.data.locations import get_cities, get_districts
 from backend.utils.student_utils import (
     generate_telegram_link_code,
@@ -144,6 +147,12 @@ GOOGLE_OAUTH_USERINFO_URL = 'https://www.googleapis.com/oauth2/v3/userinfo'
 PASSWORD_RESET_TOKEN_TTL_HOURS = int(os.environ.get('PASSWORD_RESET_TOKEN_TTL_HOURS', '2') or 2)
 
 db.init_app(app)
+app.config['COMPRESS_MIN_SIZE'] = 1000
+app.config['COMPRESS_MIMETYPES'] = [
+    'text/html', 'text/css', 'application/javascript', 'application/json',
+    'image/svg+xml'
+]
+Compress(app)
 bcrypt = Bcrypt(app)
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
@@ -153,6 +162,11 @@ login_manager.login_view = 'login'
 # ---------------------------------------------
 
 face_service = FaceService()
+access_face_verifier = AccessFaceVerifier(basedir)
+access_face_verify_queue = queue.Queue()
+access_face_verify_queued = set()
+access_face_verify_lock = threading.Lock()
+access_face_verify_worker_started = False
 
 # RTSP Настройки камеры Ezviz (Замените ВАШ_ПАРОЛЬ на реальный пароль от камеры)
 RTSP_URL = "rtsp://admin:UNZKZK@192.168.100.3:554/h264_stream"
@@ -516,6 +530,9 @@ DAY_LABELS = {
 
 SERVICE_PRIMARY_KEY = os.environ.get('SERVICE_PRIMARY_KEY', 'football_club')
 SERVICE_SUPPORT_PHONE_DEFAULT = os.environ.get('SERVICE_SUPPORT_PHONE', '+998994067406')
+SERVICE_STATE_CACHE_TTL_SECONDS = float(os.environ.get('SERVICE_STATE_CACHE_TTL_SECONDS', '5'))
+SERVICE_STATE_CACHE = {'payload': None, 'expires_at': 0.0}
+SERVICE_STATE_CACHE_LOCK = threading.Lock()
 SERVICE_LABELS = {
     'football_club': 'Футбольный клуб'
 }
@@ -1202,6 +1219,7 @@ def load_service_controls(settings):
 
 def save_service_controls(settings, controls):
     settings.service_controls = json.dumps(controls, ensure_ascii=False)
+    reset_service_state_cache()
 
 
 def get_current_month_label():
@@ -1243,6 +1261,23 @@ def build_service_state_payload(service_key=None):
         'updated_at': service_cfg.get('updated_at'),
         'updated_by': service_cfg.get('updated_by')
     }
+
+
+def reset_service_state_cache():
+    with SERVICE_STATE_CACHE_LOCK:
+        SERVICE_STATE_CACHE['payload'] = None
+        SERVICE_STATE_CACHE['expires_at'] = 0.0
+
+
+def get_cached_service_state_payload():
+    now = time.monotonic()
+    with SERVICE_STATE_CACHE_LOCK:
+        if SERVICE_STATE_CACHE['payload'] is not None and now < SERVICE_STATE_CACHE['expires_at']:
+            return SERVICE_STATE_CACHE['payload']
+        payload = build_service_state_payload(SERVICE_PRIMARY_KEY)
+        SERVICE_STATE_CACHE['payload'] = payload
+        SERVICE_STATE_CACHE['expires_at'] = now + max(1.0, SERVICE_STATE_CACHE_TTL_SECONDS)
+        return payload
 
 
 def is_management_chat_id(chat_id, settings=None):
@@ -1700,12 +1735,20 @@ def ensure_access_logs_table():
                 'event_date': "ALTER TABLE access_logs ADD COLUMN event_date DATE",
                 'result': "ALTER TABLE access_logs ADD COLUMN result VARCHAR(30) DEFAULT 'granted'",
                 'source': "ALTER TABLE access_logs ADD COLUMN source VARCHAR(40) DEFAULT 'hikvision'",
+                'face_verification_status': "ALTER TABLE access_logs ADD COLUMN face_verification_status VARCHAR(24)",
+                'face_similarity': "ALTER TABLE access_logs ADD COLUMN face_similarity FLOAT",
+                'face_verification_reason': "ALTER TABLE access_logs ADD COLUMN face_verification_reason VARCHAR(300)",
+                'face_verified_at': "ALTER TABLE access_logs ADD COLUMN face_verified_at TIMESTAMP",
                 'raw_event': "ALTER TABLE access_logs ADD COLUMN raw_event TEXT",
                 'created_at': "ALTER TABLE access_logs ADD COLUMN created_at TIMESTAMP",
             }
             for column_name, sql in required_columns.items():
                 if column_name not in columns:
                     conn.execute(db.text(sql))
+            conn.execute(db.text(
+                "CREATE INDEX IF NOT EXISTS idx_access_logs_face_status "
+                "ON access_logs (face_verification_status)"
+            ))
     except Exception as e:
         db.session.rollback()
         err_text = str(e).lower()
@@ -1776,6 +1819,7 @@ def ensure_payment_indexes():
     ensure_index('students', 'idx_students_status_group', "CREATE INDEX IF NOT EXISTS idx_students_status_group ON students (status, group_id)")
     ensure_index('access_logs', 'idx_access_logs_date_direction', "CREATE INDEX IF NOT EXISTS idx_access_logs_date_direction ON access_logs (event_date, direction)")
     ensure_index('access_logs', 'idx_access_logs_employee_time', "CREATE INDEX IF NOT EXISTS idx_access_logs_employee_time ON access_logs (employee_no, event_time)")
+    ensure_index('access_logs', 'idx_access_logs_face_status', "CREATE INDEX IF NOT EXISTS idx_access_logs_face_status ON access_logs (face_verification_status)")
     ensure_index('device_commands', 'idx_device_commands_status_command_created', "CREATE INDEX IF NOT EXISTS idx_device_commands_status_command_created ON device_commands (status, command, created_at)")
 
 
@@ -2417,7 +2461,7 @@ def enforce_service_lock():
             return None
 
     try:
-        lock_payload = build_service_state_payload(SERVICE_PRIMARY_KEY)
+        lock_payload = get_cached_service_state_payload()
     except Exception:
         # Если не удалось прочитать настройки, не блокируем систему жестко.
         return None
@@ -5125,8 +5169,10 @@ def access_log_person_photo_url(log):
     return None
 
 
-def access_log_to_dict(log):
-    access_photo_url = access_log_photo_url(log)
+def access_log_to_dict(log, photo_available=None):
+    if photo_available is None:
+        photo_available = bool(access_log_photo_url(log))
+    access_photo_url = url_for('access_log_photo_file', log_id=log.id) if photo_available and log.id else None
     person_photo_url = access_log_person_photo_url(log)
     return {
         'id': log.id,
@@ -5146,6 +5192,10 @@ def access_log_to_dict(log):
         'source': log.source,
         'access_photo_url': access_photo_url,
         'person_photo_url': person_photo_url,
+        'face_verification_status': log.face_verification_status,
+        'face_similarity': round(max(0.0, min(1.0, float(log.face_similarity))) * 100, 1) if log.face_similarity is not None else None,
+        'face_verification_reason': log.face_verification_reason,
+        'face_verified_at': log.face_verified_at.isoformat() if log.face_verified_at else None,
     }
 
 
@@ -5170,6 +5220,70 @@ def merge_access_photo_payload(log, data):
     if changed:
         log.set_raw_event(raw_event)
     return changed
+
+
+def resolve_student_photo_path(photo_path):
+    if not photo_path:
+        return None
+    normalized = str(photo_path).replace('\\', '/').lstrip('/')
+    candidates = []
+    if os.path.isabs(str(photo_path)):
+        candidates.append(str(photo_path))
+    candidates.append(os.path.join(basedir, normalized))
+    static_relative = normalized
+    for prefix in ('frontend/static/', 'frontend/', 'static/'):
+        if static_relative.startswith(prefix):
+            static_relative = static_relative[len(prefix):]
+            break
+    candidates.append(os.path.join(app.static_folder, static_relative))
+    return next((path for path in candidates if os.path.isfile(path)), None)
+
+
+def run_access_face_verify_worker():
+    while True:
+        log_id = access_face_verify_queue.get()
+        try:
+            with app.app_context():
+                log = db.session.get(AccessLog, log_id)
+                if not log or log.face_verification_status in {'confirmed', 'suspicious', 'mismatch'}:
+                    continue
+                if log.person_type != 'student' or not log.student_id:
+                    log.face_verification_status = 'not_applicable'
+                    log.face_verification_reason = 'Проверка выполняется только для учеников'
+                    log.face_verified_at = get_local_datetime()
+                    db.session.commit()
+                    continue
+
+                student = log.student or db.session.get(Student, log.student_id)
+                result = access_face_verifier.verify(
+                    access_log_photo_url(log),
+                    resolve_student_photo_path(student.photo_path if student else None),
+                )
+                log.face_verification_status = result.get('status') or 'unavailable'
+                log.face_similarity = result.get('similarity')
+                log.face_verification_reason = str(result.get('reason') or '')[:300] or None
+                log.face_verified_at = get_local_datetime()
+                db.session.commit()
+        except Exception as exc:
+            print(f'Access face verification failed for log {log_id}: {type(exc).__name__}: {exc}')
+        finally:
+            with access_face_verify_lock:
+                access_face_verify_queued.discard(log_id)
+            access_face_verify_queue.task_done()
+
+
+def schedule_access_face_verification(log_id):
+    global access_face_verify_worker_started
+    if not log_id:
+        return
+    with access_face_verify_lock:
+        if log_id in access_face_verify_queued:
+            return
+        access_face_verify_queued.add(log_id)
+        if not access_face_verify_worker_started:
+            threading.Thread(target=run_access_face_verify_worker, daemon=True, name='access-face-verifier').start()
+            access_face_verify_worker_started = True
+    access_face_verify_queue.put(log_id)
 
 
 def staff_employee_no(user_id):
@@ -5457,6 +5571,7 @@ def access_log_list():
     end_date = request.args.get('end_date') or selected_date
     direction = (request.args.get('direction') or '').strip()
     result_filter = (request.args.get('result') or '').strip()
+    face_status_filter = (request.args.get('face_status') or '').strip()
     search = (request.args.get('search') or '').strip()
     page = max(1, request.args.get('page', default=1, type=int) or 1)
     per_page = request.args.get('per_page', default=50, type=int) or 50
@@ -5474,6 +5589,13 @@ def access_log_list():
         query = query.filter(AccessLog.direction == direction)
     if result_filter in {'granted', 'denied', 'error'}:
         query = query.filter(AccessLog.result == result_filter)
+    if face_status_filter in {'confirmed', 'suspicious', 'mismatch', 'unavailable'}:
+        query = query.filter(AccessLog.face_verification_status == face_status_filter)
+    elif face_status_filter == 'pending':
+        query = query.filter(or_(
+            AccessLog.face_verification_status.is_(None),
+            AccessLog.face_verification_status.in_(['pending', 'processing']),
+        ))
     if search:
         like = f"%{search}%"
         query = query.filter(or_(AccessLog.full_name.ilike(like), AccessLog.employee_no.ilike(like), AccessLog.group_name.ilike(like)))
@@ -5483,7 +5605,10 @@ def access_log_list():
     if page > pages:
         page = pages
 
-    logs = query.order_by(AccessLog.event_time.desc())\
+    logs = query.options(
+        joinedload(AccessLog.student),
+        defer(AccessLog.raw_event),
+    ).order_by(AccessLog.event_time.desc())\
         .offset((page - 1) * per_page)\
         .limit(per_page)\
         .all()
@@ -5497,9 +5622,27 @@ def access_log_list():
     if repaired:
         db.session.commit()
 
+    for log in logs:
+        if log.person_type == 'student' and not log.face_verification_status:
+            log.face_verification_status = 'pending'
+            schedule_access_face_verification(log.id)
+
+    log_ids = [log.id for log in logs]
+    photo_log_ids = set()
+    if log_ids:
+        photo_log_ids = {
+            log_id for (log_id,) in db.session.query(AccessLog.id).filter(
+                AccessLog.id.in_(log_ids),
+                or_(
+                    AccessLog.raw_event.ilike('%data:image/%'),
+                    AccessLog.raw_event.ilike('%/9j/%'),
+                ),
+            ).all()
+        }
+
     return jsonify({
         'success': True,
-        'logs': [access_log_to_dict(log) for log in logs],
+        'logs': [access_log_to_dict(log, log.id in photo_log_ids) for log in logs],
         'pagination': {
             'page': page,
             'per_page': per_page,
@@ -5507,6 +5650,35 @@ def access_log_list():
             'pages': pages,
         }
     })
+
+
+@app.route('/api/access-log/<int:log_id>/photo', methods=['GET'])
+@login_required
+def access_log_photo_file(log_id):
+    if not current_user.has_permission('attendance', 'view'):
+        return jsonify({'success': False, 'message': 'Доступ запрещен'}), 403
+
+    log = db.session.get(AccessLog, log_id)
+    if not log:
+        return '', 404
+    data_url = access_log_photo_url(log)
+    if not data_url or ',' not in data_url:
+        return '', 404
+    try:
+        header, encoded = data_url.split(',', 1)
+        mime_type = header[5:].split(';', 1)[0].lower()
+        if mime_type not in {'image/jpeg', 'image/png', 'image/webp'}:
+            return '', 415
+        image_bytes = base64.b64decode(encoded, validate=False)
+        if not image_bytes or len(image_bytes) > 700_000:
+            return '', 404
+    except Exception:
+        return '', 404
+
+    response = Response(image_bytes, mimetype=mime_type)
+    response.cache_control.private = True
+    response.cache_control.max_age = 300
+    return response
 
 
 @app.route('/api/hikvision/access-event', methods=['POST'])
@@ -5524,12 +5696,19 @@ def hikvision_access_event():
             attendance_created = False
             attendance = existing.attendance
             raw_updated = merge_access_photo_payload(existing, data)
+            if raw_updated and existing.person_type == 'student':
+                existing.face_verification_status = 'pending'
+                existing.face_similarity = None
+                existing.face_verification_reason = None
+                existing.face_verified_at = None
             if existing.person_type != 'staff' and not existing.attendance_id and existing.result == 'granted':
                 attendance, attendance_created = apply_attendance_to_access_log(existing)
                 if attendance:
                     raw_updated = True
             if raw_updated:
                 db.session.commit()
+            if existing.person_type == 'student' and existing.face_verification_status in {None, 'pending'}:
+                schedule_access_face_verification(existing.id)
             return jsonify({
                 'success': True,
                 'duplicate': True,
@@ -5582,6 +5761,7 @@ def hikvision_access_event():
         event_date=event_dt.date(),
         result=result_value,
         source=str(data.get('source') or 'hikvision')[:40],
+        face_verification_status='pending' if student else 'not_applicable',
     )
     raw_event = data.get('raw_event') if isinstance(data.get('raw_event'), dict) else {}
     stored_event = {**raw_event}
@@ -5594,6 +5774,8 @@ def hikvision_access_event():
         db.session.flush()
         log.attendance_id = attendance.id
     db.session.commit()
+    if student:
+        schedule_access_face_verification(log.id)
 
     return jsonify({
         'success': True,

@@ -1,6 +1,6 @@
 <div class="sidebar">
-    <video class="sidebar-bg-video" autoplay muted loop playsinline aria-hidden="true">
-        <source src="{{ url_for('static', filename='uploads/sidebar_soccer_bg.mp4') }}" type="video/mp4">
+    <video class="sidebar-bg-video" muted loop playsinline preload="none" aria-hidden="true">
+        <source data-src="{{ url_for('static', filename='uploads/sidebar_soccer_bg.mp4') }}" type="video/mp4">
     </video>
     <div class="sidebar-header">
         <h2 class="sidebar-brand">
@@ -509,6 +509,21 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', () => {
+        const sidebarVideo = document.querySelector('.sidebar-bg-video');
+        const loadSidebarVideo = () => {
+            if (!sidebarVideo || window.matchMedia('(max-width: 900px)').matches || navigator.connection?.saveData) return;
+            const source = sidebarVideo.querySelector('source[data-src]');
+            if (!source || source.hasAttribute('src')) return;
+            source.src = source.dataset.src;
+            sidebarVideo.load();
+            sidebarVideo.play().catch(() => {});
+        };
+        if (document.readyState === 'complete') {
+            setTimeout(loadSidebarVideo, 300);
+        } else {
+            window.addEventListener('load', () => setTimeout(loadSidebarVideo, 300), { once: true });
+        }
+
         const moreBtn = document.getElementById('mobileMoreBtn');
         const closeMoreBtn = document.getElementById('closeMobileMore');
         const overlay = document.getElementById('mobileMoreOverlay');

@@ -5036,7 +5036,7 @@ textarea:focus,
 
 .access-filters {
     display: grid;
-    grid-template-columns: 150px 150px 180px 160px minmax(260px, 1fr);
+    grid-template-columns: 140px 140px 145px 145px 180px minmax(220px, 1fr);
     gap: 10px;
     margin-bottom: 14px;
 }
@@ -5125,6 +5125,11 @@ textarea:focus,
 
 .access-table th:nth-child(8),
 .access-table td:nth-child(8) {
+    width: 170px;
+}
+
+.access-table th:nth-child(9),
+.access-table td:nth-child(9) {
     width: 120px;
 }
 
@@ -5180,7 +5185,8 @@ textarea:focus,
 }
 
 .access-pill,
-.access-status {
+.access-status,
+.access-face-status {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -5189,6 +5195,28 @@ textarea:focus,
     border-radius: 999px;
     font-size: .7rem;
     font-weight: 600;
+}
+
+.access-face-confirmed {
+    color: #07843d;
+    background: #e9f9ef;
+}
+
+.access-face-suspicious {
+    color: #a16207;
+    background: #fff7d6;
+}
+
+.access-face-mismatch {
+    color: #c51616;
+    background: #ffe8e8;
+}
+
+.access-face-unavailable,
+.access-face-pending,
+.access-face-not-applicable {
+    color: #64748b;
+    background: #f1f5f9;
 }
 
 .access-entry {
@@ -5255,6 +5283,38 @@ textarea:focus,
     display: inline-flex;
     align-items: center;
     gap: 8px;
+}
+
+.access-page-numbers {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.access-page-number {
+    min-width: 34px;
+    height: 34px;
+    padding: 0 8px;
+    border: 1px solid #d7e2ef;
+    border-radius: 8px;
+    background: #fff;
+    color: #24364f;
+    font-size: .78rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.access-page-number.active {
+    border-color: #f59e0b !important;
+    background: #fff7e8 !important;
+    color: #b45309 !important;
+    cursor: default;
+}
+
+.access-page-ellipsis {
+    min-width: 20px;
+    color: #8090a6;
+    text-align: center;
 }
 
 .access-page-btn {
@@ -5398,7 +5458,18 @@ textarea:focus,
     }
 
     .access-table {
-        min-width: 980px;
+        min-width: 1150px;
+    }
+
+    .access-pagination {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .access-pagination-actions {
+        max-width: 100%;
+        overflow-x: auto;
+        padding-bottom: 4px;
     }
 
     .access-photo-modal {

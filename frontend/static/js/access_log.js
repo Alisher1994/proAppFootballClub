@@ -3,6 +3,8 @@ const accessState = {
     page: 1,
     perPage: 50,
     pages: 1,
+    verificationTimer: null,
+    requestController: null,
 };
 
 function formatAccessDateTime(value) {
@@ -47,12 +49,26 @@ function attendanceStatus(log) {
     return { label: 'Нет отметки', className: 'missed' };
 }
 
+function faceVerificationStatus(log) {
+    const status = log.face_verification_status || 'pending';
+    const hasScore = log.face_similarity !== null && log.face_similarity !== undefined && log.face_similarity !== '';
+    const score = hasScore ? Number(log.face_similarity) : NaN;
+    const percent = hasScore ? `${score.toLocaleString('ru-RU', { maximumFractionDigits: 1 })}%` : '';
+    if (status === 'confirmed') return { label: `Подтверждено${percent ? ` · ${percent}` : ''}`, className: 'confirmed' };
+    if (status === 'suspicious') return { label: `Сомнительно${percent ? ` · ${percent}` : ''}`, className: 'suspicious' };
+    if (status === 'mismatch') return { label: `Не совпадает${percent ? ` · ${percent}` : ''}`, className: 'mismatch' };
+    if (status === 'unavailable') return { label: 'Не удалось проверить', className: 'unavailable' };
+    if (status === 'not_applicable') return { label: '—', className: 'not-applicable' };
+    return { label: 'Не проверено', className: 'pending' };
+}
+
 function renderAccessPhoto(log) {
     const rawLabel = log.full_name || log.employee_no || 'Фото прохода';
     const label = escapeHtml(rawLabel);
     if (log.access_photo_url) {
+        const verification = faceVerificationStatus(log);
         return `
-            <button type="button" class="access-photo-thumb" data-photo-url="${escapeHtml(log.access_photo_url)}" data-system-photo-url="${escapeHtml(log.person_photo_url || '')}" data-photo-title="${label}" data-photo-meta="${escapeHtml(formatAccessDateTime(log.event_time))}">
+            <button type="button" class="access-photo-thumb" data-photo-url="${escapeHtml(log.access_photo_url)}" data-system-photo-url="${escapeHtml(log.person_photo_url || '')}" data-photo-title="${label}" data-photo-meta="${escapeHtml(formatAccessDateTime(log.event_time))}" data-photo-verification="${escapeHtml(log.face_verification_reason || verification.label)}">
                 <img src="${escapeHtml(log.access_photo_url)}" alt="${label}" loading="lazy">
             </button>
         `;
@@ -73,7 +89,7 @@ function renderAccessLogs(logs) {
     if (!body) return;
 
     if (!logs.length) {
-        body.innerHTML = '<tr><td colspan="8" class="access-empty">Записей пока нет</td></tr>';
+        body.innerHTML = '<tr><td colspan="9" class="access-empty">Записей пока нет</td></tr>';
         return;
     }
 
@@ -81,6 +97,7 @@ function renderAccessLogs(logs) {
         const direction = log.direction === 'exit' ? 'exit' : 'entry';
         const terminal = [log.device_name, log.device_ip].filter(Boolean).join(' · ') || '-';
         const status = attendanceStatus(log);
+        const faceStatus = faceVerificationStatus(log);
         return `
             <tr>
                 <td>${formatAccessDateTime(log.event_time)}</td>
@@ -93,6 +110,7 @@ function renderAccessLogs(logs) {
                 </td>
                 <td>${escapeHtml(log.group_name || '-')}</td>
                 <td>${escapeHtml(terminal)}</td>
+                <td><span class="access-face-status access-face-${faceStatus.className}" title="${escapeHtml(log.face_verification_reason || faceStatus.label)}">${faceStatus.label}</span></td>
                 <td><span class="access-status access-status-${status.className}" title="${escapeHtml(resultLabel(log.result))}">${status.label}</span></td>
             </tr>
         `;
@@ -103,12 +121,18 @@ function renderAccessLogs(logs) {
             button.dataset.photoUrl,
             button.dataset.systemPhotoUrl,
             button.dataset.photoTitle,
-            button.dataset.photoMeta
+            button.dataset.photoMeta,
+            button.dataset.photoVerification
         ));
     });
     body.querySelectorAll('.access-photo-thumb img').forEach((img) => {
         img.addEventListener('error', () => replaceBrokenAccessPhoto(img), { once: true });
     });
+
+    clearTimeout(accessState.verificationTimer);
+    if (logs.some((log) => !log.face_verification_status || ['pending', 'processing'].includes(log.face_verification_status))) {
+        accessState.verificationTimer = setTimeout(() => loadAccessLogs(), 2500);
+    }
 }
 
 function renderAccessPagination(pagination = {}) {
@@ -120,43 +144,75 @@ function renderAccessPagination(pagination = {}) {
     const to = Math.min(total, accessState.page * perPage);
 
     const info = document.getElementById('accessPageInfo');
-    const number = document.getElementById('accessPageNumber');
+    const numbers = document.getElementById('accessPageNumbers');
     const prev = document.getElementById('accessPrevPage');
     const next = document.getElementById('accessNextPage');
 
     if (info) info.textContent = total ? `${from}-${to} из ${total}` : '0 записей';
-    if (number) number.textContent = `${accessState.page} / ${accessState.pages}`;
+    if (numbers) {
+        const visiblePages = [];
+        for (let page = 1; page <= accessState.pages; page += 1) {
+            if (page === 1 || page === accessState.pages || Math.abs(page - accessState.page) <= 2) {
+                visiblePages.push(page);
+            }
+        }
+        const items = [];
+        visiblePages.forEach((page, index) => {
+            if (index > 0 && page - visiblePages[index - 1] > 1) items.push('ellipsis');
+            items.push(page);
+        });
+        numbers.innerHTML = items.map((item) => {
+            if (item === 'ellipsis') return '<span class="access-page-ellipsis" aria-hidden="true">…</span>';
+            const active = item === accessState.page;
+            return `<button type="button" class="access-page-number${active ? ' active' : ''}" data-page="${item}"${active ? ' aria-current="page" disabled' : ''}>${item}</button>`;
+        }).join('');
+    }
     if (prev) prev.disabled = accessState.page <= 1;
     if (next) next.disabled = accessState.page >= accessState.pages;
 }
 
 async function loadAccessLogs({ resetPage = false } = {}) {
     if (resetPage) accessState.page = 1;
+    clearTimeout(accessState.verificationTimer);
+    if (accessState.requestController) accessState.requestController.abort();
+    const controller = new AbortController();
+    accessState.requestController = controller;
     const params = new URLSearchParams();
     const startDate = document.getElementById('accessStartDateFilter')?.value;
     const endDate = document.getElementById('accessEndDateFilter')?.value;
     const direction = document.getElementById('accessDirectionFilter')?.value;
     const result = document.getElementById('accessResultFilter')?.value;
+    const faceStatus = document.getElementById('accessFaceStatusFilter')?.value;
     const search = document.getElementById('accessSearchFilter')?.value.trim();
 
     if (startDate) params.set('start_date', startDate);
     if (endDate) params.set('end_date', endDate);
     if (direction) params.set('direction', direction);
     if (result) params.set('result', result);
+    if (faceStatus) params.set('face_status', faceStatus);
     if (search) params.set('search', search);
     params.set('page', accessState.page);
     params.set('per_page', accessState.perPage);
 
     try {
-        const response = await fetch(`/api/access-log?${params.toString()}`);
+        const response = await fetch(`/api/access-log?${params.toString()}`, { signal: controller.signal });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const data = await response.json();
         renderAccessLogs(data.logs || []);
         renderAccessPagination(data.pagination || {});
     } catch (error) {
+        if (error.name === 'AbortError') return;
         const body = document.getElementById('accessLogBody');
-        if (body) body.innerHTML = '<tr><td colspan="8" class="access-empty access-error">Не удалось загрузить журнал</td></tr>';
+        if (body) body.innerHTML = '<tr><td colspan="9" class="access-empty access-error">Не удалось загрузить журнал</td></tr>';
         renderAccessPagination({ page: 1, pages: 1, total: 0, per_page: accessState.perPage });
     }
+}
+
+function goToAccessPage(page) {
+    const target = Math.max(1, Math.min(accessState.pages, Number(page) || 1));
+    if (target === accessState.page) return;
+    accessState.page = target;
+    loadAccessLogs();
 }
 
 function debounceAccessLoad() {
@@ -164,7 +220,7 @@ function debounceAccessLoad() {
     accessState.timer = setTimeout(() => loadAccessLogs({ resetPage: true }), 250);
 }
 
-function openAccessPhotoModal(photoUrl, systemPhotoUrl, title, meta) {
+function openAccessPhotoModal(photoUrl, systemPhotoUrl, title, meta, verification) {
     const modal = document.getElementById('accessPhotoModal');
     const image = document.getElementById('accessPhotoImage');
     const systemImage = document.getElementById('accessSystemPhotoImage');
@@ -187,7 +243,7 @@ function openAccessPhotoModal(photoUrl, systemPhotoUrl, title, meta) {
         }
     }
     if (titleEl) titleEl.textContent = title || 'Фото прохода';
-    if (metaEl) metaEl.textContent = meta || '';
+    if (metaEl) metaEl.textContent = [meta, verification].filter(Boolean).join(' · ');
     modal.hidden = false;
     modal.style.display = 'flex';
 }
@@ -205,28 +261,30 @@ function closeAccessPhotoModal() {
 
 document.addEventListener('DOMContentLoaded', () => {
     const today = new Date();
-    const todayValue = today.toISOString().slice(0, 10);
+    const todayValue = [
+        today.getFullYear(),
+        String(today.getMonth() + 1).padStart(2, '0'),
+        String(today.getDate()).padStart(2, '0'),
+    ].join('-');
     const startDateInput = document.getElementById('accessStartDateFilter');
     const endDateInput = document.getElementById('accessEndDateFilter');
     if (startDateInput) startDateInput.value = todayValue;
     if (endDateInput) endDateInput.value = todayValue;
 
-    ['accessStartDateFilter', 'accessEndDateFilter', 'accessDirectionFilter', 'accessResultFilter'].forEach((id) => {
+    ['accessStartDateFilter', 'accessEndDateFilter', 'accessDirectionFilter', 'accessResultFilter', 'accessFaceStatusFilter'].forEach((id) => {
         document.getElementById(id)?.addEventListener('change', () => loadAccessLogs({ resetPage: true }));
     });
     document.getElementById('accessSearchFilter')?.addEventListener('input', debounceAccessLoad);
     document.getElementById('refreshAccessLogBtn')?.addEventListener('click', () => loadAccessLogs());
     document.getElementById('accessPrevPage')?.addEventListener('click', () => {
-        if (accessState.page > 1) {
-            accessState.page -= 1;
-            loadAccessLogs();
-        }
+        goToAccessPage(accessState.page - 1);
     });
     document.getElementById('accessNextPage')?.addEventListener('click', () => {
-        if (accessState.page < accessState.pages) {
-            accessState.page += 1;
-            loadAccessLogs();
-        }
+        goToAccessPage(accessState.page + 1);
+    });
+    document.getElementById('accessPageNumbers')?.addEventListener('click', (event) => {
+        const button = event.target.closest('[data-page]');
+        if (button) goToAccessPage(button.dataset.page);
     });
     document.getElementById('accessPhotoClose')?.addEventListener('click', closeAccessPhotoModal);
     document.getElementById('accessPhotoModal')?.addEventListener('click', (event) => {
