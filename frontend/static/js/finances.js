@@ -1590,49 +1590,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Окно оплаты закрывается только явной кнопкой, чтобы не потерять введенные данные.
 
-// Обработчики для кнопок выбора типа оплаты в финансах
-document.addEventListener('DOMContentLoaded', () => {
-    document.querySelectorAll('.finances-payment-type-btn').forEach(btn => {
-        btn.addEventListener('click', function () {
-            // Убрать активное состояние со всех кнопок
-            document.querySelectorAll('.finances-payment-type-btn').forEach(b => {
-                b.classList.remove('active');
-                const border = '2px solid var(--theme-input-border)';
-                const bg = 'var(--theme-input-bg)';
-                const color = 'var(--theme-text-primary)';
-                b.style.border = border;
-                b.style.background = bg;
-                b.style.color = color;
-            });
+// Делегирование гарантирует выбор способа оплаты независимо от момента открытия окна.
+document.addEventListener('click', (event) => {
+    const button = event.target.closest('.finances-payment-type-btn');
+    if (!button || !button.closest('#addIncomeModal')) return;
 
-            // Активировать выбранную кнопку
-            this.classList.add('active');
-            this.style.border = '2px solid #ff8a00';
-            this.style.background = 'linear-gradient(135deg, rgba(255, 138, 0, 0.1) 0%, rgba(217, 111, 0, 0.1) 100%)';
-            this.style.color = '#ff8a00';
+    event.preventDefault();
+    const paymentType = button.dataset.paymentType;
+    if (!paymentType) return;
 
-            // Обновить скрытое поле
-            const paymentType = this.getAttribute('data-payment-type');
-            document.getElementById('add-income-payment-type').value = paymentType;
-            updatePaymentQrDisplay(paymentType);
-
-            // Обновить стили неактивных кнопок для светлой темы
-            document.querySelectorAll('.finances-payment-type-btn:not(.active)').forEach(b => {
-                if (document.body.classList.contains('theme-light')) {
-                    b.style.border = '2px solid #e4ddd6';
-                    b.style.background = 'white';
-                    b.style.color = '#4a5568';
-                } else {
-                    const border = '2px solid var(--theme-input-border)';
-                    const bg = 'var(--theme-input-bg)';
-                    const color = 'var(--theme-text-primary)';
-                    b.style.border = border;
-                    b.style.background = bg;
-                    b.style.color = color;
-                }
-            });
-        });
+    document.querySelectorAll('#addIncomeModal .finances-payment-type-btn').forEach((item) => {
+        item.classList.toggle('active', item === button);
     });
+
+    const paymentTypeInput = document.getElementById('add-income-payment-type');
+    if (paymentTypeInput) paymentTypeInput.value = paymentType;
+    updatePaymentQrDisplay(paymentType);
 });
 
 // Отправить форму добавления прихода

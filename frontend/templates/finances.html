@@ -1331,6 +1331,19 @@
             font-size: 13px;
         }
 
+        .finances-page #addIncomeModal .finances-payment-type-btn.active {
+            border: 2px solid var(--finance-accent) !important;
+            background: linear-gradient(135deg, rgba(255, 138, 0, 0.12), rgba(217, 111, 0, 0.12)) !important;
+            color: var(--finance-accent) !important;
+            font-weight: 700;
+        }
+
+        .finances-page #addIncomeModal .finances-payment-type-btn:not(.active):hover {
+            border-color: #ffc978 !important;
+            background: #fff8ef !important;
+            color: var(--finance-accent) !important;
+        }
+
         .finances-page .native-search-select {
             position: absolute;
             width: 1px;
@@ -2159,7 +2172,7 @@
         </div>
     </div>
 
-    <script src="{{ url_for('static', filename='js/finances.js') }}?v=202607171"></script>
+    <script src="{{ url_for('static', filename='js/finances.js') }}?v=202607172"></script>
     <script src="{{ url_for('static', filename='js/cash.js') }}?v=202602041"></script>
     <script src="{{ url_for('static', filename='js/sidebar.js') }}"></script>
     <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
