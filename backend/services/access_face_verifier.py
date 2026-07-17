@@ -304,3 +304,57 @@ class AccessFaceVerifier:
             result['identified_similarity'] = best_score
             result['identified_tentative'] = True
         return result
+
+    def identify(self, access_photo_data_url, candidates):
+        """Identify one face for the read-only camera kiosk.
+
+        A name is returned only when the best candidate clears both the absolute
+        threshold and the margin over the second candidate.
+        """
+        access_image = self._decode_data_url(access_photo_data_url)
+        if access_image is None:
+            return {'status': 'unavailable', 'reason': 'Кадр отсутствует или поврежден'}
+        model = self._load_model()
+        if model is None:
+            return {'status': 'unavailable', 'reason': 'Модуль распознавания временно недоступен'}
+        indexed_candidates, candidate_matrix = self.prepare_candidate_index(candidates)
+        if candidate_matrix is None or not indexed_candidates:
+            return {'status': 'unavailable', 'reason': 'В базе нет эталонных фотографий'}
+
+        with self.lock:
+            faces = model.get(access_image)
+            face = self._largest_face(faces)
+            embedding = self._embedding(face) if face is not None else None
+        if embedding is None:
+            return {'status': 'unavailable', 'reason': 'Лицо на кадре не найдено'}
+
+        similarities = candidate_matrix @ embedding
+        order = similarities.argsort()[::-1]
+        best_index = int(order[0])
+        best_score = max(-1.0, min(1.0, float(similarities[best_index])))
+        second_score = (
+            max(-1.0, min(1.0, float(similarities[int(order[1])])))
+            if len(order) > 1 else -1.0
+        )
+        margin = best_score - second_score
+        if best_score < self.confirm_threshold:
+            return {
+                'status': 'unknown',
+                'reason': 'Нет надежного совпадения',
+                'similarity': best_score,
+                'margin': margin,
+            }
+        if margin < self.identity_margin:
+            return {
+                'status': 'ambiguous',
+                'reason': 'Несколько похожих кандидатов',
+                'similarity': best_score,
+                'margin': margin,
+            }
+        return {
+            'status': 'confirmed',
+            'reason': 'Личность подтверждена',
+            'identified': indexed_candidates[best_index],
+            'similarity': best_score,
+            'margin': margin,
+        }

@@ -3087,6 +3087,64 @@
                                 </div>
                             </div>
 
+                            <div class="settings-section">
+                                <div class="settings-section-header">
+                                    <span class="settings-section-icon"><i data-lucide="monitor-play"></i></span>
+                                    <h3 class="settings-section-title">Видеомониторинг на bridge</h3>
+                                </div>
+                                <div class="settings-section-content">
+                                    <div class="form-group">
+                                        <label for="camera_kiosk_url">Локальный адрес киоска</label>
+                                        <input type="url" id="camera_kiosk_url" class="form-input-modern"
+                                            placeholder="http://192.168.1.5:8090">
+                                        <small style="color: #7f8c8d; display: block; margin-top: 8px; line-height: 1.5;">
+                                            Адрес страницы на mini-PC bridge для монитора и телефонов в локальной сети.
+                                        </small>
+                                    </div>
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label for="camera_stream_fps">Видео, FPS</label>
+                                            <input type="number" id="camera_stream_fps" class="form-input-modern" min="1" max="60" value="30">
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="camera_tracking_fps">Трекинг, FPS</label>
+                                            <input type="number" id="camera_tracking_fps" class="form-input-modern" min="1" max="60" value="30">
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="camera_detection_fps">Детекция, FPS</label>
+                                            <input type="number" id="camera_detection_fps" class="form-input-modern" min="1" max="30" value="10">
+                                        </div>
+                                    </div>
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label for="camera_width">Ширина</label>
+                                            <input type="number" id="camera_width" class="form-input-modern" min="320" max="3840" value="1920">
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="camera_height">Высота</label>
+                                            <input type="number" id="camera_height" class="form-input-modern" min="240" max="2160" value="1080">
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="camera_kiosk_port">Порт киоска</label>
+                                            <input type="number" id="camera_kiosk_port" class="form-input-modern" min="1024" max="65535" value="8090">
+                                        </div>
+                                    </div>
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label for="camera_recognition_frames">Кадров подтверждения</label>
+                                            <input type="number" id="camera_recognition_frames" class="form-input-modern" min="1" max="10" value="3">
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="camera_result_hold_seconds">Показывать результат, сек.</label>
+                                            <input type="number" id="camera_result_hold_seconds" class="form-input-modern" min="1" max="60" value="10">
+                                        </div>
+                                    </div>
+                                    <small style="color: #7f8c8d; display: block; line-height: 1.5;">
+                                        Эти параметры забирает camera-kiosk на bridge. Они не меняют работу терминалов Hikvision.
+                                    </small>
+                                </div>
+                            </div>
+
                             <div class="settings-form-actions">
                                 <button type="submit" class="btn-primary btn-large">
                                     <i data-lucide="save"></i>

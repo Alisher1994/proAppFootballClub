@@ -2,6 +2,36 @@
 
 Рабочие заметки по локальному bridge mini PC для терминалов Hikvision.
 
+## Независимый camera-kiosk
+
+Видеомониторинг запускается отдельным сервисом и не меняет работу Hikvision bridge,
+терминалов, реле или посещений.
+
+```bash
+cd /home/admina/proAppFootballClub
+cp bridge/run-camera-kiosk.example.sh bridge/run-camera-kiosk.sh
+nano bridge/run-camera-kiosk.sh
+chmod 700 bridge/run-camera-kiosk.sh
+sudo bash bridge/install-camera-kiosk-service.sh
+```
+
+В `run-camera-kiosk.sh` нужно указать тот же `DEVICE_INGEST_KEY`, который использует
+основной bridge. RTSP, FPS, разрешение и остальные параметры задаются в админке:
+`Настройки -> Камера`. Camera-kiosk забирает их с сервера автоматически.
+
+Локальная страница по умолчанию:
+
+```text
+http://192.168.1.5:8090
+```
+
+Проверка:
+
+```bash
+sudo systemctl status karasu-camera-kiosk.service
+journalctl -u karasu-camera-kiosk.service -n 100 --no-pager
+```
+
 ## Что где находится
 
 - Проект: `proAppFootballClub`

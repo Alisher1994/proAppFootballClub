@@ -571,6 +571,21 @@ async function loadSettings() {
         }
         if (hikvisionDeviceKeyEl) hikvisionDeviceKeyEl.value = data.hikvision_device_key || '';
         setHikvisionDevices(data.hikvision_devices || []);
+        const cameraSettingDefaults = {
+            camera_kiosk_url: '',
+            camera_stream_fps: 30,
+            camera_tracking_fps: 30,
+            camera_detection_fps: 10,
+            camera_width: 1920,
+            camera_height: 1080,
+            camera_recognition_frames: 3,
+            camera_result_hold_seconds: 10,
+            camera_kiosk_port: 8090,
+        };
+        Object.entries(cameraSettingDefaults).forEach(([id, fallback]) => {
+            const element = document.getElementById(id);
+            if (element) element.value = data[id] ?? fallback;
+        });
         document.getElementById('rewards_reset_period_months').value = data.rewards_reset_period_months || 1;
         // Убедимся, что значение кратно 5 и в диапазоне 5-50
         const podiumValue = data.podium_display_count || 20;
@@ -1023,6 +1038,15 @@ function gatherAllSettings() {
         founder_phone: (document.getElementById('founder_phone')?.value || '').trim(),
         cashier_phone: (document.getElementById('cashier_phone')?.value || '').trim(),
         rtsp_url: (document.getElementById('rtsp_url_setting')?.value || '').trim(),
+        camera_kiosk_url: (document.getElementById('camera_kiosk_url')?.value || '').trim(),
+        camera_stream_fps: parseInt(document.getElementById('camera_stream_fps')?.value || '30', 10),
+        camera_tracking_fps: parseInt(document.getElementById('camera_tracking_fps')?.value || '30', 10),
+        camera_detection_fps: parseInt(document.getElementById('camera_detection_fps')?.value || '10', 10),
+        camera_width: parseInt(document.getElementById('camera_width')?.value || '1920', 10),
+        camera_height: parseInt(document.getElementById('camera_height')?.value || '1080', 10),
+        camera_recognition_frames: parseInt(document.getElementById('camera_recognition_frames')?.value || '3', 10),
+        camera_result_hold_seconds: parseInt(document.getElementById('camera_result_hold_seconds')?.value || '10', 10),
+        camera_kiosk_port: parseInt(document.getElementById('camera_kiosk_port')?.value || '8090', 10),
         payment_click_enabled: document.getElementById('payment_click_enabled')?.checked || false,
         payment_click_qr_url: (document.getElementById('payment_click_qr_url')?.value || '').trim(),
         payment_payme_enabled: document.getElementById('payment_payme_enabled')?.checked || false,
@@ -1076,7 +1100,7 @@ async function saveCameraSettings() {
 
         const result = await resp.json();
         if (result.success) {
-            alert('Настройки камеры сохранены! Видео обновится при следующем открытии страницы камеры.');
+            alert('Настройки камеры сохранены! Camera-kiosk заберёт их автоматически. После изменения порта перезапустите его сервис.');
             markSettingsFormsClean();
         } else {
             alert('Ошибка: ' + (result.message || 'Не удалось сохранить настройки'));

@@ -517,6 +517,15 @@ class ClubSettings(db.Model):
     telegram_card_template = db.Column(db.Text, nullable=True)  # Шаблон уведомления о карточке
     telegram_payment_template = db.Column(db.Text, nullable=True)  # Шаблон уведомления об оплате
     rtsp_url = db.Column(db.String(300), nullable=True)  # URL RTSP камеры
+    camera_kiosk_url = db.Column(db.String(300), nullable=True)  # Локальный URL camera-kiosk на bridge
+    camera_stream_fps = db.Column(db.Integer, default=30)
+    camera_tracking_fps = db.Column(db.Integer, default=30)
+    camera_detection_fps = db.Column(db.Integer, default=10)
+    camera_width = db.Column(db.Integer, default=1920)
+    camera_height = db.Column(db.Integer, default=1080)
+    camera_recognition_frames = db.Column(db.Integer, default=3)
+    camera_result_hold_seconds = db.Column(db.Integer, default=10)
+    camera_kiosk_port = db.Column(db.Integer, default=8090)
     payment_click_enabled = db.Column(db.Boolean, default=False)  # Включен Click
     payment_click_qr_url = db.Column(db.String(500), nullable=True)  # QR для Click
     payment_payme_enabled = db.Column(db.Boolean, default=False)  # Включен Payme

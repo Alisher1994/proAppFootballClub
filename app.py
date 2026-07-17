@@ -1624,6 +1624,20 @@ def ensure_club_settings_columns():
             conn.execute(db.text("ALTER TABLE club_settings ADD COLUMN telegram_payment_template TEXT"))
         if 'rtsp_url' not in columns:
             conn.execute(db.text("ALTER TABLE club_settings ADD COLUMN rtsp_url VARCHAR(300)"))
+        camera_columns = {
+            'camera_kiosk_url': "ALTER TABLE club_settings ADD COLUMN camera_kiosk_url VARCHAR(300)",
+            'camera_stream_fps': "ALTER TABLE club_settings ADD COLUMN camera_stream_fps INTEGER DEFAULT 30",
+            'camera_tracking_fps': "ALTER TABLE club_settings ADD COLUMN camera_tracking_fps INTEGER DEFAULT 30",
+            'camera_detection_fps': "ALTER TABLE club_settings ADD COLUMN camera_detection_fps INTEGER DEFAULT 10",
+            'camera_width': "ALTER TABLE club_settings ADD COLUMN camera_width INTEGER DEFAULT 1920",
+            'camera_height': "ALTER TABLE club_settings ADD COLUMN camera_height INTEGER DEFAULT 1080",
+            'camera_recognition_frames': "ALTER TABLE club_settings ADD COLUMN camera_recognition_frames INTEGER DEFAULT 3",
+            'camera_result_hold_seconds': "ALTER TABLE club_settings ADD COLUMN camera_result_hold_seconds INTEGER DEFAULT 10",
+            'camera_kiosk_port': "ALTER TABLE club_settings ADD COLUMN camera_kiosk_port INTEGER DEFAULT 8090",
+        }
+        for column_name, statement in camera_columns.items():
+            if column_name not in columns:
+                conn.execute(db.text(statement))
         if 'payment_click_enabled' not in columns:
             conn.execute(db.text("ALTER TABLE club_settings ADD COLUMN payment_click_enabled BOOLEAN DEFAULT 0"))
         if 'payment_click_qr_url' not in columns:
@@ -7389,8 +7403,78 @@ def hikvision_config():
         'parallel_devices': bool(getattr(settings, 'hikvision_parallel_devices', False)),
         'cleanup_stale_users': bool(getattr(settings, 'hikvision_cleanup_stale_users', True)),
         'max_debt_months': get_effective_access_max_debt_months(settings),
+        'camera': {
+            'rtsp_url': getattr(settings, 'rtsp_url', '') or '',
+            'kiosk_url': getattr(settings, 'camera_kiosk_url', '') or '',
+            'stream_fps': int(getattr(settings, 'camera_stream_fps', 30) or 30),
+            'tracking_fps': int(getattr(settings, 'camera_tracking_fps', 30) or 30),
+            'detection_fps': int(getattr(settings, 'camera_detection_fps', 10) or 10),
+            'width': int(getattr(settings, 'camera_width', 1920) or 1920),
+            'height': int(getattr(settings, 'camera_height', 1080) or 1080),
+            'recognition_frames': int(getattr(settings, 'camera_recognition_frames', 3) or 3),
+            'result_hold_seconds': int(getattr(settings, 'camera_result_hold_seconds', 10) or 10),
+            'kiosk_port': int(getattr(settings, 'camera_kiosk_port', 8090) or 8090),
+        },
         'timezone': 'Asia/Tashkent',
     })
+
+
+@app.route('/api/camera-kiosk/recognize', methods=['POST'])
+def camera_kiosk_recognize():
+    """Read-only face decision for the local camera kiosk on bridge."""
+    if not check_bridge_auth():
+        return jsonify({'success': False, 'message': 'Unauthorized'}), 401
+
+    data = request.get_json(silent=True) or {}
+    track_id = str(data.get('track_id') or '')[:80]
+    image_data_url = data.get('image_data_url') or data.get('frame') or ''
+    if not str(image_data_url).startswith('data:image/'):
+        return jsonify({'success': False, 'track_id': track_id, 'message': 'Изображение не передано'}), 400
+
+    students, candidates = build_access_face_candidates()
+    result = access_face_verifier.identify(image_data_url, candidates)
+    persist_computed_face_embeddings(students, candidates)
+    identified = result.get('identified') or {}
+    response = {
+        'success': True,
+        'track_id': track_id,
+        'status': result.get('status') or 'unknown',
+        'reason': result.get('reason') or '',
+        'similarity': round(float(result.get('similarity') or 0) * 100, 1),
+        'color': 'yellow',
+        'student': None,
+    }
+    student_id = identified.get('id')
+    if not student_id:
+        return jsonify(response)
+
+    student = db.session.get(Student, student_id)
+    if not student:
+        return jsonify(response)
+    settings = get_club_settings_instance()
+    today = get_local_date()
+    paid_map = get_month_paid_map(today.year, today.month)
+    payment_date_paid_map = get_payment_date_paid_map(today.year, today.month)
+    allowed, reason, debt = student_access_state(
+        student,
+        settings,
+        paid_map,
+        payment_date_paid_map,
+        today,
+    )
+    response.update({
+        'color': 'green' if allowed else 'red',
+        'access_allowed': bool(allowed),
+        'access_reason': reason,
+        'student': {
+            'id': student.id,
+            'full_name': student.full_name,
+            'group_name': student.group.name if student.group else None,
+            'photo_url': build_photo_url(student.photo_path),
+            'debt': float(debt or 0),
+        },
+    })
+    return jsonify(response)
 
 
 @app.route('/api/hikvision/sync', methods=['POST'])
@@ -8126,6 +8210,15 @@ def get_club_settings():
         'telegram_card_template': getattr(settings, 'telegram_card_template', '') or '',
         'telegram_payment_template': getattr(settings, 'telegram_payment_template', '') or '',
         'rtsp_url': getattr(settings, 'rtsp_url', '') or '',
+        'camera_kiosk_url': getattr(settings, 'camera_kiosk_url', '') or '',
+        'camera_stream_fps': int(getattr(settings, 'camera_stream_fps', 30) or 30),
+        'camera_tracking_fps': int(getattr(settings, 'camera_tracking_fps', 30) or 30),
+        'camera_detection_fps': int(getattr(settings, 'camera_detection_fps', 10) or 10),
+        'camera_width': int(getattr(settings, 'camera_width', 1920) or 1920),
+        'camera_height': int(getattr(settings, 'camera_height', 1080) or 1080),
+        'camera_recognition_frames': int(getattr(settings, 'camera_recognition_frames', 3) or 3),
+        'camera_result_hold_seconds': int(getattr(settings, 'camera_result_hold_seconds', 10) or 10),
+        'camera_kiosk_port': int(getattr(settings, 'camera_kiosk_port', 8090) or 8090),
         'payment_click_enabled': bool(getattr(settings, 'payment_click_enabled', False)),
         'payment_click_qr_url': getattr(settings, 'payment_click_qr_url', '') or '',
         'payment_payme_enabled': bool(getattr(settings, 'payment_payme_enabled', False)),
@@ -8290,6 +8383,27 @@ def update_club_settings():
         telegram_card_template = (data.get('telegram_card_template') or '').strip()
         telegram_payment_template = (data.get('telegram_payment_template') or '').strip()
         rtsp_url = (data.get('rtsp_url') or '').strip()
+        camera_kiosk_url = get_str_setting('camera_kiosk_url', getattr(settings, 'camera_kiosk_url', '') or '')
+
+        def get_camera_int(key, default_value, minimum, maximum):
+            try:
+                value = int(data.get(key, getattr(settings, key, default_value) or default_value))
+            except (TypeError, ValueError):
+                raise ValueError(f'Некорректное значение настройки камеры: {key}')
+            if value < minimum or value > maximum:
+                raise ValueError(f'Настройка камеры {key} должна быть от {minimum} до {maximum}')
+            return value
+
+        camera_stream_fps = get_camera_int('camera_stream_fps', 30, 1, 60)
+        camera_tracking_fps = get_camera_int('camera_tracking_fps', 30, 1, 60)
+        camera_detection_fps = get_camera_int('camera_detection_fps', 10, 1, 30)
+        camera_width = get_camera_int('camera_width', 1920, 320, 3840)
+        camera_height = get_camera_int('camera_height', 1080, 240, 2160)
+        camera_recognition_frames = get_camera_int('camera_recognition_frames', 3, 1, 10)
+        camera_result_hold_seconds = get_camera_int('camera_result_hold_seconds', 10, 1, 60)
+        camera_kiosk_port = get_camera_int('camera_kiosk_port', 8090, 1024, 65535)
+        if camera_kiosk_url and not re.match(r'^https?://', camera_kiosk_url, re.IGNORECASE):
+            return jsonify({'success': False, 'message': 'Адрес киоска должен начинаться с http:// или https://'}), 400
         payment_click_enabled = get_bool_setting('payment_click_enabled', getattr(settings, 'payment_click_enabled', False))
         payment_click_qr_url = get_str_setting('payment_click_qr_url', getattr(settings, 'payment_click_qr_url', '') or '')
         payment_payme_enabled = get_bool_setting('payment_payme_enabled', getattr(settings, 'payment_payme_enabled', False))
@@ -8381,6 +8495,15 @@ def update_club_settings():
         settings.telegram_card_template = telegram_card_template if telegram_card_template else None
         settings.telegram_payment_template = telegram_payment_template if telegram_payment_template else None
         settings.rtsp_url = rtsp_url if rtsp_url else None
+        settings.camera_kiosk_url = camera_kiosk_url if camera_kiosk_url else None
+        settings.camera_stream_fps = camera_stream_fps
+        settings.camera_tracking_fps = min(camera_tracking_fps, camera_stream_fps)
+        settings.camera_detection_fps = min(camera_detection_fps, camera_tracking_fps, camera_stream_fps)
+        settings.camera_width = camera_width
+        settings.camera_height = camera_height
+        settings.camera_recognition_frames = camera_recognition_frames
+        settings.camera_result_hold_seconds = camera_result_hold_seconds
+        settings.camera_kiosk_port = camera_kiosk_port
         settings.payment_click_enabled = payment_click_enabled
         settings.payment_click_qr_url = payment_click_qr_url if payment_click_qr_url else None
         settings.payment_payme_enabled = payment_payme_enabled
@@ -9729,8 +9852,16 @@ def get_districts_list(city):
 @app.route('/camera')
 @login_required
 def camera_page():
-    """Страница с камерой для распознавания"""
-    return render_template('camera.html')
+    """Read-only launcher/viewer for the camera kiosk running on bridge."""
+    if not current_user.has_permission('camera', 'view'):
+        return redirect(url_for('dashboard'))
+    ensure_club_settings_columns()
+    settings = get_club_settings_instance()
+    kiosk_url = (getattr(settings, 'camera_kiosk_url', '') or '').strip()
+    if not kiosk_url:
+        kiosk_port = int(getattr(settings, 'camera_kiosk_port', 8090) or 8090)
+        kiosk_url = f'http://192.168.1.5:{kiosk_port}'
+    return render_template('camera.html', kiosk_url=kiosk_url)
 
 
 
