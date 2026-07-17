@@ -32,6 +32,22 @@ sudo systemctl status karasu-camera-kiosk.service
 journalctl -u karasu-camera-kiosk.service -n 100 --no-pager
 ```
 
+### Автозапуск на локальном мониторе
+
+После установки camera-kiosk можно автоматически открывать его на подключенном
+к mini PC мониторе в полноэкранном режиме:
+
+```bash
+bash bridge/install-camera-kiosk-browser.sh
+sudo reboot
+```
+
+Установщик использует Chromium, Google Chrome или Firefox из системы. Страница
+открывается локально по адресу `http://127.0.0.1:8090`, поэтому Tailscale для
+подключенного к bridge монитора не нужен. Графический пользователь Ubuntu должен
+автоматически входить в систему после загрузки, иначе браузер запустится только
+после ручного входа.
+
 ## Что где находится
 
 - Проект: `proAppFootballClub`
