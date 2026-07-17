@@ -48,6 +48,18 @@ sudo reboot
 автоматически входить в систему после загрузки, иначе браузер запустится только
 после ручного входа.
 
+На минимальной Ubuntu без рабочего стола установите легкий графический сеанс:
+
+```bash
+sudo apt update
+sudo apt install -y xserver-xorg lightdm openbox dbus-x11
+bash bridge/install-camera-kiosk-browser.sh
+sudo reboot
+```
+
+При наличии LightDM и Openbox установщик включает графическую загрузку,
+автоматический вход пользователя `admina` и запуск kiosk из Openbox.
+
 ## Что где находится
 
 - Проект: `proAppFootballClub`
