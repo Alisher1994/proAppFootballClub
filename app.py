@@ -1625,6 +1625,7 @@ def ensure_club_settings_columns():
         if 'rtsp_url' not in columns:
             conn.execute(db.text("ALTER TABLE club_settings ADD COLUMN rtsp_url VARCHAR(300)"))
         camera_columns = {
+            'camera_kiosk_enabled': "ALTER TABLE club_settings ADD COLUMN camera_kiosk_enabled BOOLEAN DEFAULT FALSE",
             'camera_kiosk_url': "ALTER TABLE club_settings ADD COLUMN camera_kiosk_url VARCHAR(300)",
             'camera_stream_fps': "ALTER TABLE club_settings ADD COLUMN camera_stream_fps INTEGER DEFAULT 30",
             'camera_tracking_fps': "ALTER TABLE club_settings ADD COLUMN camera_tracking_fps INTEGER DEFAULT 30",
@@ -7404,6 +7405,7 @@ def hikvision_config():
         'cleanup_stale_users': bool(getattr(settings, 'hikvision_cleanup_stale_users', True)),
         'max_debt_months': get_effective_access_max_debt_months(settings),
         'camera': {
+            'enabled': bool(getattr(settings, 'camera_kiosk_enabled', False)),
             'rtsp_url': getattr(settings, 'rtsp_url', '') or '',
             'kiosk_url': getattr(settings, 'camera_kiosk_url', '') or '',
             'stream_fps': int(getattr(settings, 'camera_stream_fps', 30) or 30),
@@ -7424,6 +7426,11 @@ def camera_kiosk_recognize():
     """Read-only face decision for the local camera kiosk on bridge."""
     if not check_bridge_auth():
         return jsonify({'success': False, 'message': 'Unauthorized'}), 401
+
+    ensure_club_settings_columns()
+    settings = get_club_settings_instance()
+    if not bool(getattr(settings, 'camera_kiosk_enabled', False)):
+        return jsonify({'success': False, 'message': 'Camera-kiosk выключен'}), 503
 
     data = request.get_json(silent=True) or {}
     track_id = str(data.get('track_id') or '')[:80]
@@ -7451,7 +7458,6 @@ def camera_kiosk_recognize():
     student = db.session.get(Student, student_id)
     if not student:
         return jsonify(response)
-    settings = get_club_settings_instance()
     today = get_local_date()
     paid_map = get_month_paid_map(today.year, today.month)
     payment_date_paid_map = get_payment_date_paid_map(today.year, today.month)
@@ -8210,6 +8216,7 @@ def get_club_settings():
         'telegram_card_template': getattr(settings, 'telegram_card_template', '') or '',
         'telegram_payment_template': getattr(settings, 'telegram_payment_template', '') or '',
         'rtsp_url': getattr(settings, 'rtsp_url', '') or '',
+        'camera_kiosk_enabled': bool(getattr(settings, 'camera_kiosk_enabled', False)),
         'camera_kiosk_url': getattr(settings, 'camera_kiosk_url', '') or '',
         'camera_stream_fps': int(getattr(settings, 'camera_stream_fps', 30) or 30),
         'camera_tracking_fps': int(getattr(settings, 'camera_tracking_fps', 30) or 30),
@@ -8383,6 +8390,7 @@ def update_club_settings():
         telegram_card_template = (data.get('telegram_card_template') or '').strip()
         telegram_payment_template = (data.get('telegram_payment_template') or '').strip()
         rtsp_url = (data.get('rtsp_url') or '').strip()
+        camera_kiosk_enabled = get_bool_setting('camera_kiosk_enabled', getattr(settings, 'camera_kiosk_enabled', False))
         camera_kiosk_url = get_str_setting('camera_kiosk_url', getattr(settings, 'camera_kiosk_url', '') or '')
 
         def get_camera_int(key, default_value, minimum, maximum):
@@ -8495,6 +8503,7 @@ def update_club_settings():
         settings.telegram_card_template = telegram_card_template if telegram_card_template else None
         settings.telegram_payment_template = telegram_payment_template if telegram_payment_template else None
         settings.rtsp_url = rtsp_url if rtsp_url else None
+        settings.camera_kiosk_enabled = camera_kiosk_enabled
         settings.camera_kiosk_url = camera_kiosk_url if camera_kiosk_url else None
         settings.camera_stream_fps = camera_stream_fps
         settings.camera_tracking_fps = min(camera_tracking_fps, camera_stream_fps)
@@ -9857,11 +9866,12 @@ def camera_page():
         return redirect(url_for('dashboard'))
     ensure_club_settings_columns()
     settings = get_club_settings_instance()
+    kiosk_enabled = bool(getattr(settings, 'camera_kiosk_enabled', False))
     kiosk_url = (getattr(settings, 'camera_kiosk_url', '') or '').strip()
     if not kiosk_url:
         kiosk_port = int(getattr(settings, 'camera_kiosk_port', 8090) or 8090)
         kiosk_url = f'http://192.168.1.5:{kiosk_port}'
-    return render_template('camera.html', kiosk_url=kiosk_url)
+    return render_template('camera.html', kiosk_url=kiosk_url, kiosk_enabled=kiosk_enabled)
 
 
 

@@ -517,6 +517,7 @@ class ClubSettings(db.Model):
     telegram_card_template = db.Column(db.Text, nullable=True)  # Шаблон уведомления о карточке
     telegram_payment_template = db.Column(db.Text, nullable=True)  # Шаблон уведомления об оплате
     rtsp_url = db.Column(db.String(300), nullable=True)  # URL RTSP камеры
+    camera_kiosk_enabled = db.Column(db.Boolean, default=False)  # Экспериментальный camera-kiosk на bridge
     camera_kiosk_url = db.Column(db.String(300), nullable=True)  # Локальный URL camera-kiosk на bridge
     camera_stream_fps = db.Column(db.Integer, default=30)
     camera_tracking_fps = db.Column(db.Integer, default=30)

@@ -18,6 +18,8 @@
         .camera-monitor-frame-wrap { position: relative; overflow: hidden; border: 1px solid #252b36; border-radius: 16px; background: #05070b; }
         .camera-monitor-frame { width: 100%; height: 100%; border: 0; background: #05070b; }
         .camera-monitor-help { position: absolute; inset: 0; display: none; place-items: center; padding: 30px; text-align: center; color: #cbd5e1; pointer-events: none; }
+        .camera-monitor-disabled { height: 100%; display: grid; place-items: center; padding: 30px; text-align: center; color: #cbd5e1; }
+        .camera-monitor-disabled strong { display: block; margin-bottom: 8px; color: #fff; font-size: 20px; }
         @media (max-width: 768px) {
             .camera-monitor-page { padding: 10px 10px 80px; }
             .camera-monitor-shell { height: calc(100vh - 90px); }
@@ -37,16 +39,27 @@
                     <p>Информационный поток camera-kiosk. Посещения и управление турникетом здесь не выполняются.</p>
                 </div>
                 <div class="camera-monitor-actions">
+                    {% if kiosk_enabled %}
                     <a class="camera-monitor-link" href="{{ kiosk_url }}" target="_blank" rel="noopener">
                         Открыть киоск
                     </a>
+                    {% endif %}
                 </div>
             </header>
             <div class="camera-monitor-frame-wrap">
+                {% if kiosk_enabled %}
                 <iframe class="camera-monitor-frame" src="{{ kiosk_url }}" title="Поток camera-kiosk" allow="fullscreen"></iframe>
                 <div class="camera-monitor-help">
                     Если браузер блокирует локальный HTTP-поток внутри HTTPS-страницы, используйте кнопку «Открыть киоск».
                 </div>
+                {% else %}
+                <div class="camera-monitor-disabled">
+                    <div>
+                        <strong>Camera-kiosk выключен</strong>
+                        Штатные терминалы Hikvision и сравнение фотографий в журнале проходов работают как обычно.
+                    </div>
+                </div>
+                {% endif %}
             </div>
         </section>
     </main>

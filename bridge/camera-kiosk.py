@@ -27,6 +27,7 @@ PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 CONFIG_REFRESH_SECONDS = max(10, int(os.environ.get('CAMERA_CONFIG_REFRESH_SECONDS', '30')))
 
 DEFAULTS = {
+    'enabled': os.environ.get('CAMERA_KIOSK_ENABLED', '').strip().lower() in {'1', 'true', 'yes', 'on'},
     'rtsp_url': os.environ.get('CAMERA_RTSP_URL', ''),
     'stream_fps': int(os.environ.get('CAMERA_STREAM_FPS', '30')),
     'tracking_fps': int(os.environ.get('CAMERA_TRACKING_FPS', '30')),
@@ -46,6 +47,14 @@ def clamp(value, minimum, maximum, fallback):
         return max(minimum, min(maximum, int(value)))
     except (TypeError, ValueError):
         return fallback
+
+
+def as_bool(value, fallback=False):
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return fallback
+    return str(value).strip().lower() in {'1', 'true', 'yes', 'on'}
 
 
 class CameraKiosk:
@@ -89,6 +98,7 @@ class CameraKiosk:
             payload = json.loads(response.read().decode('utf-8'))
         remote = payload.get('camera') or {}
         clean = {
+            'enabled': as_bool(remote.get('enabled'), False),
             'rtsp_url': str(remote.get('rtsp_url') or self.config.get('rtsp_url') or '').strip(),
             'stream_fps': clamp(remote.get('stream_fps'), 1, 60, 30),
             'tracking_fps': clamp(remote.get('tracking_fps'), 1, 60, 30),
@@ -102,8 +112,9 @@ class CameraKiosk:
         clean['detection_fps'] = min(clean['detection_fps'], clean['stream_fps'])
         with self.config_lock:
             source_changed = clean['rtsp_url'] != self.config.get('rtsp_url')
+            disabled_now = self.config.get('enabled') and not clean['enabled']
             self.config.update(clean)
-        if source_changed and self.capture is not None:
+        if (source_changed or disabled_now) and self.capture is not None:
             self.capture.release()
             self.capture = None
 
@@ -357,12 +368,25 @@ class CameraKiosk:
         last_tracking = 0.0
         while not self.stop_event.is_set():
             with self.config_lock:
+                enabled = self.config.get('enabled', False)
                 stream_fps = self.config['stream_fps']
                 tracking_fps = self.config['tracking_fps']
                 detection_fps = self.config['detection_fps']
                 result_hold_seconds = self.config['result_hold_seconds']
                 width = self.config['width']
                 height = self.config['height']
+            if not enabled:
+                if self.capture is not None:
+                    self.capture.release()
+                    self.capture = None
+                self.detector = None
+                self.tracks.clear()
+                with self.frame_lock:
+                    self.latest_jpeg = None
+                self.status = 'disabled'
+                self.error = ''
+                self.stop_event.wait(1.0)
+                continue
             started = time.monotonic()
             if self.capture is None and not self.open_capture():
                 frame = self.make_placeholder(self.error or 'Camera offline')

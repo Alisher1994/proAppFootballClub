@@ -586,6 +586,8 @@ async function loadSettings() {
             const element = document.getElementById(id);
             if (element) element.value = data[id] ?? fallback;
         });
+        const cameraKioskEnabledEl = document.getElementById('camera_kiosk_enabled');
+        if (cameraKioskEnabledEl) cameraKioskEnabledEl.checked = !!data.camera_kiosk_enabled;
         document.getElementById('rewards_reset_period_months').value = data.rewards_reset_period_months || 1;
         // Убедимся, что значение кратно 5 и в диапазоне 5-50
         const podiumValue = data.podium_display_count || 20;
@@ -1038,6 +1040,7 @@ function gatherAllSettings() {
         founder_phone: (document.getElementById('founder_phone')?.value || '').trim(),
         cashier_phone: (document.getElementById('cashier_phone')?.value || '').trim(),
         rtsp_url: (document.getElementById('rtsp_url_setting')?.value || '').trim(),
+        camera_kiosk_enabled: document.getElementById('camera_kiosk_enabled')?.checked || false,
         camera_kiosk_url: (document.getElementById('camera_kiosk_url')?.value || '').trim(),
         camera_stream_fps: parseInt(document.getElementById('camera_stream_fps')?.value || '30', 10),
         camera_tracking_fps: parseInt(document.getElementById('camera_tracking_fps')?.value || '30', 10),
@@ -1100,7 +1103,10 @@ async function saveCameraSettings() {
 
         const result = await resp.json();
         if (result.success) {
-            alert('Настройки камеры сохранены! Camera-kiosk заберёт их автоматически. После изменения порта перезапустите его сервис.');
+            const enabled = document.getElementById('camera_kiosk_enabled')?.checked || false;
+            alert(enabled
+                ? 'Camera-kiosk включён. Bridge заберёт настройки автоматически.'
+                : 'Camera-kiosk выключен. Штатные терминалы и журнал проходов продолжат работать.');
             markSettingsFormsClean();
         } else {
             alert('Ошибка: ' + (result.message || 'Не удалось сохранить настройки'));

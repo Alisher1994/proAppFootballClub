@@ -3094,6 +3094,17 @@
                                 </div>
                                 <div class="settings-section-content">
                                     <div class="form-group">
+                                        <label class="checkbox-label">
+                                            <input type="checkbox" id="camera_kiosk_enabled">
+                                            Включить экспериментальный camera-kiosk на Bridge
+                                            <span class="checkbox-state" aria-hidden="true"></span>
+                                        </label>
+                                        <small>
+                                            При выключении останавливаются RTSP-обработка, трекинг и InsightFace camera-kiosk.
+                                            Терминалы Hikvision и сверка фотографий в журнале проходов продолжают работать.
+                                        </small>
+                                    </div>
+                                    <div class="form-group">
                                         <label for="camera_kiosk_url">Локальный адрес киоска</label>
                                         <input type="url" id="camera_kiosk_url" class="form-input-modern"
                                             placeholder="http://192.168.1.5:8090">
