@@ -316,6 +316,12 @@ class CameraKiosk:
         }
         for track in list(self.tracks.values()):
             x1, y1, x2, y2 = track['bbox']
+            x1 = max(0, min(image.width - 1, int(x1)))
+            y1 = max(0, min(image.height - 1, int(y1)))
+            x2 = max(0, min(image.width - 1, int(x2)))
+            y2 = max(0, min(image.height - 1, int(y2)))
+            if x2 <= x1 or y2 <= y1:
+                continue
             result = track.get('result') or {}
             color_key = result.get('color') or ('gray' if track.get('recognizing') else 'yellow')
             color = colors.get(color_key, colors['yellow'])
@@ -325,9 +331,18 @@ class CameraKiosk:
             text_box = draw.textbbox((0, 0), label, font=self.font)
             text_width = text_box[2] - text_box[0]
             text_height = text_box[3] - text_box[1]
-            label_y = max(0, y1 - text_height - 18)
-            draw.rounded_rectangle((x1, label_y, min(image.width, x1 + text_width + 22), y1), radius=8, fill=color)
-            draw.text((x1 + 10, label_y + 5), label, font=self.font, fill=(255, 255, 255))
+            label_height = text_height + 14
+            label_top = y1 - label_height if y1 >= label_height else y2
+            label_top = max(0, min(image.height - label_height, label_top))
+            label_bottom = min(image.height, label_top + label_height)
+            label_left = max(0, min(image.width - 1, x1))
+            label_right = min(image.width, label_left + text_width + 22)
+            draw.rounded_rectangle(
+                (label_left, label_top, max(label_left + 1, label_right), label_bottom),
+                radius=8,
+                fill=color,
+            )
+            draw.text((label_left + 10, label_top + 5), label, font=self.font, fill=(255, 255, 255))
         return cv2.cvtColor(np.asarray(image), cv2.COLOR_RGB2BGR)
 
     def make_placeholder(self, message):
@@ -381,7 +396,13 @@ class CameraKiosk:
                     self.status = 'recognition_error'
                     self.error = f'Ошибка детекции: {type(exc).__name__}'
                 last_detection = now
-            self.publish(self.draw(frame))
+            try:
+                rendered = self.draw(frame)
+            except Exception as exc:
+                self.status = 'render_error'
+                self.error = f'Ошибка отрисовки: {type(exc).__name__}'
+                rendered = frame
+            self.publish(rendered)
             elapsed = time.monotonic() - started
             self.stop_event.wait(max(0.0, (1.0 / max(1, stream_fps)) - elapsed))
 
