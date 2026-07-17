@@ -426,11 +426,18 @@ def index():
     return '''<!doctype html>
 <html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Видеомониторинг</title><style>
-html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#080b12;color:#fff;font-family:Arial,sans-serif}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#080b12;color:#fff;font-family:Arial,sans-serif;cursor:none}
 main{position:relative;width:100%;height:100%;display:grid;place-items:center}img{width:100%;height:100%;object-fit:contain}
 .status{position:absolute;top:16px;left:16px;padding:9px 13px;border-radius:9px;background:rgba(8,11,18,.72);font-size:14px;backdrop-filter:blur(8px)}
-</style></head><body><main><img src="/stream.mjpg" alt="Камера"><div class="status" id="status">Подключение...</div></main>
-<script>setInterval(async()=>{try{const r=await fetch('/api/status',{cache:'no-store'}),d=await r.json();document.getElementById('status').textContent=d.status==='online'?'Камера подключена':(d.error||d.status)}catch(e){document.getElementById('status').textContent='Нет связи с camera-kiosk'}},2000)</script>
+</style></head><body><main><img id="stream" src="/stream.mjpg" alt="Камера"><div class="status" id="status">Подключение...</div></main>
+<script>
+const stream=document.getElementById('stream'),statusEl=document.getElementById('status');
+let reconnectTimer=null,lastReconnect=Date.now();
+function reconnectStream(){clearTimeout(reconnectTimer);lastReconnect=Date.now();stream.src='/stream.mjpg?t='+lastReconnect}
+function scheduleReconnect(){clearTimeout(reconnectTimer);reconnectTimer=setTimeout(reconnectStream,1500)}
+stream.addEventListener('error',scheduleReconnect);
+setInterval(async()=>{try{const r=await fetch('/api/status',{cache:'no-store'}),d=await r.json();statusEl.textContent=d.status==='online'?'Камера подключена':(d.error||d.status);const age=Date.now()-lastReconnect;if(d.status==='online'&&((!stream.naturalWidth&&age>10000)||age>60000))reconnectStream()}catch(e){statusEl.textContent='Нет связи с camera-kiosk';scheduleReconnect()}},2000)
+</script>
 </body></html>'''
 
 
@@ -443,7 +450,11 @@ def stream():
             if frame:
                 yield b'--frame\r\nContent-Type: image/jpeg\r\n\r\n' + frame + b'\r\n'
             time.sleep(1.0 / max(1, kiosk.config.get('stream_fps', 30)))
-    return Response(generate(), mimetype='multipart/x-mixed-replace; boundary=frame')
+    response = Response(generate(), mimetype='multipart/x-mixed-replace; boundary=frame')
+    response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['X-Accel-Buffering'] = 'no'
+    return response
 
 
 @app.get('/api/status')

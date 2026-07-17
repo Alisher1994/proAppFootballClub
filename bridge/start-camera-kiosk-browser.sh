@@ -42,6 +42,7 @@ exec "$BROWSER" \
   --no-first-run \
   --disable-infobars \
   --disable-session-crashed-bubble \
+  --disable-gpu \
   --disable-features=Translate \
   --user-data-dir="$HOME/.config/karasu-camera-kiosk-browser" \
   "$KIOSK_URL"
