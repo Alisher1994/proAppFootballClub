@@ -1917,19 +1917,7 @@
                     </div>
                     <div class="modal-body-scrollable">
                         <form id="addIncomeForm">
-                            <div class="form-group">
-                                <label>Группа *</label>
-                                <select id="add-income-group" name="group_id" class="native-search-select">
-                                    <option value="">Выберите группу</option>
-                                </select>
-                                <div class="searchable-select" data-searchable-select="add-income-group">
-                                    <input type="text" class="form-input-modern searchable-select-input"
-                                        placeholder="Поиск группы..." autocomplete="off">
-                                    <div class="searchable-select-options"></div>
-                                </div>
-                            </div>
-
-                            <div class="form-group" id="student-select-group" style="display: none;">
+                            <div class="form-group" id="student-select-group">
                                 <label>Ученик *</label>
                                 <div style="display: flex; gap: 15px; align-items: center;">
                                     <div id="student-photo-container"
@@ -1946,7 +1934,7 @@
                                         </select>
                                         <div class="searchable-select" data-searchable-select="add-income-student">
                                             <input type="text" class="form-input-modern searchable-select-input"
-                                                placeholder="Поиск ученика..." autocomplete="off">
+                                                placeholder="Поиск по ФИО..." autocomplete="off">
                                             <div class="searchable-select-options"></div>
                                         </div>
                                     </div>
@@ -2171,7 +2159,7 @@
         </div>
     </div>
 
-    <script src="{{ url_for('static', filename='js/finances.js') }}?v=202602042"></script>
+    <script src="{{ url_for('static', filename='js/finances.js') }}?v=202607171"></script>
     <script src="{{ url_for('static', filename='js/cash.js') }}?v=202602041"></script>
     <script src="{{ url_for('static', filename='js/sidebar.js') }}"></script>
     <script src="{{ url_for('static', filename='js/theme.js') }}"></script>

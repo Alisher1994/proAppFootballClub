@@ -1078,7 +1078,7 @@ function setupSearchableSelect(selectId, placeholder = 'Поиск...') {
     renderOptions();
 }
 
-// Скрыть все поля кроме группы при открытии
+// Скрыть зависимые поля, оставив общий выбор ученика по всему клубу
 function resetIncomeForm() {
     const studentSelectGroup = document.getElementById('student-select-group');
     const yearMonthSelectGroup = document.getElementById('year-month-select-group');
@@ -1087,7 +1087,7 @@ function resetIncomeForm() {
     const incomePaymentAmountGroup = document.getElementById('income-payment-amount-group');
     const notesInputGroup = document.getElementById('notes-input-group');
 
-    if (studentSelectGroup) studentSelectGroup.style.display = 'none';
+    if (studentSelectGroup) studentSelectGroup.style.display = 'block';
     if (yearMonthSelectGroup) yearMonthSelectGroup.style.display = 'none';
     if (dateSelectGroup) dateSelectGroup.style.display = 'none';
     if (paymentMethodGroup) paymentMethodGroup.style.display = 'none';
@@ -1095,7 +1095,7 @@ function resetIncomeForm() {
     if (notesInputGroup) notesInputGroup.style.display = 'none';
 
     document.getElementById('add-income-student').value = '';
-    setupSearchableSelect('add-income-student', 'Поиск ученика...');
+    setupSearchableSelect('add-income-student', 'Поиск по ФИО...');
     document.getElementById('add-income-year').value = '';
     document.getElementById('add-income-month').value = '';
     document.getElementById('add-income-amount').value = '';
@@ -1312,80 +1312,34 @@ function attachAmountFormatting(inputId) {
     el.addEventListener('blur', formatHandler);
 }
 
-// Загрузить группы в модальное окно добавления прихода (только с активными учениками)
-async function loadIncomeModalGroups() {
-    try {
-        const [groupsResponse, studentsResponse] = await Promise.all([
-            fetch('/api/groups'),
-            fetch('/api/students?view=options&active_only=1')
-        ]);
-
-        const groups = await groupsResponse.json();
-        const students = await studentsResponse.json();
-        const activeGroupIds = new Set(
-            students
-                .filter(s => s.status === 'active' && s.group_id)
-                .map(s => String(s.group_id))
-        );
-
-        const availableGroups = groups.filter(g => activeGroupIds.has(String(g.id)));
-        const groupSelect = document.getElementById('add-income-group');
-        if (groupSelect) {
-            if (availableGroups.length === 0) {
-                groupSelect.innerHTML = '<option value="">Нет групп с активными учениками</option>';
-                groupSelect.disabled = true;
-            } else {
-                groupSelect.disabled = false;
-                groupSelect.innerHTML = '<option value="">Выберите группу</option>' +
-                    availableGroups.map(g => `<option value="${g.id}">${g.name}</option>`).join('');
-            }
-
-            setupSearchableSelect('add-income-group', 'Поиск группы...');
-
-            // Убедимся, что обработчик события привязан
-            if (!groupSelect.hasAttribute('data-listener-attached')) {
-                groupSelect.setAttribute('data-listener-attached', 'true');
-                groupSelect.addEventListener('change', (e) => {
-                    resetIncomeForm();
-                    loadIncomeModalStudents(e.target.value);
-                });
-            }
-        } else {
-            console.error('Элемент add-income-group не найден');
-        }
-    } catch (error) {
-        console.error('Ошибка загрузки групп:', error);
-    }
-}
-
-// Загрузить учеников выбранной группы в модальное окно
-async function loadIncomeModalStudents(groupId) {
+// Загрузить всех активных учеников клуба в единый список оплаты
+async function loadIncomeModalStudents() {
     const studentSelect = document.getElementById('add-income-student');
 
-    if (!groupId) {
-        document.getElementById('student-select-group').style.display = 'none';
-        return;
-    }
-
     try {
-        const response = await fetch(`/api/students?view=options&active_only=1&group_id=${encodeURIComponent(groupId)}`);
+        const response = await fetch('/api/students?view=options&active_only=1');
         const students = await response.json();
-        const groupStudents = students.filter(s => s.group_id == groupId && s.status === 'active');
+        const activeStudents = students.filter(s => s.status === 'active');
 
         // Сохранить данные учеников для доступа к фото
         allStudentsData = {};
-        groupStudents.forEach(s => {
+        activeStudents.forEach(s => {
             allStudentsData[s.id] = s;
         });
 
         studentSelect.innerHTML = '<option value="">Выберите ученика</option>' +
-            groupStudents.map(s => `<option value="${s.id}" data-photo="${s.photo_path || ''}">${s.full_name} (№${s.student_number || s.id})</option>`).join('');
+            activeStudents.map(s => {
+                const groupName = s.group_name || 'Без группы';
+                const studentNumber = s.student_number ? ` · №${s.student_number}` : '';
+                return `<option value="${s.id}" data-photo="${s.photo_path || ''}">${escapeHtml(s.full_name)} · ${escapeHtml(groupName)}${escapeHtml(studentNumber)}</option>`;
+            }).join('');
 
-        setupSearchableSelect('add-income-student', 'Поиск ученика...');
+        setupSearchableSelect('add-income-student', 'Поиск по ФИО...');
         document.getElementById('student-select-group').style.display = 'block';
     } catch (error) {
         console.error('Ошибка загрузки учеников:', error);
-        document.getElementById('student-select-group').style.display = 'none';
+        studentSelect.innerHTML = '<option value="">Не удалось загрузить учеников</option>';
+        setupSearchableSelect('add-income-student', 'Поиск по ФИО...');
     }
 }
 
@@ -1587,7 +1541,7 @@ if (addIncomeBtn) {
         addIncomeModal.style.display = 'block';
         addIncomeForm.reset();
         resetIncomeForm();
-        loadIncomeModalGroups();
+        await loadIncomeModalStudents();
         initPaymentDateLimits();
         await loadPaymentMethodSettings();
         applyPaymentMethodSettings();
@@ -1597,12 +1551,6 @@ if (addIncomeBtn) {
 
 // Обработчик изменения группы
 document.addEventListener('DOMContentLoaded', () => {
-    const groupSelect = document.getElementById('add-income-group');
-    if (groupSelect) {
-        // Обработчик будет привязан в loadIncomeModalGroups() после загрузки групп
-        // Это предотвращает дублирование обработчиков
-    }
-
     // Обработчик изменения ученика
     const studentSelect = document.getElementById('add-income-student');
     if (studentSelect) {
@@ -1640,17 +1588,7 @@ document.addEventListener('DOMContentLoaded', () => {
     attachAmountFormatting('edit-payment-amount');
 });
 
-// Закрыть модальное окно добавления прихода
-// Кнопка "Отмена" теперь находится в modal-header-actions и использует onclick
-// Обработчик закрытия при клике вне модального окна остается ниже
-
-// Закрыть при клике вне окна
-window.addEventListener('click', (e) => {
-    if (e.target === addIncomeModal) {
-        addIncomeModal.style.display = 'none';
-        resetIncomeForm();
-    }
-});
+// Окно оплаты закрывается только явной кнопкой, чтобы не потерять введенные данные.
 
 // Обработчики для кнопок выбора типа оплаты в финансах
 document.addEventListener('DOMContentLoaded', () => {
@@ -1703,8 +1641,6 @@ if (addIncomeForm) {
         e.preventDefault();
 
         const stayOpen = e.submitter && e.submitter.id === 'add-income-save-plus';
-        const savedGroupId = document.getElementById('add-income-group').value;
-
         const studentId = document.getElementById('add-income-student').value;
         const month = document.getElementById('add-income-month').value;
         const year = document.getElementById('add-income-year').value;
@@ -1780,13 +1716,7 @@ if (addIncomeForm) {
                 if (stayOpen) {
                     alert('Оплата успешно добавлена!');
                     resetIncomeForm();
-                    if (savedGroupId) {
-                        const groupSelect = document.getElementById('add-income-group');
-                        if (groupSelect) {
-                            groupSelect.value = savedGroupId;
-                            await loadIncomeModalStudents(savedGroupId);
-                        }
-                    }
+                    await loadIncomeModalStudents();
                     addIncomeModal.style.display = 'block';
                 } else {
                     addIncomeModal.style.display = 'none';
@@ -2029,12 +1959,7 @@ closeButtons.forEach(btn => {
     });
 });
 
-// Закрыть при клике вне окна
-window.addEventListener('click', (e) => {
-    if (e.target === addExpenseModal) {
-        addExpenseModal.style.display = 'none';
-    }
-});
+// Окно расхода закрывается только явной кнопкой.
 
 // Отправить форму добавления расхода
 addExpenseForm.addEventListener('submit', async (e) => {
@@ -2163,12 +2088,7 @@ editCloseButtons.forEach(btn => {
     });
 });
 
-// Закрыть при клике вне окна
-window.addEventListener('click', (e) => {
-    if (e.target === editExpenseModal) {
-        editExpenseModal.style.display = 'none';
-    }
-});
+// Окно редактирования расхода закрывается только явной кнопкой.
 
 // Отправить форму редактирования расхода
 editExpenseForm.addEventListener('submit', async (e) => {
@@ -2327,12 +2247,7 @@ editIncomeCloseButtons.forEach(btn => {
     });
 });
 
-// Закрыть при клике вне окна
-window.addEventListener('click', (e) => {
-    if (e.target === editIncomeModal) {
-        editIncomeModal.style.display = 'none';
-    }
-});
+// Окно редактирования оплаты закрывается только явной кнопкой.
 
 // Отправить форму редактирования прихода
 editIncomeForm.addEventListener('submit', async (e) => {

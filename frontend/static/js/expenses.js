@@ -71,14 +71,8 @@ if (editCategory) {
     editCategory.addEventListener('change', () => syncSalaryEmployeeField(editCategory, editExpenseEmployee));
 }
 
-window.addEventListener('click', (e) => {
-    if (e.target === addExpenseModal) {
-        addExpenseModal.style.display = 'none';
-    }
-    if (e.target === editExpenseModal) {
-        editExpenseModal.style.display = 'none';
-    }
-});
+// Формы расходов закрываются только явными кнопками, чтобы случайный клик по фону
+// не приводил к потере уже введенных данных.
 
 // Добавить расход
 document.getElementById('addExpenseForm').addEventListener('submit', async (e) => {
