@@ -1,275 +1,159 @@
 <!DOCTYPE html>
 <html lang="ru">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Турниры</title>
-    <link rel="icon" type="image/png" href="{{ url_for('static', filename='uploads/favicon.png') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=2026071502">
-    <script>
-        window.SYSTEM_SQUARE_LOGO_URL = "{{ system_square_logo_url }}";
-    </script>
+    <link rel="icon" href="{{ system_square_logo_url or url_for('static', filename='uploads/favicon.png') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/onest/onest.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=2026072701">
 </head>
-
 <body>
     {% include '_sidebar.html' %}
 
-    <main class="main-content tournaments-page">
-        <section class="tournament-shell">
-            <div class="tournament-layout">
-                <aside class="tournament-sidebar-panel">
-                    <div class="panel-title-row">
+    <main class="main-content tournaments-page tournament-catalog-page">
+        <section class="tournament-catalog-shell">
+            <header class="tournament-catalog-header">
+                <div>
+                    <span class="tournament-catalog-eyebrow">Соревнования</span>
+                    <h1>Турниры</h1>
+                </div>
+                <button class="btn-primary" id="openTournamentModalBtn" type="button">
+                    <i data-lucide="plus"></i>
+                    Создать турнир
+                </button>
+            </header>
+
+            <nav class="tournament-catalog-tabs" aria-label="Разделы">
+                <button class="tournament-catalog-tab active" type="button" data-catalog-tab="tournaments">
+                    <i data-lucide="trophy"></i>
+                    Турниры
+                </button>
+                <button class="tournament-catalog-tab" type="button" data-catalog-tab="teams">
+                    <i data-lucide="shield"></i>
+                    База команд
+                </button>
+            </nav>
+
+            <section class="tournament-catalog-panel active" id="catalogPanel-tournaments">
+                <div class="tournament-catalog-toolbar">
+                    <div>
                         <h2>Список турниров</h2>
-                        <button class="btn-secondary tournament-refresh" id="refreshTournamentBtn" type="button" title="Обновить турниры">
-                            <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor"
-                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
-                                <path d="M3 21v-5h5" />
-                                <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
-                                <path d="M16 8h5V3" />
-                            </svg>
+                        <p>Основная информация о предстоящих и завершённых турнирах.</p>
+                    </div>
+                    <span class="tournament-catalog-count" id="tournamentCount">0</span>
+                </div>
+                <div class="tournament-card-grid" id="tournamentList">
+                    <div class="tournament-catalog-empty">Загрузка турниров…</div>
+                </div>
+            </section>
+
+            <section class="tournament-catalog-panel" id="catalogPanel-teams">
+                <div class="tournament-catalog-toolbar">
+                    <div>
+                        <h2>База команд</h2>
+                        <p>Команды доступны отдельно и позже смогут добавляться в любой турнир.</p>
+                    </div>
+                    <div class="tournament-catalog-toolbar-actions">
+                        <span class="tournament-catalog-count" id="teamCount">0</span>
+                        <button class="btn-primary" id="openTeamModalBtn" type="button">
+                            <i data-lucide="plus"></i>
+                            Добавить команду
                         </button>
                     </div>
-                    <div class="tournament-list" id="tournamentList">
-                        <div class="empty-state small">Загрузка...</div>
-                    </div>
-                </aside>
-
-                <div class="tournament-content">
-                    <nav class="tournament-tabs" aria-label="Разделы турнира">
-                        <span class="tournament-tab active" role="button" tabindex="0" data-tournament-tab="bracket">Сетка</span>
-                        <span class="tournament-tab" role="button" tabindex="0" data-tournament-tab="matches">Матчи</span>
-                        <span class="tournament-tab" role="button" tabindex="0" data-tournament-tab="teams">Участники</span>
-                        <span class="tournament-tab" role="button" tabindex="0" data-tournament-tab="stats">Статистика</span>
-                    </nav>
-
-                    <section class="tournament-panel tournament-tab-panel active" id="tournamentTab-bracket">
-                        <div class="panel-title-row">
-                            <h2>Сетка турнира</h2>
-                            <button class="btn-secondary" id="openTournamentModalBtn" type="button">+ Турнир</button>
-                        </div>
-                        <div class="bracket-board tournament-main-bracket" id="bracketBoard"></div>
-                    </section>
-
-                    <section class="tournament-panel tournament-tab-panel" id="tournamentTab-matches">
-                        <div class="panel-title-row">
-                            <h2>Матчи</h2>
-                            <button class="btn-primary" id="openMatchModalBtn" type="button" disabled>+ Матч</button>
-                        </div>
-                        <div class="entity-list tournament-match-list" id="matchList">
-                            <div class="empty-state">Выберите турнир.</div>
-                        </div>
-                    </section>
-
-                    <section class="tournament-panel tournament-tab-panel" id="tournamentTab-teams">
-                        <div class="panel-title-row">
-                            <h2>Участники</h2>
-                            <button class="btn-secondary" id="openTeamModalBtn" type="button" disabled>+ Команда</button>
-                        </div>
-                        <div class="tournament-teams-grid" id="teamList">
-                            <div class="empty-state">Выберите турнир.</div>
-                        </div>
-                    </section>
-
-                    <section class="tournament-panel tournament-tab-panel" id="tournamentTab-stats">
-                        <div class="panel-title-row">
-                            <h2>Статистика турнира</h2>
-                        </div>
-                        <div class="analytics-summary" id="tournamentSummary"></div>
-                        <div class="table-scroll">
-                            <table class="tournament-table">
-                                <thead>
-                                    <tr>
-                                        <th>Игрок</th>
-                                        <th>Матчи</th>
-                                        <th>Голы</th>
-                                        <th>Пасы</th>
-                                        <th>ЖК</th>
-                                        <th>КК</th>
-                                        <th>Рейтинг</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="playerAnalyticsBody">
-                                    <tr><td colspan="7" class="empty-cell">Нет данных</td></tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </section>
-
-                    <section class="tournament-panel match-workspace" id="matchWorkspacePanel">
-                <div id="matchWorkspaceEmpty" class="workspace-empty">
-                    Выберите матч в сетке или списке, чтобы открыть счет, события и состав.
                 </div>
-
-                <div id="matchWorkspace" hidden>
-                    <div class="scoreboard">
-                        <div class="score-team left" id="scoreHomeTeam">Наша команда</div>
-                        <div class="score-center">
-                            <span id="matchMeta">Матч</span>
-                            <strong id="matchScore">0 : 0</strong>
-                            <span class="status-pill" id="matchStatusLabel">Запланирован</span>
-                        </div>
-                        <div class="score-team right" id="scoreAwayTeam">Соперник</div>
-                    </div>
-
-                    <div class="workspace-grid lineup-workspace">
-                        <section class="workspace-card">
-                            <div class="panel-title-row">
-                                <h3>Состав и позиции</h3>
-                            </div>
-                            <div class="lineup-board" id="lineupBoard"></div>
-                        </section>
-                    </div>
-
-                    <div class="workspace-grid lower">
-                        <section class="workspace-card">
-                            <h3>Хронология</h3>
-                            <div class="event-timeline" id="eventTimeline"></div>
-                        </section>
-                    </div>
+                <div class="team-catalog-grid" id="teamList">
+                    <div class="tournament-catalog-empty">Загрузка команд…</div>
                 </div>
-                    </section>
-                </div>
-            </div>
+            </section>
         </section>
     </main>
 
-    <div class="modal tournament-modal" id="tournamentModal" hidden>
+    <div class="modal tournament-catalog-modal" id="tournamentModal" hidden>
         <div class="modal-content">
-            <div class="modal-header-fixed">
-                <h2 id="tournamentModalTitle">Новый турнир</h2>
-                <div class="modal-header-actions">
-                    <button type="button" class="btn-secondary" data-close-modal="tournamentModal">Отмена</button>
-                    <button type="submit" form="tournamentForm" class="btn-primary">Сохранить</button>
+            <header class="tournament-catalog-modal-header">
+                <div>
+                    <span class="tournament-catalog-eyebrow">Турнир</span>
+                    <h2 id="tournamentModalTitle">Новый турнир</h2>
                 </div>
-            </div>
-            <div class="modal-body-scrollable">
-                <form class="compact-form" id="tournamentForm">
-                    <input id="tournamentName" type="text" placeholder="Название турнира" required>
-                    <div class="form-grid-2">
-                        <input id="tournamentSeason" type="text" placeholder="Сезон">
-                        <select id="tournamentStatus">
-                            <option value="planned">Запланирован</option>
-                            <option value="active">Идёт</option>
-                            <option value="finished">Завершён</option>
-                        </select>
-                    </div>
-                    <input id="tournamentLocation" type="text" placeholder="Место проведения">
-                    <div class="form-grid-2">
-                        <input id="tournamentStart" type="date">
-                        <input id="tournamentEnd" type="date">
-                    </div>
-                    <textarea id="tournamentNotes" rows="2" placeholder="Примечание"></textarea>
-                </form>
-            </div>
+                <button class="icon-button" type="button" data-close-modal="tournamentModal" aria-label="Закрыть">
+                    <i data-lucide="x"></i>
+                </button>
+            </header>
+            <form id="tournamentForm" class="tournament-catalog-form">
+                <label class="tournament-catalog-field full">
+                    <span>Название турнира</span>
+                    <input id="tournamentName" type="text" maxlength="200" placeholder="Например, CAM Cup 2026" required>
+                </label>
+                <label class="tournament-catalog-field">
+                    <span>Дата проведения</span>
+                    <input id="tournamentStartDate" type="date" required>
+                </label>
+                <label class="tournament-catalog-field">
+                    <span>Время проведения</span>
+                    <input id="tournamentStartTime" type="time" required>
+                </label>
+                <label class="tournament-catalog-field">
+                    <span>Дата окончания</span>
+                    <input id="tournamentEndDate" type="date" required>
+                </label>
+                <label class="tournament-catalog-field">
+                    <span>Локация</span>
+                    <input id="tournamentLocation" type="text" maxlength="200" placeholder="Стадион или адрес" required>
+                </label>
+                <label class="tournament-catalog-field full">
+                    <span>Возрастные группы</span>
+                    <input id="tournamentAgeGroups" type="text" placeholder="Например: U-10, U-12, 2014 г.р." required>
+                    <small>Укажите одну или несколько групп через запятую.</small>
+                </label>
+                <div class="tournament-catalog-form-error" id="tournamentFormError" hidden></div>
+                <footer class="tournament-catalog-form-actions full">
+                    <button class="btn-secondary" type="button" data-close-modal="tournamentModal">Отмена</button>
+                    <button class="btn-primary" type="submit">Сохранить</button>
+                </footer>
+            </form>
         </div>
     </div>
 
-    <div class="modal tournament-modal" id="teamModal" hidden>
-        <div class="modal-content wide">
-            <div class="modal-header-fixed">
-                <h2 id="teamModalTitle">Команда турнира</h2>
-                <div class="modal-header-actions">
-                    <button type="button" class="btn-secondary" data-close-modal="teamModal">Отмена</button>
-                    <button type="submit" form="teamForm" class="btn-primary">Сохранить</button>
+    <div class="modal tournament-catalog-modal" id="teamModal" hidden>
+        <div class="modal-content team-catalog-modal-content">
+            <header class="tournament-catalog-modal-header">
+                <div>
+                    <span class="tournament-catalog-eyebrow">База команд</span>
+                    <h2 id="teamModalTitle">Новая команда</h2>
                 </div>
-            </div>
-            <div class="modal-body-scrollable">
-                <form class="compact-form" id="teamForm" enctype="multipart/form-data">
-                    <div class="form-grid-2">
-                        <input id="teamName" type="text" placeholder="Название команды" required>
-                        <select id="teamType">
-                            <option value="internal">Наша команда</option>
-                            <option value="external">Внешняя команда</option>
-                        </select>
-                    </div>
-                    <label class="team-logo-picker" id="teamLogoPicker" hidden>
-                        <span class="team-logo-preview" id="teamLogoPreview">Лого</span>
-                        <span class="team-logo-copy">
-                            <strong>Логотип команды</strong>
-                            <small>Только для внешней команды</small>
-                        </span>
-                        <span class="team-logo-action">Выбрать логотип</span>
-                        <small class="team-logo-file-name" id="teamLogoFileName">PNG, JPG или WEBP</small>
-                        <input id="teamLogo" type="file" accept="image/png,image/jpeg,image/webp">
-                    </label>
-                    <select id="teamSourceGroups" multiple size="5"></select>
-                    <textarea id="teamExternalPlayers" rows="4" placeholder="Внешние игроки: ФИО, номер, позиция. Каждый игрок с новой строки."></textarea>
-                    <textarea id="teamNotes" rows="2" placeholder="Примечание"></textarea>
-                    <div class="team-player-picker" id="teamPlayerPicker"></div>
-                </form>
-            </div>
+                <button class="icon-button" type="button" data-close-modal="teamModal" aria-label="Закрыть">
+                    <i data-lucide="x"></i>
+                </button>
+            </header>
+            <form id="teamForm" class="tournament-catalog-form" enctype="multipart/form-data">
+                <label class="tournament-catalog-field full">
+                    <span>Название команды</span>
+                    <input id="teamName" type="text" maxlength="200" placeholder="Название команды" required>
+                </label>
+                <label class="team-catalog-logo-picker full">
+                    <span class="team-catalog-logo-preview" id="teamLogoPreview">
+                        <i data-lucide="image-plus"></i>
+                    </span>
+                    <span class="team-catalog-logo-copy">
+                        <strong>Логотип команды</strong>
+                        <small id="teamLogoFileName">PNG, JPG или WEBP</small>
+                    </span>
+                    <span class="btn-secondary">Выбрать файл</span>
+                    <input id="teamLogo" type="file" accept="image/png,image/jpeg,image/webp">
+                </label>
+                <div class="tournament-catalog-form-error" id="teamFormError" hidden></div>
+                <footer class="tournament-catalog-form-actions full">
+                    <button class="btn-secondary" type="button" data-close-modal="teamModal">Отмена</button>
+                    <button class="btn-primary" type="submit">Сохранить</button>
+                </footer>
+            </form>
         </div>
     </div>
 
-    <div class="modal tournament-modal" id="matchModal" hidden>
-        <div class="modal-content">
-            <div class="modal-header-fixed">
-                <h2 id="matchModalTitle">Новый матч</h2>
-                <div class="modal-header-actions">
-                    <button type="button" class="btn-secondary" data-close-modal="matchModal">Отмена</button>
-                    <button type="submit" form="matchForm" class="btn-primary">Сохранить</button>
-                </div>
-            </div>
-            <div class="modal-body-scrollable">
-                <form class="compact-form" id="matchForm">
-                    <input id="matchDate" type="datetime-local">
-                    <div class="form-grid-2">
-                        <select id="matchHomeTeam"></select>
-                        <select id="matchAwayTeam"></select>
-                    </div>
-                    <div class="form-grid-2">
-                        <select id="matchStatus">
-                            <option value="scheduled">Запланирован</option>
-                            <option value="live">Идёт</option>
-                            <option value="finished">Завершён</option>
-                        </select>
-                        <input id="matchVenue" type="text" placeholder="Поле / стадион">
-                    </div>
-                    <div class="form-grid-3">
-                        <select id="matchRound">
-                            <option value="group">Групповой этап</option>
-                            <option value="quarterfinal">1/4 финала</option>
-                            <option value="semifinal">Полуфинал</option>
-                            <option value="final">Финал</option>
-                        </select>
-                        <select id="matchBracketSide">
-                            <option value="left">Левая сетка</option>
-                            <option value="right">Правая сетка</option>
-                            <option value="center">Центр</option>
-                        </select>
-                        <input id="matchBracketOrder" type="number" min="0" value="0" placeholder="№">
-                    </div>
-                    <select id="matchFormation">
-                        <option value="4-3-3">Схема 4-3-3</option>
-                        <option value="4-4-2">Схема 4-4-2</option>
-                        <option value="3-5-2">Схема 3-5-2</option>
-                        <option value="5-3-2">Схема 5-3-2</option>
-                        <option value="4-2-3-1">Схема 4-2-3-1</option>
-                    </select>
-                    <textarea id="matchNotes" rows="2" placeholder="Примечание к матчу"></textarea>
-                </form>
-            </div>
-        </div>
-    </div>
-
-    <div class="modal tournament-modal lineup-picker-modal" id="lineupPlayerModal" hidden>
-        <div class="modal-content">
-            <div class="modal-header-fixed">
-                <h2>Выберите игрока</h2>
-                <div class="modal-header-actions">
-                    <button type="button" class="btn-secondary" data-close-lineup-picker>Закрыть</button>
-                </div>
-            </div>
-            <div class="modal-body-scrollable">
-                <input id="lineupModalSearch" class="lineup-modal-search" type="search" placeholder="Поиск ученика">
-                <div class="lineup-player-popover" id="lineupPlayerPopover"></div>
-            </div>
-        </div>
-    </div>
-
-    <script src="{{ url_for('static', filename='js/tournaments.js') }}?v=2026071501"></script>
+    <script src="{{ url_for('static', filename='vendor/lucide-1.24.0.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/sidebar.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/tournaments.js') }}?v=2026072701"></script>
 </body>
-
 </html>

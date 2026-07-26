@@ -69,7 +69,7 @@ os.environ['FFMPEG_LOG_LEVEL'] = 'quiet'
 # Форсируем использование CUDA/TensorRT в ONNX
 os.environ['ORT_TENSORRT_FP16_ENABLE'] = '1'
 
-from backend.models.models import db, User, Student, Payment, Attendance, AccessLog, Expense, Group, GroupTrainer, Tariff, ClubSettings, RewardType, StudentReward, CashTransfer, Role, RolePermission, CardType, StudentCard, Tournament, TournamentTeam, TournamentTeamSourceGroup, TournamentTeamPlayer, TournamentExternalPlayer, TournamentMatch, TournamentLineup, TournamentEvent, DeviceCommand, BridgeStatus
+from backend.models.models import db, User, Student, Payment, Attendance, AccessLog, Expense, Group, GroupTrainer, Tariff, ClubSettings, RewardType, StudentReward, CashTransfer, Role, RolePermission, CardType, StudentCard, Tournament, TournamentTeamCatalog, DeviceCommand, BridgeStatus
 # Live camera recognition stays disabled; access-log verification is separate.
 USE_FACE = False
 from backend.services.face_stub import DummyFaceService as FaceService
@@ -1472,48 +1472,21 @@ def ensure_group_trainers_table():
 
 
 def ensure_tournament_tables():
-    """Проверяет и создает таблицы турниров"""
+    """Создает минимальные таблицы турниров и общей базы команд."""
     try:
         inspector = db.inspect(db.engine)
         tables = inspector.get_table_names()
-        required = {
-            'tournaments',
-            'tournament_matches',
-            'tournament_lineups',
-            'tournament_events',
-            'tournament_teams',
-            'tournament_team_source_groups',
-            'tournament_team_players',
-            'tournament_external_players',
-        }
+        required = {'tournaments', 'tournament_team_catalog'}
         if not required.issubset(set(tables)):
             db.create_all()
             print("✓ Созданы таблицы турниров")
             inspector = db.inspect(db.engine)
-            tables = inspector.get_table_names()
-
-        match_columns = {col['name'] for col in inspector.get_columns('tournament_matches')}
-        team_columns = {col['name'] for col in inspector.get_columns('tournament_teams')}
-        event_columns = {col['name'] for col in inspector.get_columns('tournament_events')}
+        tournament_columns = {col['name'] for col in inspector.get_columns('tournaments')}
         with db.engine.begin() as conn:
-            if 'round_name' not in match_columns:
-                conn.execute(db.text("ALTER TABLE tournament_matches ADD COLUMN round_name VARCHAR(80)"))
-            if 'bracket_side' not in match_columns:
-                conn.execute(db.text("ALTER TABLE tournament_matches ADD COLUMN bracket_side VARCHAR(20)"))
-            if 'bracket_order' not in match_columns:
-                conn.execute(db.text("ALTER TABLE tournament_matches ADD COLUMN bracket_order INTEGER DEFAULT 0"))
-            if 'formation' not in match_columns:
-                conn.execute(db.text("ALTER TABLE tournament_matches ADD COLUMN formation VARCHAR(20) DEFAULT '4-3-3'"))
-            if 'home_team_id' not in match_columns:
-                conn.execute(db.text("ALTER TABLE tournament_matches ADD COLUMN home_team_id INTEGER"))
-            if 'away_team_id' not in match_columns:
-                conn.execute(db.text("ALTER TABLE tournament_matches ADD COLUMN away_team_id INTEGER"))
-            if 'logo_path' not in team_columns:
-                conn.execute(db.text("ALTER TABLE tournament_teams ADD COLUMN logo_path VARCHAR(300)"))
-            if 'external_player_id' not in event_columns:
-                conn.execute(db.text("ALTER TABLE tournament_events ADD COLUMN external_player_id INTEGER"))
-            if 'external_assist_player_id' not in event_columns:
-                conn.execute(db.text("ALTER TABLE tournament_events ADD COLUMN external_assist_player_id INTEGER"))
+            if 'start_time' not in tournament_columns:
+                conn.execute(db.text("ALTER TABLE tournaments ADD COLUMN start_time TIME"))
+            if 'age_groups' not in tournament_columns:
+                conn.execute(db.text("ALTER TABLE tournaments ADD COLUMN age_groups TEXT"))
     except Exception as e:
         print(f"Ошибка при проверке таблиц турниров: {e}")
 
@@ -3296,6 +3269,20 @@ def save_tournament_team_logo(logo_file, old_logo_path=None):
     return os.path.join('frontend', 'static', 'uploads', filename)
 
 
+def delete_tournament_team_logo(logo_path):
+    if not logo_path:
+        return
+    filename = logo_path.replace('\\', '/').split('/')[-1]
+    if not filename.startswith('tournament_team_logo_'):
+        return
+    try:
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        if os.path.exists(filepath):
+            os.remove(filepath)
+    except OSError:
+        pass
+
+
 def save_user_photo(photo_file, user_id):
     if not photo_file or not photo_file.filename:
         return None
@@ -4375,183 +4362,53 @@ def parse_date_value(value):
             return None
 
 
-def parse_datetime_value(value):
+def parse_time_value(value):
     if not value:
         return None
     try:
-        dt = datetime.fromisoformat(str(value).replace('Z', '+00:00'))
-        if dt.tzinfo:
-            dt = dt.astimezone(TASHKENT_TZ).replace(tzinfo=None)
-        return dt
+        return datetime.strptime(str(value).strip(), '%H:%M').time()
     except Exception:
-        try:
-            return datetime.strptime(str(value), '%Y-%m-%dT%H:%M')
-        except Exception:
-            return None
+        return None
 
 
-def serialize_tournament(tournament, include_matches=False):
+def normalize_age_groups(value):
+    if isinstance(value, str):
+        value = re.split(r'[,;\n]+', value)
+    if not isinstance(value, list):
+        return []
+    result = []
+    for item in value:
+        label = str(item or '').strip()
+        if label and label not in result:
+            result.append(label)
+    return result
+
+
+def serialize_tournament(tournament):
+    try:
+        age_groups = json.loads(tournament.age_groups or '[]')
+    except Exception:
+        age_groups = normalize_age_groups(tournament.age_groups)
     payload = {
         'id': tournament.id,
         'name': tournament.name,
-        'season': tournament.season,
         'location': tournament.location,
         'start_date': tournament.start_date.isoformat() if tournament.start_date else None,
+        'start_time': tournament.start_time.strftime('%H:%M') if tournament.start_time else None,
         'end_date': tournament.end_date.isoformat() if tournament.end_date else None,
-        'status': tournament.status,
-        'notes': tournament.notes,
-        'matches_count': len(tournament.matches or []),
-        'teams_count': len(getattr(tournament, 'teams', []) or []),
+        'age_groups': age_groups,
         'created_at': tournament.created_at.isoformat() if tournament.created_at else None,
     }
-    if include_matches:
-        payload['matches'] = [serialize_tournament_match(match) for match in tournament.matches]
     return payload
 
 
-def serialize_tournament_team(team, include_players=False):
-    source_groups = [{
-        'group_id': item.group_id,
-        'group_name': item.group.name if item.group else None,
-    } for item in getattr(team, 'source_groups', [])]
-    team_logo_url = get_tournament_team_logo_url(team)
-    payload = {
+def serialize_tournament_team_catalog(team):
+    return {
         'id': team.id,
-        'tournament_id': team.tournament_id,
         'name': team.name,
-        'team_type': team.team_type or 'internal',
-        'logo_url': team_logo_url,
-        'logo_path': getattr(team, 'logo_path', None),
-        'notes': team.notes,
-        'source_groups': source_groups,
-        'source_group_ids': [item['group_id'] for item in source_groups],
-        'players_count': len(getattr(team, 'players', []) or []) + len(getattr(team, 'external_players', []) or []),
+        'logo_url': get_tournament_team_logo_url(team),
+        'created_at': team.created_at.isoformat() if team.created_at else None,
     }
-    if include_players:
-        payload['players'] = [{
-            'id': item.id,
-            'student_id': item.student_id,
-            'name': item.student.full_name if item.student else '-',
-            'number': item.shirt_number or (item.student.student_number if item.student else None),
-            'position': item.position,
-            'group_id': item.student.group_id if item.student else None,
-            'group_name': item.student.group.name if item.student and item.student.group else None,
-            'photo_url': build_photo_thumb_url(item.student.photo_path) if item.student and item.student.photo_path else None,
-            'player_type': 'internal',
-        } for item in sorted(getattr(team, 'players', []), key=lambda row: ((row.student.full_name if row.student else ''), row.id))]
-        payload['external_players'] = [{
-            'id': item.id,
-            'name': item.full_name,
-            'number': item.shirt_number,
-            'position': item.position,
-            'player_type': 'external',
-        } for item in sorted(getattr(team, 'external_players', []), key=lambda row: (row.full_name, row.id))]
-    return payload
-
-
-def serialize_tournament_lineup(lineup):
-    student = lineup.student
-    return {
-        'id': lineup.id,
-        'student_id': lineup.student_id,
-        'student_name': student.full_name if student else '-',
-        'student_number': student.student_number if student else None,
-        'photo_url': build_photo_thumb_url(student.photo_path) if student and student.photo_path else None,
-        'team_side': lineup.team_side,
-        'position': lineup.position,
-        'shirt_number': lineup.shirt_number,
-        'is_starter': bool(lineup.is_starter),
-        'sort_order': lineup.sort_order or 0,
-    }
-
-
-def serialize_tournament_event(event):
-    player_name = event.student.full_name if event.student else (
-        event.external_player.full_name if getattr(event, 'external_player', None) else '-'
-    )
-    assist_name = event.assist_student.full_name if event.assist_student else (
-        event.external_assist_player.full_name if getattr(event, 'external_assist_player', None) else None
-    )
-    return {
-        'id': event.id,
-        'match_id': event.match_id,
-        'student_id': event.student_id,
-        'external_player_id': getattr(event, 'external_player_id', None),
-        'student_name': player_name,
-        'assist_student_id': event.assist_student_id,
-        'external_assist_player_id': getattr(event, 'external_assist_player_id', None),
-        'assist_student_name': assist_name,
-        'event_type': event.event_type,
-        'team_side': event.team_side,
-        'half': event.half,
-        'minute': event.minute,
-        'card_color': event.card_color,
-        'note': event.note,
-        'created_at': event.created_at.isoformat() if event.created_at else None,
-    }
-
-
-def serialize_tournament_match(match, include_details=False):
-    home_name = match.home_team_ref.name if getattr(match, 'home_team_ref', None) else match.home_team
-    away_name = match.away_team_ref.name if getattr(match, 'away_team_ref', None) else match.away_team
-    home_logo_url = get_tournament_team_logo_url(match.home_team_ref) if getattr(match, 'home_team_ref', None) else None
-    away_logo_url = get_tournament_team_logo_url(match.away_team_ref) if getattr(match, 'away_team_ref', None) else None
-    own_team_names = {'наша команда', 'karasu', 'карасу'}
-    if not home_logo_url and (home_name or '').strip().lower() in own_team_names:
-        home_logo_url = get_system_logo_url(get_club_settings_instance())
-    if not away_logo_url and (away_name or '').strip().lower() in own_team_names:
-        away_logo_url = get_system_logo_url(get_club_settings_instance())
-    payload = {
-        'id': match.id,
-        'tournament_id': match.tournament_id,
-        'group_id': match.group_id,
-        'group_name': match.group.name if match.group else None,
-        'home_team_id': match.home_team_id,
-        'away_team_id': match.away_team_id,
-        'match_date': match.match_date.isoformat() if match.match_date else None,
-        'home_team': home_name,
-        'away_team': away_name,
-        'home_logo_url': home_logo_url,
-        'away_logo_url': away_logo_url,
-        'home_score': match.home_score or 0,
-        'away_score': match.away_score or 0,
-        'status': match.status,
-        'round_name': match.round_name,
-        'bracket_side': match.bracket_side,
-        'bracket_order': match.bracket_order or 0,
-        'formation': match.formation or '4-3-3',
-        'venue': match.venue,
-        'notes': match.notes,
-        'events_count': len(match.events or []),
-        'players_count': len(match.lineups or []),
-    }
-    if include_details:
-        payload['lineups'] = sorted(
-            [serialize_tournament_lineup(item) for item in match.lineups],
-            key=lambda item: (item['team_side'], item['sort_order'], item['student_name'])
-        )
-        payload['events'] = sorted(
-            [serialize_tournament_event(item) for item in match.events],
-            key=lambda item: (item['half'] or 1, item['minute'] or 0, item['id'])
-        )
-    return payload
-
-
-def recalculate_match_score(match):
-    if not match or not match.id:
-        return
-    home_goals = db.session.query(func.count(TournamentEvent.id)).filter_by(
-        match_id=match.id,
-        event_type='goal',
-        team_side='home'
-    ).scalar() or 0
-    away_goals = db.session.query(func.count(TournamentEvent.id)).filter_by(
-        match_id=match.id,
-        event_type='goal',
-        team_side='away'
-    ).scalar() or 0
-    match.home_score = home_goals
-    match.away_score = away_goals
 
 
 @app.route('/tournaments')
@@ -4569,7 +4426,10 @@ def tournaments_api():
     if request.method == 'GET':
         if not has_tournament_permission('view'):
             return jsonify({'success': False, 'message': 'Нет доступа'}), 403
-        tournaments = Tournament.query.options(joinedload(Tournament.matches)).order_by(
+        tournaments = Tournament.query.filter(
+            Tournament.start_time.isnot(None),
+            Tournament.age_groups.isnot(None),
+        ).order_by(
             Tournament.start_date.desc().nullslast(),
             Tournament.created_at.desc()
         ).all()
@@ -4579,16 +4439,22 @@ def tournaments_api():
         return jsonify({'success': False, 'message': 'Нет доступа'}), 403
     data = request.get_json() or {}
     name = (data.get('name') or '').strip()
-    if not name:
-        return jsonify({'success': False, 'message': 'Укажите название турнира'}), 400
+    location = (data.get('location') or '').strip()
+    start_date = parse_date_value(data.get('start_date'))
+    start_time = parse_time_value(data.get('start_time'))
+    end_date = parse_date_value(data.get('end_date'))
+    age_groups = normalize_age_groups(data.get('age_groups'))
+    if not all([name, location, start_date, start_time, end_date]) or not age_groups:
+        return jsonify({'success': False, 'message': 'Заполните все поля турнира'}), 400
+    if end_date < start_date:
+        return jsonify({'success': False, 'message': 'Дата окончания не может быть раньше даты проведения'}), 400
     tournament = Tournament(
         name=name,
-        season=(data.get('season') or '').strip() or None,
-        location=(data.get('location') or '').strip() or None,
-        start_date=parse_date_value(data.get('start_date')),
-        end_date=parse_date_value(data.get('end_date')),
-        status=(data.get('status') or 'planned').strip(),
-        notes=(data.get('notes') or '').strip() or None,
+        location=location,
+        start_date=start_date,
+        start_time=start_time,
+        end_date=end_date,
+        age_groups=json.dumps(age_groups, ensure_ascii=False),
         created_by=current_user.id,
     )
     db.session.add(tournament)
@@ -4600,14 +4466,12 @@ def tournaments_api():
 @login_required
 def tournament_detail_api(tournament_id):
     ensure_tournament_tables()
-    tournament = Tournament.query.options(
-        joinedload(Tournament.matches).joinedload(TournamentMatch.group)
-    ).filter_by(id=tournament_id).first_or_404()
+    tournament = Tournament.query.filter_by(id=tournament_id).first_or_404()
 
     if request.method == 'GET':
         if not has_tournament_permission('view'):
             return jsonify({'success': False, 'message': 'Нет доступа'}), 403
-        return jsonify({'success': True, 'tournament': serialize_tournament(tournament, include_matches=True)})
+        return jsonify({'success': True, 'tournament': serialize_tournament(tournament)})
 
     if not has_tournament_permission('edit'):
         return jsonify({'success': False, 'message': 'Нет доступа'}), 403
@@ -4618,530 +4482,90 @@ def tournament_detail_api(tournament_id):
         return jsonify({'success': True})
 
     data = request.get_json() or {}
-    tournament.name = (data.get('name') or tournament.name).strip()
-    tournament.season = (data.get('season') or '').strip() or None
-    tournament.location = (data.get('location') or '').strip() or None
-    tournament.start_date = parse_date_value(data.get('start_date'))
-    tournament.end_date = parse_date_value(data.get('end_date'))
-    tournament.status = (data.get('status') or tournament.status or 'planned').strip()
-    tournament.notes = (data.get('notes') or '').strip() or None
+    name = (data.get('name') or '').strip()
+    location = (data.get('location') or '').strip()
+    start_date = parse_date_value(data.get('start_date'))
+    start_time = parse_time_value(data.get('start_time'))
+    end_date = parse_date_value(data.get('end_date'))
+    age_groups = normalize_age_groups(data.get('age_groups'))
+    if not all([name, location, start_date, start_time, end_date]) or not age_groups:
+        return jsonify({'success': False, 'message': 'Заполните все поля турнира'}), 400
+    if end_date < start_date:
+        return jsonify({'success': False, 'message': 'Дата окончания не может быть раньше даты проведения'}), 400
+    tournament.name = name
+    tournament.location = location
+    tournament.start_date = start_date
+    tournament.start_time = start_time
+    tournament.end_date = end_date
+    tournament.age_groups = json.dumps(age_groups, ensure_ascii=False)
     db.session.commit()
     return jsonify({'success': True, 'tournament': serialize_tournament(tournament)})
 
 
-@app.route('/api/tournaments/<int:tournament_id>/teams', methods=['GET', 'POST'])
+@app.route('/api/tournament-team-catalog', methods=['GET', 'POST'])
 @login_required
-def tournament_teams_api(tournament_id):
+def tournament_team_catalog_api():
     ensure_tournament_tables()
-    tournament = db.session.get(Tournament, tournament_id)
-    if not tournament:
-        return jsonify({'success': False, 'message': 'Турнир не найден'}), 404
-
     if request.method == 'GET':
         if not has_tournament_permission('view'):
             return jsonify({'success': False, 'message': 'Нет доступа'}), 403
-        teams = TournamentTeam.query.options(
-            joinedload(TournamentTeam.source_groups).joinedload(TournamentTeamSourceGroup.group),
-            joinedload(TournamentTeam.players).joinedload(TournamentTeamPlayer.student).joinedload(Student.group),
-            joinedload(TournamentTeam.external_players),
-        ).filter_by(tournament_id=tournament_id).order_by(TournamentTeam.name.asc()).all()
-        return jsonify({'success': True, 'teams': [serialize_tournament_team(team, include_players=True) for team in teams]})
+        teams = TournamentTeamCatalog.query.order_by(TournamentTeamCatalog.name.asc()).all()
+        return jsonify({'success': True, 'teams': [serialize_tournament_team_catalog(team) for team in teams]})
 
     if not has_tournament_permission('edit'):
         return jsonify({'success': False, 'message': 'Нет доступа'}), 403
-    is_multipart = request.content_type and request.content_type.startswith('multipart/form-data')
-    data = request.form if is_multipart else (request.get_json() or {})
-    name = (data.get('name') or '').strip()
-    team_type = (data.get('team_type') or 'internal').strip()
+    name = (request.form.get('name') or '').strip()
     if not name:
         return jsonify({'success': False, 'message': 'Укажите название команды'}), 400
-    if team_type not in {'internal', 'external'}:
-        team_type = 'internal'
-
-    team = TournamentTeam(
-        tournament_id=tournament_id,
-        name=name,
-        team_type=team_type,
-        notes=(data.get('notes') or '').strip() or None,
-    )
-    db.session.add(team)
-    db.session.flush()
+    if TournamentTeamCatalog.query.filter(func.lower(TournamentTeamCatalog.name) == name.lower()).first():
+        return jsonify({'success': False, 'message': 'Команда с таким названием уже существует'}), 400
+    logo_file = request.files.get('logo')
+    if not logo_file or not logo_file.filename:
+        return jsonify({'success': False, 'message': 'Добавьте логотип команды'}), 400
+    team = TournamentTeamCatalog(name=name, created_by=current_user.id)
     try:
-        team.logo_path = save_tournament_team_logo(request.files.get('logo')) if is_multipart and team_type == 'external' else None
+        team.logo_path = save_tournament_team_logo(logo_file)
     except ValueError as exc:
-        db.session.rollback()
         return jsonify({'success': False, 'message': str(exc)}), 400
-
-    group_ids = parse_int_list_payload(data, 'group_ids')
-    for group_id in group_ids:
-        if db.session.get(Group, group_id):
-            db.session.add(TournamentTeamSourceGroup(team_id=team.id, group_id=group_id))
-
-    player_ids = parse_int_list_payload(data, 'player_ids')
-    for student_id in player_ids:
-        student = db.session.get(Student, student_id)
-        if student:
-            db.session.add(TournamentTeamPlayer(
-                team_id=team.id,
-                student_id=student.id,
-                shirt_number=student.student_number,
-            ))
-
-    raw_external_players = data.get('external_players')
-    if isinstance(raw_external_players, str):
-        try:
-            raw_external_players = json.loads(raw_external_players)
-        except Exception:
-            raw_external_players = []
-    external_players = raw_external_players if isinstance(raw_external_players, list) else []
-    for row in external_players:
-        full_name = (row.get('full_name') or row.get('name') or '').strip()
-        if not full_name:
-            continue
-        db.session.add(TournamentExternalPlayer(
-            team_id=team.id,
-            full_name=full_name,
-            shirt_number=(row.get('shirt_number') or row.get('number') or '').strip() or None,
-            position=(row.get('position') or '').strip() or None,
-        ))
-
+    db.session.add(team)
     db.session.commit()
-    team = TournamentTeam.query.options(
-        joinedload(TournamentTeam.source_groups).joinedload(TournamentTeamSourceGroup.group),
-        joinedload(TournamentTeam.players).joinedload(TournamentTeamPlayer.student).joinedload(Student.group),
-        joinedload(TournamentTeam.external_players),
-    ).filter_by(id=team.id).first()
-    return jsonify({'success': True, 'team': serialize_tournament_team(team, include_players=True)}), 201
+    return jsonify({'success': True, 'team': serialize_tournament_team_catalog(team)}), 201
 
 
-@app.route('/api/tournament-teams/<int:team_id>', methods=['GET', 'PUT', 'DELETE'])
+@app.route('/api/tournament-team-catalog/<int:team_id>', methods=['PUT', 'DELETE'])
 @login_required
-def tournament_team_detail_api(team_id):
+def tournament_team_catalog_detail_api(team_id):
     ensure_tournament_tables()
-    team = TournamentTeam.query.options(
-        joinedload(TournamentTeam.source_groups).joinedload(TournamentTeamSourceGroup.group),
-        joinedload(TournamentTeam.players).joinedload(TournamentTeamPlayer.student).joinedload(Student.group),
-        joinedload(TournamentTeam.external_players),
-    ).filter_by(id=team_id).first_or_404()
-
-    if request.method == 'GET':
-        if not has_tournament_permission('view'):
-            return jsonify({'success': False, 'message': 'Нет доступа'}), 403
-        return jsonify({'success': True, 'team': serialize_tournament_team(team, include_players=True)})
-
     if not has_tournament_permission('edit'):
         return jsonify({'success': False, 'message': 'Нет доступа'}), 403
-
+    team = db.session.get(TournamentTeamCatalog, team_id)
+    if not team:
+        return jsonify({'success': False, 'message': 'Команда не найдена'}), 404
+    old_logo = team.logo_path
     if request.method == 'DELETE':
-        used = TournamentMatch.query.filter(or_(
-            TournamentMatch.home_team_id == team.id,
-            TournamentMatch.away_team_id == team.id
-        )).first()
-        if used:
-            return jsonify({'success': False, 'message': 'Команда используется в матче'}), 400
-        old_logo = getattr(team, 'logo_path', None)
         db.session.delete(team)
         db.session.commit()
-        if old_logo:
-            old_filename = old_logo.replace('\\', '/').split('/')[-1]
-            if old_filename.startswith('tournament_team_logo_'):
-                try:
-                    old_path = os.path.join(app.config['UPLOAD_FOLDER'], old_filename)
-                    if os.path.exists(old_path):
-                        os.remove(old_path)
-                except OSError:
-                    pass
+        delete_tournament_team_logo(old_logo)
         return jsonify({'success': True})
 
-    is_multipart = request.content_type and request.content_type.startswith('multipart/form-data')
-    data = request.form if is_multipart else (request.get_json() or {})
-    team.name = (data.get('name') or team.name).strip()
-    team.team_type = (data.get('team_type') or team.team_type or 'internal').strip()
-    team.notes = (data.get('notes') or '').strip() or None
-    if is_multipart and request.files.get('logo'):
+    name = (request.form.get('name') or '').strip()
+    if not name:
+        return jsonify({'success': False, 'message': 'Укажите название команды'}), 400
+    duplicate = TournamentTeamCatalog.query.filter(
+        func.lower(TournamentTeamCatalog.name) == name.lower(),
+        TournamentTeamCatalog.id != team.id,
+    ).first()
+    if duplicate:
+        return jsonify({'success': False, 'message': 'Команда с таким названием уже существует'}), 400
+    team.name = name
+    if request.files.get('logo'):
         try:
             team.logo_path = save_tournament_team_logo(request.files.get('logo'), team.logo_path)
         except ValueError as exc:
             db.session.rollback()
             return jsonify({'success': False, 'message': str(exc)}), 400
-
-    TournamentTeamSourceGroup.query.filter_by(team_id=team.id).delete()
-    for group_id in parse_int_list_payload(data, 'group_ids'):
-        if db.session.get(Group, group_id):
-            db.session.add(TournamentTeamSourceGroup(team_id=team.id, group_id=group_id))
-
-    if 'player_ids' in data:
-        TournamentTeamPlayer.query.filter_by(team_id=team.id).delete()
-        for student_id in parse_int_list_payload(data, 'player_ids'):
-            student = db.session.get(Student, student_id)
-            if student:
-                db.session.add(TournamentTeamPlayer(team_id=team.id, student_id=student.id, shirt_number=student.student_number))
-
-    if 'external_players' in data:
-        TournamentExternalPlayer.query.filter_by(team_id=team.id).delete()
-        raw_external_players = data.get('external_players')
-        if isinstance(raw_external_players, str):
-            try:
-                raw_external_players = json.loads(raw_external_players)
-            except Exception:
-                raw_external_players = []
-        external_players = raw_external_players if isinstance(raw_external_players, list) else []
-        for row in external_players:
-            full_name = (row.get('full_name') or row.get('name') or '').strip()
-            if full_name:
-                db.session.add(TournamentExternalPlayer(
-                    team_id=team.id,
-                    full_name=full_name,
-                    shirt_number=(row.get('shirt_number') or row.get('number') or '').strip() or None,
-                    position=(row.get('position') or '').strip() or None,
-                ))
-
     db.session.commit()
-    team = TournamentTeam.query.options(
-        joinedload(TournamentTeam.source_groups).joinedload(TournamentTeamSourceGroup.group),
-        joinedload(TournamentTeam.players).joinedload(TournamentTeamPlayer.student).joinedload(Student.group),
-        joinedload(TournamentTeam.external_players),
-    ).filter_by(id=team.id).first()
-    return jsonify({'success': True, 'team': serialize_tournament_team(team, include_players=True)})
-
-
-@app.route('/api/tournaments/<int:tournament_id>/matches', methods=['GET', 'POST'])
-@login_required
-def tournament_matches_api(tournament_id):
-    ensure_tournament_tables()
-    tournament = db.session.get(Tournament, tournament_id)
-    if not tournament:
-        return jsonify({'success': False, 'message': 'Турнир не найден'}), 404
-    if request.method == 'GET':
-        if not has_tournament_permission('view'):
-            return jsonify({'success': False, 'message': 'Нет доступа'}), 403
-        matches = TournamentMatch.query.options(
-            joinedload(TournamentMatch.group),
-            joinedload(TournamentMatch.home_team_ref),
-            joinedload(TournamentMatch.away_team_ref),
-        ).filter_by(
-            tournament_id=tournament_id
-        ).order_by(TournamentMatch.match_date.asc().nullslast(), TournamentMatch.id.desc()).all()
-        return jsonify({'success': True, 'matches': [serialize_tournament_match(item) for item in matches]})
-
-    if not has_tournament_permission('edit'):
-        return jsonify({'success': False, 'message': 'Нет доступа'}), 403
-    data = request.get_json() or {}
-    home_team_id = data.get('home_team_id') or None
-    away_team_id = data.get('away_team_id') or None
-    home_team_ref = db.session.get(TournamentTeam, int(home_team_id)) if home_team_id else None
-    away_team_ref = db.session.get(TournamentTeam, int(away_team_id)) if away_team_id else None
-    if home_team_ref and home_team_ref.tournament_id != tournament_id:
-        return jsonify({'success': False, 'message': 'Домашняя команда не относится к турниру'}), 400
-    if away_team_ref and away_team_ref.tournament_id != tournament_id:
-        return jsonify({'success': False, 'message': 'Команда соперника не относится к турниру'}), 400
-    match = TournamentMatch(
-        tournament_id=tournament_id,
-        group_id=data.get('group_id') or None,
-        home_team_id=home_team_ref.id if home_team_ref else None,
-        away_team_id=away_team_ref.id if away_team_ref else None,
-        match_date=parse_datetime_value(data.get('match_date')),
-        home_team=(home_team_ref.name if home_team_ref else (data.get('home_team') or 'Наша команда')).strip(),
-        away_team=(away_team_ref.name if away_team_ref else (data.get('away_team') or 'Соперник')).strip(),
-        status=(data.get('status') or 'scheduled').strip(),
-        round_name=(data.get('round_name') or 'group').strip(),
-        bracket_side=(data.get('bracket_side') or 'left').strip(),
-        bracket_order=int(data.get('bracket_order') or 0),
-        formation=(data.get('formation') or '4-3-3').strip(),
-        venue=(data.get('venue') or '').strip() or None,
-        notes=(data.get('notes') or '').strip() or None,
-    )
-    db.session.add(match)
-    db.session.commit()
-    return jsonify({'success': True, 'match': serialize_tournament_match(match)}), 201
-
-
-@app.route('/api/tournament-matches/<int:match_id>', methods=['GET', 'PUT', 'DELETE'])
-@login_required
-def tournament_match_detail_api(match_id):
-    ensure_tournament_tables()
-    match = TournamentMatch.query.options(
-        joinedload(TournamentMatch.group),
-        joinedload(TournamentMatch.home_team_ref),
-        joinedload(TournamentMatch.away_team_ref),
-        joinedload(TournamentMatch.lineups).joinedload(TournamentLineup.student),
-        joinedload(TournamentMatch.events).joinedload(TournamentEvent.student),
-        joinedload(TournamentMatch.events).joinedload(TournamentEvent.assist_student),
-        joinedload(TournamentMatch.events).joinedload(TournamentEvent.external_player),
-        joinedload(TournamentMatch.events).joinedload(TournamentEvent.external_assist_player),
-    ).filter_by(id=match_id).first_or_404()
-
-    if request.method == 'GET':
-        if not has_tournament_permission('view'):
-            return jsonify({'success': False, 'message': 'Нет доступа'}), 403
-        recalculate_match_score(match)
-        db.session.commit()
-        return jsonify({'success': True, 'match': serialize_tournament_match(match, include_details=True)})
-
-    if not has_tournament_permission('edit'):
-        return jsonify({'success': False, 'message': 'Нет доступа'}), 403
-
-    if request.method == 'DELETE':
-        tournament_id = match.tournament_id
-        db.session.delete(match)
-        db.session.commit()
-        return jsonify({'success': True, 'tournament_id': tournament_id})
-
-    data = request.get_json() or {}
-    match.group_id = data.get('group_id') or None
-    home_team_id = data.get('home_team_id') or None
-    away_team_id = data.get('away_team_id') or None
-    home_team_ref = db.session.get(TournamentTeam, int(home_team_id)) if home_team_id else None
-    away_team_ref = db.session.get(TournamentTeam, int(away_team_id)) if away_team_id else None
-    if home_team_ref and home_team_ref.tournament_id != match.tournament_id:
-        return jsonify({'success': False, 'message': 'Домашняя команда не относится к турниру'}), 400
-    if away_team_ref and away_team_ref.tournament_id != match.tournament_id:
-        return jsonify({'success': False, 'message': 'Команда соперника не относится к турниру'}), 400
-    match.home_team_id = home_team_ref.id if home_team_ref else None
-    match.away_team_id = away_team_ref.id if away_team_ref else None
-    match.match_date = parse_datetime_value(data.get('match_date'))
-    match.home_team = (home_team_ref.name if home_team_ref else (data.get('home_team') or match.home_team)).strip()
-    match.away_team = (away_team_ref.name if away_team_ref else (data.get('away_team') or match.away_team)).strip()
-    match.status = (data.get('status') or match.status or 'scheduled').strip()
-    match.round_name = (data.get('round_name') or match.round_name or 'group').strip()
-    match.bracket_side = (data.get('bracket_side') or match.bracket_side or 'left').strip()
-    match.bracket_order = int(data.get('bracket_order') or match.bracket_order or 0)
-    match.formation = (data.get('formation') or match.formation or '4-3-3').strip()
-    match.venue = (data.get('venue') or '').strip() or None
-    match.notes = (data.get('notes') or '').strip() or None
-    db.session.commit()
-    return jsonify({'success': True, 'match': serialize_tournament_match(match)})
-
-
-@app.route('/api/tournament-matches/<int:match_id>/lineup', methods=['PUT'])
-@login_required
-def tournament_match_lineup_api(match_id):
-    ensure_tournament_tables()
-    if not has_tournament_permission('edit'):
-        return jsonify({'success': False, 'message': 'Нет доступа'}), 403
-    match = db.session.get(TournamentMatch, match_id)
-    if not match:
-        return jsonify({'success': False, 'message': 'Матч не найден'}), 404
-    data = request.get_json() or {}
-    players = data.get('players') if isinstance(data.get('players'), list) else []
-
-    TournamentLineup.query.filter_by(match_id=match_id).delete()
-    for index, item in enumerate(players):
-        student_id = item.get('student_id')
-        if not student_id or not db.session.get(Student, int(student_id)):
-            continue
-        db.session.add(TournamentLineup(
-            match_id=match_id,
-            student_id=int(student_id),
-            team_side=(item.get('team_side') or 'home').strip(),
-            position=(item.get('position') or 'Игрок').strip(),
-            shirt_number=(item.get('shirt_number') or '').strip() or None,
-            is_starter=bool(item.get('is_starter', True)),
-            sort_order=int(item.get('sort_order') or index),
-        ))
-    db.session.commit()
-    match = TournamentMatch.query.options(
-        joinedload(TournamentMatch.home_team_ref),
-        joinedload(TournamentMatch.away_team_ref),
-        joinedload(TournamentMatch.lineups).joinedload(TournamentLineup.student),
-        joinedload(TournamentMatch.events).joinedload(TournamentEvent.student),
-        joinedload(TournamentMatch.events).joinedload(TournamentEvent.assist_student),
-        joinedload(TournamentMatch.events).joinedload(TournamentEvent.external_player),
-        joinedload(TournamentMatch.events).joinedload(TournamentEvent.external_assist_player),
-    ).filter_by(id=match_id).first()
-    return jsonify({'success': True, 'match': serialize_tournament_match(match, include_details=True)})
-
-
-@app.route('/api/tournament-matches/<int:match_id>/events', methods=['POST'])
-@login_required
-def tournament_match_events_api(match_id):
-    ensure_tournament_tables()
-    if not has_tournament_permission('edit'):
-        return jsonify({'success': False, 'message': 'Нет доступа'}), 403
-    match = TournamentMatch.query.options(joinedload(TournamentMatch.events)).filter_by(id=match_id).first()
-    if not match:
-        return jsonify({'success': False, 'message': 'Матч не найден'}), 404
-    data = request.get_json() or {}
-    event_type = (data.get('event_type') or '').strip()
-    if event_type not in {'goal', 'card'}:
-        return jsonify({'success': False, 'message': 'Неверный тип события'}), 400
-    player_ref = (data.get('player_ref') or '').strip()
-    assist_ref = (data.get('assist_ref') or '').strip()
-    student_id = data.get('student_id') or None
-    external_player_id = None
-    assist_student_id = data.get('assist_student_id') or None
-    external_assist_player_id = None
-    if player_ref.startswith('student:'):
-        student_id = player_ref.split(':', 1)[1]
-    elif player_ref.startswith('external:'):
-        external_player_id = player_ref.split(':', 1)[1]
-        student_id = None
-    if assist_ref.startswith('student:'):
-        assist_student_id = assist_ref.split(':', 1)[1]
-    elif assist_ref.startswith('external:'):
-        external_assist_player_id = assist_ref.split(':', 1)[1]
-        assist_student_id = None
-    if student_id and not db.session.get(Student, int(student_id)):
-        return jsonify({'success': False, 'message': 'Игрок не найден'}), 404
-    if external_player_id and not db.session.get(TournamentExternalPlayer, int(external_player_id)):
-        return jsonify({'success': False, 'message': 'Внешний игрок не найден'}), 404
-    if assist_student_id and not db.session.get(Student, int(assist_student_id)):
-        return jsonify({'success': False, 'message': 'Игрок ассиста не найден'}), 404
-    if external_assist_player_id and not db.session.get(TournamentExternalPlayer, int(external_assist_player_id)):
-        return jsonify({'success': False, 'message': 'Внешний игрок ассиста не найден'}), 404
-    event = TournamentEvent(
-        match_id=match_id,
-        student_id=int(student_id) if student_id else None,
-        assist_student_id=int(assist_student_id) if assist_student_id else None,
-        external_player_id=int(external_player_id) if external_player_id else None,
-        external_assist_player_id=int(external_assist_player_id) if external_assist_player_id else None,
-        event_type=event_type,
-        team_side=(data.get('team_side') or 'home').strip(),
-        half=int(data.get('half') or 1),
-        minute=max(1, int(data.get('minute') or 1)),
-        card_color=(data.get('card_color') or '').strip() or None,
-        note=(data.get('note') or '').strip() or None,
-        created_by=current_user.id,
-    )
-    db.session.add(event)
-    db.session.flush()
-    recalculate_match_score(match)
-    db.session.commit()
-    return jsonify({'success': True, 'event': serialize_tournament_event(event), 'match': serialize_tournament_match(match)})
-
-
-@app.route('/api/tournament-events/<int:event_id>', methods=['DELETE'])
-@login_required
-def tournament_event_delete_api(event_id):
-    ensure_tournament_tables()
-    if not has_tournament_permission('edit'):
-        return jsonify({'success': False, 'message': 'Нет доступа'}), 403
-    event = db.session.get(TournamentEvent, event_id)
-    if not event:
-        return jsonify({'success': False, 'message': 'Событие не найдено'}), 404
-    match = TournamentMatch.query.options(joinedload(TournamentMatch.events)).filter_by(id=event.match_id).first()
-    db.session.delete(event)
-    db.session.flush()
-    if match:
-        recalculate_match_score(match)
-    db.session.commit()
-    return jsonify({'success': True, 'match': serialize_tournament_match(match) if match else None})
-
-
-@app.route('/api/tournaments/<int:tournament_id>/players', methods=['GET'])
-@login_required
-def tournament_players_api(tournament_id):
-    if not has_tournament_permission('view'):
-        return jsonify({'success': False, 'message': 'Нет доступа'}), 403
-    team_id = request.args.get('team_id', type=int)
-    group_id = request.args.get('group_id', type=int)
-    query = Student.query.options(joinedload(Student.group)).filter(Student.status == 'active')
-    if team_id:
-        team = TournamentTeam.query.options(joinedload(TournamentTeam.players)).filter_by(id=team_id, tournament_id=tournament_id).first()
-        if not team:
-            return jsonify({'success': False, 'message': 'Команда не найдена'}), 404
-        student_ids = [item.student_id for item in team.players]
-        query = query.filter(Student.id.in_(student_ids or [0]))
-    elif group_id:
-        query = query.filter(Student.group_id == group_id)
-    students = query.order_by(Student.full_name.asc()).all()
-    return jsonify({
-        'success': True,
-        'players': [{
-            'id': student.id,
-            'name': student.full_name,
-            'number': student.student_number,
-            'group_id': student.group_id,
-            'group_name': student.group.name if student.group else None,
-            'photo_url': build_photo_thumb_url(student.photo_path) if student.photo_path else None,
-        } for student in students]
-    })
-
-
-@app.route('/api/tournaments/<int:tournament_id>/analytics', methods=['GET'])
-@login_required
-def tournament_analytics_api(tournament_id):
-    ensure_tournament_tables()
-    if not has_tournament_permission('view'):
-        return jsonify({'success': False, 'message': 'Нет доступа'}), 403
-    tournament = db.session.get(Tournament, tournament_id)
-    if not tournament:
-        return jsonify({'success': False, 'message': 'Турнир не найден'}), 404
-
-    events = TournamentEvent.query.join(TournamentMatch).options(
-        joinedload(TournamentEvent.student).joinedload(Student.group),
-        joinedload(TournamentEvent.assist_student),
-    ).filter(TournamentMatch.tournament_id == tournament_id).all()
-    lineups = TournamentLineup.query.join(TournamentMatch).options(
-        joinedload(TournamentLineup.student).joinedload(Student.group)
-    ).filter(TournamentMatch.tournament_id == tournament_id).all()
-
-    players = {}
-    for lineup in lineups:
-        if not lineup.student:
-            continue
-        players.setdefault(lineup.student_id, {
-            'student_id': lineup.student_id,
-            'student_name': lineup.student.full_name,
-            'group_name': lineup.student.group.name if lineup.student.group else '-',
-            'matches': set(),
-            'goals': 0,
-            'assists': 0,
-            'yellow_cards': 0,
-            'red_cards': 0,
-        })['matches'].add(lineup.match_id)
-
-    for event in events:
-        if event.student_id and event.student:
-            row = players.setdefault(event.student_id, {
-                'student_id': event.student_id,
-                'student_name': event.student.full_name,
-                'group_name': event.student.group.name if event.student.group else '-',
-                'matches': set(),
-                'goals': 0,
-                'assists': 0,
-                'yellow_cards': 0,
-                'red_cards': 0,
-            })
-            if event.event_type == 'goal':
-                row['goals'] += 1
-            elif event.event_type == 'card':
-                if event.card_color == 'red':
-                    row['red_cards'] += 1
-                else:
-                    row['yellow_cards'] += 1
-        if event.assist_student_id and event.assist_student:
-            assist_row = players.setdefault(event.assist_student_id, {
-                'student_id': event.assist_student_id,
-                'student_name': event.assist_student.full_name,
-                'group_name': event.assist_student.group.name if event.assist_student.group else '-',
-                'matches': set(),
-                'goals': 0,
-                'assists': 0,
-                'yellow_cards': 0,
-                'red_cards': 0,
-            })
-            assist_row['assists'] += 1
-
-    rows = []
-    for row in players.values():
-        row['matches'] = len(row['matches'])
-        row['score'] = row['goals'] * 3 + row['assists'] * 2 - row['yellow_cards'] - row['red_cards'] * 3
-        rows.append(row)
-    rows.sort(key=lambda item: (-item['goals'], -item['assists'], item['red_cards'], item['yellow_cards'], item['student_name']))
-
-    matches = TournamentMatch.query.filter_by(tournament_id=tournament_id).all()
-    return jsonify({
-        'success': True,
-        'summary': {
-            'matches': len(matches),
-            'goals': sum(1 for event in events if event.event_type == 'goal'),
-            'yellow_cards': sum(1 for event in events if event.event_type == 'card' and event.card_color != 'red'),
-            'red_cards': sum(1 for event in events if event.event_type == 'card' and event.card_color == 'red'),
-            'players': len(rows),
-        },
-        'players': rows,
-    })
+    return jsonify({'success': True, 'team': serialize_tournament_team_catalog(team)})
 
 
 def parse_access_event_time(value):
