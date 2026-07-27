@@ -503,6 +503,815 @@
         background: rgba(138, 144, 153, .45) !important;
         background-clip: padding-box !important;
     }
+
+    /* App-wide mobile layout. This lives after page-level styles on purpose. */
+    @media (max-width: 768px) {
+        :root {
+            --mobile-nav-height: calc(70px + env(safe-area-inset-bottom));
+            --mobile-page-pad: 12px;
+            --mobile-control-height: 44px;
+        }
+
+        html,
+        body {
+            width: 100% !important;
+            max-width: 100% !important;
+            min-height: 100% !important;
+            overflow-x: clip !important;
+            overscroll-behavior-x: none;
+        }
+
+        body {
+            -webkit-text-size-adjust: 100%;
+            text-size-adjust: 100%;
+        }
+
+        .mobile-nav {
+            height: var(--mobile-nav-height) !important;
+            padding: 0 8px env(safe-area-inset-bottom) !important;
+        }
+
+        .mobile-nav-item {
+            min-width: 0 !important;
+            min-height: 54px !important;
+            gap: 3px !important;
+            font-size: 10px !important;
+            line-height: 1.1 !important;
+        }
+
+        .mobile-nav-item svg {
+            width: 22px !important;
+            height: 22px !important;
+        }
+
+        .mobile-more-overlay {
+            height: 100dvh !important;
+        }
+
+        .mobile-more-menu {
+            width: 100% !important;
+            max-width: none !important;
+            max-height: min(88dvh, 680px) !important;
+            overflow-y: auto !important;
+            border-radius: 18px 18px 0 0 !important;
+        }
+
+        .mobile-more-grid {
+            grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+            gap: 18px 10px !important;
+        }
+
+        .main-content,
+        main.main-content,
+        .game-main-content,
+        div.main-content.game-main-content {
+            width: 100% !important;
+            max-width: 100% !important;
+            min-width: 0 !important;
+            min-height: calc(100dvh - var(--mobile-nav-height)) !important;
+            height: auto !important;
+            margin: 0 !important;
+            padding-bottom: calc(var(--mobile-nav-height) + 16px) !important;
+            overflow-x: clip !important;
+            overflow-y: visible !important;
+        }
+
+        main.main-content:not(.game-main-content) {
+            padding-top: 14px !important;
+            padding-right: var(--mobile-page-pad) !important;
+            padding-left: var(--mobile-page-pad) !important;
+        }
+
+        .game-layout,
+        .main-content .game-layout {
+            width: 100% !important;
+            max-width: 100% !important;
+            min-width: 0 !important;
+            min-height: calc(100dvh - var(--mobile-nav-height)) !important;
+            height: auto !important;
+            max-height: none !important;
+            padding-bottom: 12px !important;
+            overflow: visible !important;
+        }
+
+        .game-top-bar,
+        .main-content .game-top-bar {
+            position: sticky !important;
+            top: 0 !important;
+            z-index: 50 !important;
+            width: 100% !important;
+            min-width: 0 !important;
+            min-height: 54px !important;
+            height: auto !important;
+            max-height: none !important;
+            overflow: visible !important;
+            border-bottom-width: 1px !important;
+        }
+
+        .game-top-bar .tabs,
+        .game-top-bar .settings-tabs,
+        .game-top-bar .users-tabs,
+        .tabs,
+        .settings-tabs,
+        .users-tabs,
+        .student-tabs,
+        .form-tabs,
+        .nav-tabs,
+        .tournament-catalog-tabs {
+            display: flex !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            min-width: 0 !important;
+            min-height: 52px !important;
+            height: auto !important;
+            padding: 6px 8px !important;
+            gap: 6px !important;
+            flex-wrap: nowrap !important;
+            overflow-x: auto !important;
+            overflow-y: hidden !important;
+            scroll-snap-type: x proximity;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .game-top-bar .tab,
+        .game-top-bar .settings-tab,
+        .game-top-bar .users-tab,
+        .tabs > button,
+        .settings-tabs > button,
+        .users-tabs > button,
+        .student-tabs > button,
+        .form-tabs > button,
+        .nav-tabs > button,
+        .tournament-catalog-tab {
+            flex: 0 0 auto !important;
+            width: auto !important;
+            min-width: max-content !important;
+            min-height: 40px !important;
+            height: 40px !important;
+            padding: 0 12px !important;
+            scroll-snap-align: start;
+            white-space: nowrap !important;
+        }
+
+        .tab-content-container,
+        .game-layout > div[style*="overflow-y"],
+        .game-layout > section[style*="overflow-y"],
+        .game-layout > main[style*="overflow-y"],
+        .settings-content,
+        .users-content {
+            width: 100% !important;
+            max-width: 100% !important;
+            min-width: 0 !important;
+            height: auto !important;
+            max-height: none !important;
+            padding: 14px var(--mobile-page-pad) 18px !important;
+            overflow: visible !important;
+        }
+
+        .page-header,
+        .section-header,
+        .panel-header,
+        .card-header,
+        .access-log-header,
+        .settings-card-header,
+        .account-header,
+        .tournament-catalog-header,
+        .tournament-catalog-toolbar {
+            align-items: stretch !important;
+            flex-direction: column !important;
+            gap: 10px !important;
+        }
+
+        .page-header > *,
+        .section-header > *,
+        .panel-header > *,
+        .access-log-header > *,
+        .account-header > *,
+        .tournament-catalog-header > *,
+        .tournament-catalog-toolbar > * {
+            min-width: 0 !important;
+            max-width: 100% !important;
+        }
+
+        .page-header h1,
+        .section-header h1,
+        .access-log-header h1,
+        .account-header h1,
+        .tournament-catalog-header h1 {
+            font-size: 22px !important;
+            line-height: 1.2 !important;
+            overflow-wrap: anywhere;
+        }
+
+        .filters,
+        .filter-row,
+        .filter-grid,
+        .filters-grid,
+        .filter-controls,
+        .toolbar,
+        .toolbar-actions,
+        .header-actions,
+        .page-actions,
+        .form-actions,
+        .settings-form-actions,
+        .game-filter-row,
+        .game-filter-actions,
+        .staff-timesheet-filters {
+            display: grid !important;
+            grid-template-columns: 1fr !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            min-width: 0 !important;
+            gap: 10px !important;
+        }
+
+        .filters > *,
+        .filter-row > *,
+        .filter-grid > *,
+        .filters-grid > *,
+        .filter-controls > *,
+        .toolbar > *,
+        .toolbar-actions > *,
+        .header-actions > *,
+        .page-actions > *,
+        .form-actions > *,
+        .settings-form-actions > *,
+        .game-filter-row > *,
+        .game-filter-actions > *,
+        .staff-timesheet-filters > * {
+            width: 100% !important;
+            max-width: 100% !important;
+            min-width: 0 !important;
+        }
+
+        input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]),
+        select,
+        textarea {
+            width: 100% !important;
+            max-width: 100% !important;
+            min-width: 0 !important;
+            font-size: 16px !important;
+        }
+
+        input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]),
+        select {
+            min-height: var(--mobile-control-height) !important;
+        }
+
+        textarea {
+            min-height: 96px !important;
+        }
+
+        button,
+        .btn,
+        .btn-primary,
+        .btn-secondary,
+        .btn-success,
+        .btn-danger,
+        .game-btn,
+        a.btn-primary,
+        a.btn-secondary {
+            min-height: var(--mobile-control-height);
+            touch-action: manipulation;
+        }
+
+        .card,
+        .form-card,
+        .settings-card,
+        .settings-main-card,
+        .dashboard-card,
+        .analytics-card,
+        .access-card,
+        .filter-panel,
+        .table-container,
+        .staff-timesheet-panel,
+        .account-panel,
+        .tournament-catalog-panel {
+            width: 100% !important;
+            max-width: 100% !important;
+            min-width: 0 !important;
+            padding: 14px !important;
+            border-radius: 12px !important;
+        }
+
+        .stats-grid,
+        .summary-grid,
+        .analytics-summary,
+        .dashboard-stats,
+        .account-security-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+            gap: 8px !important;
+        }
+
+        .stat-card {
+            min-width: 0 !important;
+            padding: 12px !important;
+        }
+
+        .stat-card h3,
+        .stat-card .label {
+            overflow-wrap: anywhere;
+        }
+
+        main.main-content table,
+        .main-content table,
+        .data-table,
+        .access-table,
+        .tournament-table,
+        .staff-timesheet-table {
+            display: block !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            overflow-x: auto !important;
+            overflow-y: hidden !important;
+            border-collapse: separate !important;
+            border-spacing: 0 !important;
+            white-space: nowrap !important;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: thin !important;
+        }
+
+        main.main-content table thead,
+        main.main-content table tbody,
+        main.main-content table tr,
+        .main-content table thead,
+        .main-content table tbody,
+        .main-content table tr {
+            width: max-content;
+            min-width: 100%;
+        }
+
+        main.main-content table th,
+        main.main-content table td,
+        .main-content table th,
+        .main-content table td {
+            min-width: 112px;
+            padding: 10px 12px !important;
+            white-space: nowrap !important;
+        }
+
+        main.main-content table th:first-child,
+        main.main-content table td:first-child,
+        .main-content table th:first-child,
+        .main-content table td:first-child {
+            min-width: 140px;
+            position: sticky;
+            left: 0;
+            z-index: 2;
+            background: #fff !important;
+        }
+
+        main.main-content table th:first-child,
+        .main-content table th:first-child {
+            z-index: 3;
+            background: var(--theme-table-header-bg, #f8f7f6) !important;
+        }
+
+        .modal,
+        .modal-overlay,
+        .tournament-catalog-modal {
+            z-index: 4000 !important;
+            align-items: flex-end !important;
+            justify-content: center !important;
+            width: 100% !important;
+            height: 100dvh !important;
+            padding: 0 !important;
+        }
+
+        .modal .modal-content,
+        .modal .simple-modal,
+        .modal .modern-modal,
+        .modal .add-student-modal-content,
+        .modal .edit-student-modal-content,
+        .modal .payment-modal-content,
+        .tournament-catalog-modal .modal-content {
+            width: 100% !important;
+            max-width: 100% !important;
+            min-width: 0 !important;
+            height: auto !important;
+            max-height: calc(100dvh - 8px) !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            overflow-x: hidden !important;
+            overflow-y: auto !important;
+            border-radius: 18px 18px 0 0 !important;
+            overscroll-behavior: contain;
+        }
+
+        .modal .modal-header,
+        .modal .modal-header-fixed,
+        .tournament-catalog-modal .tournament-catalog-modal-header {
+            position: sticky !important;
+            top: 0 !important;
+            z-index: 12 !important;
+            display: grid !important;
+            grid-template-columns: minmax(0, 1fr) auto !important;
+            align-items: center !important;
+            gap: 10px !important;
+            padding: 14px 16px !important;
+            background: #fff !important;
+            border-bottom: 1px solid var(--theme-border, #e8e3de) !important;
+        }
+
+        .modal .modal-header h2,
+        .modal .modal-header-fixed h2,
+        .tournament-catalog-modal .tournament-catalog-modal-header h2 {
+            min-width: 0 !important;
+            margin: 0 !important;
+            font-size: 18px !important;
+            line-height: 1.25 !important;
+            overflow-wrap: anywhere;
+        }
+
+        .modal .modal-header-actions {
+            grid-column: 1 / -1 !important;
+            display: grid !important;
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+            width: 100% !important;
+            gap: 8px !important;
+        }
+
+        .modal .modal-header-actions > *,
+        .modal .modal-actions > *,
+        .modal .modal-footer > *,
+        .modal .form-actions > *,
+        .tournament-catalog-form-actions > * {
+            width: 100% !important;
+            min-width: 0 !important;
+        }
+
+        .modal .modal-body,
+        .modal .modal-body-scrollable,
+        .modal .modal-form,
+        .modal form,
+        .tournament-catalog-modal .tournament-catalog-form {
+            width: 100% !important;
+            max-width: 100% !important;
+            min-width: 0 !important;
+            padding: 14px 16px calc(18px + env(safe-area-inset-bottom)) !important;
+            overflow-x: hidden !important;
+        }
+
+        .modal .modal-body > form,
+        .modal .modal-body-scrollable > form,
+        .modal .modal-form {
+            padding: 0 !important;
+        }
+
+        .modal .form-row,
+        .modal .form-grid,
+        .modal .form-grid-2,
+        .modal .form-grid-3,
+        .modal .form-columns,
+        .modal .form-tab-content > div[style*="grid-template-columns"],
+        .modal div[style*="grid-template-columns: 1fr 1fr"],
+        .modal div[style*="grid-template-columns:1fr 1fr"],
+        .modal div[style*="grid-template-columns: repeat(3"],
+        .tournament-catalog-modal .tournament-catalog-form {
+            display: grid !important;
+            grid-template-columns: 1fr !important;
+            width: 100% !important;
+            min-width: 0 !important;
+            gap: 12px !important;
+        }
+
+        .modal .form-tabs,
+        .modal .student-tabs {
+            position: sticky !important;
+            top: 0 !important;
+            z-index: 10 !important;
+            background: #fff !important;
+        }
+
+        .modal .payment-method-selector,
+        .modal .payment-method-buttons {
+            display: grid !important;
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+            width: 100% !important;
+            gap: 8px !important;
+        }
+
+        .modal .params-mobile-row-container {
+            display: grid !important;
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+            width: 100% !important;
+            gap: 10px !important;
+        }
+
+        .modal .params-mobile-row-container .form-group {
+            min-width: 0 !important;
+            margin: 0 !important;
+        }
+
+        .modal .params-mobile-row-container label {
+            display: block !important;
+            font-size: 12px !important;
+            line-height: 1.3 !important;
+            white-space: normal !important;
+            overflow: visible !important;
+            text-overflow: clip !important;
+        }
+
+        .modal .params-mobile-row-container input,
+        .modal .params-mobile-row-container select,
+        .modal .params-mobile-row-container .dominant-side-toggle {
+            min-height: var(--mobile-control-height) !important;
+            height: auto !important;
+            padding: 8px 10px !important;
+            font-size: 16px !important;
+        }
+
+        .students-header-filters {
+            display: grid !important;
+            grid-template-columns: minmax(0, 1fr) auto !important;
+            align-items: center !important;
+            width: 100% !important;
+            padding: 8px 10px !important;
+            gap: 8px !important;
+        }
+
+        .students-header-filters .student-group-filter,
+        .students-header-filters .student-list-search {
+            min-width: 0 !important;
+            width: 100% !important;
+        }
+
+        .game-layout-wrapper {
+            width: 100% !important;
+            max-width: 100% !important;
+            min-width: 0 !important;
+        }
+
+        body.students-mobile-detail-open .game-layout-wrapper {
+            display: block !important;
+            height: auto !important;
+            overflow: visible !important;
+        }
+
+        body.students-mobile-detail-open .game-layout-wrapper .student-list-panel {
+            display: none !important;
+        }
+
+        body.students-mobile-detail-open .game-layout-wrapper .student-details-panel,
+        body.students-mobile-detail-open .game-layout-wrapper .student-photo-panel {
+            display: block !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            min-width: 0 !important;
+            height: auto !important;
+            max-height: none !important;
+            padding: 0 !important;
+            overflow: visible !important;
+            border: 0 !important;
+        }
+
+        body.students-mobile-detail-open .game-layout-wrapper .student-photo-panel {
+            padding: 12px !important;
+        }
+
+        body.students-mobile-detail-open .student-details-content {
+            width: 100% !important;
+            max-width: 100% !important;
+            min-width: 0 !important;
+            overflow: visible !important;
+        }
+
+        body.students-mobile-detail-open .student-details-header {
+            width: 100% !important;
+            min-width: 0 !important;
+            height: auto !important;
+            min-height: 0 !important;
+            max-height: none !important;
+            padding: 12px 12px 0 !important;
+            overflow: visible !important;
+        }
+
+        body.students-mobile-detail-open .student-details-header-top {
+            display: grid !important;
+            grid-template-columns: 1fr !important;
+            width: 100% !important;
+            min-width: 0 !important;
+            gap: 10px !important;
+            padding: 0 0 10px !important;
+        }
+
+        body.students-mobile-detail-open .student-main-info {
+            display: grid !important;
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+            width: 100% !important;
+            min-width: 0 !important;
+            gap: 8px !important;
+            overflow: visible !important;
+        }
+
+        body.students-mobile-detail-open .student-main-info .student-info-item,
+        body.students-mobile-detail-open .student-main-info .turnstile-status-card {
+            width: 100% !important;
+            min-width: 0 !important;
+            max-width: none !important;
+            height: auto !important;
+            min-height: 56px !important;
+            padding: 8px !important;
+        }
+
+        body.students-mobile-detail-open .student-main-info .turnstile-status-card {
+            grid-column: 1 / -1 !important;
+        }
+
+        body.students-mobile-detail-open .student-main-info .info-item-label,
+        body.students-mobile-detail-open .student-main-info .turnstile-status-title {
+            margin-bottom: 4px !important;
+            font-size: 10px !important;
+            line-height: 1.2 !important;
+        }
+
+        body.students-mobile-detail-open .student-main-info .info-item-value,
+        body.students-mobile-detail-open .student-main-info .turnstile-status-value {
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            max-width: 100% !important;
+            font-size: 12px !important;
+            line-height: 1.25 !important;
+            overflow: visible !important;
+            text-overflow: clip !important;
+            white-space: normal !important;
+            -webkit-line-clamp: unset !important;
+        }
+
+        body.students-mobile-detail-open .student-main-info .turnstile-status-reason {
+            font-size: 10px !important;
+            white-space: normal !important;
+        }
+
+        body.students-mobile-detail-open .student-actions-top {
+            display: grid !important;
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+            width: 100% !important;
+            gap: 8px !important;
+        }
+
+        body.students-mobile-detail-open .student-actions-top .action-btn {
+            width: 100% !important;
+            min-width: 0 !important;
+            min-height: 42px !important;
+            height: 42px !important;
+            border-radius: 10px !important;
+        }
+
+        body.students-mobile-detail-open .student-details-header .student-tabs {
+            width: calc(100% + 24px) !important;
+            max-width: calc(100% + 24px) !important;
+            margin: 0 -12px !important;
+            padding: 6px 12px !important;
+            border-top: 1px solid var(--theme-border, #e8e3de) !important;
+            border-bottom: 1px solid var(--theme-border, #e8e3de) !important;
+            background: #fff !important;
+        }
+
+        body.students-mobile-detail-open .student-details-body {
+            width: 100% !important;
+            min-width: 0 !important;
+            padding: 14px 12px !important;
+            gap: 14px !important;
+            overflow: visible !important;
+        }
+
+        body.students-mobile-detail-open .student-tabs-section,
+        body.students-mobile-detail-open .student-tab-content,
+        body.students-mobile-detail-open .student-info-section,
+        body.students-mobile-detail-open .info-row {
+            width: 100% !important;
+            max-width: 100% !important;
+            min-width: 0 !important;
+        }
+
+        body.students-mobile-detail-open .student-full-name {
+            margin: 0 0 12px !important;
+            font-size: 20px !important;
+            line-height: 1.25 !important;
+            overflow-wrap: anywhere;
+        }
+
+        body.students-mobile-detail-open .student-info-section,
+        body.students-mobile-detail-open .info-row {
+            display: grid !important;
+            grid-template-columns: 1fr !important;
+            gap: 10px !important;
+        }
+
+        body.students-mobile-detail-open .info-group,
+        body.students-mobile-detail-open .data-card,
+        body.students-mobile-detail-open .history-section {
+            width: 100% !important;
+            min-width: 0 !important;
+            height: auto !important;
+            padding: 14px !important;
+        }
+
+        .mobile-student-back {
+            position: sticky;
+            top: 54px;
+            z-index: 45;
+            display: none;
+            align-items: center;
+            gap: 8px;
+            width: calc(100% - 24px);
+            min-height: 42px;
+            margin: 10px 12px;
+            padding: 0 12px;
+            border: 1px solid var(--theme-border, #e8e3de);
+            border-radius: 10px;
+            background: #fff;
+            color: var(--theme-text-primary, #17191f);
+            font: inherit;
+            font-size: 14px;
+            font-weight: 600;
+            box-shadow: 0 4px 14px rgba(23, 25, 31, .06);
+        }
+
+        body.students-mobile-detail-open .mobile-student-back {
+            display: flex !important;
+        }
+
+        .attendance-page .students-grid,
+        .students-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+            gap: 8px !important;
+        }
+
+        .attendance-page .student-card {
+            min-width: 0 !important;
+            padding: 10px 8px !important;
+        }
+
+        .teacher-container,
+        .portal-container,
+        .account-shell,
+        .staff-timesheet-shell,
+        .access-log-shell,
+        .tournament-catalog-shell {
+            width: 100% !important;
+            max-width: 100% !important;
+            min-width: 0 !important;
+            padding-right: var(--mobile-page-pad) !important;
+            padding-left: var(--mobile-page-pad) !important;
+        }
+
+        .teacher-container .stats-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        }
+
+        .camera-dashboard,
+        .account-grid,
+        .account-form,
+        .account-profile-top,
+        .logo-settings-grid,
+        .tournament-card-grid,
+        .team-catalog-grid {
+            grid-template-columns: 1fr !important;
+        }
+
+        .staff-timesheet-scroll,
+        .access-table-card {
+            width: 100% !important;
+            max-width: 100% !important;
+            overflow-x: auto !important;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .tournament-catalog-toolbar-actions {
+            display: grid !important;
+            grid-template-columns: auto minmax(0, 1fr) !important;
+            width: 100% !important;
+        }
+
+        .tournament-catalog-toolbar-actions .btn-primary {
+            width: 100% !important;
+        }
+    }
+
+    @media (max-width: 390px) {
+        .stats-grid,
+        .summary-grid,
+        .analytics-summary,
+        .dashboard-stats,
+        .account-security-grid,
+        .attendance-page .students-grid,
+        .students-grid {
+            grid-template-columns: 1fr !important;
+        }
+
+        .mobile-more-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        }
+
+        .modal .params-mobile-row-container,
+        .modal .payment-method-selector,
+        .modal .payment-method-buttons {
+            grid-template-columns: 1fr !important;
+        }
+    }
 </style>
 
 <script>

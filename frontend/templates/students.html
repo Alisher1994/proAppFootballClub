@@ -5821,6 +5821,35 @@
             }
         }
 
+        function ensureMobileStudentNavigation() {
+            const wrapper = document.querySelector('.game-layout-wrapper');
+            const detailsPanel = document.getElementById('studentDetailsPanel');
+            if (!wrapper || !detailsPanel) return null;
+            let backButton = document.getElementById('mobileStudentBack');
+            if (!backButton) {
+                backButton = document.createElement('button');
+                backButton.id = 'mobileStudentBack';
+                backButton.className = 'mobile-student-back';
+                backButton.type = 'button';
+                backButton.innerHTML = `
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
+                        stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="m15 18-6-6 6-6"></path>
+                    </svg>
+                    <span>К списку учеников</span>
+                `;
+                backButton.addEventListener('click', () => {
+                    document.body.classList.remove('students-mobile-detail-open');
+                    const selectedItem = document.querySelector('.student-list-item.selected');
+                    requestAnimationFrame(() => {
+                        selectedItem?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    });
+                });
+                wrapper.insertBefore(backButton, detailsPanel);
+            }
+            return backButton;
+        }
+
         // Функция выбора ученика
         async function selectStudent(studentId) {
             // Сохранить состояние перед изменением
@@ -5845,6 +5874,12 @@
                 console.error('Ошибка загрузки карточки ученика:', error);
                 alert('Не удалось загрузить карточку ученика. Попробуйте обновить страницу.');
                 return;
+            }
+
+            if (window.matchMedia('(max-width: 768px)').matches) {
+                ensureMobileStudentNavigation();
+                document.body.classList.add('students-mobile-detail-open');
+                requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: 'smooth' }));
             }
 
             // Скрыть все панели деталей
