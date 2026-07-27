@@ -6,7 +6,8 @@
     <title>Турниры</title>
     <link rel="icon" href="{{ system_square_logo_url or url_for('static', filename='uploads/favicon.png') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/onest/onest.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=2026072701">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=2026072801">
 </head>
 <body>
     {% include '_sidebar.html' %}
@@ -32,6 +33,10 @@
                 <button class="tournament-catalog-tab" type="button" data-catalog-tab="teams">
                     <i data-lucide="shield"></i>
                     База команд
+                </button>
+                <button class="tournament-catalog-tab" type="button" data-catalog-tab="stadiums">
+                    <i data-lucide="map-pinned"></i>
+                    Стадионы
                 </button>
             </nav>
 
@@ -64,6 +69,25 @@
                 </div>
                 <div class="team-catalog-grid" id="teamList">
                     <div class="tournament-catalog-empty">Загрузка команд…</div>
+                </div>
+            </section>
+
+            <section class="tournament-catalog-panel" id="catalogPanel-stadiums">
+                <div class="tournament-catalog-toolbar">
+                    <div>
+                        <h2>Список стадионов</h2>
+                        <p>Контакты владельцев и сохранённые точки на карте.</p>
+                    </div>
+                    <div class="tournament-catalog-toolbar-actions">
+                        <span class="tournament-catalog-count" id="stadiumCount">0</span>
+                        <button class="btn-primary" id="openStadiumModalBtn" type="button">
+                            <i data-lucide="plus"></i>
+                            Добавить стадион
+                        </button>
+                    </div>
+                </div>
+                <div class="stadium-catalog-grid" id="stadiumList">
+                    <div class="tournament-catalog-empty">Загрузка стадионов…</div>
                 </div>
             </section>
         </section>
@@ -142,6 +166,33 @@
                     <span class="btn-secondary">Выбрать файл</span>
                     <input id="teamLogo" type="file" accept="image/png,image/jpeg,image/webp">
                 </label>
+                <label class="tournament-catalog-field full">
+                    <span>ФИО тренера <small>необязательно</small></span>
+                    <input id="teamTrainerName" type="text" maxlength="200" placeholder="Фамилия Имя Отчество">
+                </label>
+                <label class="team-catalog-logo-picker full">
+                    <span class="team-catalog-logo-preview round" id="trainerPhotoPreview">
+                        <i data-lucide="user-round"></i>
+                    </span>
+                    <span class="team-catalog-logo-copy">
+                        <strong>Фото тренера</strong>
+                        <small id="trainerPhotoFileName">Необязательно · PNG, JPG или WEBP</small>
+                    </span>
+                    <span class="btn-secondary">Выбрать файл</span>
+                    <input id="teamTrainerPhoto" type="file" accept="image/png,image/jpeg,image/webp">
+                </label>
+                <label class="tournament-catalog-field">
+                    <span>Телефон администрации <small>необязательно</small></span>
+                    <input id="teamAdministrationPhone" type="tel" maxlength="50" placeholder="+998">
+                </label>
+                <label class="tournament-catalog-field">
+                    <span>Телефон тренера <small>необязательно</small></span>
+                    <input id="teamTrainerPhone" type="tel" maxlength="50" placeholder="+998">
+                </label>
+                <label class="tournament-catalog-field full">
+                    <span>Адрес клуба <small>необязательно</small></span>
+                    <input id="teamClubAddress" type="text" maxlength="500" placeholder="Город, улица, дом">
+                </label>
                 <div class="tournament-catalog-form-error" id="teamFormError" hidden></div>
                 <footer class="tournament-catalog-form-actions full">
                     <button class="btn-secondary" type="button" data-close-modal="teamModal">Отмена</button>
@@ -151,9 +202,161 @@
         </div>
     </div>
 
+    <div class="modal tournament-catalog-modal" id="teamDetailsModal" hidden>
+        <div class="modal-content tournament-team-details-content">
+            <header class="tournament-catalog-modal-header">
+                <div class="team-details-heading">
+                    <span class="team-details-logo" id="teamDetailsLogo"></span>
+                    <div>
+                        <span class="tournament-catalog-eyebrow">Команда</span>
+                        <h2 id="teamDetailsTitle">Команда</h2>
+                    </div>
+                </div>
+                <button class="icon-button" type="button" data-close-modal="teamDetailsModal" aria-label="Закрыть">
+                    <i data-lucide="x"></i>
+                </button>
+            </header>
+            <div class="team-details-body">
+                <section class="team-contact-summary" id="teamContactSummary"></section>
+                <div class="team-members-toolbar">
+                    <div>
+                        <h3>Участники команды</h3>
+                        <span id="teamMemberCount">0 участников</span>
+                    </div>
+                    <button class="btn-primary" id="openMemberModalBtn" type="button">
+                        <i data-lucide="user-plus"></i>
+                        Добавить участника
+                    </button>
+                </div>
+                <div class="team-members-table-wrap">
+                    <table class="team-members-table">
+                        <thead>
+                            <tr>
+                                <th>Участник</th>
+                                <th>Дата рождения</th>
+                                <th>Паспорт</th>
+                                <th>Телефоны</th>
+                                <th>№</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody id="teamMembersTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal tournament-catalog-modal" id="memberModal" hidden>
+        <div class="modal-content member-catalog-modal-content">
+            <header class="tournament-catalog-modal-header">
+                <div>
+                    <span class="tournament-catalog-eyebrow">Участник команды</span>
+                    <h2 id="memberModalTitle">Новый участник</h2>
+                </div>
+                <button class="icon-button" type="button" data-close-modal="memberModal" aria-label="Закрыть">
+                    <i data-lucide="x"></i>
+                </button>
+            </header>
+            <form id="memberForm" class="tournament-catalog-form" enctype="multipart/form-data">
+                <label class="team-catalog-logo-picker full">
+                    <span class="team-catalog-logo-preview round" id="memberPhotoPreview">
+                        <i data-lucide="user-round-plus"></i>
+                    </span>
+                    <span class="team-catalog-logo-copy">
+                        <strong>Фото участника</strong>
+                        <small id="memberPhotoFileName">PNG, JPG или WEBP</small>
+                    </span>
+                    <span class="btn-secondary">Выбрать файл</span>
+                    <input id="memberPhoto" type="file" accept="image/png,image/jpeg,image/webp">
+                </label>
+                <label class="tournament-catalog-field">
+                    <span>Фамилия</span>
+                    <input id="memberLastName" type="text" maxlength="100" required>
+                </label>
+                <label class="tournament-catalog-field">
+                    <span>Имя</span>
+                    <input id="memberFirstName" type="text" maxlength="100" required>
+                </label>
+                <label class="tournament-catalog-field full">
+                    <span>Отчество</span>
+                    <input id="memberMiddleName" type="text" maxlength="100">
+                </label>
+                <label class="tournament-catalog-field">
+                    <span>Дата рождения</span>
+                    <input id="memberBirthDate" type="text" inputmode="numeric" maxlength="10" placeholder="дд.мм.гггг">
+                </label>
+                <label class="tournament-catalog-field">
+                    <span>Серия паспорта</span>
+                    <input id="memberPassportSeries" type="text" maxlength="50" placeholder="AA 1234567">
+                </label>
+                <label class="tournament-catalog-field full">
+                    <span>Адрес</span>
+                    <input id="memberAddress" type="text" maxlength="500" placeholder="Город, улица, дом">
+                </label>
+                <label class="tournament-catalog-field">
+                    <span>Номер телефона 1</span>
+                    <input id="memberPhonePrimary" type="tel" maxlength="50" placeholder="+998">
+                </label>
+                <label class="tournament-catalog-field">
+                    <span>Номер телефона 2</span>
+                    <input id="memberPhoneSecondary" type="tel" maxlength="50" placeholder="+998">
+                </label>
+                <label class="tournament-catalog-field">
+                    <span>Номер в команде</span>
+                    <input id="memberTeamNumber" type="text" maxlength="30" inputmode="numeric" placeholder="10">
+                </label>
+                <div class="tournament-catalog-form-error" id="memberFormError" hidden></div>
+                <footer class="tournament-catalog-form-actions full">
+                    <button class="btn-secondary" type="button" data-close-modal="memberModal">Отмена</button>
+                    <button class="btn-primary" type="submit">Сохранить</button>
+                </footer>
+            </form>
+        </div>
+    </div>
+
+    <div class="modal tournament-catalog-modal" id="stadiumModal" hidden>
+        <div class="modal-content stadium-catalog-modal-content">
+            <header class="tournament-catalog-modal-header">
+                <div>
+                    <span class="tournament-catalog-eyebrow">Стадион</span>
+                    <h2 id="stadiumModalTitle">Новый стадион</h2>
+                </div>
+                <button class="icon-button" type="button" data-close-modal="stadiumModal" aria-label="Закрыть">
+                    <i data-lucide="x"></i>
+                </button>
+            </header>
+            <form id="stadiumForm" class="tournament-catalog-form">
+                <label class="tournament-catalog-field">
+                    <span>Название</span>
+                    <input id="stadiumName" type="text" maxlength="200" required>
+                </label>
+                <label class="tournament-catalog-field">
+                    <span>Телефон владельца</span>
+                    <input id="stadiumOwnerPhone" type="tel" maxlength="50" placeholder="+998">
+                </label>
+                <div class="stadium-map-field full">
+                    <div class="stadium-map-label">
+                        <span>Локация на карте</span>
+                        <small id="stadiumCoordinates">Нажмите на карту, чтобы поставить точку</small>
+                    </div>
+                    <div id="stadiumMap" aria-label="Карта выбора стадиона"></div>
+                    <input id="stadiumLatitude" type="hidden">
+                    <input id="stadiumLongitude" type="hidden">
+                </div>
+                <div class="tournament-catalog-form-error" id="stadiumFormError" hidden></div>
+                <footer class="tournament-catalog-form-actions full">
+                    <button class="btn-secondary" type="button" data-close-modal="stadiumModal">Отмена</button>
+                    <button class="btn-primary" type="submit">Сохранить</button>
+                </footer>
+            </form>
+        </div>
+    </div>
+
     <script src="{{ url_for('static', filename='vendor/lucide-1.24.0.min.js') }}"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="{{ url_for('static', filename='js/sidebar.js') }}"></script>
     <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/tournaments.js') }}?v=2026072701"></script>
+    <script src="{{ url_for('static', filename='js/tournaments.js') }}?v=2026072801"></script>
 </body>
 </html>

@@ -712,6 +712,65 @@ class TournamentTeamCatalog(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(200), nullable=False)
     logo_path = db.Column(db.String(300), nullable=True)
+    trainer_name = db.Column(db.String(200), nullable=True)
+    trainer_photo_path = db.Column(db.String(300), nullable=True)
+    administration_phone = db.Column(db.String(50), nullable=True)
+    trainer_phone = db.Column(db.String(50), nullable=True)
+    club_address = db.Column(db.String(500), nullable=True)
+    created_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    created_at = db.Column(db.DateTime, default=get_local_datetime)
+    updated_at = db.Column(db.DateTime, default=get_local_datetime, onupdate=get_local_datetime)
+
+    creator = db.relationship('User', foreign_keys=[created_by])
+    members = db.relationship(
+        'TournamentTeamMember',
+        back_populates='team',
+        cascade='all, delete-orphan',
+        lazy='select',
+    )
+
+    def __repr__(self):
+        return f'<TournamentTeamCatalog {self.name}>'
+
+
+class TournamentTeamMember(db.Model):
+    """Участник команды из независимой турнирной базы."""
+    __tablename__ = 'tournament_team_members'
+
+    id = db.Column(db.Integer, primary_key=True)
+    team_id = db.Column(db.Integer, db.ForeignKey('tournament_team_catalog.id'), nullable=False, index=True)
+    photo_path = db.Column(db.String(300), nullable=True)
+    last_name = db.Column(db.String(100), nullable=False)
+    first_name = db.Column(db.String(100), nullable=False)
+    middle_name = db.Column(db.String(100), nullable=True)
+    birth_date = db.Column(db.Date, nullable=True)
+    passport_series = db.Column(db.String(50), nullable=True)
+    address = db.Column(db.String(500), nullable=True)
+    phone_primary = db.Column(db.String(50), nullable=True)
+    phone_secondary = db.Column(db.String(50), nullable=True)
+    team_number = db.Column(db.String(30), nullable=True)
+    created_at = db.Column(db.DateTime, default=get_local_datetime)
+    updated_at = db.Column(db.DateTime, default=get_local_datetime, onupdate=get_local_datetime)
+
+    team = db.relationship('TournamentTeamCatalog', back_populates='members')
+
+    @property
+    def full_name(self):
+        return ' '.join(filter(None, [self.last_name, self.first_name, self.middle_name]))
+
+    def __repr__(self):
+        return f'<TournamentTeamMember {self.full_name}>'
+
+
+class TournamentStadium(db.Model):
+    """Справочник стадионов с координатами на карте."""
+    __tablename__ = 'tournament_stadiums'
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(200), nullable=False)
+    owner_phone = db.Column(db.String(50), nullable=True)
+    latitude = db.Column(db.Float, nullable=False)
+    longitude = db.Column(db.Float, nullable=False)
     created_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
     created_at = db.Column(db.DateTime, default=get_local_datetime)
     updated_at = db.Column(db.DateTime, default=get_local_datetime, onupdate=get_local_datetime)
@@ -719,7 +778,7 @@ class TournamentTeamCatalog(db.Model):
     creator = db.relationship('User', foreign_keys=[created_by])
 
     def __repr__(self):
-        return f'<TournamentTeamCatalog {self.name}>'
+        return f'<TournamentStadium {self.name}>'
 
 
 class CashTransfer(db.Model):

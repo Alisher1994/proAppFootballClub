@@ -69,7 +69,7 @@ os.environ['FFMPEG_LOG_LEVEL'] = 'quiet'
 # Форсируем использование CUDA/TensorRT в ONNX
 os.environ['ORT_TENSORRT_FP16_ENABLE'] = '1'
 
-from backend.models.models import db, User, Student, Payment, Attendance, AccessLog, Expense, Group, GroupTrainer, Tariff, ClubSettings, RewardType, StudentReward, CashTransfer, Role, RolePermission, CardType, StudentCard, Tournament, TournamentTeamCatalog, DeviceCommand, BridgeStatus
+from backend.models.models import db, User, Student, Payment, Attendance, AccessLog, Expense, Group, GroupTrainer, Tariff, ClubSettings, RewardType, StudentReward, CashTransfer, Role, RolePermission, CardType, StudentCard, Tournament, TournamentTeamCatalog, TournamentTeamMember, TournamentStadium, DeviceCommand, BridgeStatus
 # Live camera recognition stays disabled; access-log verification is separate.
 USE_FACE = False
 from backend.services.face_stub import DummyFaceService as FaceService
@@ -1472,21 +1472,39 @@ def ensure_group_trainers_table():
 
 
 def ensure_tournament_tables():
-    """Создает минимальные таблицы турниров и общей базы команд."""
+    """Создает и аккуратно расширяет таблицы турниров, команд и стадионов."""
     try:
         inspector = db.inspect(db.engine)
         tables = inspector.get_table_names()
-        required = {'tournaments', 'tournament_team_catalog'}
+        required = {
+            'tournaments',
+            'tournament_team_catalog',
+            'tournament_team_members',
+            'tournament_stadiums',
+        }
         if not required.issubset(set(tables)):
             db.create_all()
             print("✓ Созданы таблицы турниров")
             inspector = db.inspect(db.engine)
         tournament_columns = {col['name'] for col in inspector.get_columns('tournaments')}
+        team_columns = {col['name'] for col in inspector.get_columns('tournament_team_catalog')}
+        team_column_definitions = {
+            'trainer_name': 'VARCHAR(200)',
+            'trainer_photo_path': 'VARCHAR(300)',
+            'administration_phone': 'VARCHAR(50)',
+            'trainer_phone': 'VARCHAR(50)',
+            'club_address': 'VARCHAR(500)',
+        }
         with db.engine.begin() as conn:
             if 'start_time' not in tournament_columns:
                 conn.execute(db.text("ALTER TABLE tournaments ADD COLUMN start_time TIME"))
             if 'age_groups' not in tournament_columns:
                 conn.execute(db.text("ALTER TABLE tournaments ADD COLUMN age_groups TEXT"))
+            for column_name, column_type in team_column_definitions.items():
+                if column_name not in team_columns:
+                    conn.execute(db.text(
+                        f"ALTER TABLE tournament_team_catalog ADD COLUMN {column_name} {column_type}"
+                    ))
     except Exception as e:
         print(f"Ошибка при проверке таблиц турниров: {e}")
 
@@ -2425,6 +2443,14 @@ def get_tournament_team_logo_url(team, settings=None):
         return get_system_logo_url(settings or get_club_settings_instance())
     return None
 
+
+def get_tournament_media_url(media_path):
+    if not media_path:
+        return None
+    filename = media_path.replace('\\', '/').split('/')[-1]
+    return url_for('static', filename=f'uploads/{filename}')
+
+
 @app.context_processor
 def inject_system_name():
     """Добавляет название системы во все шаблоны (с кешированием)"""
@@ -3269,11 +3295,32 @@ def save_tournament_team_logo(logo_file, old_logo_path=None):
     return os.path.join('frontend', 'static', 'uploads', filename)
 
 
-def delete_tournament_team_logo(logo_path):
-    if not logo_path:
+def save_tournament_catalog_photo(photo_file, prefix, old_photo_path=None):
+    if not photo_file or not photo_file.filename:
+        return old_photo_path
+    _, ext = os.path.splitext(secure_filename(photo_file.filename))
+    ext = ext.lower()
+    if ext not in {'.png', '.jpg', '.jpeg', '.webp'}:
+        raise ValueError('Поддерживаются PNG, JPG, WEBP')
+
+    safe_prefix = re.sub(r'[^a-z0-9_]+', '_', str(prefix).lower()).strip('_')
+    os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+    filename = f"{safe_prefix}_{int(time.time())}_{uuid.uuid4().hex[:8]}{ext}"
+    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    save_optimized_logo_upload(photo_file, filepath, (1200, 1200))
+    delete_tournament_catalog_media(old_photo_path, (f'{safe_prefix}_',))
+    return os.path.join('frontend', 'static', 'uploads', filename)
+
+
+def delete_tournament_catalog_media(media_path, allowed_prefixes=(
+    'tournament_team_logo_',
+    'tournament_trainer_',
+    'tournament_member_',
+)):
+    if not media_path:
         return
-    filename = logo_path.replace('\\', '/').split('/')[-1]
-    if not filename.startswith('tournament_team_logo_'):
+    filename = media_path.replace('\\', '/').split('/')[-1]
+    if not any(filename.startswith(prefix) for prefix in allowed_prefixes):
         return
     try:
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
@@ -3281,6 +3328,10 @@ def delete_tournament_team_logo(logo_path):
             os.remove(filepath)
     except OSError:
         pass
+
+
+def delete_tournament_team_logo(logo_path):
+    delete_tournament_catalog_media(logo_path, ('tournament_team_logo_',))
 
 
 def save_user_photo(photo_file, user_id):
@@ -4359,7 +4410,10 @@ def parse_date_value(value):
         try:
             return datetime.strptime(str(value), '%Y-%m-%d').date()
         except Exception:
-            return None
+            try:
+                return datetime.strptime(str(value).strip(), '%d.%m.%Y').date()
+            except Exception:
+                return None
 
 
 def parse_time_value(value):
@@ -4407,8 +4461,64 @@ def serialize_tournament_team_catalog(team):
         'id': team.id,
         'name': team.name,
         'logo_url': get_tournament_team_logo_url(team),
+        'trainer_name': team.trainer_name,
+        'trainer_photo_url': get_tournament_media_url(team.trainer_photo_path),
+        'administration_phone': team.administration_phone,
+        'trainer_phone': team.trainer_phone,
+        'club_address': team.club_address,
+        'member_count': len(team.members),
         'created_at': team.created_at.isoformat() if team.created_at else None,
     }
+
+
+def serialize_tournament_team_member(member):
+    return {
+        'id': member.id,
+        'team_id': member.team_id,
+        'photo_url': get_tournament_media_url(member.photo_path),
+        'last_name': member.last_name,
+        'first_name': member.first_name,
+        'middle_name': member.middle_name,
+        'full_name': member.full_name,
+        'birth_date': member.birth_date.isoformat() if member.birth_date else None,
+        'passport_series': member.passport_series,
+        'address': member.address,
+        'phone_primary': member.phone_primary,
+        'phone_secondary': member.phone_secondary,
+        'team_number': member.team_number,
+        'created_at': member.created_at.isoformat() if member.created_at else None,
+    }
+
+
+def serialize_tournament_stadium(stadium):
+    return {
+        'id': stadium.id,
+        'name': stadium.name,
+        'owner_phone': stadium.owner_phone,
+        'latitude': stadium.latitude,
+        'longitude': stadium.longitude,
+        'created_at': stadium.created_at.isoformat() if stadium.created_at else None,
+    }
+
+
+def apply_tournament_team_form(team):
+    team.name = (request.form.get('name') or '').strip()
+    team.trainer_name = (request.form.get('trainer_name') or '').strip() or None
+    team.administration_phone = (request.form.get('administration_phone') or '').strip() or None
+    team.trainer_phone = (request.form.get('trainer_phone') or '').strip() or None
+    team.club_address = (request.form.get('club_address') or '').strip() or None
+
+
+def apply_tournament_member_form(member):
+    member.last_name = (request.form.get('last_name') or '').strip()
+    member.first_name = (request.form.get('first_name') or '').strip()
+    member.middle_name = (request.form.get('middle_name') or '').strip() or None
+    member.birth_date = parse_date_value(request.form.get('birth_date'))
+    member.passport_series = (request.form.get('passport_series') or '').strip() or None
+    member.address = (request.form.get('address') or '').strip() or None
+    member.phone_primary = (request.form.get('phone_primary') or '').strip() or None
+    member.phone_secondary = (request.form.get('phone_secondary') or '').strip() or None
+    member.team_number = (request.form.get('team_number') or '').strip() or None
 
 
 @app.route('/tournaments')
@@ -4523,8 +4633,14 @@ def tournament_team_catalog_api():
     if not logo_file or not logo_file.filename:
         return jsonify({'success': False, 'message': 'Добавьте логотип команды'}), 400
     team = TournamentTeamCatalog(name=name, created_by=current_user.id)
+    apply_tournament_team_form(team)
     try:
         team.logo_path = save_tournament_team_logo(logo_file)
+        if request.files.get('trainer_photo'):
+            team.trainer_photo_path = save_tournament_catalog_photo(
+                request.files.get('trainer_photo'),
+                'tournament_trainer',
+            )
     except ValueError as exc:
         return jsonify({'success': False, 'message': str(exc)}), 400
     db.session.add(team)
@@ -4532,20 +4648,39 @@ def tournament_team_catalog_api():
     return jsonify({'success': True, 'team': serialize_tournament_team_catalog(team)}), 201
 
 
-@app.route('/api/tournament-team-catalog/<int:team_id>', methods=['PUT', 'DELETE'])
+@app.route('/api/tournament-team-catalog/<int:team_id>', methods=['GET', 'PUT', 'DELETE'])
 @login_required
 def tournament_team_catalog_detail_api(team_id):
     ensure_tournament_tables()
-    if not has_tournament_permission('edit'):
-        return jsonify({'success': False, 'message': 'Нет доступа'}), 403
     team = db.session.get(TournamentTeamCatalog, team_id)
     if not team:
         return jsonify({'success': False, 'message': 'Команда не найдена'}), 404
+    if request.method == 'GET':
+        if not has_tournament_permission('view'):
+            return jsonify({'success': False, 'message': 'Нет доступа'}), 403
+        payload = serialize_tournament_team_catalog(team)
+        payload['members'] = [
+            serialize_tournament_team_member(member)
+            for member in sorted(team.members, key=lambda item: (
+                item.last_name.lower(),
+                item.first_name.lower(),
+                item.id,
+            ))
+        ]
+        return jsonify({'success': True, 'team': payload})
+
+    if not has_tournament_permission('edit'):
+        return jsonify({'success': False, 'message': 'Нет доступа'}), 403
     old_logo = team.logo_path
     if request.method == 'DELETE':
+        trainer_photo = team.trainer_photo_path
+        member_photos = [member.photo_path for member in team.members if member.photo_path]
         db.session.delete(team)
         db.session.commit()
         delete_tournament_team_logo(old_logo)
+        delete_tournament_catalog_media(trainer_photo)
+        for photo_path in member_photos:
+            delete_tournament_catalog_media(photo_path)
         return jsonify({'success': True})
 
     name = (request.form.get('name') or '').strip()
@@ -4557,15 +4692,170 @@ def tournament_team_catalog_detail_api(team_id):
     ).first()
     if duplicate:
         return jsonify({'success': False, 'message': 'Команда с таким названием уже существует'}), 400
-    team.name = name
+    apply_tournament_team_form(team)
     if request.files.get('logo'):
         try:
             team.logo_path = save_tournament_team_logo(request.files.get('logo'), team.logo_path)
         except ValueError as exc:
             db.session.rollback()
             return jsonify({'success': False, 'message': str(exc)}), 400
+    if request.files.get('trainer_photo'):
+        try:
+            team.trainer_photo_path = save_tournament_catalog_photo(
+                request.files.get('trainer_photo'),
+                'tournament_trainer',
+                team.trainer_photo_path,
+            )
+        except ValueError as exc:
+            db.session.rollback()
+            return jsonify({'success': False, 'message': str(exc)}), 400
     db.session.commit()
     return jsonify({'success': True, 'team': serialize_tournament_team_catalog(team)})
+
+
+@app.route('/api/tournament-team-catalog/<int:team_id>/members', methods=['GET', 'POST'])
+@login_required
+def tournament_team_members_api(team_id):
+    ensure_tournament_tables()
+    team = db.session.get(TournamentTeamCatalog, team_id)
+    if not team:
+        return jsonify({'success': False, 'message': 'Команда не найдена'}), 404
+    if request.method == 'GET':
+        if not has_tournament_permission('view'):
+            return jsonify({'success': False, 'message': 'Нет доступа'}), 403
+        members = TournamentTeamMember.query.filter_by(team_id=team_id).order_by(
+            TournamentTeamMember.last_name.asc(),
+            TournamentTeamMember.first_name.asc(),
+        ).all()
+        return jsonify({
+            'success': True,
+            'members': [serialize_tournament_team_member(member) for member in members],
+        })
+
+    if not has_tournament_permission('edit'):
+        return jsonify({'success': False, 'message': 'Нет доступа'}), 403
+    member = TournamentTeamMember(team_id=team_id, last_name='', first_name='')
+    apply_tournament_member_form(member)
+    if not member.last_name or not member.first_name:
+        return jsonify({'success': False, 'message': 'Укажите фамилию и имя участника'}), 400
+    birth_value = (request.form.get('birth_date') or '').strip()
+    if birth_value and not member.birth_date:
+        return jsonify({'success': False, 'message': 'Дата рождения должна быть в формате дд.мм.гггг'}), 400
+    photo_file = request.files.get('photo')
+    try:
+        if photo_file and photo_file.filename:
+            member.photo_path = save_tournament_catalog_photo(photo_file, 'tournament_member')
+    except ValueError as exc:
+        return jsonify({'success': False, 'message': str(exc)}), 400
+    db.session.add(member)
+    db.session.commit()
+    return jsonify({'success': True, 'member': serialize_tournament_team_member(member)}), 201
+
+
+@app.route('/api/tournament-team-members/<int:member_id>', methods=['PUT', 'DELETE'])
+@login_required
+def tournament_team_member_detail_api(member_id):
+    ensure_tournament_tables()
+    if not has_tournament_permission('edit'):
+        return jsonify({'success': False, 'message': 'Нет доступа'}), 403
+    member = db.session.get(TournamentTeamMember, member_id)
+    if not member:
+        return jsonify({'success': False, 'message': 'Участник не найден'}), 404
+    if request.method == 'DELETE':
+        photo_path = member.photo_path
+        db.session.delete(member)
+        db.session.commit()
+        delete_tournament_catalog_media(photo_path)
+        return jsonify({'success': True})
+
+    apply_tournament_member_form(member)
+    if not member.last_name or not member.first_name:
+        return jsonify({'success': False, 'message': 'Укажите фамилию и имя участника'}), 400
+    birth_value = (request.form.get('birth_date') or '').strip()
+    if birth_value and not member.birth_date:
+        return jsonify({'success': False, 'message': 'Дата рождения должна быть в формате дд.мм.гггг'}), 400
+    if request.files.get('photo'):
+        try:
+            member.photo_path = save_tournament_catalog_photo(
+                request.files.get('photo'),
+                'tournament_member',
+                member.photo_path,
+            )
+        except ValueError as exc:
+            db.session.rollback()
+            return jsonify({'success': False, 'message': str(exc)}), 400
+    db.session.commit()
+    return jsonify({'success': True, 'member': serialize_tournament_team_member(member)})
+
+
+@app.route('/api/tournament-stadiums', methods=['GET', 'POST'])
+@login_required
+def tournament_stadiums_api():
+    ensure_tournament_tables()
+    if request.method == 'GET':
+        if not has_tournament_permission('view'):
+            return jsonify({'success': False, 'message': 'Нет доступа'}), 403
+        stadiums = TournamentStadium.query.order_by(TournamentStadium.name.asc()).all()
+        return jsonify({
+            'success': True,
+            'stadiums': [serialize_tournament_stadium(stadium) for stadium in stadiums],
+        })
+
+    if not has_tournament_permission('edit'):
+        return jsonify({'success': False, 'message': 'Нет доступа'}), 403
+    data = request.get_json() or {}
+    name = (data.get('name') or '').strip()
+    try:
+        latitude = float(data.get('latitude'))
+        longitude = float(data.get('longitude'))
+    except (TypeError, ValueError):
+        return jsonify({'success': False, 'message': 'Выберите локацию стадиона на карте'}), 400
+    if not name:
+        return jsonify({'success': False, 'message': 'Укажите название стадиона'}), 400
+    if not (-90 <= latitude <= 90 and -180 <= longitude <= 180):
+        return jsonify({'success': False, 'message': 'Некорректные координаты стадиона'}), 400
+    stadium = TournamentStadium(
+        name=name,
+        owner_phone=(data.get('owner_phone') or '').strip() or None,
+        latitude=latitude,
+        longitude=longitude,
+        created_by=current_user.id,
+    )
+    db.session.add(stadium)
+    db.session.commit()
+    return jsonify({'success': True, 'stadium': serialize_tournament_stadium(stadium)}), 201
+
+
+@app.route('/api/tournament-stadiums/<int:stadium_id>', methods=['PUT', 'DELETE'])
+@login_required
+def tournament_stadium_detail_api(stadium_id):
+    ensure_tournament_tables()
+    if not has_tournament_permission('edit'):
+        return jsonify({'success': False, 'message': 'Нет доступа'}), 403
+    stadium = db.session.get(TournamentStadium, stadium_id)
+    if not stadium:
+        return jsonify({'success': False, 'message': 'Стадион не найден'}), 404
+    if request.method == 'DELETE':
+        db.session.delete(stadium)
+        db.session.commit()
+        return jsonify({'success': True})
+    data = request.get_json() or {}
+    name = (data.get('name') or '').strip()
+    try:
+        latitude = float(data.get('latitude'))
+        longitude = float(data.get('longitude'))
+    except (TypeError, ValueError):
+        return jsonify({'success': False, 'message': 'Выберите локацию стадиона на карте'}), 400
+    if not name:
+        return jsonify({'success': False, 'message': 'Укажите название стадиона'}), 400
+    if not (-90 <= latitude <= 90 and -180 <= longitude <= 180):
+        return jsonify({'success': False, 'message': 'Некорректные координаты стадиона'}), 400
+    stadium.name = name
+    stadium.owner_phone = (data.get('owner_phone') or '').strip() or None
+    stadium.latitude = latitude
+    stadium.longitude = longitude
+    db.session.commit()
+    return jsonify({'success': True, 'stadium': serialize_tournament_stadium(stadium)})
 
 
 def parse_access_event_time(value):
