@@ -5868,18 +5868,22 @@
                 selectedItem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
             }
 
+            const isMobileStudentView = window.matchMedia('(max-width: 768px)').matches;
+            if (isMobileStudentView) {
+                ensureMobileStudentNavigation();
+                document.body.classList.add('students-mobile-detail-open');
+                requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: 'smooth' }));
+            }
+
             try {
                 await ensureStudentPanels(studentId);
             } catch (error) {
                 console.error('Ошибка загрузки карточки ученика:', error);
+                if (isMobileStudentView) {
+                    document.body.classList.remove('students-mobile-detail-open');
+                }
                 alert('Не удалось загрузить карточку ученика. Попробуйте обновить страницу.');
                 return;
-            }
-
-            if (window.matchMedia('(max-width: 768px)').matches) {
-                ensureMobileStudentNavigation();
-                document.body.classList.add('students-mobile-detail-open');
-                requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: 'smooth' }));
             }
 
             // Скрыть все панели деталей

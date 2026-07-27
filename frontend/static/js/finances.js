@@ -737,38 +737,39 @@ async function loadIncomeGroups() {
         const groups = await response.json();
         const groupSelect = document.getElementById('income-group-filter');
         if (groupSelect) {
-            groupSelect.innerHTML = '<option value="">Выберите группу</option>' +
+            groupSelect.innerHTML = '<option value="">Все группы</option>' +
                 groups.map(g => `<option value="${g.id}">${g.name}</option>`).join('');
+            await loadGroupStudents(groupSelect.value);
         }
     } catch (error) {
         console.error('Ошибка загрузки групп:', error);
     }
 }
 
-// Загрузить учеников выбранной группы
+// Загрузить учеников выбранной группы или всего клуба, если группа не выбрана
 async function loadGroupStudents(groupId) {
     const studentInput = document.getElementById('income-student-filter');
     const studentsList = document.getElementById('income-students-list');
 
-    if (!groupId) {
-        studentInput.disabled = true;
-        studentInput.placeholder = 'Сначала выберите группу...';
-        studentsList.innerHTML = '';
-        studentInput.value = '';
-        return;
-    }
-
     try {
-        const response = await fetch(`/api/students?view=options&active_only=1&group_id=${encodeURIComponent(groupId)}`);
+        studentInput.disabled = true;
+        studentInput.placeholder = 'Загрузка учеников...';
+        const groupQuery = groupId ? `&group_id=${encodeURIComponent(groupId)}` : '';
+        const response = await fetch(`/api/students?view=options&active_only=1${groupQuery}`);
         const students = await response.json();
-        const groupStudents = students.filter(s => s.group_id == groupId && s.status === 'active');
+        if (!response.ok || !Array.isArray(students)) {
+            throw new Error('Не удалось загрузить учеников');
+        }
+        const availableStudents = students.filter(s => (
+            s.status === 'active' && (!groupId || String(s.group_id || '') === String(groupId))
+        ));
 
-        studentsList.innerHTML = groupStudents.map(s =>
-            `<option value="${s.full_name}">${s.full_name} (${s.student_number})</option>`
+        studentsList.innerHTML = availableStudents.map(s =>
+            `<option value="${escapeAttr(s.full_name)}">${escapeHtml(s.full_name)}${s.group_name ? ` · ${escapeHtml(s.group_name)}` : ''}${s.student_number ? ` · №${escapeHtml(s.student_number)}` : ''}</option>`
         ).join('');
 
         studentInput.disabled = false;
-        studentInput.placeholder = 'Поиск по имени...';
+        studentInput.placeholder = groupId ? 'Введите ФИО ученика...' : 'Введите ФИО — группа не обязательна';
     } catch (error) {
         console.error('Ошибка загрузки учеников:', error);
         studentInput.disabled = true;
