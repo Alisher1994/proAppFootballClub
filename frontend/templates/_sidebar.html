@@ -1163,10 +1163,79 @@
             width: calc(100% + 24px) !important;
             max-width: calc(100% + 24px) !important;
             margin: 0 -12px !important;
-            padding: 6px 12px !important;
+            padding: 6px 8px !important;
             border-top: 1px solid var(--theme-border, #e8e3de) !important;
             border-bottom: 1px solid var(--theme-border, #e8e3de) !important;
             background: #fff !important;
+            display: grid !important;
+            grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+            gap: 2px !important;
+            overflow: visible !important;
+        }
+
+        body.students-mobile-detail-open .student-details-header .student-tab {
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: center !important;
+            justify-content: center !important;
+            width: 100% !important;
+            min-width: 0 !important;
+            min-height: 52px !important;
+            margin: 0 !important;
+            padding: 6px 2px !important;
+            gap: 3px !important;
+            border-radius: 9px !important;
+            font-size: 0 !important;
+            line-height: 1 !important;
+            white-space: normal !important;
+        }
+
+        body.students-mobile-detail-open .student-details-header .student-tab.active {
+            color: #ff8a00 !important;
+            background: #fff7ed !important;
+        }
+
+        body.students-mobile-detail-open .student-details-header .student-tab svg {
+            width: 18px !important;
+            height: 18px !important;
+            flex: 0 0 18px !important;
+        }
+
+        body.students-mobile-detail-open .student-details-header .student-tab::after {
+            display: block !important;
+            position: static !important;
+            width: auto !important;
+            height: auto !important;
+            background: none !important;
+            font-size: 9px !important;
+            font-weight: 600 !important;
+            line-height: 1.1 !important;
+            white-space: normal !important;
+        }
+
+        body.students-mobile-detail-open .student-details-header .student-tab[data-tab="info"]::after {
+            content: "Инфо" !important;
+        }
+
+        body.students-mobile-detail-open .student-details-header .student-tab[data-tab="payments"]::after {
+            content: "Оплаты" !important;
+        }
+
+        body.students-mobile-detail-open .student-details-header .student-tab[data-tab="finances"]::after {
+            content: "Финансы" !important;
+        }
+
+        body.students-mobile-detail-open .student-details-header .student-tab[data-tab="history"]::after {
+            content: "Награды" !important;
+        }
+
+        body.students-mobile-detail-open .student-details-header .student-tab[data-tab="attendance"]::after {
+            content: "Посещения" !important;
+        }
+
+        body.students-mobile-detail-open .student-cards-container,
+        body.students-mobile-detail-open .student-params-container {
+            display: none !important;
         }
 
         body.students-mobile-detail-open .student-details-body {
