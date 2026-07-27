@@ -11477,3 +11477,82 @@ main.main-content.tournaments-page .tournament-action-btn.danger:hover {
         height: 300px;
     }
 }
+
+/* Tournament typography: one Onest hierarchy without excessive bold text. */
+body .tournaments-page,
+body .tournaments-page *,
+body .tournament-catalog-modal,
+body .tournament-catalog-modal *,
+body .tournament-catalog-modal .leaflet-container,
+body .tournament-catalog-modal .leaflet-control {
+    font-family: 'Onest', Arial, sans-serif !important;
+    font-synthesis: none;
+}
+
+body .tournament-catalog-modal .tournament-catalog-form input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]),
+body .tournament-catalog-modal .tournament-catalog-form select,
+body .tournament-catalog-modal .tournament-catalog-form textarea {
+    font-family: 'Onest', Arial, sans-serif !important;
+}
+
+.tournaments-page,
+.tournament-catalog-modal,
+.tournaments-page p,
+.tournaments-page span,
+.tournaments-page small,
+.tournaments-page td,
+.tournament-catalog-modal p,
+.tournament-catalog-modal span,
+.tournament-catalog-modal small,
+.tournament-catalog-modal td {
+    font-weight: 400 !important;
+    letter-spacing: 0 !important;
+}
+
+.tournament-catalog-eyebrow {
+    display: none !important;
+}
+
+.tournament-catalog-header h1,
+.tournament-catalog-toolbar h2,
+.tournament-catalog-modal-header h2,
+.team-members-toolbar h3,
+.tournament-catalog-card h3 {
+    font-weight: 600 !important;
+    letter-spacing: 0 !important;
+}
+
+.tournament-catalog-tab,
+.tournament-catalog-page button,
+.tournament-catalog-modal button,
+.tournament-catalog-modal .btn-primary,
+.tournament-catalog-modal .btn-secondary,
+.tournament-catalog-field > span,
+.stadium-map-label > span,
+.team-catalog-logo-copy strong,
+.team-catalog-card > strong,
+.stadium-catalog-card-copy strong,
+.team-contact-item strong,
+.team-member-person strong,
+.team-members-empty strong,
+.tournament-catalog-empty strong {
+    font-weight: 500 !important;
+    letter-spacing: 0 !important;
+}
+
+.tournament-catalog-tab.active,
+.tournaments-page .btn-primary,
+.tournament-catalog-modal .btn-primary,
+.tournament-catalog-count,
+.team-number-badge {
+    font-weight: 600 !important;
+}
+
+.tournament-catalog-age-groups span,
+.team-catalog-member-count,
+.team-members-table th,
+.team-members-table tbody td::before {
+    font-weight: 500 !important;
+    letter-spacing: 0 !important;
+    text-transform: none !important;
+}
