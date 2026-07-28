@@ -8250,7 +8250,7 @@ button.primary:hover {
 .btn-ghost,
 .filter-btn,
 button.secondary,
-button[type="button"]:not(.btn-danger):not(.delete-btn):not(.remove-btn):not(.logout-btn):not(.pitch-icon-button) {
+button[type="button"]:not(.btn-danger):not(.delete-btn):not(.remove-btn):not(.logout-btn):not(.pitch-icon-button):not(.team-table-team):not(.catalog-filter-button) {
     background: #f8f7f6 !important;
     border: 1px solid var(--theme-border) !important;
     color: var(--theme-text-primary) !important;
@@ -11478,6 +11478,395 @@ main.main-content.tournaments-page .tournament-action-btn.danger:hover {
     }
 }
 
+/* Catalog search, modal filters and shared desktop tables. */
+body .tournaments-page .tournament-catalog-toolbar {
+    margin-bottom: 14px;
+}
+
+.catalog-list-tools {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 14px;
+}
+
+.catalog-search {
+    position: relative;
+    display: block;
+    width: min(360px, 100%);
+}
+
+.catalog-search > svg {
+    position: absolute;
+    z-index: 1;
+    top: 50%;
+    left: 12px;
+    width: 17px;
+    height: 17px;
+    color: #7a818d;
+    pointer-events: none;
+    transform: translateY(-50%);
+}
+
+body .tournaments-page .catalog-search input {
+    width: 100%;
+    height: 40px;
+    padding: 0 12px 0 38px !important;
+    border: 1px solid #e4dfda;
+    border-radius: 9px;
+    outline: none;
+    background: #fff;
+    color: #30343b;
+    font: inherit;
+    font-size: 13px;
+}
+
+body .tournaments-page .catalog-search input:focus {
+    border-color: #ffad5c;
+    box-shadow: 0 0 0 3px rgba(255, 138, 0, .1);
+}
+
+body .tournaments-page .catalog-search input::placeholder {
+    color: #9ba1aa;
+}
+
+body .tournaments-page .catalog-filter-button {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    gap: 7px;
+    height: 40px;
+    padding: 0 13px;
+    border: 1px solid #e4dfda;
+    border-radius: 9px;
+    background: #fff;
+    color: #5f6673;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 500 !important;
+    cursor: pointer;
+}
+
+body .tournaments-page .catalog-filter-button:hover {
+    border-color: #ffb66f;
+    background: #fffaf5;
+    color: #e87400;
+}
+
+.catalog-filter-button > svg {
+    width: 17px;
+    height: 17px;
+}
+
+.catalog-filter-indicator {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 6px;
+    height: 6px;
+    border: 1px solid #fff;
+    border-radius: 50%;
+    background: #ff8a00;
+}
+
+.catalog-filter-fields {
+    display: grid;
+    grid-column: 1 / -1;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+}
+
+.catalog-filter-fields[hidden] {
+    display: none !important;
+}
+
+.catalog-filter-modal-content {
+    width: min(560px, 100%) !important;
+}
+
+.tournament-card-grid,
+.stadium-catalog-grid {
+    display: block;
+}
+
+.catalog-table-wrap,
+.team-catalog-table-wrap {
+    position: relative;
+    overflow: visible;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+}
+
+.catalog-data-table,
+.catalog-data-table.team-catalog-table {
+    width: 100%;
+    border-collapse: collapse;
+    border-spacing: 0;
+    table-layout: fixed;
+}
+
+.catalog-data-table th,
+.catalog-data-table td,
+.catalog-data-table.team-catalog-table th,
+.catalog-data-table.team-catalog-table td {
+    padding: 12px 14px;
+    border: 0;
+    border-bottom: 1px solid #eceef1;
+    color: #424750;
+    font-size: 12px;
+    text-align: left;
+    vertical-align: middle;
+}
+
+.catalog-data-table th,
+.catalog-data-table.team-catalog-table th {
+    background: #f8f8f9;
+    color: #7c838e;
+    font-size: 11px;
+    font-weight: 500 !important;
+}
+
+.catalog-data-table thead {
+    border-top: 1px solid #eceef1;
+}
+
+.catalog-data-table tbody tr:last-child td {
+    border-bottom: 1px solid #eceef1;
+}
+
+.catalog-data-table tbody tr:hover td {
+    background: #fffaf5;
+}
+
+.catalog-data-table th:last-child,
+.catalog-data-table td:last-child {
+    width: 58px;
+}
+
+.tournament-catalog-table th:first-child {
+    width: 21%;
+}
+
+.tournament-catalog-table th:nth-child(2) {
+    width: 19%;
+}
+
+.tournament-catalog-table th:nth-child(3) {
+    width: 10%;
+}
+
+.tournament-catalog-table th:nth-child(4) {
+    width: 21%;
+}
+
+.stadium-catalog-table th:first-child {
+    width: 29%;
+}
+
+.stadium-catalog-table th:nth-child(2) {
+    width: 22%;
+}
+
+.stadium-catalog-table th:nth-child(3) {
+    width: 26%;
+}
+
+.catalog-primary-cell {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
+.catalog-primary-cell strong {
+    overflow: hidden;
+    color: #292d33;
+    font-size: 13px;
+    font-weight: 500 !important;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.catalog-row-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 34px;
+    width: 34px;
+    height: 34px;
+    border-radius: 9px;
+    background: #fff3e5;
+    color: #ee7800;
+}
+
+.catalog-row-icon svg {
+    width: 17px;
+    height: 17px;
+}
+
+.catalog-age-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+}
+
+.catalog-age-list > span {
+    padding: 4px 7px;
+    border-radius: 7px;
+    background: #f3f4f6;
+    color: #5e6570;
+    font-size: 11px;
+}
+
+.catalog-map-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: #e87400;
+    font-weight: 500;
+    text-decoration: none;
+}
+
+.catalog-map-link:hover {
+    color: #c96300;
+}
+
+.catalog-map-link svg {
+    width: 15px;
+    height: 15px;
+}
+
+.catalog-actions-cell {
+    position: relative;
+    text-align: right !important;
+}
+
+body .tournaments-page .team-table-team,
+body .tournaments-page .team-table-team:hover,
+body .tournaments-page .team-table-team:focus,
+body .tournaments-page .team-table-team:focus-visible {
+    border: 0 !important;
+    outline: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    appearance: none;
+}
+
+@media (max-width: 680px) {
+    .catalog-list-tools {
+        align-items: stretch;
+    }
+
+    .catalog-search {
+        flex: 1 1 auto;
+        width: auto;
+        min-width: 0;
+    }
+
+    body .tournaments-page .catalog-filter-button {
+        width: 42px;
+        padding: 0;
+        font-size: 0;
+    }
+
+    .catalog-filter-fields {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+
+    .catalog-data-table,
+    .catalog-data-table tbody {
+        display: block;
+        width: 100%;
+    }
+
+    .catalog-data-table thead {
+        display: none;
+    }
+
+    .catalog-data-table tbody {
+        display: grid;
+        gap: 10px;
+    }
+
+    .catalog-data-table tbody tr {
+        position: relative;
+        display: block;
+        width: 100%;
+        padding: 12px;
+        border: 1px solid #e8e3de;
+        border-radius: 12px;
+        background: #fff;
+    }
+
+    .catalog-data-table tbody tr:last-child td,
+    .catalog-data-table tbody td,
+    .catalog-data-table.team-catalog-table tbody td {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        width: 100%;
+        padding: 8px 0;
+        border: 0;
+        border-bottom: 1px solid #f0eeeb;
+        background: transparent !important;
+        text-align: right;
+    }
+
+    .catalog-data-table tbody td::before {
+        content: attr(data-label);
+        flex: 0 0 auto;
+        color: #9298a2;
+        font-size: 10px;
+        font-weight: 500;
+    }
+
+    .catalog-data-table tbody td:first-child {
+        justify-content: flex-start;
+        padding: 0 46px 10px 0;
+        text-align: left;
+    }
+
+    .catalog-data-table tbody td:first-child::before,
+    .catalog-data-table tbody td.catalog-actions-cell::before,
+    .catalog-data-table tbody td.team-table-actions::before {
+        display: none;
+    }
+
+    .catalog-data-table tbody td.catalog-actions-cell,
+    .catalog-data-table tbody td.team-table-actions {
+        position: absolute;
+        z-index: 3;
+        top: 12px;
+        right: 12px;
+        display: block;
+        width: 36px;
+        padding: 0;
+        border: 0;
+    }
+
+    .catalog-data-table tbody td:nth-last-child(2) {
+        border-bottom: 0;
+        padding-bottom: 0;
+    }
+
+    .catalog-primary-cell {
+        width: 100%;
+    }
+
+    .catalog-age-list {
+        justify-content: flex-end;
+    }
+
+    .catalog-map-link {
+        justify-content: flex-end;
+    }
+}
+
 /* Tournament typography: one Onest hierarchy without excessive bold text. */
 body .tournaments-page,
 body .tournaments-page *,
@@ -12173,5 +12562,54 @@ body main.main-content.tournaments-page .tournament-catalog-panel.active {
         min-height: 360px !important;
         margin: 18px 22px 0 !important;
         padding: 14px !important;
+    }
+}
+
+/* Keep the desktop lists flat: row separators only, without an extra frame. */
+body .tournaments-page .team-catalog-table-wrap {
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+}
+
+body main.main-content.tournaments-page .catalog-list-tools .catalog-search input[type="search"] {
+    height: 40px !important;
+    padding: 0 12px 0 38px !important;
+}
+
+body main.main-content.tournaments-page .team-catalog-table button.team-table-team[type="button"],
+body main.main-content.tournaments-page .team-catalog-table button.team-table-team[type="button"]:hover,
+body main.main-content.tournaments-page .team-catalog-table button.team-table-team[type="button"]:focus {
+    border: 0 !important;
+    outline: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+}
+
+@media (max-width: 680px) {
+    body main.main-content.tournaments-page .catalog-list-tools button.catalog-filter-button {
+        width: 42px !important;
+        min-width: 42px !important;
+        padding: 0 !important;
+    }
+
+    body main.main-content.tournaments-page .catalog-list-tools button.catalog-filter-button > span:not(.catalog-filter-indicator) {
+        display: none !important;
+    }
+
+    body main.main-content.tournaments-page .catalog-data-table tbody td.catalog-actions-cell,
+    body main.main-content.tournaments-page .catalog-data-table tbody td.team-table-actions {
+        position: absolute !important;
+        z-index: 3 !important;
+        top: 12px !important;
+        right: 12px !important;
+        left: auto !important;
+        display: block !important;
+        width: 36px !important;
+        min-width: 36px !important;
+        height: 36px !important;
+        padding: 0 !important;
+        border: 0 !important;
+        background: transparent !important;
     }
 }

@@ -7,7 +7,7 @@
     <link rel="icon" href="{{ system_square_logo_url or url_for('static', filename='uploads/favicon.png') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/onest/onest.css') }}">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=2026072804">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=2026072805">
 </head>
 <body>
     {% include '_sidebar.html' %}
@@ -50,6 +50,17 @@
                         </button>
                     </div>
                 </div>
+                <div class="catalog-list-tools">
+                    <label class="catalog-search">
+                        <i data-lucide="search"></i>
+                        <input type="search" data-catalog-search="tournaments" placeholder="Поиск турниров" aria-label="Поиск турниров">
+                    </label>
+                    <button class="catalog-filter-button" type="button" data-open-filter="tournaments">
+                        <i data-lucide="sliders-horizontal"></i>
+                        <span>Фильтр</span>
+                        <span class="catalog-filter-indicator" data-filter-indicator="tournaments" hidden></span>
+                    </button>
+                </div>
                 <div class="tournament-card-grid" id="tournamentList">
                     <div class="tournament-catalog-empty">Загрузка турниров…</div>
                 </div>
@@ -68,6 +79,17 @@
                             Добавить команду
                         </button>
                     </div>
+                </div>
+                <div class="catalog-list-tools">
+                    <label class="catalog-search">
+                        <i data-lucide="search"></i>
+                        <input type="search" data-catalog-search="teams" placeholder="Поиск команд" aria-label="Поиск команд">
+                    </label>
+                    <button class="catalog-filter-button" type="button" data-open-filter="teams">
+                        <i data-lucide="sliders-horizontal"></i>
+                        <span>Фильтр</span>
+                        <span class="catalog-filter-indicator" data-filter-indicator="teams" hidden></span>
+                    </button>
                 </div>
                 <div class="team-catalog-list" id="teamList">
                     <div class="tournament-catalog-empty">Загрузка команд…</div>
@@ -88,12 +110,68 @@
                         </button>
                     </div>
                 </div>
+                <div class="catalog-list-tools">
+                    <label class="catalog-search">
+                        <i data-lucide="search"></i>
+                        <input type="search" data-catalog-search="stadiums" placeholder="Поиск стадионов" aria-label="Поиск стадионов">
+                    </label>
+                    <button class="catalog-filter-button" type="button" data-open-filter="stadiums">
+                        <i data-lucide="sliders-horizontal"></i>
+                        <span>Фильтр</span>
+                        <span class="catalog-filter-indicator" data-filter-indicator="stadiums" hidden></span>
+                    </button>
+                </div>
                 <div class="stadium-catalog-grid" id="stadiumList">
                     <div class="tournament-catalog-empty">Загрузка стадионов…</div>
                 </div>
             </section>
         </section>
     </main>
+
+    <div class="modal tournament-catalog-modal" id="catalogFilterModal" hidden>
+        <div class="modal-content catalog-filter-modal-content">
+            <header class="tournament-catalog-modal-header">
+                <div>
+                    <h2 id="catalogFilterTitle">Фильтр</h2>
+                </div>
+                <button class="icon-button" type="button" data-close-modal="catalogFilterModal" aria-label="Закрыть">
+                    <i data-lucide="x"></i>
+                </button>
+            </header>
+            <form id="catalogFilterForm" class="tournament-catalog-form catalog-filter-form">
+                <div class="catalog-filter-fields" data-filter-fields="tournaments" hidden>
+                    <label class="tournament-catalog-field">
+                        <span>Локация</span>
+                        <input id="filterTournamentLocation" type="text" placeholder="Например, Ташкент">
+                    </label>
+                    <label class="tournament-catalog-field">
+                        <span>Возрастная группа</span>
+                        <input id="filterTournamentAge" type="text" placeholder="Например, 2015">
+                    </label>
+                </div>
+                <div class="catalog-filter-fields" data-filter-fields="teams" hidden>
+                    <label class="tournament-catalog-field">
+                        <span>Тренер</span>
+                        <input id="filterTeamTrainer" type="text" placeholder="ФИО тренера">
+                    </label>
+                    <label class="tournament-catalog-field">
+                        <span>Минимум участников</span>
+                        <input id="filterTeamMinMembers" type="number" min="0" step="1" placeholder="0">
+                    </label>
+                </div>
+                <div class="catalog-filter-fields" data-filter-fields="stadiums" hidden>
+                    <label class="tournament-catalog-field full">
+                        <span>Телефон владельца</span>
+                        <input id="filterStadiumPhone" type="text" placeholder="+998">
+                    </label>
+                </div>
+                <footer class="tournament-catalog-form-actions full">
+                    <button class="btn-secondary" id="resetCatalogFilterBtn" type="button">Сбросить</button>
+                    <button class="btn-primary" type="submit">Применить</button>
+                </footer>
+            </form>
+        </div>
+    </div>
 
     <div class="modal tournament-catalog-modal" id="tournamentModal" hidden>
         <div class="modal-content">
@@ -359,6 +437,6 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="{{ url_for('static', filename='js/sidebar.js') }}"></script>
     <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/tournaments.js') }}?v=2026072802"></script>
+    <script src="{{ url_for('static', filename='js/tournaments.js') }}?v=2026072803"></script>
 </body>
 </html>

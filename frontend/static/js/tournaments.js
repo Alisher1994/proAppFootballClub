@@ -12,6 +12,12 @@ const catalogState = {
     memberPhotoObjectUrl: null,
     stadiumMap: null,
     stadiumMarker: null,
+    activeFilterTab: 'tournaments',
+    filters: {
+        tournaments: { search: '', location: '', age: '' },
+        teams: { search: '', trainer: '', minMembers: '' },
+        stadiums: { search: '', phone: '' },
+    },
 };
 
 const byId = (id) => document.getElementById(id);
@@ -84,60 +90,165 @@ function initials(name) {
         .toUpperCase();
 }
 
+function normalizeSearch(value) {
+    return String(value || '').trim().toLocaleLowerCase('ru-RU');
+}
+
+function includesSearch(value, query) {
+    return !query || normalizeSearch(value).includes(normalizeSearch(query));
+}
+
+function filteredTournaments() {
+    const filter = catalogState.filters.tournaments;
+    return catalogState.tournaments.filter((item) => {
+        const searchable = [
+            item.name,
+            item.location,
+            item.start_date,
+            item.end_date,
+            item.start_time,
+            ...(item.age_groups || []),
+        ].join(' ');
+        return includesSearch(searchable, filter.search)
+            && includesSearch(item.location, filter.location)
+            && includesSearch((item.age_groups || []).join(' '), filter.age);
+    });
+}
+
+function filteredTeams() {
+    const filter = catalogState.filters.teams;
+    const minimumMembers = filter.minMembers === '' ? null : Number(filter.minMembers);
+    return catalogState.teams.filter((team) => {
+        const searchable = [
+            team.name,
+            team.trainer_name,
+            team.trainer_phone,
+            team.administration_phone,
+            team.club_address,
+        ].join(' ');
+        return includesSearch(searchable, filter.search)
+            && includesSearch(team.trainer_name, filter.trainer)
+            && (minimumMembers === null || (Number(team.member_count) || 0) >= minimumMembers);
+    });
+}
+
+function filteredStadiums() {
+    const filter = catalogState.filters.stadiums;
+    return catalogState.stadiums.filter((stadium) => {
+        const searchable = [
+            stadium.name,
+            stadium.owner_phone,
+            stadium.latitude,
+            stadium.longitude,
+        ].join(' ');
+        return includesSearch(searchable, filter.search)
+            && includesSearch(stadium.owner_phone, filter.phone);
+    });
+}
+
+function setCatalogCount(id, visibleCount, totalCount) {
+    byId(id).textContent = visibleCount === totalCount
+        ? String(totalCount)
+        : `${visibleCount}/${totalCount}`;
+}
+
+function emptyCatalogMarkup(icon, title, description) {
+    return `
+        <div class="tournament-catalog-empty">
+            <i data-lucide="${icon}"></i>
+            <strong>${escapeHtml(title)}</strong>
+            <span>${escapeHtml(description)}</span>
+        </div>`;
+}
+
 function renderTournaments() {
-    byId('tournamentCount').textContent = catalogState.tournaments.length;
-    if (!catalogState.tournaments.length) {
-        byId('tournamentList').innerHTML = `
-            <div class="tournament-catalog-empty">
-                <i data-lucide="trophy"></i>
-                <strong>Турниров пока нет</strong>
-                <span>Создайте первый турнир, указав дату, время, возраст и локацию.</span>
-            </div>`;
+    const items = filteredTournaments();
+    setCatalogCount('tournamentCount', items.length, catalogState.tournaments.length);
+    if (!items.length) {
+        byId('tournamentList').innerHTML = emptyCatalogMarkup(
+            'trophy',
+            catalogState.tournaments.length ? 'Ничего не найдено' : 'Турниров пока нет',
+            catalogState.tournaments.length
+                ? 'Измените поисковый запрос или сбросьте фильтры.'
+                : 'Создайте первый турнир, указав дату, время, возраст и локацию.',
+        );
         refreshIcons();
         return;
     }
-    byId('tournamentList').innerHTML = catalogState.tournaments.map((item) => `
-        <article class="tournament-catalog-card">
-            <div class="tournament-catalog-card-top">
-                <span class="tournament-catalog-card-icon"><i data-lucide="trophy"></i></span>
-                <div class="tournament-catalog-card-actions">
-                    <button class="icon-button" type="button" data-edit-tournament="${item.id}" aria-label="Редактировать">
-                        <i data-lucide="pencil"></i>
-                    </button>
-                    <button class="icon-button danger" type="button" data-delete-tournament="${item.id}" aria-label="Удалить">
-                        <i data-lucide="trash-2"></i>
-                    </button>
-                </div>
-            </div>
-            <h3>${escapeHtml(item.name)}</h3>
-            <div class="tournament-catalog-meta">
-                <span><i data-lucide="calendar-days"></i>${escapeHtml(tournamentDates(item))}</span>
-                <span><i data-lucide="clock-3"></i>${escapeHtml(item.start_time || '—')}</span>
-                <span><i data-lucide="map-pin"></i>${escapeHtml(item.location || '—')}</span>
-            </div>
-            <div class="tournament-catalog-age-groups">
-                ${(item.age_groups || []).map((group) => `<span>${escapeHtml(group)}</span>`).join('')}
-            </div>
-        </article>
-    `).join('');
+    byId('tournamentList').innerHTML = `
+        <div class="catalog-table-wrap">
+            <table class="catalog-data-table tournament-catalog-table">
+                <thead>
+                    <tr>
+                        <th>Турнир</th>
+                        <th>Дата проведения</th>
+                        <th>Время</th>
+                        <th>Локация</th>
+                        <th>Возрастные группы</th>
+                        <th aria-label="Действия"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${items.map((item) => `
+                        <tr>
+                            <td data-label="Турнир">
+                                <span class="catalog-primary-cell">
+                                    <span class="catalog-row-icon"><i data-lucide="trophy"></i></span>
+                                    <strong>${escapeHtml(item.name)}</strong>
+                                </span>
+                            </td>
+                            <td data-label="Дата">${escapeHtml(tournamentDates(item))}</td>
+                            <td data-label="Время">${escapeHtml(item.start_time || '—')}</td>
+                            <td data-label="Локация">${escapeHtml(item.location || '—')}</td>
+                            <td data-label="Возраст">
+                                <span class="catalog-age-list">
+                                    ${(item.age_groups || []).length
+                                        ? item.age_groups.map((group) => `<span>${escapeHtml(group)}</span>`).join('')
+                                        : '—'}
+                                </span>
+                            </td>
+                            <td class="catalog-actions-cell">
+                                <details class="team-actions-menu">
+                                    <summary class="icon-button" aria-label="Действия с турниром">
+                                        <i data-lucide="ellipsis-vertical"></i>
+                                    </summary>
+                                    <div class="team-actions-popover">
+                                        <button type="button" data-edit-tournament="${item.id}">
+                                            <i data-lucide="pencil"></i>
+                                            Редактировать
+                                        </button>
+                                        <button class="danger" type="button" data-delete-tournament="${item.id}">
+                                            <i data-lucide="trash-2"></i>
+                                            Удалить
+                                        </button>
+                                    </div>
+                                </details>
+                            </td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        </div>`;
     refreshIcons();
 }
 
 function renderTeams() {
-    byId('teamCount').textContent = catalogState.teams.length;
-    if (!catalogState.teams.length) {
-        byId('teamList').innerHTML = `
-            <div class="tournament-catalog-empty">
-                <i data-lucide="shield"></i>
-                <strong>База команд пуста</strong>
-                <span>Добавьте название и логотип первой команды.</span>
-            </div>`;
+    const teams = filteredTeams();
+    setCatalogCount('teamCount', teams.length, catalogState.teams.length);
+    if (!teams.length) {
+        byId('teamList').innerHTML = emptyCatalogMarkup(
+            'shield',
+            catalogState.teams.length ? 'Ничего не найдено' : 'База команд пуста',
+            catalogState.teams.length
+                ? 'Измените поисковый запрос или сбросьте фильтры.'
+                : 'Добавьте название и логотип первой команды.',
+        );
         refreshIcons();
         return;
     }
     byId('teamList').innerHTML = `
         <div class="team-catalog-table-wrap">
-            <table class="team-catalog-table">
+            <table class="catalog-data-table team-catalog-table">
                 <thead>
                     <tr>
                         <th>Команда</th>
@@ -148,7 +259,7 @@ function renderTeams() {
                     </tr>
                 </thead>
                 <tbody>
-                    ${catalogState.teams.map((team) => `
+                    ${teams.map((team) => `
                         <tr>
                             <td data-label="Команда">
                                 <button class="team-table-team" type="button" data-open-team="${team.id}">
@@ -206,37 +317,73 @@ function renderTeams() {
 }
 
 function renderStadiums() {
-    byId('stadiumCount').textContent = catalogState.stadiums.length;
-    if (!catalogState.stadiums.length) {
-        byId('stadiumList').innerHTML = `
-            <div class="tournament-catalog-empty">
-                <i data-lucide="map-pinned"></i>
-                <strong>Стадионов пока нет</strong>
-                <span>Добавьте стадион и отметьте его точку на карте.</span>
-            </div>`;
+    const stadiums = filteredStadiums();
+    setCatalogCount('stadiumCount', stadiums.length, catalogState.stadiums.length);
+    if (!stadiums.length) {
+        byId('stadiumList').innerHTML = emptyCatalogMarkup(
+            'map-pinned',
+            catalogState.stadiums.length ? 'Ничего не найдено' : 'Стадионов пока нет',
+            catalogState.stadiums.length
+                ? 'Измените поисковый запрос или сбросьте фильтры.'
+                : 'Добавьте стадион и отметьте его точку на карте.',
+        );
         refreshIcons();
         return;
     }
-    byId('stadiumList').innerHTML = catalogState.stadiums.map((stadium) => `
-        <article class="stadium-catalog-card">
-            <div class="stadium-catalog-card-icon"><i data-lucide="map-pin"></i></div>
-            <div class="stadium-catalog-card-copy">
-                <strong>${escapeHtml(stadium.name)}</strong>
-                <span>${escapeHtml(stadium.owner_phone || 'Телефон не указан')}</span>
-                <small>${Number(stadium.latitude).toFixed(6)}, ${Number(stadium.longitude).toFixed(6)}</small>
-            </div>
-            <div class="stadium-catalog-card-actions">
-                <a class="btn-secondary" href="https://www.openstreetmap.org/?mlat=${encodeURIComponent(stadium.latitude)}&mlon=${encodeURIComponent(stadium.longitude)}#map=17/${encodeURIComponent(stadium.latitude)}/${encodeURIComponent(stadium.longitude)}"
-                    target="_blank" rel="noopener">На карте</a>
-                <button class="icon-button" type="button" data-edit-stadium="${stadium.id}" aria-label="Редактировать">
-                    <i data-lucide="pencil"></i>
-                </button>
-                <button class="icon-button danger" type="button" data-delete-stadium="${stadium.id}" aria-label="Удалить">
-                    <i data-lucide="trash-2"></i>
-                </button>
-            </div>
-        </article>
-    `).join('');
+    byId('stadiumList').innerHTML = `
+        <div class="catalog-table-wrap">
+            <table class="catalog-data-table stadium-catalog-table">
+                <thead>
+                    <tr>
+                        <th>Стадион</th>
+                        <th>Телефон владельца</th>
+                        <th>Координаты</th>
+                        <th>Локация</th>
+                        <th aria-label="Действия"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${stadiums.map((stadium) => `
+                        <tr>
+                            <td data-label="Стадион">
+                                <span class="catalog-primary-cell">
+                                    <span class="catalog-row-icon"><i data-lucide="map-pin"></i></span>
+                                    <strong>${escapeHtml(stadium.name)}</strong>
+                                </span>
+                            </td>
+                            <td data-label="Телефон">${escapeHtml(stadium.owner_phone || '—')}</td>
+                            <td data-label="Координаты">
+                                ${Number(stadium.latitude).toFixed(6)}, ${Number(stadium.longitude).toFixed(6)}
+                            </td>
+                            <td data-label="Локация">
+                                <a class="catalog-map-link" href="https://www.openstreetmap.org/?mlat=${encodeURIComponent(stadium.latitude)}&mlon=${encodeURIComponent(stadium.longitude)}#map=17/${encodeURIComponent(stadium.latitude)}/${encodeURIComponent(stadium.longitude)}"
+                                    target="_blank" rel="noopener">
+                                    <i data-lucide="map"></i>
+                                    На карте
+                                </a>
+                            </td>
+                            <td class="catalog-actions-cell">
+                                <details class="team-actions-menu">
+                                    <summary class="icon-button" aria-label="Действия со стадионом">
+                                        <i data-lucide="ellipsis-vertical"></i>
+                                    </summary>
+                                    <div class="team-actions-popover">
+                                        <button type="button" data-edit-stadium="${stadium.id}">
+                                            <i data-lucide="pencil"></i>
+                                            Редактировать
+                                        </button>
+                                        <button class="danger" type="button" data-delete-stadium="${stadium.id}">
+                                            <i data-lucide="trash-2"></i>
+                                            Удалить
+                                        </button>
+                                    </div>
+                                </details>
+                            </td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        </div>`;
     refreshIcons();
 }
 
@@ -705,6 +852,89 @@ async function deleteStadium(id) {
     await loadStadiums();
 }
 
+function renderCatalogTab(tabName) {
+    if (tabName === 'tournaments') renderTournaments();
+    if (tabName === 'teams') renderTeams();
+    if (tabName === 'stadiums') renderStadiums();
+}
+
+function hasActiveCatalogFilter(tabName) {
+    const filter = catalogState.filters[tabName];
+    if (tabName === 'tournaments') return Boolean(filter.location || filter.age);
+    if (tabName === 'teams') return Boolean(filter.trainer || filter.minMembers !== '');
+    if (tabName === 'stadiums') return Boolean(filter.phone);
+    return false;
+}
+
+function updateFilterIndicator(tabName) {
+    const indicator = document.querySelector(`[data-filter-indicator="${tabName}"]`);
+    if (indicator) indicator.hidden = !hasActiveCatalogFilter(tabName);
+}
+
+function openCatalogFilter(tabName) {
+    catalogState.activeFilterTab = tabName;
+    const titles = {
+        tournaments: 'Фильтр турниров',
+        teams: 'Фильтр команд',
+        stadiums: 'Фильтр стадионов',
+    };
+    byId('catalogFilterTitle').textContent = titles[tabName] || 'Фильтр';
+    document.querySelectorAll('[data-filter-fields]').forEach((section) => {
+        section.hidden = section.dataset.filterFields !== tabName;
+    });
+
+    const filter = catalogState.filters[tabName];
+    if (tabName === 'tournaments') {
+        byId('filterTournamentLocation').value = filter.location;
+        byId('filterTournamentAge').value = filter.age;
+    }
+    if (tabName === 'teams') {
+        byId('filterTeamTrainer').value = filter.trainer;
+        byId('filterTeamMinMembers').value = filter.minMembers;
+    }
+    if (tabName === 'stadiums') {
+        byId('filterStadiumPhone').value = filter.phone;
+    }
+    openModal('catalogFilterModal');
+}
+
+function applyCatalogFilter(event) {
+    event.preventDefault();
+    const tabName = catalogState.activeFilterTab;
+    if (tabName === 'tournaments') {
+        catalogState.filters.tournaments.location = byId('filterTournamentLocation').value.trim();
+        catalogState.filters.tournaments.age = byId('filterTournamentAge').value.trim();
+    }
+    if (tabName === 'teams') {
+        catalogState.filters.teams.trainer = byId('filterTeamTrainer').value.trim();
+        catalogState.filters.teams.minMembers = byId('filterTeamMinMembers').value;
+    }
+    if (tabName === 'stadiums') {
+        catalogState.filters.stadiums.phone = byId('filterStadiumPhone').value.trim();
+    }
+    updateFilterIndicator(tabName);
+    renderCatalogTab(tabName);
+    closeModal('catalogFilterModal');
+}
+
+function resetCatalogFilter() {
+    const tabName = catalogState.activeFilterTab;
+    if (tabName === 'tournaments') {
+        catalogState.filters.tournaments.location = '';
+        catalogState.filters.tournaments.age = '';
+    }
+    if (tabName === 'teams') {
+        catalogState.filters.teams.trainer = '';
+        catalogState.filters.teams.minMembers = '';
+    }
+    if (tabName === 'stadiums') {
+        catalogState.filters.stadiums.phone = '';
+    }
+    updateFilterIndicator(tabName);
+    renderCatalogTab(tabName);
+    closeModal('catalogFilterModal');
+}
+
 function switchTab(tabName) {
     document.querySelectorAll('[data-catalog-tab]').forEach((button) => {
         const isActive = button.dataset.catalogTab === tabName;
@@ -723,6 +953,16 @@ function bindEvents() {
     });
     document.querySelectorAll('[data-close-modal]').forEach((button) => {
         button.addEventListener('click', () => closeModal(button.dataset.closeModal));
+    });
+    document.querySelectorAll('[data-catalog-search]').forEach((input) => {
+        input.addEventListener('input', () => {
+            const tabName = input.dataset.catalogSearch;
+            catalogState.filters[tabName].search = input.value;
+            renderCatalogTab(tabName);
+        });
+    });
+    document.querySelectorAll('[data-open-filter]').forEach((button) => {
+        button.addEventListener('click', () => openCatalogFilter(button.dataset.openFilter));
     });
     document.querySelectorAll('.tournament-catalog-modal').forEach((modal) => {
         modal.addEventListener('click', (event) => {
@@ -746,6 +986,8 @@ function bindEvents() {
     byId('teamForm').addEventListener('submit', saveTeam);
     byId('memberForm').addEventListener('submit', saveMember);
     byId('stadiumForm').addEventListener('submit', saveStadium);
+    byId('catalogFilterForm').addEventListener('submit', applyCatalogFilter);
+    byId('resetCatalogFilterBtn').addEventListener('click', resetCatalogFilter);
     byId('teamLogo').addEventListener('change', () => {
         const file = byId('teamLogo').files[0];
         if (!file) {
@@ -834,7 +1076,15 @@ function bindEvents() {
         if (openButton) openTeamDetails(openButton.dataset.openTeam).catch(showPageError);
     });
     document.addEventListener('click', (event) => {
-        if (event.target.closest('.team-actions-menu')) return;
+        const menu = event.target.closest('.team-actions-menu');
+        const summary = event.target.closest('.team-actions-menu > summary');
+        if (summary) {
+            document.querySelectorAll('.team-actions-menu[open]').forEach((item) => {
+                if (item !== menu) item.removeAttribute('open');
+            });
+            return;
+        }
+        if (menu) return;
         document.querySelectorAll('.team-actions-menu[open]').forEach((menu) => {
             menu.removeAttribute('open');
         });
