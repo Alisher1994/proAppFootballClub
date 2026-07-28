@@ -12053,3 +12053,125 @@ body .tournaments-page .team-actions-popover button.danger:hover {
         min-height: 46px !important;
     }
 }
+
+/* Match tournament workspace placement to the Finances top tabs and content gutter. */
+body main.main-content.tournaments-page {
+    padding: 0 !important;
+}
+
+body main.main-content.tournaments-page .tournament-catalog-shell {
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+body main.main-content.tournaments-page .tournament-catalog-header {
+    display: none !important;
+}
+
+body main.main-content.tournaments-page #tournamentCatalogTabs {
+    display: flex !important;
+    align-items: flex-start !important;
+    width: 100% !important;
+    height: 56px !important;
+    min-height: 56px !important;
+    gap: 22px !important;
+    margin: 0 !important;
+    padding: 5px 18px 6px !important;
+    overflow: visible !important;
+    border: 0 !important;
+    border-bottom: 1px solid #e4ddd6 !important;
+    border-radius: 0 !important;
+    background: #fff !important;
+    box-shadow: none !important;
+}
+
+body main.main-content.tournaments-page #tournamentCatalogTabs button.tournament-catalog-tab {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex: 0 0 auto !important;
+    flex-direction: row !important;
+    width: auto !important;
+    height: 44px !important;
+    min-height: 44px !important;
+    gap: 8px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    line-height: 44px !important;
+}
+
+body main.main-content.tournaments-page #tournamentCatalogTabs button.tournament-catalog-tab:hover,
+body main.main-content.tournaments-page #tournamentCatalogTabs button.tournament-catalog-tab.active {
+    background: transparent !important;
+}
+
+body main.main-content.tournaments-page #tournamentCatalogTabs button.tournament-catalog-tab:not(.active) {
+    color: #5f6673 !important;
+    font-weight: 400 !important;
+}
+
+body main.main-content.tournaments-page #tournamentCatalogTabs button.tournament-catalog-tab.active {
+    color: #ff8a00 !important;
+    font-weight: 600 !important;
+}
+
+body main.main-content.tournaments-page #tournamentCatalogTabs button.tournament-catalog-tab svg {
+    width: 18px !important;
+    height: 18px !important;
+}
+
+body main.main-content.tournaments-page #tournamentCatalogTabs .tournament-catalog-tab::after {
+    bottom: 0 !important;
+}
+
+body main.main-content.tournaments-page .tournament-catalog-panel.active {
+    display: block !important;
+    width: calc(100% - 44px) !important;
+    max-width: none !important;
+    min-height: 420px !important;
+    margin: 18px 22px 0 !important;
+}
+
+@media (max-width: 680px) {
+    body main.main-content.tournaments-page {
+        padding: 0 0 86px !important;
+    }
+
+    body main.main-content.tournaments-page #tournamentCatalogTabs {
+        height: 58px !important;
+        min-height: 58px !important;
+        gap: 6px !important;
+        padding: 6px 8px !important;
+        overflow-x: auto !important;
+        overflow-y: hidden !important;
+        scrollbar-width: none;
+    }
+
+    body main.main-content.tournaments-page #tournamentCatalogTabs::-webkit-scrollbar {
+        display: none;
+    }
+
+    body main.main-content.tournaments-page #tournamentCatalogTabs button.tournament-catalog-tab {
+        flex-direction: row !important;
+        width: auto !important;
+        height: 44px !important;
+        min-height: 44px !important;
+        gap: 8px !important;
+        padding: 0 !important;
+        font-size: 13px !important;
+        line-height: 44px !important;
+    }
+
+    body main.main-content.tournaments-page .tournament-catalog-panel.active {
+        width: calc(100% - 44px) !important;
+        min-height: 360px !important;
+        margin: 18px 22px 0 !important;
+        padding: 14px !important;
+    }
+}
