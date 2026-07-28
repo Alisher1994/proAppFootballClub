@@ -7,7 +7,7 @@
     <link rel="icon" href="{{ system_square_logo_url or url_for('static', filename='uploads/favicon.png') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/onest/onest.css') }}">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=2026072802">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=2026072803">
 </head>
 <body>
     {% include '_sidebar.html' %}
@@ -19,13 +19,9 @@
                     <span class="tournament-catalog-eyebrow">Соревнования</span>
                     <h1>Турниры</h1>
                 </div>
-                <button class="btn-primary" id="openTournamentModalBtn" type="button">
-                    <i data-lucide="plus"></i>
-                    Создать турнир
-                </button>
             </header>
 
-            <nav class="tournament-catalog-tabs" aria-label="Разделы">
+            <nav class="tournament-catalog-tabs" id="tournamentCatalogTabs" aria-label="Разделы">
                 <button class="tournament-catalog-tab active" type="button" data-catalog-tab="tournaments">
                     <i data-lucide="trophy"></i>
                     Турниры
@@ -46,7 +42,13 @@
                         <h2>Список турниров</h2>
                         <p>Основная информация о предстоящих и завершённых турнирах.</p>
                     </div>
-                    <span class="tournament-catalog-count" id="tournamentCount">0</span>
+                    <div class="tournament-catalog-toolbar-actions">
+                        <span class="tournament-catalog-count" id="tournamentCount">0</span>
+                        <button class="btn-primary" id="openTournamentModalBtn" type="button">
+                            <i data-lucide="plus"></i>
+                            Создать турнир
+                        </button>
+                    </div>
                 </div>
                 <div class="tournament-card-grid" id="tournamentList">
                     <div class="tournament-catalog-empty">Загрузка турниров…</div>
@@ -67,7 +69,7 @@
                         </button>
                     </div>
                 </div>
-                <div class="team-catalog-grid" id="teamList">
+                <div class="team-catalog-list" id="teamList">
                     <div class="tournament-catalog-empty">Загрузка команд…</div>
                 </div>
             </section>
@@ -357,6 +359,6 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="{{ url_for('static', filename='js/sidebar.js') }}"></script>
     <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/tournaments.js') }}?v=2026072801"></script>
+    <script src="{{ url_for('static', filename='js/tournaments.js') }}?v=2026072802"></script>
 </body>
 </html>

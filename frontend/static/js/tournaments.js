@@ -135,33 +135,73 @@ function renderTeams() {
         refreshIcons();
         return;
     }
-    byId('teamList').innerHTML = catalogState.teams.map((team) => `
-        <article class="team-catalog-card" data-open-team="${team.id}" tabindex="0" role="button"
-            aria-label="Открыть команду ${escapeHtml(team.name)}">
-            <div class="team-catalog-card-logo">
-                ${team.logo_url
-                    ? `<img src="${escapeHtml(team.logo_url)}" alt="${escapeHtml(team.name)}">`
-                    : `<span>${escapeHtml(initials(team.name))}</span>`}
-            </div>
-            <strong>${escapeHtml(team.name)}</strong>
-            <span class="team-catalog-member-count">
-                <i data-lucide="users-round"></i>
-                ${escapeHtml(pluralizeMembers(Number(team.member_count) || 0))}
-            </span>
-            ${team.trainer_name ? `<small class="team-catalog-trainer">Тренер: ${escapeHtml(team.trainer_name)}</small>` : ''}
-            <div class="team-catalog-card-actions">
-                <button class="btn-secondary team-open-button" type="button" data-open-team="${team.id}">
-                    Открыть
-                </button>
-                <button class="icon-button" type="button" data-edit-team="${team.id}" aria-label="Редактировать">
-                    <i data-lucide="pencil"></i>
-                </button>
-                <button class="icon-button danger" type="button" data-delete-team="${team.id}" aria-label="Удалить">
-                    <i data-lucide="trash-2"></i>
-                </button>
-            </div>
-        </article>
-    `).join('');
+    byId('teamList').innerHTML = `
+        <div class="team-catalog-table-wrap">
+            <table class="team-catalog-table">
+                <thead>
+                    <tr>
+                        <th>Команда</th>
+                        <th>Тренер</th>
+                        <th>Контакты</th>
+                        <th>Участники</th>
+                        <th aria-label="Действия"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${catalogState.teams.map((team) => `
+                        <tr>
+                            <td data-label="Команда">
+                                <button class="team-table-team" type="button" data-open-team="${team.id}">
+                                    <span class="team-table-logo">
+                                        ${team.logo_url
+                                            ? `<img src="${escapeHtml(team.logo_url)}" alt="">`
+                                            : `<span>${escapeHtml(initials(team.name))}</span>`}
+                                    </span>
+                                    <span class="team-table-name">
+                                        <strong>${escapeHtml(team.name)}</strong>
+                                        <small>Открыть состав</small>
+                                    </span>
+                                </button>
+                            </td>
+                            <td data-label="Тренер">
+                                <span class="team-table-value">${escapeHtml(team.trainer_name || '—')}</span>
+                            </td>
+                            <td data-label="Контакты">
+                                <span class="team-table-contacts">
+                                    ${team.trainer_phone || team.administration_phone
+                                        ? `<span>${escapeHtml(team.trainer_phone || team.administration_phone)}</span>`
+                                        : '<span>—</span>'}
+                                    ${team.club_address ? `<small>${escapeHtml(team.club_address)}</small>` : ''}
+                                </span>
+                            </td>
+                            <td data-label="Участники">
+                                <span class="team-table-members">
+                                    <i data-lucide="users-round"></i>
+                                    ${escapeHtml(pluralizeMembers(Number(team.member_count) || 0))}
+                                </span>
+                            </td>
+                            <td class="team-table-actions">
+                                <details class="team-actions-menu">
+                                    <summary class="icon-button" aria-label="Действия с командой">
+                                        <i data-lucide="ellipsis-vertical"></i>
+                                    </summary>
+                                    <div class="team-actions-popover">
+                                        <button type="button" data-edit-team="${team.id}">
+                                            <i data-lucide="pencil"></i>
+                                            Редактировать
+                                        </button>
+                                        <button class="danger" type="button" data-delete-team="${team.id}">
+                                            <i data-lucide="trash-2"></i>
+                                            Удалить
+                                        </button>
+                                    </div>
+                                </details>
+                            </td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        </div>`;
     refreshIcons();
 }
 
@@ -667,11 +707,14 @@ async function deleteStadium(id) {
 
 function switchTab(tabName) {
     document.querySelectorAll('[data-catalog-tab]').forEach((button) => {
-        button.classList.toggle('active', button.dataset.catalogTab === tabName);
+        const isActive = button.dataset.catalogTab === tabName;
+        button.classList.toggle('active', isActive);
+        button.setAttribute('aria-selected', String(isActive));
     });
     document.querySelectorAll('.tournament-catalog-panel').forEach((panel) => {
         panel.classList.toggle('active', panel.id === `catalogPanel-${tabName}`);
     });
+    document.querySelectorAll('.team-actions-menu[open]').forEach((menu) => menu.removeAttribute('open'));
 }
 
 function bindEvents() {
@@ -767,25 +810,34 @@ function bindEvents() {
         if (deleteButton) deleteTournament(deleteButton.dataset.deleteTournament).catch(showPageError);
     });
     byId('teamList').addEventListener('click', (event) => {
+        const menu = event.target.closest('.team-actions-menu');
+        const menuSummary = event.target.closest('.team-actions-menu > summary');
+        if (menuSummary) {
+            document.querySelectorAll('.team-actions-menu[open]').forEach((item) => {
+                if (item !== menu) item.removeAttribute('open');
+            });
+            return;
+        }
         const editButton = event.target.closest('[data-edit-team]');
         const deleteButton = event.target.closest('[data-delete-team]');
         if (editButton) {
+            menu?.removeAttribute('open');
             openTeamEditor(editButton.dataset.editTeam);
             return;
         }
         if (deleteButton) {
+            menu?.removeAttribute('open');
             deleteTeam(deleteButton.dataset.deleteTeam).catch(showPageError);
             return;
         }
         const openButton = event.target.closest('[data-open-team]');
         if (openButton) openTeamDetails(openButton.dataset.openTeam).catch(showPageError);
     });
-    byId('teamList').addEventListener('keydown', (event) => {
-        if (!['Enter', ' '].includes(event.key)) return;
-        const card = event.target.closest('article[data-open-team]');
-        if (!card || event.target.closest('button')) return;
-        event.preventDefault();
-        openTeamDetails(card.dataset.openTeam).catch(showPageError);
+    document.addEventListener('click', (event) => {
+        if (event.target.closest('.team-actions-menu')) return;
+        document.querySelectorAll('.team-actions-menu[open]').forEach((menu) => {
+            menu.removeAttribute('open');
+        });
     });
     byId('teamMembersTableBody').addEventListener('click', (event) => {
         const editButton = event.target.closest('[data-edit-member]');
