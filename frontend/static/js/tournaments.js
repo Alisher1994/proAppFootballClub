@@ -10,6 +10,7 @@ const catalogState = {
     teamLogoObjectUrl: null,
     trainerPhotoObjectUrl: null,
     memberPhotoObjectUrl: null,
+    stadiumPhotoObjectUrl: null,
     stadiumMap: null,
     stadiumMarker: null,
     activeFilterTab: 'tournaments',
@@ -138,6 +139,8 @@ function filteredStadiums() {
         const searchable = [
             stadium.name,
             stadium.owner_phone,
+            stadium.length,
+            stadium.width,
             stadium.latitude,
             stadium.longitude,
         ].join(' ');
@@ -213,11 +216,11 @@ function renderTournaments() {
                                         <i data-lucide="ellipsis-vertical"></i>
                                     </summary>
                                     <div class="team-actions-popover">
-                                        <button type="button" data-edit-tournament="${item.id}">
+                                        <button class="catalog-menu-action" type="button" data-edit-tournament="${item.id}">
                                             <i data-lucide="pencil"></i>
                                             Редактировать
                                         </button>
-                                        <button class="danger" type="button" data-delete-tournament="${item.id}">
+                                        <button class="catalog-menu-action danger" type="button" data-delete-tournament="${item.id}">
                                             <i data-lucide="trash-2"></i>
                                             Удалить
                                         </button>
@@ -297,11 +300,11 @@ function renderTeams() {
                                         <i data-lucide="ellipsis-vertical"></i>
                                     </summary>
                                     <div class="team-actions-popover">
-                                        <button type="button" data-edit-team="${team.id}">
+                                        <button class="catalog-menu-action" type="button" data-edit-team="${team.id}">
                                             <i data-lucide="pencil"></i>
                                             Редактировать
                                         </button>
-                                        <button class="danger" type="button" data-delete-team="${team.id}">
+                                        <button class="catalog-menu-action danger" type="button" data-delete-team="${team.id}">
                                             <i data-lucide="trash-2"></i>
                                             Удалить
                                         </button>
@@ -337,6 +340,7 @@ function renderStadiums() {
                     <tr>
                         <th>Стадион</th>
                         <th>Телефон владельца</th>
+                        <th>Размер поля</th>
                         <th>Координаты</th>
                         <th>Локация</th>
                         <th aria-label="Действия"></th>
@@ -347,11 +351,24 @@ function renderStadiums() {
                         <tr>
                             <td data-label="Стадион">
                                 <span class="catalog-primary-cell">
-                                    <span class="catalog-row-icon"><i data-lucide="map-pin"></i></span>
+                                    <span class="catalog-row-icon catalog-stadium-photo">
+                                        ${stadium.photo_url
+                                            ? `<img src="${escapeHtml(stadium.photo_url)}" alt="">`
+                                            : '<i data-lucide="map-pin"></i>'}
+                                    </span>
                                     <strong>${escapeHtml(stadium.name)}</strong>
                                 </span>
                             </td>
                             <td data-label="Телефон">${escapeHtml(stadium.owner_phone || '—')}</td>
+                            <td data-label="Размер">
+                                ${stadium.length && stadium.width
+                                    ? `${escapeHtml(stadium.length)} × ${escapeHtml(stadium.width)} м`
+                                    : stadium.length
+                                        ? `${escapeHtml(stadium.length)} м (длина)`
+                                        : stadium.width
+                                            ? `${escapeHtml(stadium.width)} м (ширина)`
+                                            : '—'}
+                            </td>
                             <td data-label="Координаты">
                                 ${Number(stadium.latitude).toFixed(6)}, ${Number(stadium.longitude).toFixed(6)}
                             </td>
@@ -368,11 +385,11 @@ function renderStadiums() {
                                         <i data-lucide="ellipsis-vertical"></i>
                                     </summary>
                                     <div class="team-actions-popover">
-                                        <button type="button" data-edit-stadium="${stadium.id}">
+                                        <button class="catalog-menu-action" type="button" data-edit-stadium="${stadium.id}">
                                             <i data-lucide="pencil"></i>
                                             Редактировать
                                         </button>
-                                        <button class="danger" type="button" data-delete-stadium="${stadium.id}">
+                                        <button class="catalog-menu-action danger" type="button" data-delete-stadium="${stadium.id}">
                                             <i data-lucide="trash-2"></i>
                                             Удалить
                                         </button>
@@ -802,6 +819,14 @@ function resetStadiumForm() {
     byId('stadiumForm').reset();
     byId('stadiumModalTitle').textContent = 'Новый стадион';
     byId('stadiumCoordinates').textContent = 'Нажмите на карту, чтобы поставить точку';
+    releaseObjectUrl('stadiumPhotoObjectUrl');
+    setPhotoPreview(
+        'stadiumPhotoPreview',
+        'stadiumPhotoFileName',
+        '',
+        'image-plus',
+        'Необязательно · PNG, JPG или WEBP',
+    );
     showFormError('stadiumFormError');
 }
 
@@ -818,6 +843,16 @@ function openStadiumEditor(id) {
     byId('stadiumModalTitle').textContent = 'Редактировать стадион';
     byId('stadiumName').value = stadium.name || '';
     byId('stadiumOwnerPhone').value = stadium.owner_phone || '';
+    byId('stadiumLength').value = stadium.length || '';
+    byId('stadiumWidth').value = stadium.width || '';
+    releaseObjectUrl('stadiumPhotoObjectUrl');
+    setPhotoPreview(
+        'stadiumPhotoPreview',
+        'stadiumPhotoFileName',
+        stadium.photo_url || '',
+        'image-plus',
+        stadium.photo_url ? 'Текущее фото стадиона' : 'Необязательно · PNG, JPG или WEBP',
+    );
     showFormError('stadiumFormError');
     openModal('stadiumModal');
     ensureStadiumMap(stadium.latitude, stadium.longitude, true);
@@ -826,16 +861,20 @@ function openStadiumEditor(id) {
 async function saveStadium(event) {
     event.preventDefault();
     const editingId = catalogState.editingStadiumId;
+    const formData = new FormData();
+    formData.append('name', byId('stadiumName').value);
+    formData.append('owner_phone', byId('stadiumOwnerPhone').value);
+    formData.append('length', byId('stadiumLength').value);
+    formData.append('width', byId('stadiumWidth').value);
+    formData.append('latitude', byId('stadiumLatitude').value);
+    formData.append('longitude', byId('stadiumLongitude').value);
+    const photo = byId('stadiumPhoto').files[0];
+    if (photo) formData.append('photo', photo);
     try {
         showFormError('stadiumFormError');
         await apiJson(editingId ? `/api/tournament-stadiums/${editingId}` : '/api/tournament-stadiums', {
             method: editingId ? 'PUT' : 'POST',
-            body: JSON.stringify({
-                name: byId('stadiumName').value,
-                owner_phone: byId('stadiumOwnerPhone').value,
-                latitude: byId('stadiumLatitude').value,
-                longitude: byId('stadiumLongitude').value,
-            }),
+            body: formData,
         });
         closeModal('stadiumModal');
         resetStadiumForm();
@@ -1034,6 +1073,28 @@ function bindEvents() {
             'memberPhotoFileName',
             catalogState.memberPhotoObjectUrl,
             'user-round-plus',
+            file.name,
+        );
+    });
+    byId('stadiumPhoto').addEventListener('change', () => {
+        const file = byId('stadiumPhoto').files[0];
+        releaseObjectUrl('stadiumPhotoObjectUrl');
+        if (!file) {
+            setPhotoPreview(
+                'stadiumPhotoPreview',
+                'stadiumPhotoFileName',
+                '',
+                'image-plus',
+                'Необязательно · PNG, JPG или WEBP',
+            );
+            return;
+        }
+        catalogState.stadiumPhotoObjectUrl = URL.createObjectURL(file);
+        setPhotoPreview(
+            'stadiumPhotoPreview',
+            'stadiumPhotoFileName',
+            catalogState.stadiumPhotoObjectUrl,
+            'image-plus',
             file.name,
         );
     });

@@ -7,7 +7,7 @@
     <link rel="icon" href="{{ system_square_logo_url or url_for('static', filename='uploads/favicon.png') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/onest/onest.css') }}">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=2026072805">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=2026072806">
 </head>
 <body>
     {% include '_sidebar.html' %}
@@ -406,7 +406,7 @@
                     <i data-lucide="x"></i>
                 </button>
             </header>
-            <form id="stadiumForm" class="tournament-catalog-form">
+            <form id="stadiumForm" class="tournament-catalog-form" enctype="multipart/form-data">
                 <label class="tournament-catalog-field">
                     <span>Название</span>
                     <input id="stadiumName" type="text" maxlength="200" required>
@@ -414,6 +414,25 @@
                 <label class="tournament-catalog-field">
                     <span>Телефон владельца</span>
                     <input id="stadiumOwnerPhone" type="tel" maxlength="50" placeholder="+998">
+                </label>
+                <label class="tournament-catalog-field">
+                    <span>Длина, м <small>необязательно</small></span>
+                    <input id="stadiumLength" type="number" min="0.1" step="0.1" placeholder="105">
+                </label>
+                <label class="tournament-catalog-field">
+                    <span>Ширина, м <small>необязательно</small></span>
+                    <input id="stadiumWidth" type="number" min="0.1" step="0.1" placeholder="68">
+                </label>
+                <label class="team-catalog-logo-picker full">
+                    <span class="team-catalog-logo-preview stadium-photo-preview" id="stadiumPhotoPreview">
+                        <i data-lucide="image-plus"></i>
+                    </span>
+                    <span class="team-catalog-logo-copy">
+                        <strong>Фото стадиона</strong>
+                        <small id="stadiumPhotoFileName">Необязательно · PNG, JPG или WEBP</small>
+                    </span>
+                    <span class="btn-secondary">Выбрать файл</span>
+                    <input id="stadiumPhoto" type="file" accept="image/png,image/jpeg,image/webp">
                 </label>
                 <div class="stadium-map-field full">
                     <div class="stadium-map-label">
@@ -437,6 +456,6 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="{{ url_for('static', filename='js/sidebar.js') }}"></script>
     <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/tournaments.js') }}?v=2026072803"></script>
+    <script src="{{ url_for('static', filename='js/tournaments.js') }}?v=2026072804"></script>
 </body>
 </html>

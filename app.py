@@ -1488,12 +1488,18 @@ def ensure_tournament_tables():
             inspector = db.inspect(db.engine)
         tournament_columns = {col['name'] for col in inspector.get_columns('tournaments')}
         team_columns = {col['name'] for col in inspector.get_columns('tournament_team_catalog')}
+        stadium_columns = {col['name'] for col in inspector.get_columns('tournament_stadiums')}
         team_column_definitions = {
             'trainer_name': 'VARCHAR(200)',
             'trainer_photo_path': 'VARCHAR(300)',
             'administration_phone': 'VARCHAR(50)',
             'trainer_phone': 'VARCHAR(50)',
             'club_address': 'VARCHAR(500)',
+        }
+        stadium_column_definitions = {
+            'length': 'FLOAT',
+            'width': 'FLOAT',
+            'photo_path': 'VARCHAR(300)',
         }
         with db.engine.begin() as conn:
             if 'start_time' not in tournament_columns:
@@ -1504,6 +1510,11 @@ def ensure_tournament_tables():
                 if column_name not in team_columns:
                     conn.execute(db.text(
                         f"ALTER TABLE tournament_team_catalog ADD COLUMN {column_name} {column_type}"
+                    ))
+            for column_name, column_type in stadium_column_definitions.items():
+                if column_name not in stadium_columns:
+                    conn.execute(db.text(
+                        f"ALTER TABLE tournament_stadiums ADD COLUMN {column_name} {column_type}"
                     ))
     except Exception as e:
         print(f"Ошибка при проверке таблиц турниров: {e}")
@@ -4495,10 +4506,26 @@ def serialize_tournament_stadium(stadium):
         'id': stadium.id,
         'name': stadium.name,
         'owner_phone': stadium.owner_phone,
+        'length': stadium.length,
+        'width': stadium.width,
+        'photo_url': get_tournament_media_url(stadium.photo_path),
         'latitude': stadium.latitude,
         'longitude': stadium.longitude,
         'created_at': stadium.created_at.isoformat() if stadium.created_at else None,
     }
+
+
+def parse_optional_stadium_size(value, label):
+    raw = str(value or '').strip().replace(',', '.')
+    if not raw:
+        return None
+    try:
+        number = float(raw)
+    except (TypeError, ValueError):
+        raise ValueError(f'{label} должна быть числом')
+    if number <= 0:
+        raise ValueError(f'{label} должна быть больше нуля')
+    return number
 
 
 def apply_tournament_team_form(team):
@@ -4803,13 +4830,18 @@ def tournament_stadiums_api():
 
     if not has_tournament_permission('edit'):
         return jsonify({'success': False, 'message': 'Нет доступа'}), 403
-    data = request.get_json() or {}
+    data = request.form if request.form else (request.get_json() or {})
     name = (data.get('name') or '').strip()
     try:
         latitude = float(data.get('latitude'))
         longitude = float(data.get('longitude'))
     except (TypeError, ValueError):
         return jsonify({'success': False, 'message': 'Выберите локацию стадиона на карте'}), 400
+    try:
+        stadium_length = parse_optional_stadium_size(data.get('length'), 'Длина')
+        stadium_width = parse_optional_stadium_size(data.get('width'), 'Ширина')
+    except ValueError as exc:
+        return jsonify({'success': False, 'message': str(exc)}), 400
     if not name:
         return jsonify({'success': False, 'message': 'Укажите название стадиона'}), 400
     if not (-90 <= latitude <= 90 and -180 <= longitude <= 180):
@@ -4817,10 +4849,20 @@ def tournament_stadiums_api():
     stadium = TournamentStadium(
         name=name,
         owner_phone=(data.get('owner_phone') or '').strip() or None,
+        length=stadium_length,
+        width=stadium_width,
         latitude=latitude,
         longitude=longitude,
         created_by=current_user.id,
     )
+    if request.files.get('photo'):
+        try:
+            stadium.photo_path = save_tournament_catalog_photo(
+                request.files.get('photo'),
+                'tournament_stadium',
+            )
+        except ValueError as exc:
+            return jsonify({'success': False, 'message': str(exc)}), 400
     db.session.add(stadium)
     db.session.commit()
     return jsonify({'success': True, 'stadium': serialize_tournament_stadium(stadium)}), 201
@@ -4836,24 +4878,43 @@ def tournament_stadium_detail_api(stadium_id):
     if not stadium:
         return jsonify({'success': False, 'message': 'Стадион не найден'}), 404
     if request.method == 'DELETE':
+        photo_path = stadium.photo_path
         db.session.delete(stadium)
         db.session.commit()
+        delete_tournament_catalog_media(photo_path, ('tournament_stadium_',))
         return jsonify({'success': True})
-    data = request.get_json() or {}
+    data = request.form if request.form else (request.get_json() or {})
     name = (data.get('name') or '').strip()
     try:
         latitude = float(data.get('latitude'))
         longitude = float(data.get('longitude'))
     except (TypeError, ValueError):
         return jsonify({'success': False, 'message': 'Выберите локацию стадиона на карте'}), 400
+    try:
+        stadium_length = parse_optional_stadium_size(data.get('length'), 'Длина')
+        stadium_width = parse_optional_stadium_size(data.get('width'), 'Ширина')
+    except ValueError as exc:
+        return jsonify({'success': False, 'message': str(exc)}), 400
     if not name:
         return jsonify({'success': False, 'message': 'Укажите название стадиона'}), 400
     if not (-90 <= latitude <= 90 and -180 <= longitude <= 180):
         return jsonify({'success': False, 'message': 'Некорректные координаты стадиона'}), 400
     stadium.name = name
     stadium.owner_phone = (data.get('owner_phone') or '').strip() or None
+    stadium.length = stadium_length
+    stadium.width = stadium_width
     stadium.latitude = latitude
     stadium.longitude = longitude
+    if request.files.get('photo'):
+        try:
+            stadium.photo_path = save_tournament_catalog_photo(
+                request.files.get('photo'),
+                'tournament_stadium',
+                stadium.photo_path,
+            )
+        except ValueError as exc:
+            db.session.rollback()
+            return jsonify({'success': False, 'message': str(exc)}), 400
     db.session.commit()
     return jsonify({'success': True, 'stadium': serialize_tournament_stadium(stadium)})
 

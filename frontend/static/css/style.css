@@ -8250,7 +8250,7 @@ button.primary:hover {
 .btn-ghost,
 .filter-btn,
 button.secondary,
-button[type="button"]:not(.btn-danger):not(.delete-btn):not(.remove-btn):not(.logout-btn):not(.pitch-icon-button):not(.team-table-team):not(.catalog-filter-button) {
+button[type="button"]:not(.btn-danger):not(.delete-btn):not(.remove-btn):not(.logout-btn):not(.pitch-icon-button):not(.team-table-team):not(.catalog-filter-button):not(.catalog-menu-action) {
     background: #f8f7f6 !important;
     border: 1px solid var(--theme-border) !important;
     color: var(--theme-text-primary) !important;
@@ -12570,6 +12570,70 @@ body .tournaments-page .team-catalog-table-wrap {
     border: 0 !important;
     border-radius: 0 !important;
     background: transparent !important;
+}
+
+body .tournaments-page .tournament-catalog-count {
+    display: none !important;
+}
+
+.catalog-stadium-photo {
+    overflow: hidden;
+}
+
+.catalog-stadium-photo img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.stadium-photo-preview {
+    width: 84px;
+    border-radius: 12px;
+}
+
+.stadium-photo-preview img {
+    padding: 0;
+    object-fit: cover;
+}
+
+.stadium-catalog-table th:first-child {
+    width: 24%;
+}
+
+.stadium-catalog-table th:nth-child(2) {
+    width: 18%;
+}
+
+.stadium-catalog-table th:nth-child(3) {
+    width: 15%;
+}
+
+.stadium-catalog-table th:nth-child(4) {
+    width: 22%;
+}
+
+body .tournaments-page .team-actions-menu[open] {
+    z-index: 80;
+}
+
+body .tournaments-page .team-actions-menu[open] > summary.icon-button {
+    border-color: #ffad5c !important;
+    background: #fff8f0 !important;
+    color: #e87400 !important;
+}
+
+body .tournaments-page .team-actions-popover button.catalog-menu-action,
+body .tournaments-page .team-actions-popover button.catalog-menu-action:hover {
+    border: 0 !important;
+    box-shadow: none !important;
+}
+
+@media (min-width: 681px) {
+    body .tournaments-page .catalog-data-table .team-actions-popover {
+        top: calc(100% + 7px);
+        right: 0;
+        transform: none;
+    }
 }
 
 body main.main-content.tournaments-page .catalog-list-tools .catalog-search input[type="search"] {
