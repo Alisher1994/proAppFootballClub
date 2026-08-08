@@ -286,6 +286,43 @@
             text-align: center;
         }
 
+        .columns {
+            display: grid;
+            gap: 14px;
+        }
+
+        /* На широком экране: слева форма, справа состав. */
+        @media (min-width: 900px) {
+            .wrap {
+                max-width: 1060px;
+            }
+
+            .columns {
+                grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+                gap: 16px;
+                align-items: start;
+            }
+
+            .list-card {
+                position: sticky;
+                top: 104px;
+                max-height: calc(100dvh - 128px);
+                overflow-y: auto;
+            }
+
+            /* Форма скрыта после начала турнира — состав занимает всю ширину. */
+            .columns.single {
+                grid-template-columns: minmax(0, 1fr);
+                max-width: 560px;
+                margin: 0 auto;
+            }
+
+            .columns.single .list-card {
+                position: static;
+                max-height: none;
+            }
+        }
+
         @media (max-width: 380px) {
             .row { grid-template-columns: 1fr; }
             .form-actions.editing { grid-template-columns: 1fr; }
@@ -319,6 +356,7 @@
     <div class="wrap">
         <div class="notice" id="statusNotice" hidden></div>
 
+        <div class="columns" id="formColumns">
         <section class="card" id="formCard" hidden>
             <h2 id="formTitle">Добавить участника</h2>
             <div class="error" id="formError" hidden></div>
@@ -365,12 +403,13 @@
             </form>
         </section>
 
-        <section class="card">
+        <section class="card list-card">
             <h2>Состав команды <span class="count" id="memberCount"></span></h2>
             <div id="memberList">
                 <div class="empty">Загрузка…</div>
             </div>
         </section>
+        </div>
     </div>
 
     <script>
@@ -463,6 +502,7 @@
             }
             notice.hidden = false;
             byId('formCard').hidden = !data.editable;
+            byId('formColumns').classList.toggle('single', !data.editable);
         }
 
         function resetForm() {
