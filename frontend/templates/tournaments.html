@@ -8,7 +8,7 @@
     {% include '_pwa_head.html' %}
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/onest/onest.css') }}">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=2026080804">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=2026080805">
 </head>
 <body>
     {% include '_sidebar.html' %}
@@ -105,6 +105,10 @@
                     </div>
                     <div class="tournament-catalog-toolbar-actions">
                         <span class="tournament-catalog-count" id="stadiumCount">0</span>
+                        <button class="btn-secondary" id="openStadiumImportBtn" type="button">
+                            <i data-lucide="download"></i>
+                            Импорт из OSM
+                        </button>
                         <button class="btn-primary" id="openStadiumModalBtn" type="button">
                             <i data-lucide="plus"></i>
                             Добавить стадион
@@ -463,6 +467,45 @@
         </div>
     </div>
 
+    <div class="modal tournament-catalog-modal" id="stadiumImportModal" hidden>
+        <div class="modal-content team-share-modal-content">
+            <header class="tournament-catalog-modal-header">
+                <div>
+                    <span class="tournament-catalog-eyebrow">OpenStreetMap</span>
+                    <h2>Импорт стадионов</h2>
+                </div>
+                <button class="icon-button" type="button" data-close-modal="stadiumImportModal" aria-label="Закрыть">
+                    <i data-lucide="x"></i>
+                </button>
+            </header>
+            <div class="tournament-catalog-form team-share-body">
+                <p class="team-share-hint full">
+                    Подтягиваем футбольные стадионы, поля и спорткомплексы из открытой карты
+                    OpenStreetMap: название и точку на карте. Уже добавленные не дублируются —
+                    сверяем по названию и по расстоянию. Фото и размеры поля заполните сами.
+                </p>
+                <label class="tournament-catalog-field full">
+                    <span>Город</span>
+                    <select id="stadiumImportArea">
+                        <option value="tashkent">Ташкент</option>
+                        <option value="samarkand">Самарканд</option>
+                        <option value="namangan">Наманган</option>
+                        <option value="andijan">Андижан</option>
+                        <option value="fergana">Фергана</option>
+                        <option value="bukhara">Бухара</option>
+                    </select>
+                </label>
+                <div class="tournament-catalog-form-error" id="stadiumImportError" hidden></div>
+                <div class="team-share-result full" id="stadiumImportResult" hidden>
+                    <div class="team-share-status open" id="stadiumImportStatus"></div>
+                </div>
+                <footer class="tournament-catalog-form-actions full team-share-footer">
+                    <button class="btn-primary" type="button" id="runStadiumImport">Импортировать</button>
+                </footer>
+            </div>
+        </div>
+    </div>
+
     <div class="modal tournament-catalog-modal" id="stadiumModal" hidden>
         <div class="modal-content stadium-catalog-modal-content">
             <header class="tournament-catalog-modal-header">
@@ -524,6 +567,6 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="{{ url_for('static', filename='js/sidebar.js') }}?v=2026080801"></script>
     <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/tournaments.js') }}?v=2026080804"></script>
+    <script src="{{ url_for('static', filename='js/tournaments.js') }}?v=2026080805"></script>
 </body>
 </html>

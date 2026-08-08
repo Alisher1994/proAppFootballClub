@@ -1074,6 +1074,29 @@ function resetStadiumForm() {
     showFormError('stadiumFormError');
 }
 
+async function runStadiumImport() {
+    const button = byId('runStadiumImport');
+    button.disabled = true;
+    button.textContent = 'Загружаем…';
+    try {
+        showFormError('stadiumImportError');
+        const data = await apiJson('/api/tournament-stadiums/import-osm', {
+            method: 'POST',
+            body: JSON.stringify({ area: byId('stadiumImportArea').value }),
+        });
+        byId('stadiumImportResult').hidden = false;
+        byId('stadiumImportStatus').textContent = data.added
+            ? `${data.area}: добавлено ${data.added}, пропущено как дубли ${data.skipped}`
+            : `${data.area}: новых стадионов не нашлось (проверено ${data.found})`;
+        await loadStadiums();
+    } catch (error) {
+        showFormError('stadiumImportError', error.message);
+    } finally {
+        button.disabled = false;
+        button.textContent = 'Импортировать';
+    }
+}
+
 function openStadiumCreator(options = {}) {
     catalogState.stadiumReturnToTournament = Boolean(options.returnToTournament);
     resetStadiumForm();
@@ -1267,6 +1290,12 @@ function bindEvents() {
         openModal('teamModal');
     });
     byId('openStadiumModalBtn').addEventListener('click', () => openStadiumCreator());
+    byId('openStadiumImportBtn').addEventListener('click', () => {
+        showFormError('stadiumImportError');
+        byId('stadiumImportResult').hidden = true;
+        openModal('stadiumImportModal');
+    });
+    byId('runStadiumImport').addEventListener('click', runStadiumImport);
     byId('openMemberModalBtn').addEventListener('click', () => {
         resetMemberForm();
         openModal('memberModal');

@@ -7,6 +7,7 @@ import threading
 import time
 import queue
 import re
+import math
 import calendar
 import uuid
 import requests
@@ -5201,6 +5202,172 @@ def tournament_stadiums_api():
     db.session.add(stadium)
     db.session.commit()
     return jsonify({'success': True, 'stadium': serialize_tournament_stadium(stadium)}), 201
+
+
+# ===== ИМПОРТ СТАДИОНОВ ИЗ OPENSTREETMAP =====
+
+# Основной сервер и зеркало: у Overpass жёсткие лимиты на IP.
+OSM_OVERPASS_URLS = (
+    'https://overpass-api.de/api/interpreter',
+    'https://overpass.kumi.systems/api/interpreter',
+)
+
+# Границы городов, по которым забираем футбольные объекты (юг, запад, север, восток).
+OSM_IMPORT_AREAS = {
+    'tashkent': ('Ташкент', 41.15, 69.10, 41.42, 69.45),
+    'samarkand': ('Самарканд', 39.58, 66.85, 39.72, 67.05),
+    'namangan': ('Наманган', 40.94, 71.53, 41.05, 71.72),
+    'andijan': ('Андижан', 40.72, 72.24, 40.83, 72.42),
+    'fergana': ('Фергана', 40.32, 71.71, 40.43, 71.85),
+    'bukhara': ('Бухара', 39.71, 64.36, 39.83, 64.51),
+}
+
+# Виды спорта, которые точно не про футбол — такие объекты пропускаем.
+OSM_NON_FOOTBALL_SPORTS = {
+    'swimming', 'tennis', 'basketball', 'volleyball', 'ice_hockey', 'ice_skating',
+    'cycling', 'equestrian', 'climbing', 'chess', 'shooting', 'karting', 'judo',
+    'sambo', 'boxing', 'gymnastics', 'athletics', 'fitness', 'gym', 'yoga',
+    '10pin', 'baseball', 'skateboard', 'table_tennis', 'handball', 'running',
+}
+
+
+def osm_venue_name(tags):
+    for key in ('name:ru', 'name', 'name:uz', 'name:en'):
+        value = (tags.get(key) or '').strip()
+        if value:
+            return value[:200]
+    return ''
+
+
+def osm_is_football_venue(tags):
+    """Стадионы берём все, кроме явно нефутбольных; поля и комплексы — только футбольные."""
+    leisure = tags.get('leisure')
+    sports = {part.strip().lower() for part in (tags.get('sport') or '').split(';') if part.strip()}
+    if sports & {'soccer', 'football', 'multi'}:
+        return True
+    if leisure == 'stadium':
+        return not (sports & OSM_NON_FOOTBALL_SPORTS)
+    return False
+
+
+def fetch_osm_football_venues(area_key):
+    """Забирает из OpenStreetMap названные футбольные объекты выбранного города."""
+    area = OSM_IMPORT_AREAS.get(area_key)
+    if not area:
+        raise ValueError('Неизвестный город')
+    _, south, west, north, east = area
+    query = f"""[out:json][timeout:90][bbox:{south},{west},{north},{east}];
+(
+  way["leisure"="stadium"];
+  relation["leisure"="stadium"];
+  way["leisure"="pitch"]["sport"~"soccer|football"];
+  nwr["leisure"="sports_centre"]["sport"~"soccer|football|multi"];
+);
+out tags center;"""
+    elements = None
+    last_status = None
+    for url in OSM_OVERPASS_URLS:
+        try:
+            response = requests.post(
+                url,
+                data={'data': query},
+                timeout=120,
+                headers={'User-Agent': 'FK Karasu stadium import'},
+            )
+        except requests.RequestException:
+            last_status = None
+            continue
+        last_status = response.status_code
+        if response.status_code != 200:
+            continue
+        try:
+            elements = response.json().get('elements', [])
+        except ValueError:
+            continue
+        break
+
+    if elements is None:
+        if last_status == 429:
+            raise ValueError('OpenStreetMap ограничил частоту запросов. Повторите через минуту')
+        if last_status == 504:
+            raise ValueError('OpenStreetMap не успел обработать запрос. Повторите попытку')
+        raise ValueError('OpenStreetMap недоступен, попробуйте позже')
+
+    venues = []
+    for element in elements:
+        tags = element.get('tags') or {}
+        name = osm_venue_name(tags)
+        if not name or not osm_is_football_venue(tags):
+            continue
+        center = element.get('center') or {}
+        latitude = center.get('lat', element.get('lat'))
+        longitude = center.get('lon', element.get('lon'))
+        if latitude is None or longitude is None:
+            continue
+        venues.append({'name': name, 'latitude': float(latitude), 'longitude': float(longitude)})
+    return venues
+
+
+def stadium_import_key(name):
+    return re.sub(r'[^a-zа-я0-9]+', '', (name or '').lower())
+
+
+def stadiums_are_close(first_lat, first_lon, second_lat, second_lon, meters=150):
+    """Грубая проверка расстояния — для отсечения дублей этого достаточно."""
+    lat_delta = (first_lat - second_lat) * 111_320
+    lon_delta = (first_lon - second_lon) * 111_320 * math.cos(math.radians(first_lat))
+    return (lat_delta ** 2 + lon_delta ** 2) ** 0.5 <= meters
+
+
+@app.route('/api/tournament-stadiums/import-osm', methods=['POST'])
+@login_required
+def tournament_stadiums_import_osm():
+    ensure_tournament_tables()
+    if not has_tournament_permission('edit'):
+        return jsonify({'success': False, 'message': 'Нет доступа'}), 403
+
+    data = request.get_json() or {}
+    area_key = (data.get('area') or 'tashkent').strip().lower()
+    try:
+        venues = fetch_osm_football_venues(area_key)
+    except ValueError as exc:
+        return jsonify({'success': False, 'message': str(exc)}), 400
+
+    existing = TournamentStadium.query.all()
+    existing_keys = {stadium_import_key(item.name) for item in existing}
+    existing_points = [(item.latitude, item.longitude) for item in existing
+                       if item.latitude is not None and item.longitude is not None]
+
+    added = 0
+    skipped = 0
+    for venue in venues:
+        key = stadium_import_key(venue['name'])
+        if key and key in existing_keys:
+            skipped += 1
+            continue
+        if any(stadiums_are_close(venue['latitude'], venue['longitude'], lat, lon)
+               for lat, lon in existing_points):
+            skipped += 1
+            continue
+        db.session.add(TournamentStadium(
+            name=venue['name'],
+            latitude=venue['latitude'],
+            longitude=venue['longitude'],
+            created_by=current_user.id,
+        ))
+        existing_keys.add(key)
+        existing_points.append((venue['latitude'], venue['longitude']))
+        added += 1
+
+    if added:
+        db.session.commit()
+    return jsonify({
+        'success': True,
+        'area': OSM_IMPORT_AREAS[area_key][0],
+        'found': len(venues),
+        'added': added,
+        'skipped': skipped,
+    })
 
 
 @app.route('/api/tournament-stadiums/<int:stadium_id>', methods=['PUT', 'DELETE'])
