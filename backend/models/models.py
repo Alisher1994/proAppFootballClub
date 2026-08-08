@@ -798,6 +798,7 @@ class TournamentStadium(db.Model):
     length = db.Column(db.Float, nullable=True)
     width = db.Column(db.Float, nullable=True)
     photo_path = db.Column(db.String(300), nullable=True)
+    photo_source = db.Column(db.String(300), nullable=True)
     latitude = db.Column(db.Float, nullable=False)
     longitude = db.Column(db.Float, nullable=False)
     created_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)

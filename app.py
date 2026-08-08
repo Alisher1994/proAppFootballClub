@@ -25,7 +25,9 @@ from flask_login import LoginManager, UserMixin, login_user, login_required, log
 from flask_bcrypt import Bcrypt
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.middleware.proxy_fix import ProxyFix
+import urllib.parse
 from werkzeug.utils import secure_filename
+from werkzeug.datastructures import FileStorage
 from sqlalchemy import func, or_
 from sqlalchemy.orm import joinedload, defer
 import pytz
@@ -1503,6 +1505,7 @@ def ensure_tournament_tables():
             'length': 'FLOAT',
             'width': 'FLOAT',
             'photo_path': 'VARCHAR(300)',
+            'photo_source': 'VARCHAR(300)',
         }
         with db.engine.begin() as conn:
             if 'start_time' not in tournament_columns:
@@ -4575,6 +4578,7 @@ def serialize_tournament_stadium(stadium):
     return {
         'id': stadium.id,
         'name': stadium.name,
+        'photo_source': stadium.photo_source,
         'owner_phone': stadium.owner_phone,
         'length': stadium.length,
         'width': stadium.width,
@@ -5206,6 +5210,8 @@ def tournament_stadiums_api():
 
 # ===== ИМПОРТ СТАДИОНОВ ИЗ OPENSTREETMAP =====
 
+OSM_USER_AGENT = 'FK Karasu stadium import'
+
 # Основной сервер и зеркало: у Overpass жёсткие лимиты на IP.
 OSM_OVERPASS_URLS = (
     'https://overpass-api.de/api/interpreter',
@@ -5272,7 +5278,7 @@ out tags center;"""
                 url,
                 data={'data': query},
                 timeout=120,
-                headers={'User-Agent': 'FK Karasu stadium import'},
+                headers={'User-Agent': OSM_USER_AGENT},
             )
         except requests.RequestException:
             last_status = None
@@ -5304,8 +5310,87 @@ out tags center;"""
         longitude = center.get('lon', element.get('lon'))
         if latitude is None or longitude is None:
             continue
-        venues.append({'name': name, 'latitude': float(latitude), 'longitude': float(longitude)})
+        venues.append({
+            'name': name,
+            'latitude': float(latitude),
+            'longitude': float(longitude),
+            'wikidata': (tags.get('wikidata') or '').strip() or None,
+        })
     return venues
+
+
+def fetch_wikidata_images(wikidata_ids):
+    """Свойство P18 в Wikidata — заглавное фото объекта в Wikimedia Commons."""
+    images = {}
+    ids = [item for item in wikidata_ids if item]
+    for start in range(0, len(ids), 40):
+        chunk = ids[start:start + 40]
+        try:
+            response = requests.get(
+                'https://www.wikidata.org/w/api.php',
+                params={'action': 'wbgetentities', 'ids': '|'.join(chunk),
+                        'props': 'claims', 'format': 'json'},
+                timeout=45,
+                headers={'User-Agent': OSM_USER_AGENT},
+            )
+            entities = response.json().get('entities', {})
+        except Exception:
+            continue
+        for qid, entity in entities.items():
+            claims = (entity or {}).get('claims', {}).get('P18') or []
+            if not claims:
+                continue
+            try:
+                images[qid] = claims[0]['mainsnak']['datavalue']['value']
+            except (KeyError, TypeError, IndexError):
+                continue
+    return images
+
+
+def fetch_commons_credit(file_name):
+    """Автор и лицензия — снимки Commons чаще всего CC BY-SA, их нужно указывать."""
+    try:
+        response = requests.get(
+            'https://commons.wikimedia.org/w/api.php',
+            params={'action': 'query', 'titles': f'File:{file_name}',
+                    'prop': 'imageinfo', 'iiprop': 'extmetadata', 'format': 'json'},
+            timeout=45,
+            headers={'User-Agent': OSM_USER_AGENT},
+        )
+        pages = response.json().get('query', {}).get('pages', {})
+    except Exception:
+        return 'Wikimedia Commons'
+    for page in pages.values():
+        info = (page.get('imageinfo') or [{}])[0]
+        meta = info.get('extmetadata', {})
+        artist = re.sub(r'<[^>]+>', '', meta.get('Artist', {}).get('value', '') or '').strip()
+        license_name = (meta.get('LicenseShortName', {}).get('value') or '').strip()
+        parts = ['Wikimedia Commons']
+        if artist:
+            parts.append(artist[:120])
+        if license_name:
+            parts.append(license_name)
+        return ' · '.join(parts)[:300]
+    return 'Wikimedia Commons'
+
+
+def download_commons_photo(file_name):
+    """Скачивает фото из Commons и кладёт его как обычное фото стадиона."""
+    url = ('https://commons.wikimedia.org/wiki/Special:FilePath/'
+           + urllib.parse.quote(file_name.replace(' ', '_')) + '?width=1600')
+    try:
+        response = requests.get(url, timeout=90, headers={'User-Agent': OSM_USER_AGENT})
+    except requests.RequestException:
+        return None
+    if response.status_code != 200 or not response.content:
+        return None
+
+    stream = io.BytesIO(response.content)
+    upload = FileStorage(stream=stream, filename=file_name)
+    try:
+        return save_tournament_catalog_photo(upload, 'tournament_stadium')
+    except ValueError:
+        return None
 
 
 def stadium_import_key(name):
@@ -5333,13 +5418,18 @@ def tournament_stadiums_import_osm():
     except ValueError as exc:
         return jsonify({'success': False, 'message': str(exc)}), 400
 
+    photo_files = fetch_wikidata_images([venue.get('wikidata') for venue in venues])
+
     existing = TournamentStadium.query.all()
     existing_keys = {stadium_import_key(item.name) for item in existing}
     existing_points = [(item.latitude, item.longitude) for item in existing
                        if item.latitude is not None and item.longitude is not None]
 
+    venues.sort(key=lambda item: 0 if photo_files.get(item.get('wikidata')) else 1)
+
     added = 0
     skipped = 0
+    with_photo = 0
     for venue in venues:
         key = stadium_import_key(venue['name'])
         if key and key in existing_keys:
@@ -5349,12 +5439,24 @@ def tournament_stadiums_import_osm():
                for lat, lon in existing_points):
             skipped += 1
             continue
+        photo_path = None
+        photo_source = None
+        file_name = photo_files.get(venue.get('wikidata'))
+        if file_name:
+            time.sleep(0.6)
+            photo_path = download_commons_photo(file_name)
+            if photo_path:
+                photo_source = fetch_commons_credit(file_name)
         db.session.add(TournamentStadium(
             name=venue['name'],
             latitude=venue['latitude'],
             longitude=venue['longitude'],
+            photo_path=photo_path,
+            photo_source=photo_source,
             created_by=current_user.id,
         ))
+        if photo_path:
+            with_photo += 1
         existing_keys.add(key)
         existing_points.append((venue['latitude'], venue['longitude']))
         added += 1
@@ -5367,6 +5469,7 @@ def tournament_stadiums_import_osm():
         'found': len(venues),
         'added': added,
         'skipped': skipped,
+        'with_photo': with_photo,
     })
 
 

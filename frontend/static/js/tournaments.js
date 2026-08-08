@@ -368,7 +368,12 @@ function renderStadiums() {
                                             ? `<img src="${escapeHtml(stadium.photo_url)}" alt="">`
                                             : '<i data-lucide="map-pin"></i>'}
                                     </span>
-                                    <strong>${escapeHtml(stadium.name)}</strong>
+                                    <span class="catalog-stadium-name">
+                                        <strong>${escapeHtml(stadium.name)}</strong>
+                                        ${stadium.photo_source
+                                            ? `<small class="stadium-photo-credit">Фото: ${escapeHtml(stadium.photo_source)}</small>`
+                                            : ''}
+                                    </span>
                                 </span>
                             </td>
                             <td data-label="Телефон">${escapeHtml(stadium.owner_phone || '—')}</td>
