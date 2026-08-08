@@ -164,6 +164,75 @@
             box-shadow: 0 0 0 3px rgba(255, 139, 26, .12);
         }
 
+        .field-hint {
+            display: block;
+            margin-top: 6px;
+            color: var(--muted);
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .avatar-slot {
+            display: grid;
+            grid-template-columns: auto minmax(0, 1fr) auto;
+            align-items: center;
+            gap: 14px;
+            margin-bottom: 16px;
+            padding: 12px;
+            border: 1px dashed #d7d9de;
+            border-radius: 14px;
+            cursor: pointer;
+        }
+
+        .avatar-slot:hover {
+            border-color: var(--accent);
+        }
+
+        .avatar-preview {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            background: #f4f1ee center/cover no-repeat;
+            color: #9aa1ab;
+        }
+
+        .avatar-preview svg {
+            width: 26px;
+            height: 26px;
+        }
+
+        .avatar-copy strong {
+            display: block;
+            font-size: 14px;
+        }
+
+        .avatar-copy small {
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .avatar-clear {
+            width: 30px;
+            min-height: 30px;
+            height: 30px;
+            padding: 0;
+            border: 1px solid var(--line);
+            border-radius: 50%;
+            background: #f8f7f6;
+            color: #6b7280;
+            font-size: 17px;
+            line-height: 1;
+        }
+
+        .btn-main:disabled {
+            background: #e7e3df;
+            color: #a8a29b;
+            cursor: not-allowed;
+        }
+
         .row {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -361,6 +430,22 @@
             <h2 id="formTitle">Добавить участника</h2>
             <div class="error" id="formError" hidden></div>
             <form id="memberForm">
+                <label class="avatar-slot">
+                    <input name="photo" type="file" accept="image/*" hidden>
+                    <span class="avatar-preview" id="avatarPreview" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
+                            stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3z" />
+                            <circle cx="12" cy="13" r="3.5" />
+                        </svg>
+                    </span>
+                    <span class="avatar-copy">
+                        <strong>Фото участника</strong>
+                        <small id="avatarHint">Необязательно · нажмите, чтобы выбрать</small>
+                    </span>
+                    <button class="avatar-clear" type="button" id="avatarClear" hidden
+                        aria-label="Убрать фото">&times;</button>
+                </label>
                 <label>
                     <span>Фамилия *</span>
                     <input name="last_name" maxlength="100" autocomplete="off" required>
@@ -370,8 +455,13 @@
                     <input name="first_name" maxlength="100" autocomplete="off" required>
                 </label>
                 <label>
+                    <span>Отчество <small>необяз.</small></span>
+                    <input name="middle_name" maxlength="100" autocomplete="off">
+                </label>
+                <label>
                     <span>Дата рождения *</span>
                     <input name="birth_date" type="date" required>
+                    <small class="field-hint" id="birthHint" hidden></small>
                 </label>
                 <label>
                     <span>Позиция <small>необяз.</small></span>
@@ -392,12 +482,8 @@
                         <input name="phone_primary" type="tel" maxlength="50" placeholder="+998">
                     </label>
                 </div>
-                <label>
-                    <span>Фото <small>необяз.</small></span>
-                    <input name="photo" type="file" accept="image/png,image/jpeg,image/webp">
-                </label>
                 <div class="form-actions" id="formActions">
-                    <button class="btn-main" type="submit" id="submitBtn">Добавить в состав</button>
+                    <button class="btn-main" type="submit" id="submitBtn" disabled>Добавить в состав</button>
                     <button class="btn-ghost" type="button" id="cancelEditBtn" hidden>Отмена</button>
                 </div>
             </form>
@@ -416,7 +502,8 @@
         const TOKEN = {{ share_token | tojson }};
         const API = `/api/team-form/${TOKEN}`;
 
-        const state = { editable: false, members: [], editingId: null };
+        const state = { editable: false, members: [], editingId: null,
+                        allowedYears: [], avatarObjectUrl: null };
         const byId = (id) => document.getElementById(id);
         const form = byId('memberForm');
 
@@ -438,6 +525,63 @@
             return new Intl.DateTimeFormat('ru-RU', {
                 day: '2-digit', month: 'long', hour: '2-digit', minute: '2-digit',
             }).format(dt);
+        }
+
+        const AVATAR_ICON = byId('avatarPreview').innerHTML;
+
+        function setAvatarPreview(url, caption) {
+            const box = byId('avatarPreview');
+            if (url) {
+                box.innerHTML = '';
+                box.style.backgroundImage = `url('${url}')`;
+            } else {
+                box.style.backgroundImage = '';
+                box.innerHTML = AVATAR_ICON;
+            }
+            byId('avatarHint').textContent = caption || 'Необязательно · нажмите, чтобы выбрать';
+            byId('avatarClear').hidden = !url;
+        }
+
+        function releaseAvatarUrl() {
+            if (state.avatarObjectUrl) {
+                URL.revokeObjectURL(state.avatarObjectUrl);
+                state.avatarObjectUrl = null;
+            }
+        }
+
+        function applyBirthYearLimits() {
+            const input = form.birth_date;
+            const hint = byId('birthHint');
+            const years = state.allowedYears;
+            if (!years.length) {
+                input.removeAttribute('min');
+                input.removeAttribute('max');
+                hint.hidden = true;
+                return;
+            }
+            // Календарь ограничиваем краями диапазона, а точное попадание
+            // в список проверяем отдельно — годы могут идти не подряд.
+            input.min = `${years[0]}-01-01`;
+            input.max = `${years[years.length - 1]}-12-31`;
+            hint.textContent = years.length === 1
+                ? `Турнир для ${years[0]} г.р.`
+                : `Турнир для ${years.join(', ')} г.р.`;
+            hint.hidden = false;
+        }
+
+        function birthYearError() {
+            const value = form.birth_date.value;
+            if (!value || !state.allowedYears.length) return '';
+            const year = Number(value.slice(0, 4));
+            if (state.allowedYears.includes(year)) return '';
+            return `Турнир проводится для ${state.allowedYears.join(', ')} г.р. — год рождения не подходит`;
+        }
+
+        function refreshSubmitState() {
+            const filled = form.last_name.value.trim()
+                && form.first_name.value.trim()
+                && form.birth_date.value;
+            byId('submitBtn').disabled = !filled || Boolean(birthYearError());
         }
 
         function showError(message) {
@@ -507,12 +651,15 @@
 
         function resetForm() {
             form.reset();
+            releaseAvatarUrl();
+            setAvatarPreview('');
             state.editingId = null;
             byId('formTitle').textContent = 'Добавить участника';
             byId('submitBtn').textContent = 'Добавить в состав';
             byId('cancelEditBtn').hidden = true;
             byId('formActions').classList.remove('editing');
             showError('');
+            refreshSubmitState();
         }
 
         function startEdit(id) {
@@ -521,11 +668,16 @@
             state.editingId = member.id;
             form.last_name.value = member.last_name || '';
             form.first_name.value = member.first_name || '';
+            form.middle_name.value = member.middle_name || '';
             form.birth_date.value = member.birth_date || '';
             form.team_number.value = member.team_number || '';
             form.position.value = member.position || '';
             form.phone_primary.value = member.phone_primary || '';
             form.photo.value = '';
+            releaseAvatarUrl();
+            setAvatarPreview(member.photo_url || '',
+                member.photo_url ? 'Текущее фото · нажмите, чтобы заменить' : '');
+            refreshSubmitState();
             byId('formTitle').textContent = 'Изменить участника';
             byId('submitBtn').textContent = 'Сохранить';
             byId('cancelEditBtn').hidden = false;
@@ -538,6 +690,9 @@
             const data = await request(API);
             state.editable = data.editable;
             state.members = data.members || [];
+            state.allowedYears = data.allowed_birth_years || [];
+            applyBirthYearLimits();
+            refreshSubmitState();
             byId('teamName').textContent = data.team.name || 'Команда';
             if (data.team.logo_url) {
                 byId('teamLogo').style.backgroundImage = `url('${data.team.logo_url}')`;
@@ -554,6 +709,8 @@
             submitBtn.disabled = true;
             try {
                 showError('');
+                const yearProblem = birthYearError();
+                if (yearProblem) throw new Error(yearProblem);
                 const payload = new FormData(form);
                 if (!payload.get('photo') || !payload.get('photo').name) payload.delete('photo');
                 const editingId = state.editingId;
@@ -566,11 +723,33 @@
             } catch (error) {
                 showError(error.message);
             } finally {
-                submitBtn.disabled = false;
+                refreshSubmitState();
             }
         });
 
         byId('cancelEditBtn').addEventListener('click', resetForm);
+
+        form.addEventListener('input', refreshSubmitState);
+
+        form.photo.addEventListener('change', () => {
+            const file = form.photo.files[0];
+            releaseAvatarUrl();
+            if (!file) {
+                setAvatarPreview('');
+                return;
+            }
+            state.avatarObjectUrl = URL.createObjectURL(file);
+            setAvatarPreview(state.avatarObjectUrl, file.name);
+        });
+
+        byId('avatarClear').addEventListener('click', (event) => {
+            // Слот — это <label>, поэтому клик по крестику не должен открывать выбор файла.
+            event.preventDefault();
+            event.stopPropagation();
+            form.photo.value = '';
+            releaseAvatarUrl();
+            setAvatarPreview('');
+        });
 
         byId('memberList').addEventListener('click', async (event) => {
             const editBtn = event.target.closest('[data-edit]');

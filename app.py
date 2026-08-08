@@ -4895,6 +4895,28 @@ def tournament_start_moment(tournament):
     return datetime.combine(tournament.start_date, start_time)
 
 
+def tournament_allowed_birth_years(tournament):
+    """Годы рождения, разрешённые возрастными группами турнира.
+
+    Считаем только метки-годы («2015», «2015 г.р.»); произвольные вроде «U-12»
+    ограничений не задают. Пустой список означает «без ограничений».
+    """
+    if not tournament:
+        return []
+    try:
+        labels = json.loads(tournament.age_groups or '[]')
+    except Exception:
+        labels = normalize_age_groups(tournament.age_groups)
+    years = set()
+    for label in labels or []:
+        match = re.fullmatch(r"\s*(\d{4})\s*(?:г\.?\s*р\.?)?\s*", str(label or ''), re.IGNORECASE)
+        if match:
+            year = int(match.group(1))
+            if 1900 <= year <= 2100:
+                years.add(year)
+    return sorted(years)
+
+
 def share_link_is_open(link):
     """Ссылка принимает правки, пока не отозвана и турнир не начался."""
     if not link or link.revoked_at:
@@ -5022,6 +5044,7 @@ def share_form_payload(link):
         },
         'deadline': deadline.isoformat() if deadline else None,
         'editable': share_link_is_open(link),
+        'allowed_birth_years': tournament_allowed_birth_years(link.tournament),
         'members': [public_member_payload(member) for member in members],
     }
 
@@ -5049,7 +5072,7 @@ def team_share_form_api(token):
     return jsonify(share_form_payload(link))
 
 
-def apply_public_member_form(member):
+def apply_public_member_form(member, allowed_birth_years=()):
     """Упрощённая форма тренера: обязательны только фамилия, имя и дата рождения."""
     member.last_name = (request.form.get('last_name') or '').strip()
     member.first_name = (request.form.get('first_name') or '').strip()
@@ -5062,6 +5085,9 @@ def apply_public_member_form(member):
         raise ValueError('Укажите фамилию и имя участника')
     if not member.birth_date:
         raise ValueError('Укажите дату рождения в формате дд.мм.гггг')
+    if allowed_birth_years and member.birth_date.year not in allowed_birth_years:
+        years = ', '.join(str(year) for year in allowed_birth_years)
+        raise ValueError(f'Турнир проводится для {years} г.р. — год рождения не подходит')
 
 
 @app.route('/api/team-form/<token>/members', methods=['POST'])
@@ -5073,7 +5099,7 @@ def team_share_form_add_member(token):
         return jsonify({'success': False, 'message': 'Турнир уже начался — состав больше не редактируется'}), 403
     member = TournamentTeamMember(team_id=link.team_id, last_name='', first_name='')
     try:
-        apply_public_member_form(member)
+        apply_public_member_form(member, tournament_allowed_birth_years(link.tournament))
     except ValueError as exc:
         return jsonify({'success': False, 'message': str(exc)}), 400
     photo_file = request.files.get('photo')
@@ -5107,7 +5133,7 @@ def team_share_form_member_detail(token, member_id):
         return jsonify({'success': True})
 
     try:
-        apply_public_member_form(member)
+        apply_public_member_form(member, tournament_allowed_birth_years(link.tournament))
     except ValueError as exc:
         db.session.rollback()
         return jsonify({'success': False, 'message': str(exc)}), 400
