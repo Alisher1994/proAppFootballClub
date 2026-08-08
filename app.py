@@ -1490,6 +1490,7 @@ def ensure_tournament_tables():
         tournament_columns = {col['name'] for col in inspector.get_columns('tournaments')}
         team_columns = {col['name'] for col in inspector.get_columns('tournament_team_catalog')}
         stadium_columns = {col['name'] for col in inspector.get_columns('tournament_stadiums')}
+        member_columns = {col['name'] for col in inspector.get_columns('tournament_team_members')}
         team_column_definitions = {
             'trainer_name': 'VARCHAR(200)',
             'trainer_photo_path': 'VARCHAR(300)',
@@ -1517,6 +1518,10 @@ def ensure_tournament_tables():
                     conn.execute(db.text(
                         f"ALTER TABLE tournament_stadiums ADD COLUMN {column_name} {column_type}"
                     ))
+            if 'position' not in member_columns:
+                conn.execute(db.text(
+                    "ALTER TABLE tournament_team_members ADD COLUMN position VARCHAR(50)"
+                ))
     except Exception as e:
         print(f"Ошибка при проверке таблиц турниров: {e}")
 
@@ -3293,6 +3298,37 @@ def delete_user_photo_files(photo_path):
             print(f"Ошибка при удалении фото сотрудника: {photo_error}")
 
 
+def detect_upload_image_extension(image_file):
+    """Расширение файла по его содержимому, а не по имени.
+
+    Имя доверять нельзя: secure_filename срезает кириллицу вместе с точкой
+    ('логотип.png' -> 'png'), а браузеры и телефоны присылают .jfif, .HEIC
+    и расширения в верхнем регистре. Раньше такие файлы отклонялись
+    с сообщением «Поддерживаются PNG, JPG, WEBP».
+    """
+    try:
+        image_file.stream.seek(0)
+        with Image.open(image_file.stream) as image:
+            image_format = (image.format or '').upper()
+            has_alpha = 'A' in image.getbands()
+    except Exception:
+        raise ValueError('Не удалось прочитать изображение. Загрузите PNG, JPG или WEBP')
+    finally:
+        try:
+            image_file.stream.seek(0)
+        except Exception:
+            pass
+
+    if image_format == 'PNG':
+        return '.png'
+    if image_format == 'JPEG':
+        return '.jpg'
+    if image_format == 'WEBP':
+        return '.webp'
+    # Остальные читаемые форматы (GIF, BMP, TIFF) конвертируем при сохранении.
+    return '.png' if has_alpha else '.jpg'
+
+
 def save_optimized_logo_upload(logo_file, filepath, max_size):
     """Keep uploaded branding visually intact while preventing multi-megabyte originals."""
     extension = os.path.splitext(filepath)[1].lower()
@@ -3314,10 +3350,7 @@ def save_optimized_logo_upload(logo_file, filepath, max_size):
 def save_tournament_team_logo(logo_file, old_logo_path=None):
     if not logo_file or not logo_file.filename:
         return old_logo_path
-    _, ext = os.path.splitext(secure_filename(logo_file.filename))
-    ext = ext.lower()
-    if ext not in {'.png', '.jpg', '.jpeg', '.webp'}:
-        raise ValueError('Поддерживаются PNG, JPG, WEBP')
+    ext = detect_upload_image_extension(logo_file)
 
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
     filename = f"tournament_team_logo_{int(time.time())}_{uuid.uuid4().hex[:8]}{ext}"
@@ -3339,10 +3372,7 @@ def save_tournament_team_logo(logo_file, old_logo_path=None):
 def save_tournament_catalog_photo(photo_file, prefix, old_photo_path=None):
     if not photo_file or not photo_file.filename:
         return old_photo_path
-    _, ext = os.path.splitext(secure_filename(photo_file.filename))
-    ext = ext.lower()
-    if ext not in {'.png', '.jpg', '.jpeg', '.webp'}:
-        raise ValueError('Поддерживаются PNG, JPG, WEBP')
+    ext = detect_upload_image_extension(photo_file)
 
     safe_prefix = re.sub(r'[^a-z0-9_]+', '_', str(prefix).lower()).strip('_')
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
@@ -3379,9 +3409,9 @@ def save_user_photo(photo_file, user_id):
     if not photo_file or not photo_file.filename:
         return None
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-    _, ext = os.path.splitext(secure_filename(photo_file.filename))
-    ext = ext.lower() if ext else '.jpg'
-    if ext not in {'.jpg', '.jpeg', '.png', '.webp'}:
+    try:
+        ext = detect_upload_image_extension(photo_file)
+    except ValueError:
         ext = '.jpg'
     filename = f"user_{user_id}_{int(time.time())}{ext}"
     filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
@@ -4512,6 +4542,14 @@ def serialize_tournament_team_catalog(team):
     }
 
 
+PLAYER_POSITIONS = ('Вратарь', 'Защитник', 'Полузащитник', 'Нападающий')
+
+
+def normalize_player_position(value):
+    label = (value or '').strip()
+    return label if label in PLAYER_POSITIONS else None
+
+
 def serialize_tournament_team_member(member):
     return {
         'id': member.id,
@@ -4527,6 +4565,7 @@ def serialize_tournament_team_member(member):
         'phone_primary': member.phone_primary,
         'phone_secondary': member.phone_secondary,
         'team_number': member.team_number,
+        'position': member.position,
         'created_at': member.created_at.isoformat() if member.created_at else None,
     }
 
@@ -4576,6 +4615,7 @@ def apply_tournament_member_form(member):
     member.phone_primary = (request.form.get('phone_primary') or '').strip() or None
     member.phone_secondary = (request.form.get('phone_secondary') or '').strip() or None
     member.team_number = (request.form.get('team_number') or '').strip() or None
+    member.position = normalize_player_position(request.form.get('position'))
 
 
 @app.route('/tournaments')
@@ -4954,6 +4994,7 @@ def public_member_payload(member):
         'full_name': member.full_name,
         'birth_date': member.birth_date.isoformat() if member.birth_date else None,
         'team_number': member.team_number,
+        'position': member.position,
         'phone_primary': member.phone_primary,
         'photo_url': get_tournament_media_url(member.photo_path),
     }
@@ -4992,7 +5033,12 @@ def team_share_form(token):
         return render_template('team_share_form.html', link_valid=False), 404
     link.last_opened_at = get_local_datetime()
     db.session.commit()
-    return render_template('team_share_form.html', link_valid=True, share_token=token)
+    return render_template(
+        'team_share_form.html',
+        link_valid=True,
+        share_token=token,
+        player_positions=list(PLAYER_POSITIONS),
+    )
 
 
 @app.route('/api/team-form/<token>')
@@ -5010,6 +5056,7 @@ def apply_public_member_form(member):
     member.middle_name = (request.form.get('middle_name') or '').strip() or None
     member.birth_date = parse_date_value(request.form.get('birth_date'))
     member.team_number = (request.form.get('team_number') or '').strip() or None
+    member.position = normalize_player_position(request.form.get('position'))
     member.phone_primary = (request.form.get('phone_primary') or '').strip() or None
     if not member.last_name or not member.first_name:
         raise ValueError('Укажите фамилию и имя участника')
@@ -8597,10 +8644,10 @@ def upload_club_logo():
         if not logo_file or not logo_file.filename:
             return jsonify({'success': False, 'message': 'Выберите файл логотипа'}), 400
 
-        _, ext = os.path.splitext(secure_filename(logo_file.filename))
-        ext = ext.lower()
-        if ext not in {'.png', '.jpg', '.jpeg', '.webp'}:
-            return jsonify({'success': False, 'message': 'Поддерживаются PNG, JPG, WEBP'}), 400
+        try:
+            ext = detect_upload_image_extension(logo_file)
+        except ValueError as exc:
+            return jsonify({'success': False, 'message': str(exc)}), 400
 
         os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
         old_logo = getattr(settings, 'logo_path', None)
@@ -8673,10 +8720,10 @@ def upload_club_square_logo():
         if not logo_file or not logo_file.filename:
             return jsonify({'success': False, 'message': 'Выберите квадратный логотип'}), 400
 
-        _, ext = os.path.splitext(secure_filename(logo_file.filename))
-        ext = ext.lower()
-        if ext not in {'.png', '.jpg', '.jpeg', '.webp'}:
-            return jsonify({'success': False, 'message': 'Поддерживаются PNG, JPG, WEBP'}), 400
+        try:
+            ext = detect_upload_image_extension(logo_file)
+        except ValueError as exc:
+            return jsonify({'success': False, 'message': str(exc)}), 400
 
         os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
         old_logo = getattr(settings, 'square_logo_path', None)

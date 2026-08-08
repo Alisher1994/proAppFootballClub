@@ -782,6 +782,7 @@ function renderTeamDetails(team) {
                         ${member.phone_secondary ? `<small>${escapeHtml(member.phone_secondary)}</small>` : ''}
                     </div>
                 </td>
+                <td data-label="Позиция">${escapeHtml(member.position || '—')}</td>
                 <td data-label="Номер"><span class="team-number-badge">${escapeHtml(member.team_number || '—')}</span></td>
                 <td class="team-member-actions">
                     <button class="icon-button" type="button" data-edit-member="${member.id}" aria-label="Редактировать">
@@ -792,7 +793,7 @@ function renderTeamDetails(team) {
                     </button>
                 </td>
             </tr>`).join('')
-        : `<tr><td colspan="6"><div class="team-members-empty">
+        : `<tr><td colspan="7"><div class="team-members-empty">
             <i data-lucide="users-round"></i>
             <strong>Участников пока нет</strong>
             <span>Добавьте первого игрока в состав команды.</span>
@@ -850,6 +851,7 @@ async function openMemberEditor(id) {
     byId('memberPhonePrimary').value = member.phone_primary || '';
     byId('memberPhoneSecondary').value = member.phone_secondary || '';
     byId('memberTeamNumber').value = member.team_number || '';
+    byId('memberPosition').value = member.position || '';
     setPhotoPreview(
         'memberPhotoPreview',
         'memberPhotoFileName',
@@ -874,6 +876,7 @@ async function saveMember(event) {
     formData.append('phone_primary', byId('memberPhonePrimary').value);
     formData.append('phone_secondary', byId('memberPhoneSecondary').value);
     formData.append('team_number', byId('memberTeamNumber').value);
+    formData.append('position', byId('memberPosition').value);
     const photo = byId('memberPhoto').files[0];
     if (photo) formData.append('photo', photo);
     const editingId = catalogState.editingMemberId;
