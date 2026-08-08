@@ -7,9 +7,10 @@
         document.documentElement.classList.add('theme-light');
         document.documentElement.style.background = '#f5f7fb';
     </script>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Ученики</title>
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='uploads/favicon.png') }}">
+    {% include '_pwa_head.html' %}
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=2026071502">
     <link href="{{ url_for('static', filename='vendor/onest/onest.css') }}" rel="stylesheet">
     <style>
@@ -5192,7 +5193,7 @@
     <script src="{{ url_for('static', filename='js/students_rewards.js') }}"></script>
     <script src="{{ url_for('static', filename='js/students_cards.js') }}"></script>
     <script src="{{ url_for('static', filename='js/students_params.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/sidebar.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/sidebar.js') }}?v=2026080801"></script>
     <script>
         // Сохранение состояния в localStorage
         function savePageState() {

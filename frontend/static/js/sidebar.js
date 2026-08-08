@@ -48,13 +48,27 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
     
-    // Загрузить состояние из localStorage
-    const isCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
-    if (isCollapsed) {
-        sidebar.classList.add('collapsed');
-        document.body.classList.add('sidebar-collapsed');
+    // На мобильной вёрстке sidebar скрыт, но класс `collapsed` продолжал бы
+    // включать десктопные отступы (margin-left: 80px) у .main-content — из-за
+    // этого на Android контент уезжал вправо. Поэтому состояние применяем
+    // только на десктопных ширинах.
+    const desktopLayout = window.matchMedia('(min-width: 769px)');
+
+    function applyCollapsedState() {
+        const isCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
+        const collapsed = desktopLayout.matches && isCollapsed;
+        sidebar.classList.toggle('collapsed', collapsed);
+        document.body.classList.toggle('sidebar-collapsed', collapsed);
+        updateToggleIcon();
     }
-    updateToggleIcon();
+
+    applyCollapsedState();
+
+    if (typeof desktopLayout.addEventListener === 'function') {
+        desktopLayout.addEventListener('change', applyCollapsedState);
+    } else if (typeof desktopLayout.addListener === 'function') {
+        desktopLayout.addListener(applyCollapsedState);
+    }
     
     // Обработчик клика на кнопку переключения
     if (toggleBtn) {

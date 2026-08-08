@@ -521,14 +521,107 @@
             overscroll-behavior-x: none;
         }
 
+        /* Отключаем автоувеличение текста Chrome/Android при крупном системном
+           масштабе — иначе подписи распирают карточки и появляется горизонталь. */
+        html,
         body {
             -webkit-text-size-adjust: 100%;
             text-size-adjust: 100%;
         }
 
+        /* --------------------------------------------------------------
+           Sidebar-зависимые отступы (Android-фикс).
+           На мобильной вёрстке .sidebar скрыт, но правила вида
+           `body:has(.sidebar.collapsed) .game-main-content { margin-left: 80px }`
+           имеют более высокую специфичность, чем мобильные переопределения,
+           и продолжали сдвигать контент вправо, если в localStorage осталось
+           состояние свёрнутого меню. Здесь гасим их все разом.
+           -------------------------------------------------------------- */
+        body .main-content,
+        body .game-main-content,
+        body .main-content.game-main-content,
+        body.sidebar-collapsed .main-content,
+        body.sidebar-collapsed .game-main-content,
+        body.sidebar-collapsed .main-content.game-main-content,
+        body:has(.sidebar) .main-content,
+        body:has(.sidebar.collapsed) .main-content,
+        body:has(.sidebar.collapsed) .game-main-content,
+        body:has(.sidebar.collapsed) .main-content.game-main-content,
+        .sidebar ~ .main-content,
+        .sidebar ~ .main-content.game-main-content,
+        .sidebar.collapsed ~ .main-content,
+        .sidebar.collapsed ~ .main-content.game-main-content {
+            margin-left: 0 !important;
+            margin-right: 0 !important;
+            width: 100% !important;
+            max-width: 100% !important;
+        }
+
+        body .game-filter-panel,
+        body.sidebar-collapsed .game-filter-panel,
+        body:has(.sidebar.collapsed) .game-filter-panel,
+        .sidebar ~ .main-content .game-filter-panel,
+        .sidebar.collapsed ~ .main-content .game-filter-panel {
+            left: 0 !important;
+            right: 0 !important;
+            width: 100% !important;
+            max-width: 100% !important;
+        }
+
+        /* Любой fixed-оверлей должен раскрываться на весь экран, а не от края
+           несуществующего sidebar. */
+        .modal,
+        .modal-overlay,
+        .mobile-more-overlay,
+        .tournament-catalog-modal,
+        .game-filter-panel {
+            left: 0 !important;
+            right: 0 !important;
+            width: 100% !important;
+            max-width: 100vw !important;
+        }
+
+        /* --------------------------------------------------------------
+           Устойчивость к системному масштабу Android (Display size / Font size).
+           При крупном масштабе вьюпорт становится узким — блокируем любые
+           источники горизонтального переполнения и жёсткие ширины.
+           -------------------------------------------------------------- */
+        img,
+        svg,
+        video,
+        canvas,
+        iframe {
+            max-width: 100% !important;
+        }
+
+        /* Подписи нижнего меню не должны разъезжаться при крупном системном
+           шрифте — сжимаем их вместо переполнения. */
+        .mobile-nav-item span {
+            display: block;
+            max-width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        /* Длинные слова (ФИО, названия групп) переносим, а не выталкиваем наружу. */
+        .main-content h1,
+        .main-content h2,
+        .main-content h3,
+        .game-main-content h1,
+        .game-main-content h2,
+        .game-main-content h3 {
+            overflow-wrap: anywhere;
+        }
+
         .mobile-nav {
             height: var(--mobile-nav-height) !important;
-            padding: 0 8px env(safe-area-inset-bottom) !important;
+            /* viewport-fit=cover: учитываем вырезы и жестовую панель */
+            padding:
+                0
+                calc(8px + env(safe-area-inset-right))
+                env(safe-area-inset-bottom)
+                calc(8px + env(safe-area-inset-left)) !important;
         }
 
         .mobile-nav-item {
@@ -578,8 +671,8 @@
 
         main.main-content:not(.game-main-content) {
             padding-top: 14px !important;
-            padding-right: var(--mobile-page-pad) !important;
-            padding-left: var(--mobile-page-pad) !important;
+            padding-right: calc(var(--mobile-page-pad) + env(safe-area-inset-right)) !important;
+            padding-left: calc(var(--mobile-page-pad) + env(safe-area-inset-left)) !important;
         }
 
         .game-layout,
@@ -1357,6 +1450,31 @@
 
         .tournament-catalog-toolbar-actions .btn-primary {
             width: 100% !important;
+        }
+    }
+
+    /* Крупный системный масштаб Android сужает вьюпорт до ~320-360 CSS px. */
+    @media (max-width: 360px) {
+        :root {
+            --mobile-page-pad: 8px;
+        }
+
+        .mobile-nav-item {
+            font-size: 9px !important;
+        }
+
+        .mobile-nav-item svg {
+            width: 20px !important;
+            height: 20px !important;
+        }
+
+        .mobile-more-grid {
+            gap: 14px 8px !important;
+        }
+
+        .more-menu-item .item-icon {
+            width: 46px !important;
+            height: 46px !important;
         }
     }
 

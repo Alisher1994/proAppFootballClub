@@ -1,0 +1,18 @@
+{# PWA: манифест, иконки и регистрация service worker. Подключается в <head> каждой страницы. #}
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="application-name" content="FK Karasu">
+<meta name="apple-mobile-web-app-title" content="FK Karasu">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#ff8a00">
+<link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='pwa/apple-touch-icon.png') }}">
+<link rel="icon" type="image/png" sizes="192x192" href="{{ url_for('static', filename='pwa/icon-192.png') }}">
+<link rel="icon" type="image/png" sizes="512x512" href="{{ url_for('static', filename='pwa/icon-512.png') }}">
+<script>
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => { });
+        });
+    }
+</script>

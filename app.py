@@ -2496,6 +2496,8 @@ SERVICE_LOCK_BYPASS_PATH_PREFIXES = (
     '/static/',
     '/media/photo-thumb/',
     '/favicon.ico',
+    '/manifest.webmanifest',
+    '/sw.js',
     '/api/service-control/state',
     '/api/telegram/service-control/status',
     '/api/telegram/service-control/toggle',
@@ -2553,6 +2555,33 @@ def enforce_service_lock():
         'message': lock_payload.get('message'),
         'phone': lock_payload.get('support_phone')
     }), 423
+
+
+# ===== PWA =====
+
+@app.route('/manifest.webmanifest')
+def pwa_manifest():
+    """Манифест PWA. Отдаётся из корня, чтобы scope охватывал всё приложение."""
+    response = send_from_directory(
+        os.path.join(app.static_folder, 'pwa'),
+        'manifest.webmanifest',
+        mimetype='application/manifest+json'
+    )
+    response.headers['Cache-Control'] = 'public, max-age=3600'
+    return response
+
+
+@app.route('/sw.js')
+def pwa_service_worker():
+    """Service worker должен отдаваться из корня — иначе scope ограничится /static/."""
+    response = send_from_directory(
+        os.path.join(app.static_folder, 'pwa'),
+        'sw.js',
+        mimetype='application/javascript'
+    )
+    response.headers['Cache-Control'] = 'no-cache'
+    response.headers['Service-Worker-Allowed'] = '/'
+    return response
 
 
 # ===== МАРШРУТЫ АВТОРИЗАЦИИ =====
