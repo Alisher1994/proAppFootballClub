@@ -8,7 +8,7 @@
     {% include '_pwa_head.html' %}
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/onest/onest.css') }}">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=2026080802">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=2026080803">
 </head>
 <body>
     {% include '_sidebar.html' %}
@@ -429,7 +429,7 @@
                     <select id="teamShareTournament">
                         <option value="">Выберите турнир</option>
                     </select>
-                    <small>Дедлайн правок — дата и время начала турнира.</small>
+                    <small>Дедлайн правок — дата и время начала турнира. Адрес ссылки при смене турнира не меняется.</small>
                 </label>
                 <div class="tournament-catalog-form-error" id="teamShareError" hidden></div>
 
@@ -445,8 +445,7 @@
                     </div>
                 </div>
 
-                <footer class="tournament-catalog-form-actions full">
-                    <button class="btn-secondary" type="button" data-close-modal="teamShareModal">Закрыть</button>
+                <footer class="tournament-catalog-form-actions full team-share-footer">
                     <button class="btn-primary" type="button" id="createTeamShareLink">Создать ссылку</button>
                 </footer>
             </div>
@@ -514,6 +513,6 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="{{ url_for('static', filename='js/sidebar.js') }}?v=2026080801"></script>
     <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/tournaments.js') }}?v=2026080802"></script>
+    <script src="{{ url_for('static', filename='js/tournaments.js') }}?v=2026080803"></script>
 </body>
 </html>

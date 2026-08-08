@@ -4920,10 +4920,14 @@ def tournament_team_share_api(team_id):
     if not tournament_start_moment(tournament):
         return jsonify({'success': False, 'message': 'У турнира не заполнена дата начала'}), 400
 
-    # Активная ссылка всегда одна: прежнюю отзываем, чтобы старый адрес перестал работать.
-    previous = get_active_share_link(team_id)
-    if previous:
-        previous.revoked_at = get_local_datetime()
+    # Ссылка на команду одна и не меняется: при смене турнира правим срок,
+    # а адрес остаётся прежним, чтобы тренеру не пришлось рассылать новый.
+    link = get_active_share_link(team_id)
+    if link:
+        link.tournament_id = tournament.id
+        db.session.commit()
+        return jsonify({'success': True, 'link': serialize_team_share_link(link)})
+
     link = TournamentTeamShareLink(
         team_id=team_id,
         tournament_id=tournament.id,

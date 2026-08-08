@@ -10969,6 +10969,11 @@ main.main-content.tournaments-page .tournament-action-btn.danger:hover {
     line-height: 1.5;
 }
 
+/* display у .team-share-result перебивал бы браузерный [hidden] */
+.team-share-result[hidden] {
+    display: none;
+}
+
 .team-share-result {
     display: grid;
     gap: 10px;

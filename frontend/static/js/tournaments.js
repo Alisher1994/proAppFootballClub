@@ -962,7 +962,6 @@ function renderShareTournamentOptions(selectedId) {
     );
     select.innerHTML = options.join('');
     if (selectedId) select.value = String(selectedId);
-    byId('createTeamShareLink').textContent = catalogState.shareLink ? 'Пересоздать ссылку' : 'Создать ссылку';
     if (!upcoming.length) {
         showFormError('teamShareError', 'Нет предстоящих турниров — сначала создайте турнир с датой начала.');
     }
@@ -971,9 +970,9 @@ function renderShareTournamentOptions(selectedId) {
 function renderShareLink() {
     const link = catalogState.shareLink;
     const result = byId('teamShareResult');
+    byId('createTeamShareLink').textContent = link ? 'Сохранить срок' : 'Создать ссылку';
     if (!link) {
         result.hidden = true;
-        byId('createTeamShareLink').textContent = 'Создать ссылку';
         return;
     }
     result.hidden = false;
@@ -987,7 +986,6 @@ function renderShareLink() {
         status.className = 'team-share-status closed';
         status.textContent = 'Турнир начался — форма открывается только на чтение.';
     }
-    byId('createTeamShareLink').textContent = 'Пересоздать ссылку';
 }
 
 async function openTeamShare(teamId) {
@@ -1017,8 +1015,6 @@ async function createTeamShareLink() {
         showFormError('teamShareError', 'Выберите турнир');
         return;
     }
-    if (catalogState.shareLink
-        && !window.confirm('Прежняя ссылка перестанет работать. Создать новую?')) return;
     try {
         showFormError('teamShareError');
         const data = await apiJson(`/api/tournament-team-catalog/${teamId}/share`, {
