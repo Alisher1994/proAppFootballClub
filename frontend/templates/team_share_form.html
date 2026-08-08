@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Состав команды — FK Karasu</title>
+    <meta name="robots" content="noindex, nofollow">
+    <meta name="theme-color" content="#ff8a00">
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='pwa/icon-192.png') }}">
+    <link href="{{ url_for('static', filename='vendor/onest/onest.css') }}" rel="stylesheet">
+    <style>
+        :root {
+            color-scheme: light;
+            --line: #e4ddd6;
+            --muted: #6b7280;
+            --accent: #ff8a00;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            min-height: 100dvh;
+            padding: 0 0 calc(28px + env(safe-area-inset-bottom));
+            background: linear-gradient(135deg, #f4f1ee 0%, #e8e1da 100%);
+            color: #17191f;
+            font-family: 'Onest', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+            font-size: 15px;
+            line-height: 1.5;
+            -webkit-text-size-adjust: 100%;
+            text-size-adjust: 100%;
+        }
+
+        .wrap {
+            width: 100%;
+            max-width: 560px;
+            margin: 0 auto;
+            padding: 0 14px;
+        }
+
+        .topbar {
+            position: sticky;
+            top: 0;
+            z-index: 5;
+            margin-bottom: 14px;
+            padding: calc(14px + env(safe-area-inset-top)) 0 14px;
+            background: linear-gradient(135deg, #f4f1ee 0%, #e8e1da 100%);
+            border-bottom: 1px solid var(--line);
+        }
+
+        .team-head {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .team-logo {
+            flex: 0 0 auto;
+            width: 48px;
+            height: 48px;
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            background: #fff center/cover no-repeat;
+        }
+
+        .team-head h1 {
+            margin: 0;
+            font-size: 19px;
+            line-height: 1.25;
+            overflow-wrap: anywhere;
+        }
+
+        .team-head p {
+            margin: 2px 0 0;
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        .card {
+            margin-bottom: 14px;
+            padding: 16px;
+            border: 1px solid var(--line);
+            border-radius: 16px;
+            background: #fff;
+        }
+
+        .notice {
+            display: flex;
+            gap: 10px;
+            padding: 12px 14px;
+            border-radius: 12px;
+            font-size: 13px;
+            line-height: 1.45;
+        }
+
+        .notice.open {
+            background: #fff5eb;
+            border: 1px solid #ffd9b0;
+            color: #8a4a06;
+        }
+
+        .notice.closed {
+            background: #f1f3f5;
+            border: 1px solid #dfe1e5;
+            color: #4b5563;
+        }
+
+        h2 {
+            margin: 0 0 12px;
+            font-size: 15px;
+            font-weight: 750;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 12px;
+        }
+
+        label > span {
+            display: block;
+            margin-bottom: 6px;
+            color: #444a54;
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        label small {
+            color: var(--muted);
+            font-weight: 500;
+        }
+
+        input {
+            width: 100%;
+            min-height: 46px;
+            padding: 0 13px;
+            border: 1px solid #dfe1e5;
+            border-radius: 11px;
+            background: #fff;
+            color: #25282d;
+            font: inherit;
+            font-size: 16px;
+            outline: none;
+        }
+
+        input[type="file"] {
+            padding: 10px 13px;
+            height: auto;
+        }
+
+        input:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(255, 139, 26, .12);
+        }
+
+        .row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        button {
+            min-height: 46px;
+            padding: 0 16px;
+            border: 0;
+            border-radius: 11px;
+            font: inherit;
+            font-weight: 650;
+            cursor: pointer;
+            touch-action: manipulation;
+        }
+
+        .btn-main {
+            width: 100%;
+            background: linear-gradient(135deg, #ff8a00 0%, #d96f00 100%);
+            color: #fff;
+        }
+
+        .btn-ghost {
+            background: #f8f7f6;
+            border: 1px solid var(--line);
+            color: #444a54;
+        }
+
+        .form-actions {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 8px;
+        }
+
+        .form-actions.editing {
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .error {
+            margin-bottom: 12px;
+            padding: 10px 12px;
+            border: 1px solid #fecaca;
+            border-radius: 10px;
+            background: #fef2f2;
+            color: #b91c1c;
+            font-size: 13px;
+        }
+
+        .member {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 11px 0;
+            border-bottom: 1px solid #f1f0ee;
+        }
+
+        .member:last-child { border-bottom: 0; }
+
+        .member-avatar {
+            flex: 0 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            background: #f4f1ee center/cover no-repeat;
+            color: #9aa1ab;
+            font-size: 14px;
+            font-weight: 700;
+        }
+
+        .member-info {
+            flex: 1 1 auto;
+            min-width: 0;
+        }
+
+        .member-name {
+            font-weight: 650;
+            overflow-wrap: anywhere;
+        }
+
+        .member-meta {
+            color: var(--muted);
+            font-size: 12.5px;
+        }
+
+        .member-actions {
+            flex: 0 0 auto;
+            display: flex;
+            gap: 6px;
+        }
+
+        .member-actions button {
+            min-height: 34px;
+            padding: 0 10px;
+            font-size: 12.5px;
+        }
+
+        .empty {
+            padding: 18px 0;
+            color: var(--muted);
+            font-size: 13.5px;
+            text-align: center;
+        }
+
+        .count {
+            color: var(--muted);
+            font-weight: 500;
+        }
+
+        .invalid {
+            max-width: 420px;
+            margin: 18vh auto 0;
+            padding: 26px 22px;
+            border: 1px solid var(--line);
+            border-radius: 16px;
+            background: #fff;
+            text-align: center;
+        }
+
+        @media (max-width: 380px) {
+            .row { grid-template-columns: 1fr; }
+            .form-actions.editing { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+
+<body>
+    {% if not link_valid %}
+    <div class="wrap">
+        <div class="invalid">
+            <h1 style="font-size:19px;margin:0 0 8px">Ссылка недействительна</h1>
+            <p style="margin:0;color:#6b7280;font-size:14px">
+                Ссылка отозвана или указана с ошибкой. Запросите новую у организатора турнира.
+            </p>
+        </div>
+    </div>
+    {% else %}
+    <div class="topbar">
+        <div class="wrap">
+            <div class="team-head">
+                <div class="team-logo" id="teamLogo"></div>
+                <div style="min-width:0">
+                    <h1 id="teamName">Загрузка…</h1>
+                    <p id="tournamentInfo"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="wrap">
+        <div class="notice" id="statusNotice" hidden></div>
+
+        <section class="card" id="formCard" hidden>
+            <h2 id="formTitle">Добавить участника</h2>
+            <div class="error" id="formError" hidden></div>
+            <form id="memberForm">
+                <label>
+                    <span>Фамилия *</span>
+                    <input name="last_name" maxlength="100" autocomplete="off" required>
+                </label>
+                <label>
+                    <span>Имя *</span>
+                    <input name="first_name" maxlength="100" autocomplete="off" required>
+                </label>
+                <label>
+                    <span>Дата рождения *</span>
+                    <input name="birth_date" type="date" required>
+                </label>
+                <div class="row">
+                    <label>
+                        <span>Номер <small>необяз.</small></span>
+                        <input name="team_number" maxlength="30" inputmode="numeric" autocomplete="off">
+                    </label>
+                    <label>
+                        <span>Телефон <small>необяз.</small></span>
+                        <input name="phone_primary" type="tel" maxlength="50" placeholder="+998">
+                    </label>
+                </div>
+                <label>
+                    <span>Фото <small>необяз.</small></span>
+                    <input name="photo" type="file" accept="image/png,image/jpeg,image/webp">
+                </label>
+                <div class="form-actions" id="formActions">
+                    <button class="btn-main" type="submit" id="submitBtn">Добавить в состав</button>
+                    <button class="btn-ghost" type="button" id="cancelEditBtn" hidden>Отмена</button>
+                </div>
+            </form>
+        </section>
+
+        <section class="card">
+            <h2>Состав команды <span class="count" id="memberCount"></span></h2>
+            <div id="memberList">
+                <div class="empty">Загрузка…</div>
+            </div>
+        </section>
+    </div>
+
+    <script>
+        const TOKEN = {{ share_token | tojson }};
+        const API = `/api/team-form/${TOKEN}`;
+
+        const state = { editable: false, members: [], editingId: null };
+        const byId = (id) => document.getElementById(id);
+        const form = byId('memberForm');
+
+        function escapeHtml(value) {
+            const node = document.createElement('div');
+            node.textContent = value == null ? '' : String(value);
+            return node.innerHTML;
+        }
+
+        function formatDate(value) {
+            if (!value) return '';
+            const [y, m, d] = String(value).split('-');
+            return `${d}.${m}.${y}`;
+        }
+
+        function formatDeadline(value) {
+            if (!value) return '';
+            const dt = new Date(value);
+            return new Intl.DateTimeFormat('ru-RU', {
+                day: '2-digit', month: 'long', hour: '2-digit', minute: '2-digit',
+            }).format(dt);
+        }
+
+        function showError(message) {
+            const box = byId('formError');
+            box.textContent = message || '';
+            box.hidden = !message;
+        }
+
+        async function request(url, options = {}) {
+            const response = await fetch(url, { credentials: 'same-origin', ...options });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok || data.success === false) {
+                throw new Error(data.message || 'Не удалось выполнить действие');
+            }
+            return data;
+        }
+
+        function renderMembers() {
+            const list = byId('memberList');
+            byId('memberCount').textContent = state.members.length ? `· ${state.members.length}` : '';
+            if (!state.members.length) {
+                list.innerHTML = '<div class="empty">Пока никого нет. Добавьте первого участника.</div>';
+                return;
+            }
+            list.innerHTML = state.members.map((member) => {
+                const initials = `${(member.last_name || '')[0] || ''}${(member.first_name || '')[0] || ''}`;
+                const avatar = member.photo_url
+                    ? `<div class="member-avatar" style="background-image:url('${escapeHtml(member.photo_url)}')"></div>`
+                    : `<div class="member-avatar">${escapeHtml(initials.toUpperCase())}</div>`;
+                const meta = [formatDate(member.birth_date), member.team_number ? `№${escapeHtml(member.team_number)}` : '']
+                    .filter(Boolean).join(' · ');
+                const actions = state.editable ? `
+                    <div class="member-actions">
+                        <button class="btn-ghost" type="button" data-edit="${member.id}">Изм.</button>
+                        <button class="btn-ghost" type="button" data-delete="${member.id}">Удал.</button>
+                    </div>` : '';
+                return `
+                    <div class="member">
+                        ${avatar}
+                        <div class="member-info">
+                            <div class="member-name">${escapeHtml(member.full_name)}</div>
+                            <div class="member-meta">${meta}</div>
+                        </div>
+                        ${actions}
+                    </div>`;
+            }).join('');
+        }
+
+        function renderStatus(data) {
+            const notice = byId('statusNotice');
+            if (data.editable) {
+                notice.className = 'notice open';
+                notice.textContent = `Состав можно изменять до начала турнира — ${formatDeadline(data.deadline)}. `
+                    + 'После этого правки вносит только организатор.';
+            } else {
+                notice.className = 'notice closed';
+                notice.textContent = 'Турнир уже начался — состав закрыт для изменений. '
+                    + 'По вопросам обращайтесь к организатору.';
+            }
+            notice.hidden = false;
+            byId('formCard').hidden = !data.editable;
+        }
+
+        function resetForm() {
+            form.reset();
+            state.editingId = null;
+            byId('formTitle').textContent = 'Добавить участника';
+            byId('submitBtn').textContent = 'Добавить в состав';
+            byId('cancelEditBtn').hidden = true;
+            byId('formActions').classList.remove('editing');
+            showError('');
+        }
+
+        function startEdit(id) {
+            const member = state.members.find((item) => Number(item.id) === Number(id));
+            if (!member) return;
+            state.editingId = member.id;
+            form.last_name.value = member.last_name || '';
+            form.first_name.value = member.first_name || '';
+            form.birth_date.value = member.birth_date || '';
+            form.team_number.value = member.team_number || '';
+            form.phone_primary.value = member.phone_primary || '';
+            form.photo.value = '';
+            byId('formTitle').textContent = 'Изменить участника';
+            byId('submitBtn').textContent = 'Сохранить';
+            byId('cancelEditBtn').hidden = false;
+            byId('formActions').classList.add('editing');
+            showError('');
+            byId('formCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        async function load() {
+            const data = await request(API);
+            state.editable = data.editable;
+            state.members = data.members || [];
+            byId('teamName').textContent = data.team.name || 'Команда';
+            if (data.team.logo_url) {
+                byId('teamLogo').style.backgroundImage = `url('${data.team.logo_url}')`;
+            }
+            byId('tournamentInfo').textContent = [data.tournament.name, data.tournament.location]
+                .filter(Boolean).join(' · ');
+            renderStatus(data);
+            renderMembers();
+        }
+
+        form.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const submitBtn = byId('submitBtn');
+            submitBtn.disabled = true;
+            try {
+                showError('');
+                const payload = new FormData(form);
+                if (!payload.get('photo') || !payload.get('photo').name) payload.delete('photo');
+                const editingId = state.editingId;
+                await request(editingId ? `${API}/members/${editingId}` : `${API}/members`, {
+                    method: editingId ? 'PUT' : 'POST',
+                    body: payload,
+                });
+                resetForm();
+                await load();
+            } catch (error) {
+                showError(error.message);
+            } finally {
+                submitBtn.disabled = false;
+            }
+        });
+
+        byId('cancelEditBtn').addEventListener('click', resetForm);
+
+        byId('memberList').addEventListener('click', async (event) => {
+            const editBtn = event.target.closest('[data-edit]');
+            const deleteBtn = event.target.closest('[data-delete]');
+            if (editBtn) startEdit(editBtn.dataset.edit);
+            if (!deleteBtn) return;
+            const member = state.members.find((item) => Number(item.id) === Number(deleteBtn.dataset.delete));
+            if (!member || !window.confirm(`Удалить ${member.full_name} из состава?`)) return;
+            try {
+                await request(`${API}/members/${member.id}`, { method: 'DELETE' });
+                if (Number(state.editingId) === Number(member.id)) resetForm();
+                await load();
+            } catch (error) {
+                window.alert(error.message);
+            }
+        });
+
+        load().catch((error) => {
+            byId('memberList').innerHTML = `<div class="empty">${escapeHtml(error.message)}</div>`;
+        });
+    </script>
+    {% endif %}
+</body>
+
+</html>

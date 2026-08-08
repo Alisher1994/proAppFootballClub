@@ -762,6 +762,31 @@ class TournamentTeamMember(db.Model):
         return f'<TournamentTeamMember {self.full_name}>'
 
 
+class TournamentTeamShareLink(db.Model):
+    """Ссылка, по которой тренер сам заполняет состав своей команды.
+
+    Правки принимаются до начала выбранного турнира; после этого форма
+    открывается только на чтение, а состав редактируется внутри системы.
+    """
+    __tablename__ = 'tournament_team_share_links'
+
+    id = db.Column(db.Integer, primary_key=True)
+    team_id = db.Column(db.Integer, db.ForeignKey('tournament_team_catalog.id'), nullable=False, index=True)
+    tournament_id = db.Column(db.Integer, db.ForeignKey('tournaments.id'), nullable=False, index=True)
+    token = db.Column(db.String(64), nullable=False, unique=True, index=True)
+    created_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    created_at = db.Column(db.DateTime, default=get_local_datetime)
+    revoked_at = db.Column(db.DateTime, nullable=True)
+    last_opened_at = db.Column(db.DateTime, nullable=True)
+
+    team = db.relationship('TournamentTeamCatalog', foreign_keys=[team_id])
+    tournament = db.relationship('Tournament', foreign_keys=[tournament_id])
+    creator = db.relationship('User', foreign_keys=[created_by])
+
+    def __repr__(self):
+        return f'<TournamentTeamShareLink team={self.team_id} tournament={self.tournament_id}>'
+
+
 class TournamentStadium(db.Model):
     """Справочник стадионов с координатами на карте."""
     __tablename__ = 'tournament_stadiums'

@@ -13,6 +13,11 @@ const catalogState = {
     stadiumPhotoObjectUrl: null,
     stadiumMap: null,
     stadiumMarker: null,
+    stadiumReturnToTournament: false,
+    shareTeamId: null,
+    shareLink: null,
+    tournamentLocation: '',
+    tournamentAgeGroups: [],
     activeFilterTab: 'tournaments',
     filters: {
         tournaments: { search: '', location: '', age: '' },
@@ -22,6 +27,9 @@ const catalogState = {
 };
 
 const byId = (id) => document.getElementById(id);
+
+const AGE_GROUP_MIN_YEAR = 1980;
+const ADD_STADIUM_OPTION = '__add_stadium__';
 
 function escapeHtml(value) {
     const node = document.createElement('div');
@@ -241,7 +249,7 @@ function renderTeams() {
     if (!teams.length) {
         byId('teamList').innerHTML = emptyCatalogMarkup(
             'shield',
-            catalogState.teams.length ? 'Ничего не найдено' : 'База команд пуста',
+            catalogState.teams.length ? 'Ничего не найдено' : 'Команд пока нет',
             catalogState.teams.length
                 ? 'Измените поисковый запрос или сбросьте фильтры.'
                 : 'Добавьте название и логотип первой команды.',
@@ -300,6 +308,10 @@ function renderTeams() {
                                         <i data-lucide="ellipsis-vertical"></i>
                                     </summary>
                                     <div class="team-actions-popover">
+                                        <button class="catalog-menu-action" type="button" data-share-team="${team.id}">
+                                            <i data-lucide="share-2"></i>
+                                            Поделиться
+                                        </button>
                                         <button class="catalog-menu-action" type="button" data-edit-team="${team.id}">
                                             <i data-lucide="pencil"></i>
                                             Редактировать
@@ -420,6 +432,7 @@ async function loadStadiums() {
     const data = await apiJson('/api/tournament-stadiums');
     catalogState.stadiums = data.stadiums || [];
     renderStadiums();
+    renderStadiumOptions();
 }
 
 function openModal(id) {
@@ -431,6 +444,7 @@ function openModal(id) {
 
 function closeModal(id) {
     byId(id).hidden = true;
+    if (id === 'stadiumModal') catalogState.stadiumReturnToTournament = false;
     if (!document.querySelector('.tournament-catalog-modal:not([hidden])')) {
         document.body.classList.remove('modal-open');
     }
@@ -442,10 +456,113 @@ function showFormError(id, message = '') {
     element.hidden = !message;
 }
 
+/* --- Локация: выпадающий список стадионов с быстрым добавлением --- */
+
+function renderStadiumOptions(selectedName) {
+    const select = byId('tournamentLocation');
+    if (!select) return;
+    const current = selectedName !== undefined ? selectedName : catalogState.tournamentLocation;
+    const names = catalogState.stadiums.map((item) => item.name).filter(Boolean);
+    const options = ['<option value="">Выберите стадион</option>'];
+    // Локация турниров, созданных до появления справочника, не должна теряться.
+    if (current && !names.includes(current)) {
+        options.push(`<option value="${escapeHtml(current)}">${escapeHtml(current)}</option>`);
+    }
+    names.forEach((name) => {
+        options.push(`<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`);
+    });
+    options.push(`<option value="${ADD_STADIUM_OPTION}">+ Добавить стадион…</option>`);
+    select.innerHTML = options.join('');
+    select.value = current || '';
+    catalogState.tournamentLocation = select.value;
+}
+
+function handleTournamentLocationChange(event) {
+    const select = event.target;
+    if (select.value !== ADD_STADIUM_OPTION) {
+        catalogState.tournamentLocation = select.value;
+        return;
+    }
+    // Возвращаем прежний выбор и открываем создание стадиона поверх окна турнира.
+    select.value = catalogState.tournamentLocation || '';
+    openStadiumCreator({ returnToTournament: true });
+}
+
+/* --- Возрастные группы: годы с 1980 по текущий + произвольные значения --- */
+
+function ageGroupYears() {
+    const years = [];
+    for (let year = new Date().getFullYear(); year >= AGE_GROUP_MIN_YEAR; year -= 1) {
+        years.push(year);
+    }
+    return years;
+}
+
+function renderAgeGroupYearOptions() {
+    const select = byId('tournamentAgeGroupYear');
+    if (!select) return;
+    // Список строится при каждом открытии формы, поэтому новый год появляется сам.
+    select.innerHTML = ['<option value="">Добавить год…</option>']
+        .concat(ageGroupYears().map((year) => `<option value="${year}">${year}</option>`))
+        .join('');
+}
+
+function renderAgeGroupChips() {
+    const container = byId('tournamentAgeGroupChips');
+    if (!container) return;
+    const values = catalogState.tournamentAgeGroups;
+    container.innerHTML = values.length
+        ? values.map((value, index) => `
+            <span class="age-group-chip">
+                ${escapeHtml(value)}
+                <button type="button" data-remove-age-group="${index}"
+                    aria-label="Убрать ${escapeHtml(value)}">&times;</button>
+            </span>
+        `).join('')
+        : '<span class="age-group-empty">Группы не выбраны</span>';
+    byId('tournamentAgeGroups').value = values.join(', ');
+}
+
+function setAgeGroups(values) {
+    const list = [];
+    (values || []).forEach((item) => {
+        const label = String(item == null ? '' : item).trim();
+        if (label && !list.includes(label)) list.push(label);
+    });
+    catalogState.tournamentAgeGroups = list;
+    renderAgeGroupChips();
+}
+
+function addAgeGroup(value) {
+    const label = String(value == null ? '' : value).trim();
+    if (!label) return;
+    if (!catalogState.tournamentAgeGroups.includes(label)) {
+        catalogState.tournamentAgeGroups.push(label);
+    }
+    renderAgeGroupChips();
+}
+
+function removeAgeGroup(index) {
+    catalogState.tournamentAgeGroups.splice(Number(index), 1);
+    renderAgeGroupChips();
+}
+
+function addCustomAgeGroup() {
+    const input = byId('tournamentAgeGroupCustom');
+    // Одной строкой можно добавить сразу несколько групп через запятую.
+    String(input.value || '').split(/[,;]+/).forEach(addAgeGroup);
+    input.value = '';
+}
+
 function resetTournamentForm() {
     catalogState.editingTournamentId = null;
     byId('tournamentForm').reset();
     byId('tournamentModalTitle').textContent = 'Новый турнир';
+    catalogState.tournamentLocation = '';
+    renderStadiumOptions('');
+    renderAgeGroupYearOptions();
+    setAgeGroups([]);
+    byId('tournamentAgeGroupCustom').value = '';
     showFormError('tournamentFormError');
 }
 
@@ -458,8 +575,10 @@ function openTournamentEditor(id) {
     byId('tournamentStartDate').value = item.start_date || '';
     byId('tournamentStartTime').value = item.start_time || '';
     byId('tournamentEndDate').value = item.end_date || '';
-    byId('tournamentLocation').value = item.location || '';
-    byId('tournamentAgeGroups').value = (item.age_groups || []).join(', ');
+    renderStadiumOptions(item.location || '');
+    renderAgeGroupYearOptions();
+    setAgeGroups(item.age_groups || []);
+    byId('tournamentAgeGroupCustom').value = '';
     showFormError('tournamentFormError');
     openModal('tournamentModal');
 }
@@ -469,6 +588,11 @@ async function saveTournament(event) {
     const editingId = catalogState.editingTournamentId;
     try {
         showFormError('tournamentFormError');
+        // Скрытое поле не участвует в проверке браузера — валидируем вручную.
+        if (!catalogState.tournamentAgeGroups.length) {
+            showFormError('tournamentFormError', 'Добавьте хотя бы одну возрастную группу');
+            return;
+        }
         await apiJson(editingId ? `/api/tournaments/${editingId}` : '/api/tournaments', {
             method: editingId ? 'PUT' : 'POST',
             body: JSON.stringify({
@@ -814,6 +938,127 @@ function ensureStadiumMap(latitude = 41.3111, longitude = 69.2797, hasSelection 
     window.setTimeout(() => catalogState.stadiumMap.invalidateSize(), 80);
 }
 
+/* --- Ссылка для тренера: заполнение состава команды --- */
+
+function formatShareDeadline(value) {
+    if (!value) return '';
+    return new Intl.DateTimeFormat('ru-RU', {
+        day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit',
+    }).format(new Date(value));
+}
+
+function renderShareTournamentOptions(selectedId) {
+    const select = byId('teamShareTournament');
+    // Ссылка живёт до начала турнира, поэтому предлагаем только те, что ещё не начались.
+    const now = new Date();
+    const upcoming = catalogState.tournaments.filter((item) => {
+        if (!item.start_date) return false;
+        return new Date(`${item.start_date}T${item.start_time || '00:00'}`) > now;
+    });
+    const options = ['<option value="">Выберите турнир</option>'].concat(
+        upcoming.map((item) => `
+            <option value="${item.id}">${escapeHtml(item.name)} — ${formatDate(item.start_date)}</option>
+        `),
+    );
+    select.innerHTML = options.join('');
+    if (selectedId) select.value = String(selectedId);
+    byId('createTeamShareLink').textContent = catalogState.shareLink ? 'Пересоздать ссылку' : 'Создать ссылку';
+    if (!upcoming.length) {
+        showFormError('teamShareError', 'Нет предстоящих турниров — сначала создайте турнир с датой начала.');
+    }
+}
+
+function renderShareLink() {
+    const link = catalogState.shareLink;
+    const result = byId('teamShareResult');
+    if (!link) {
+        result.hidden = true;
+        byId('createTeamShareLink').textContent = 'Создать ссылку';
+        return;
+    }
+    result.hidden = false;
+    byId('teamShareLink').value = link.url;
+    byId('openTeamShareLink').href = link.url;
+    const status = byId('teamShareStatus');
+    if (link.is_open) {
+        status.className = 'team-share-status open';
+        status.textContent = `Открыта до ${formatShareDeadline(link.deadline)} · ${link.tournament_name || ''}`;
+    } else {
+        status.className = 'team-share-status closed';
+        status.textContent = 'Турнир начался — форма открывается только на чтение.';
+    }
+    byId('createTeamShareLink').textContent = 'Пересоздать ссылку';
+}
+
+async function openTeamShare(teamId) {
+    const team = catalogState.teams.find((item) => Number(item.id) === Number(teamId));
+    if (!team) return;
+    catalogState.shareTeamId = team.id;
+    catalogState.shareLink = null;
+    byId('teamShareTitle').textContent = `Поделиться · ${team.name}`;
+    showFormError('teamShareError');
+    byId('teamShareResult').hidden = true;
+    openModal('teamShareModal');
+    try {
+        const data = await apiJson(`/api/tournament-team-catalog/${team.id}/share`);
+        catalogState.shareLink = data.link || null;
+    } catch (error) {
+        showFormError('teamShareError', error.message);
+    }
+    renderShareTournamentOptions(catalogState.shareLink ? catalogState.shareLink.tournament_id : '');
+    renderShareLink();
+}
+
+async function createTeamShareLink() {
+    const teamId = catalogState.shareTeamId;
+    const tournamentId = byId('teamShareTournament').value;
+    if (!teamId) return;
+    if (!tournamentId) {
+        showFormError('teamShareError', 'Выберите турнир');
+        return;
+    }
+    if (catalogState.shareLink
+        && !window.confirm('Прежняя ссылка перестанет работать. Создать новую?')) return;
+    try {
+        showFormError('teamShareError');
+        const data = await apiJson(`/api/tournament-team-catalog/${teamId}/share`, {
+            method: 'POST',
+            body: JSON.stringify({ tournament_id: Number(tournamentId) }),
+        });
+        catalogState.shareLink = data.link;
+        renderShareLink();
+    } catch (error) {
+        showFormError('teamShareError', error.message);
+    }
+}
+
+async function revokeTeamShareLink() {
+    const teamId = catalogState.shareTeamId;
+    if (!teamId || !window.confirm('Закрыть доступ по ссылке? Тренер больше не сможет её открыть.')) return;
+    try {
+        showFormError('teamShareError');
+        await apiJson(`/api/tournament-team-catalog/${teamId}/share`, { method: 'DELETE' });
+        catalogState.shareLink = null;
+        renderShareLink();
+    } catch (error) {
+        showFormError('teamShareError', error.message);
+    }
+}
+
+async function copyTeamShareLink() {
+    const input = byId('teamShareLink');
+    const button = byId('copyTeamShareLink');
+    try {
+        await navigator.clipboard.writeText(input.value);
+    } catch (error) {
+        // Без защищённого контекста clipboard недоступен — выделяем текст вручную.
+        input.select();
+        document.execCommand('copy');
+    }
+    button.textContent = 'Скопировано';
+    window.setTimeout(() => { button.textContent = 'Копировать'; }, 1600);
+}
+
 function resetStadiumForm() {
     catalogState.editingStadiumId = null;
     byId('stadiumForm').reset();
@@ -830,7 +1075,8 @@ function resetStadiumForm() {
     showFormError('stadiumFormError');
 }
 
-function openStadiumCreator() {
+function openStadiumCreator(options = {}) {
+    catalogState.stadiumReturnToTournament = Boolean(options.returnToTournament);
     resetStadiumForm();
     openModal('stadiumModal');
     ensureStadiumMap();
@@ -840,6 +1086,7 @@ function openStadiumEditor(id) {
     const stadium = catalogState.stadiums.find((item) => Number(item.id) === Number(id));
     if (!stadium) return;
     catalogState.editingStadiumId = stadium.id;
+    catalogState.stadiumReturnToTournament = false;
     byId('stadiumModalTitle').textContent = 'Редактировать стадион';
     byId('stadiumName').value = stadium.name || '';
     byId('stadiumOwnerPhone').value = stadium.owner_phone || '';
@@ -872,13 +1119,17 @@ async function saveStadium(event) {
     if (photo) formData.append('photo', photo);
     try {
         showFormError('stadiumFormError');
-        await apiJson(editingId ? `/api/tournament-stadiums/${editingId}` : '/api/tournament-stadiums', {
-            method: editingId ? 'PUT' : 'POST',
-            body: formData,
-        });
+        const result = await apiJson(
+            editingId ? `/api/tournament-stadiums/${editingId}` : '/api/tournament-stadiums',
+            { method: editingId ? 'PUT' : 'POST', body: formData },
+        );
+        const returnToTournament = catalogState.stadiumReturnToTournament;
+        const savedName = result && result.stadium ? result.stadium.name : '';
         closeModal('stadiumModal');
         resetStadiumForm();
         await loadStadiums();
+        // Окно турнира оставалось открытым — сразу выбираем созданный стадион.
+        if (returnToTournament && savedName) renderStadiumOptions(savedName);
     } catch (error) {
         showFormError('stadiumFormError', error.message);
     }
@@ -1016,15 +1267,33 @@ function bindEvents() {
         resetTeamForm();
         openModal('teamModal');
     });
-    byId('openStadiumModalBtn').addEventListener('click', openStadiumCreator);
+    byId('openStadiumModalBtn').addEventListener('click', () => openStadiumCreator());
     byId('openMemberModalBtn').addEventListener('click', () => {
         resetMemberForm();
         openModal('memberModal');
+    });
+    byId('tournamentLocation').addEventListener('change', handleTournamentLocationChange);
+    byId('tournamentAgeGroupYear').addEventListener('change', (event) => {
+        addAgeGroup(event.target.value);
+        event.target.value = '';
+    });
+    byId('tournamentAgeGroupAdd').addEventListener('click', addCustomAgeGroup);
+    byId('tournamentAgeGroupCustom').addEventListener('keydown', (event) => {
+        if (event.key !== 'Enter') return;
+        event.preventDefault();
+        addCustomAgeGroup();
+    });
+    byId('tournamentAgeGroupChips').addEventListener('click', (event) => {
+        const button = event.target.closest('[data-remove-age-group]');
+        if (button) removeAgeGroup(button.dataset.removeAgeGroup);
     });
     byId('tournamentForm').addEventListener('submit', saveTournament);
     byId('teamForm').addEventListener('submit', saveTeam);
     byId('memberForm').addEventListener('submit', saveMember);
     byId('stadiumForm').addEventListener('submit', saveStadium);
+    byId('createTeamShareLink').addEventListener('click', createTeamShareLink);
+    byId('revokeTeamShareLink').addEventListener('click', revokeTeamShareLink);
+    byId('copyTeamShareLink').addEventListener('click', copyTeamShareLink);
     byId('catalogFilterForm').addEventListener('submit', applyCatalogFilter);
     byId('resetCatalogFilterBtn').addEventListener('click', resetCatalogFilter);
     byId('teamLogo').addEventListener('change', () => {
@@ -1121,8 +1390,14 @@ function bindEvents() {
             });
             return;
         }
+        const shareButton = event.target.closest('[data-share-team]');
         const editButton = event.target.closest('[data-edit-team]');
         const deleteButton = event.target.closest('[data-delete-team]');
+        if (shareButton) {
+            menu?.removeAttribute('open');
+            openTeamShare(shareButton.dataset.shareTeam).catch(showPageError);
+            return;
+        }
         if (editButton) {
             menu?.removeAttribute('open');
             openTeamEditor(editButton.dataset.editTeam);
@@ -1170,6 +1445,8 @@ function showPageError(error) {
 
 document.addEventListener('DOMContentLoaded', async () => {
     bindEvents();
+    renderAgeGroupYearOptions();
+    setAgeGroups([]);
     refreshIcons();
     try {
         await Promise.all([loadTournaments(), loadTeams(), loadStadiums()]);

@@ -69,7 +69,7 @@ os.environ['FFMPEG_LOG_LEVEL'] = 'quiet'
 # Форсируем использование CUDA/TensorRT в ONNX
 os.environ['ORT_TENSORRT_FP16_ENABLE'] = '1'
 
-from backend.models.models import db, User, Student, Payment, Attendance, AccessLog, Expense, Group, GroupTrainer, Tariff, ClubSettings, RewardType, StudentReward, CashTransfer, Role, RolePermission, CardType, StudentCard, Tournament, TournamentTeamCatalog, TournamentTeamMember, TournamentStadium, DeviceCommand, BridgeStatus
+from backend.models.models import db, User, Student, Payment, Attendance, AccessLog, Expense, Group, GroupTrainer, Tariff, ClubSettings, RewardType, StudentReward, CashTransfer, Role, RolePermission, CardType, StudentCard, Tournament, TournamentTeamCatalog, TournamentTeamMember, TournamentStadium, TournamentTeamShareLink, DeviceCommand, BridgeStatus
 # Live camera recognition stays disabled; access-log verification is separate.
 USE_FACE = False
 from backend.services.face_stub import DummyFaceService as FaceService
@@ -1481,6 +1481,7 @@ def ensure_tournament_tables():
             'tournament_team_catalog',
             'tournament_team_members',
             'tournament_stadiums',
+            'tournament_team_share_links',
         }
         if not required.issubset(set(tables)):
             db.create_all()
@@ -4842,6 +4843,234 @@ def tournament_team_member_detail_api(member_id):
             return jsonify({'success': False, 'message': str(exc)}), 400
     db.session.commit()
     return jsonify({'success': True, 'member': serialize_tournament_team_member(member)})
+
+
+# ===== ССЫЛКА ДЛЯ ЗАПОЛНЕНИЯ СОСТАВА ТРЕНЕРОМ =====
+
+def tournament_start_moment(tournament):
+    """Момент начала турнира — до него тренер может править состав."""
+    if not tournament or not tournament.start_date:
+        return None
+    start_time = tournament.start_time or dt_time(0, 0)
+    return datetime.combine(tournament.start_date, start_time)
+
+
+def share_link_is_open(link):
+    """Ссылка принимает правки, пока не отозвана и турнир не начался."""
+    if not link or link.revoked_at:
+        return False
+    deadline = tournament_start_moment(link.tournament)
+    if not deadline:
+        return False
+    return get_local_datetime() < deadline
+
+
+def serialize_team_share_link(link):
+    deadline = tournament_start_moment(link.tournament)
+    return {
+        'token': link.token,
+        'url': url_for('team_share_form', token=link.token, _external=True),
+        'team_id': link.team_id,
+        'tournament_id': link.tournament_id,
+        'tournament_name': link.tournament.name if link.tournament else None,
+        'deadline': deadline.isoformat() if deadline else None,
+        'is_open': share_link_is_open(link),
+        'revoked': bool(link.revoked_at),
+        'created_at': link.created_at.isoformat() if link.created_at else None,
+        'last_opened_at': link.last_opened_at.isoformat() if link.last_opened_at else None,
+    }
+
+
+def get_active_share_link(team_id):
+    return TournamentTeamShareLink.query.filter_by(
+        team_id=team_id,
+        revoked_at=None,
+    ).order_by(TournamentTeamShareLink.created_at.desc()).first()
+
+
+@app.route('/api/tournament-team-catalog/<int:team_id>/share', methods=['GET', 'POST', 'DELETE'])
+@login_required
+def tournament_team_share_api(team_id):
+    ensure_tournament_tables()
+    team = db.session.get(TournamentTeamCatalog, team_id)
+    if not team:
+        return jsonify({'success': False, 'message': 'Команда не найдена'}), 404
+
+    if request.method == 'GET':
+        if not has_tournament_permission('view'):
+            return jsonify({'success': False, 'message': 'Нет доступа'}), 403
+        link = get_active_share_link(team_id)
+        return jsonify({'success': True, 'link': serialize_team_share_link(link) if link else None})
+
+    if not has_tournament_permission('edit'):
+        return jsonify({'success': False, 'message': 'Нет доступа'}), 403
+
+    if request.method == 'DELETE':
+        link = get_active_share_link(team_id)
+        if link:
+            link.revoked_at = get_local_datetime()
+            db.session.commit()
+        return jsonify({'success': True, 'link': None})
+
+    data = request.get_json() or {}
+    tournament_id = data.get('tournament_id')
+    tournament = db.session.get(Tournament, int(tournament_id)) if tournament_id else None
+    if not tournament:
+        return jsonify({'success': False, 'message': 'Выберите турнир'}), 400
+    if not tournament_start_moment(tournament):
+        return jsonify({'success': False, 'message': 'У турнира не заполнена дата начала'}), 400
+
+    # Активная ссылка всегда одна: прежнюю отзываем, чтобы старый адрес перестал работать.
+    previous = get_active_share_link(team_id)
+    if previous:
+        previous.revoked_at = get_local_datetime()
+    link = TournamentTeamShareLink(
+        team_id=team_id,
+        tournament_id=tournament.id,
+        token=secrets.token_urlsafe(32),
+        created_by=current_user.id,
+    )
+    db.session.add(link)
+    db.session.commit()
+    return jsonify({'success': True, 'link': serialize_team_share_link(link)}), 201
+
+
+def resolve_share_link(token):
+    ensure_tournament_tables()
+    return TournamentTeamShareLink.query.filter_by(token=token, revoked_at=None).first()
+
+
+def public_member_payload(member):
+    """Публичной форме отдаём только то, что она сама и заполняет."""
+    return {
+        'id': member.id,
+        'last_name': member.last_name,
+        'first_name': member.first_name,
+        'middle_name': member.middle_name,
+        'full_name': member.full_name,
+        'birth_date': member.birth_date.isoformat() if member.birth_date else None,
+        'team_number': member.team_number,
+        'phone_primary': member.phone_primary,
+        'photo_url': get_tournament_media_url(member.photo_path),
+    }
+
+
+def share_form_payload(link):
+    members = TournamentTeamMember.query.filter_by(team_id=link.team_id).order_by(
+        TournamentTeamMember.last_name.asc(),
+        TournamentTeamMember.first_name.asc(),
+    ).all()
+    deadline = tournament_start_moment(link.tournament)
+    return {
+        'success': True,
+        'team': {
+            'id': link.team.id,
+            'name': link.team.name,
+            'logo_url': get_tournament_media_url(link.team.logo_path),
+            'trainer_name': link.team.trainer_name,
+        },
+        'tournament': {
+            'name': link.tournament.name if link.tournament else None,
+            'location': link.tournament.location if link.tournament else None,
+            'start_date': link.tournament.start_date.isoformat()
+                if link.tournament and link.tournament.start_date else None,
+        },
+        'deadline': deadline.isoformat() if deadline else None,
+        'editable': share_link_is_open(link),
+        'members': [public_member_payload(member) for member in members],
+    }
+
+
+@app.route('/team-form/<token>')
+def team_share_form(token):
+    link = resolve_share_link(token)
+    if not link:
+        return render_template('team_share_form.html', link_valid=False), 404
+    link.last_opened_at = get_local_datetime()
+    db.session.commit()
+    return render_template('team_share_form.html', link_valid=True, share_token=token)
+
+
+@app.route('/api/team-form/<token>')
+def team_share_form_api(token):
+    link = resolve_share_link(token)
+    if not link:
+        return jsonify({'success': False, 'message': 'Ссылка недействительна'}), 404
+    return jsonify(share_form_payload(link))
+
+
+def apply_public_member_form(member):
+    """Упрощённая форма тренера: обязательны только фамилия, имя и дата рождения."""
+    member.last_name = (request.form.get('last_name') or '').strip()
+    member.first_name = (request.form.get('first_name') or '').strip()
+    member.middle_name = (request.form.get('middle_name') or '').strip() or None
+    member.birth_date = parse_date_value(request.form.get('birth_date'))
+    member.team_number = (request.form.get('team_number') or '').strip() or None
+    member.phone_primary = (request.form.get('phone_primary') or '').strip() or None
+    if not member.last_name or not member.first_name:
+        raise ValueError('Укажите фамилию и имя участника')
+    if not member.birth_date:
+        raise ValueError('Укажите дату рождения в формате дд.мм.гггг')
+
+
+@app.route('/api/team-form/<token>/members', methods=['POST'])
+def team_share_form_add_member(token):
+    link = resolve_share_link(token)
+    if not link:
+        return jsonify({'success': False, 'message': 'Ссылка недействительна'}), 404
+    if not share_link_is_open(link):
+        return jsonify({'success': False, 'message': 'Турнир уже начался — состав больше не редактируется'}), 403
+    member = TournamentTeamMember(team_id=link.team_id, last_name='', first_name='')
+    try:
+        apply_public_member_form(member)
+    except ValueError as exc:
+        return jsonify({'success': False, 'message': str(exc)}), 400
+    photo_file = request.files.get('photo')
+    if photo_file and photo_file.filename:
+        try:
+            member.photo_path = save_tournament_catalog_photo(photo_file, 'tournament_member')
+        except ValueError as exc:
+            return jsonify({'success': False, 'message': str(exc)}), 400
+    db.session.add(member)
+    db.session.commit()
+    return jsonify({'success': True, 'member': public_member_payload(member)}), 201
+
+
+@app.route('/api/team-form/<token>/members/<int:member_id>', methods=['PUT', 'DELETE'])
+def team_share_form_member_detail(token, member_id):
+    link = resolve_share_link(token)
+    if not link:
+        return jsonify({'success': False, 'message': 'Ссылка недействительна'}), 404
+    if not share_link_is_open(link):
+        return jsonify({'success': False, 'message': 'Турнир уже начался — состав больше не редактируется'}), 403
+    member = db.session.get(TournamentTeamMember, member_id)
+    # Токен даёт доступ только к своей команде.
+    if not member or member.team_id != link.team_id:
+        return jsonify({'success': False, 'message': 'Участник не найден'}), 404
+
+    if request.method == 'DELETE':
+        photo_path = member.photo_path
+        db.session.delete(member)
+        db.session.commit()
+        delete_tournament_catalog_media(photo_path)
+        return jsonify({'success': True})
+
+    try:
+        apply_public_member_form(member)
+    except ValueError as exc:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(exc)}), 400
+    photo_file = request.files.get('photo')
+    if photo_file and photo_file.filename:
+        try:
+            member.photo_path = save_tournament_catalog_photo(
+                photo_file, 'tournament_member', member.photo_path,
+            )
+        except ValueError as exc:
+            db.session.rollback()
+            return jsonify({'success': False, 'message': str(exc)}), 400
+    db.session.commit()
+    return jsonify({'success': True, 'member': public_member_payload(member)})
 
 
 @app.route('/api/tournament-stadiums', methods=['GET', 'POST'])

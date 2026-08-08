@@ -10856,7 +10856,8 @@ main.main-content.tournaments-page .tournament-action-btn.danger:hover {
     font-weight: 750;
 }
 
-.tournament-catalog-field input {
+.tournament-catalog-field input,
+.tournament-catalog-field select {
     width: 100%;
     min-height: 45px;
     padding: 0 13px;
@@ -10868,14 +10869,169 @@ main.main-content.tournaments-page .tournament-action-btn.danger:hover {
     outline: none;
 }
 
-.tournament-catalog-field input:focus {
+.tournament-catalog-field select {
+    cursor: pointer;
+    appearance: none;
+    padding-right: 34px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23969ca6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 11px center;
+    background-size: 16px 16px;
+}
+
+.tournament-catalog-field input:focus,
+.tournament-catalog-field select:focus {
     border-color: #ff9b38;
     box-shadow: 0 0 0 3px rgba(255, 139, 26, .12);
+}
+
+/* Возрастные группы: выбранные значения + строка добавления */
+.age-group-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    min-height: 34px;
+    align-items: center;
+}
+
+.age-group-empty {
+    color: #969ca6;
+    font-size: 12px;
+}
+
+.age-group-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 30px;
+    min-height: 30px;
+    padding: 0 6px 0 11px;
+    border: 1px solid #ffd9b0;
+    border-radius: 999px;
+    background: #fff5eb;
+    color: #b45f09;
+    font-size: 13px;
+    font-weight: 650;
+    white-space: nowrap;
+}
+
+#tournamentAgeGroupChips .age-group-chip button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    width: 20px !important;
+    min-width: 20px !important;
+    height: 20px !important;
+    min-height: 20px !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 50% !important;
+    background: rgba(180, 95, 9, .12) !important;
+    color: #b45f09 !important;
+    font-size: 15px !important;
+    line-height: 1;
+    cursor: pointer;
+}
+
+#tournamentAgeGroupChips .age-group-chip button:hover {
+    background: rgba(180, 95, 9, .24) !important;
+}
+
+.age-group-controls {
+    display: grid;
+    grid-template-columns: minmax(120px, 160px) minmax(0, 1fr) auto;
+    gap: 8px;
+    align-items: center;
+}
+
+.age-group-controls .btn-secondary {
+    min-height: 45px !important;
+    white-space: nowrap;
 }
 
 .tournament-catalog-field small {
     color: #969ca6;
     font-size: 11px;
+}
+
+/* Окно «Поделиться»: ссылка для самостоятельного заполнения состава тренером */
+.team-share-body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 14px;
+}
+
+.team-share-hint {
+    margin: 0;
+    color: #6b7280;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.team-share-result {
+    display: grid;
+    gap: 10px;
+    padding: 14px;
+    border: 1px solid #dfe1e5;
+    border-radius: 12px;
+    background: #fbfaf9;
+}
+
+.team-share-status {
+    font-size: 13px;
+    font-weight: 650;
+}
+
+.team-share-status.open { color: #0f7a4a; }
+
+.team-share-status.closed { color: #9a3412; }
+
+.team-share-link-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+}
+
+.team-share-link-row input {
+    width: 100%;
+    min-height: 42px;
+    padding: 0 12px;
+    border: 1px solid #dfe1e5;
+    border-radius: 10px;
+    background: #fff;
+    color: #444a54;
+    font: inherit;
+    font-size: 13px;
+}
+
+.team-share-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+
+.team-share-actions .btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+}
+
+.team-share-actions .btn-secondary.danger {
+    color: #b91c1c;
+}
+
+@media (max-width: 560px) {
+    .team-share-link-row,
+    .team-share-actions {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Стадион может открываться поверх формы турнира. */
+.tournament-catalog-modal#stadiumModal {
+    z-index: 4200;
 }
 
 .team-catalog-logo-picker {
@@ -11361,6 +11517,16 @@ main.main-content.tournaments-page .tournament-action-btn.danger:hover {
     .tournament-catalog-form-error,
     .stadium-map-field.full {
         grid-column: auto;
+    }
+
+    /* На телефоне строка добавления групп разворачивается в колонку. */
+    .age-group-controls {
+        grid-template-columns: 1fr;
+    }
+
+    .age-group-controls .btn-secondary {
+        width: 100%;
+        justify-content: center;
     }
 
     .tournament-catalog-toolbar-actions {

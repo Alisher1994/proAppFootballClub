@@ -8,7 +8,7 @@
     {% include '_pwa_head.html' %}
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/onest/onest.css') }}">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=2026072806">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=2026080802">
 </head>
 <body>
     {% include '_sidebar.html' %}
@@ -29,7 +29,7 @@
                 </button>
                 <button class="tournament-catalog-tab" type="button" data-catalog-tab="teams">
                     <i data-lucide="shield"></i>
-                    База команд
+                    Команды
                 </button>
                 <button class="tournament-catalog-tab" type="button" data-catalog-tab="stadiums">
                     <i data-lucide="map-pinned"></i>
@@ -70,7 +70,7 @@
             <section class="tournament-catalog-panel" id="catalogPanel-teams">
                 <div class="tournament-catalog-toolbar">
                     <div>
-                        <h2>База команд</h2>
+                        <h2>Команды</h2>
                         <p>Команды доступны отдельно и позже смогут добавляться в любой турнир.</p>
                     </div>
                     <div class="tournament-catalog-toolbar-actions">
@@ -204,13 +204,25 @@
                 </label>
                 <label class="tournament-catalog-field">
                     <span>Локация</span>
-                    <input id="tournamentLocation" type="text" maxlength="200" placeholder="Стадион или адрес" required>
+                    <select id="tournamentLocation" required>
+                        <option value="">Выберите стадион</option>
+                    </select>
+                    <small>Нет в списке? Выберите «+ Добавить стадион».</small>
                 </label>
-                <label class="tournament-catalog-field full">
+                <div class="tournament-catalog-field full tournament-age-groups">
                     <span>Возрастные группы</span>
-                    <input id="tournamentAgeGroups" type="text" placeholder="Например: U-10, U-12, 2014 г.р." required>
-                    <small>Укажите одну или несколько групп через запятую.</small>
-                </label>
+                    <div class="age-group-chips" id="tournamentAgeGroupChips"></div>
+                    <div class="age-group-controls">
+                        <select id="tournamentAgeGroupYear" aria-label="Год рождения">
+                            <option value="">Добавить год…</option>
+                        </select>
+                        <input id="tournamentAgeGroupCustom" type="text" maxlength="60"
+                            placeholder="Или своя группа: U-12" aria-label="Своя возрастная группа">
+                        <button class="btn-secondary" type="button" id="tournamentAgeGroupAdd">Добавить</button>
+                    </div>
+                    <input id="tournamentAgeGroups" type="hidden">
+                    <small>Выберите годы из списка (с 1980 по текущий) или добавьте свою группу.</small>
+                </div>
                 <div class="tournament-catalog-form-error" id="tournamentFormError" hidden></div>
                 <footer class="tournament-catalog-form-actions full">
                     <button class="btn-secondary" type="button" data-close-modal="tournamentModal">Отмена</button>
@@ -224,7 +236,7 @@
         <div class="modal-content team-catalog-modal-content">
             <header class="tournament-catalog-modal-header">
                 <div>
-                    <span class="tournament-catalog-eyebrow">База команд</span>
+                    <span class="tournament-catalog-eyebrow">Команды</span>
                     <h2 id="teamModalTitle">Новая команда</h2>
                 </div>
                 <button class="icon-button" type="button" data-close-modal="teamModal" aria-label="Закрыть">
@@ -396,6 +408,51 @@
         </div>
     </div>
 
+    <div class="modal tournament-catalog-modal" id="teamShareModal" hidden>
+        <div class="modal-content team-share-modal-content">
+            <header class="tournament-catalog-modal-header">
+                <div>
+                    <span class="tournament-catalog-eyebrow">Заполнение состава</span>
+                    <h2 id="teamShareTitle">Поделиться с тренером</h2>
+                </div>
+                <button class="icon-button" type="button" data-close-modal="teamShareModal" aria-label="Закрыть">
+                    <i data-lucide="x"></i>
+                </button>
+            </header>
+            <div class="tournament-catalog-form team-share-body">
+                <p class="team-share-hint full">
+                    Тренер откроет ссылку и сам внесёт участников. Правки принимаются
+                    до начала выбранного турнира, дальше состав меняется только здесь, в системе.
+                </p>
+                <label class="tournament-catalog-field full">
+                    <span>Турнир</span>
+                    <select id="teamShareTournament">
+                        <option value="">Выберите турнир</option>
+                    </select>
+                    <small>Дедлайн правок — дата и время начала турнира.</small>
+                </label>
+                <div class="tournament-catalog-form-error" id="teamShareError" hidden></div>
+
+                <div class="team-share-result full" id="teamShareResult" hidden>
+                    <div class="team-share-status" id="teamShareStatus"></div>
+                    <div class="team-share-link-row">
+                        <input id="teamShareLink" type="text" readonly aria-label="Ссылка для тренера">
+                        <button class="btn-secondary" type="button" id="copyTeamShareLink">Копировать</button>
+                    </div>
+                    <div class="team-share-actions">
+                        <a class="btn-secondary" id="openTeamShareLink" target="_blank" rel="noopener">Открыть форму</a>
+                        <button class="btn-secondary danger" type="button" id="revokeTeamShareLink">Закрыть доступ</button>
+                    </div>
+                </div>
+
+                <footer class="tournament-catalog-form-actions full">
+                    <button class="btn-secondary" type="button" data-close-modal="teamShareModal">Закрыть</button>
+                    <button class="btn-primary" type="button" id="createTeamShareLink">Создать ссылку</button>
+                </footer>
+            </div>
+        </div>
+    </div>
+
     <div class="modal tournament-catalog-modal" id="stadiumModal" hidden>
         <div class="modal-content stadium-catalog-modal-content">
             <header class="tournament-catalog-modal-header">
@@ -457,6 +514,6 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="{{ url_for('static', filename='js/sidebar.js') }}?v=2026080801"></script>
     <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/tournaments.js') }}?v=2026072804"></script>
+    <script src="{{ url_for('static', filename='js/tournaments.js') }}?v=2026080802"></script>
 </body>
 </html>
