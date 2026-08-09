@@ -11003,10 +11003,27 @@ main.main-content.tournaments-page .tournament-action-btn.danger:hover {
     margin-bottom: 12px;
 }
 
+.group-toolbar.match-toolbar {
+    grid-template-columns: minmax(0, 200px) auto;
+    justify-content: start;
+}
+
 .group-toolbar .btn-primary,
 .group-toolbar .btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
     align-self: end;
+    padding: 0 18px !important;
     white-space: nowrap;
+}
+
+.group-toolbar .btn-primary svg,
+.group-toolbar .btn-secondary svg {
+    flex: 0 0 auto;
+    width: 16px;
+    height: 16px;
 }
 
 .group-hint {
