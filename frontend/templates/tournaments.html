@@ -8,7 +8,7 @@
     {% include '_pwa_head.html' %}
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/onest/onest.css') }}">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=2026081009">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=2026081012">
 </head>
 <body>
     {% include '_sidebar.html' %}
@@ -332,6 +332,7 @@
             <div class="team-details-body">
                 <section class="entry-tournament-card" id="entryTournamentCard"></section>
 
+                <div class="entry-tabs-row">
                 <nav class="entry-tabs" id="entryTabs">
                     <button type="button" class="active" data-entry-tab="entries">Участники</button>
                     <button type="button" data-entry-tab="groups">Группы</button>
@@ -339,6 +340,10 @@
                     <button type="button" data-entry-tab="playoff">Плей-офф</button>
                     <button type="button" data-entry-tab="players">Игроки и награды</button>
                 </nav>
+                <button type="button" class="entry-tab-action" id="openStudioBtn">
+                    <i data-lucide="image-plus"></i> Публикация
+                </button>
+                </div>
 
                 <div data-entry-panel="entries">
                 <div class="entry-add-row">
@@ -462,13 +467,125 @@
         </div>
     </div>
 
+    <div class="modal tournament-catalog-modal" id="postStudioModal" hidden>
+        <div class="modal-content tournament-studio-content">
+            <header class="tournament-catalog-modal-header">
+                <div>
+                    <span class="tournament-catalog-eyebrow">Студия публикаций</span>
+                    <h2>Картинка для Telegram и Instagram</h2>
+                </div>
+                <button class="icon-button" type="button" data-close-modal="postStudioModal" aria-label="Закрыть">
+                    <i data-lucide="x"></i>
+                </button>
+            </header>
+            <div class="studio-body">
+                <div class="studio-controls">
+                    <div class="tournament-catalog-form-error" id="studioError" hidden></div>
+
+                    <div class="studio-field">
+                        <span>Что публикуем</span>
+                        <div class="studio-chips" id="studioTemplates"></div>
+                    </div>
+
+                    <div class="studio-field" id="studioSourceField" hidden>
+                        <span id="studioSourceLabel">Данные</span>
+                        <select id="studioSource"></select>
+                    </div>
+
+                    <div class="studio-row">
+                        <label class="studio-field">
+                            <span>Формат</span>
+                            <select id="studioFormat"></select>
+                        </label>
+                        <label class="studio-field">
+                            <span>Категория</span>
+                            <select id="studioAge"></select>
+                        </label>
+                    </div>
+
+                    <div class="studio-row">
+                        <label class="studio-field">
+                            <span>Тема</span>
+                            <select id="studioTheme"></select>
+                        </label>
+                        <label class="studio-field">
+                            <span>Шрифт</span>
+                            <select id="studioFont"></select>
+                        </label>
+                    </div>
+
+                    <div class="studio-field">
+                        <span>Акцентный цвет</span>
+                        <div class="studio-swatches" id="studioAccents"></div>
+                    </div>
+
+                    <div class="studio-field">
+                        <span>Фон</span>
+                        <div class="studio-chips" id="studioBackgrounds"></div>
+                    </div>
+
+                    <div class="studio-row" id="studioShadeRow" hidden>
+                        <label class="studio-field">
+                            <span>Затемнение фона</span>
+                            <input id="studioShade" type="range" min="0" max="95" value="70">
+                        </label>
+                        <label class="studio-check">
+                            <input id="studioBlur" type="checkbox" checked>
+                            <span>Размыть фон</span>
+                        </label>
+                    </div>
+
+                    <label class="studio-field" id="studioUploadField" hidden>
+                        <span>Своя картинка фона</span>
+                        <input id="studioUpload" type="file" accept="image/*">
+                    </label>
+
+                    <label class="studio-field">
+                        <span>Верхняя строка</span>
+                        <input id="studioEyebrow" type="text" maxlength="60" placeholder="Название турнира">
+                    </label>
+                    <label class="studio-field">
+                        <span>Подпись под ней</span>
+                        <input id="studioCaption" type="text" maxlength="90" placeholder="Дата · стадион">
+                    </label>
+                    <label class="studio-field">
+                        <span>Заголовок</span>
+                        <input id="studioTitle" type="text" maxlength="120" placeholder="По умолчанию из турнира">
+                    </label>
+                    <label class="studio-field">
+                        <span>Подзаголовок</span>
+                        <input id="studioSubtitle" type="text" maxlength="140" placeholder="По умолчанию из турнира">
+                    </label>
+                    <label class="studio-field">
+                        <span>Плашка внизу</span>
+                        <input id="studioNote" type="text" maxlength="60" placeholder="Например: Вход свободный">
+                    </label>
+                </div>
+
+                <div class="studio-preview">
+                    <div class="studio-canvas" id="studioCanvas">
+                        <img id="studioImage" alt="Предпросмотр публикации">
+                        <span class="studio-spinner" id="studioSpinner" hidden></span>
+                    </div>
+                    <p class="studio-hint">Предпросмотр — это и есть готовый файл.</p>
+                    <button class="btn-primary" type="button" id="studioDownload">
+                        <i data-lucide="download"></i> Скачать PNG
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="modal tournament-catalog-modal" id="matchProtocolModal" hidden>
         <div class="modal-content tournament-protocol-content">
             <header class="tournament-catalog-modal-header">
-                <div>
-                    <span class="tournament-catalog-eyebrow">Протокол матча</span>
-                    <h2 id="protocolTitle">Протокол матча</h2>
-                    <p class="protocol-score" id="protocolScore"></p>
+                <div class="team-details-heading">
+                    <span class="protocol-poster" id="protocolPoster"></span>
+                    <div>
+                        <span class="tournament-catalog-eyebrow">Протокол матча</span>
+                        <h2 id="protocolTitle">Протокол матча</h2>
+                        <p class="protocol-score" id="protocolScore"></p>
+                    </div>
                 </div>
                 <button class="icon-button" type="button" data-close-protocol aria-label="Закрыть">
                     <i data-lucide="x"></i>
@@ -838,6 +955,6 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="{{ url_for('static', filename='js/sidebar.js') }}?v=2026080801"></script>
     <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/tournaments.js') }}?v=2026081009"></script>
+    <script src="{{ url_for('static', filename='js/tournaments.js') }}?v=2026081012"></script>
 </body>
 </html>

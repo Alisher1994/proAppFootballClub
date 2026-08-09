@@ -1957,6 +1957,202 @@ async function savePlayoffMatch(row) {
     }
 }
 
+/* --- Студия публикаций: картинку рисует сервер, превью = готовый файл --- */
+
+const STUDIO_BACKGROUNDS = [
+    { key: 'none', title: 'Заливка темы' },
+    { key: 'poster', title: 'Афиша турнира' },
+    { key: 'custom', title: 'Своя картинка' },
+];
+
+const studio = {
+    options: null,
+    template: 'announce',
+    background: 'none',
+    accent: '#ff9a2b',
+    backgroundPath: null,
+    blobUrl: null,
+    timer: null,
+    busy: false,
+    again: false,
+};
+
+function studioValue(id) {
+    const element = byId(id);
+    return element ? element.value : '';
+}
+
+function studioChips(host, items, current, attribute) {
+    byId(host).innerHTML = items.map((item) => `
+        <button type="button" class="studio-chip${item.key === current ? ' active' : ''}"
+            data-${attribute}="${escapeHtml(item.key)}">${escapeHtml(item.title)}</button>`).join('');
+}
+
+function studioSelect(id, items, valueKey, titleKey) {
+    byId(id).innerHTML = items.map((item) =>
+        `<option value="${escapeHtml(String(item[valueKey]))}">${escapeHtml(item[titleKey])}</option>`).join('');
+}
+
+function studioSourceItems() {
+    const options = studio.options;
+    const age = studioValue('studioAge');
+    if (studio.template === 'match') {
+        return (options.matches || []).filter((row) => !age || row.age_group === age)
+            .map((row) => ({ value: String(row.id), title: row.label }));
+    }
+    if (studio.template === 'standings') {
+        return (options.groups || []).filter((row) => !age || row.age_group === age)
+            .map((row) => ({ value: String(row.id), title: `Группа ${row.name}` }));
+    }
+    if (studio.template === 'award') {
+        return (options.awards || []).filter((row) => !age || row.age_group === age)
+            .map((row) => ({ value: row.code, title: row.title }));
+    }
+    return [];
+}
+
+function renderStudioSource() {
+    const items = studioSourceItems();
+    const field = byId('studioSourceField');
+    const labels = { match: 'Матч', standings: 'Группа', award: 'Награда' };
+    field.hidden = !labels[studio.template];
+    if (field.hidden) return;
+    byId('studioSourceLabel').textContent = labels[studio.template];
+    byId('studioSource').innerHTML = items.length
+        ? items.map((item) =>
+            `<option value="${escapeHtml(item.value)}">${escapeHtml(item.title)}</option>`).join('')
+        : '<option value="">нет данных</option>';
+}
+
+function studioPayload() {
+    const source = studioValue('studioSource');
+    const payload = {
+        template: studio.template,
+        format: studioValue('studioFormat'),
+        theme: studioValue('studioTheme'),
+        font: studioValue('studioFont'),
+        accent: studio.accent,
+        background: studio.background === 'none' ? null : studio.background,
+        background_path: studio.backgroundPath,
+        shade: Number(studioValue('studioShade') || 70),
+        blur: byId('studioBlur').checked,
+        age_group: studioValue('studioAge'),
+        eyebrow: studioValue('studioEyebrow'),
+        caption: studioValue('studioCaption'),
+        title: studioValue('studioTitle'),
+        subtitle: studioValue('studioSubtitle'),
+        note: studioValue('studioNote'),
+    };
+    if (studio.template === 'match') payload.match_id = source;
+    if (studio.template === 'standings') payload.group_id = source;
+    if (studio.template === 'award') payload.award_code = source;
+    return payload;
+}
+
+async function renderStudio() {
+    // Пока рисуется предыдущий кадр, новый ставим в очередь: иначе быстрый
+    // ввод текста завалит сервер десятком одинаковых запросов.
+    if (studio.busy) { studio.again = true; return; }
+    studio.busy = true;
+    byId('studioSpinner').hidden = false;
+    try {
+        showFormError('studioError');
+        const response = await fetch(
+            `/api/tournaments/${catalogState.entriesTournamentId}/post.png`,
+            {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(studioPayload()),
+            });
+        if (!response.ok) {
+            const data = await response.json().catch(() => ({}));
+            throw new Error(data.message || 'Не удалось собрать публикацию');
+        }
+        const blob = await response.blob();
+        if (studio.blobUrl) URL.revokeObjectURL(studio.blobUrl);
+        studio.blobUrl = URL.createObjectURL(blob);
+        byId('studioImage').src = studio.blobUrl;
+    } catch (error) {
+        showFormError('studioError', error.message);
+    } finally {
+        studio.busy = false;
+        byId('studioSpinner').hidden = true;
+        if (studio.again) { studio.again = false; renderStudio(); }
+    }
+}
+
+function scheduleStudio() {
+    window.clearTimeout(studio.timer);
+    studio.timer = window.setTimeout(() => renderStudio(), 350);
+}
+
+async function openStudio(preset = {}) {
+    try {
+        showFormError('studioError');
+        const data = await apiJson(
+            `/api/tournaments/${catalogState.entriesTournamentId}/post-options`);
+        studio.options = data;
+        studio.template = preset.template || 'announce';
+        studio.background = data.has_poster ? 'poster' : 'none';
+        studio.backgroundPath = null;
+
+        studioChips('studioTemplates', data.templates.map(
+            (row) => ({ key: row.key, title: row.title })), studio.template, 'template');
+        studioChips('studioBackgrounds', STUDIO_BACKGROUNDS.filter(
+            (row) => row.key !== 'poster' || data.has_poster), studio.background, 'background');
+        studioSelect('studioFormat', data.formats, 'key', 'title');
+        studioSelect('studioTheme', data.themes, 'key', 'title');
+        studioSelect('studioFont', data.fonts, 'key', 'title');
+        byId('studioAge').innerHTML = (data.age_groups || []).map((age) =>
+            `<option value="${escapeHtml(age)}">${escapeHtml(age)}</option>`).join('');
+        if (preset.age_group) byId('studioAge').value = preset.age_group;
+
+        byId('studioAccents').innerHTML = (data.accents || []).map((color) => `
+            <button type="button" class="studio-swatch${color === studio.accent ? ' active' : ''}"
+                data-accent="${escapeHtml(color)}" style="background:${escapeHtml(color)} !important""
+                aria-label="Цвет ${escapeHtml(color)}"></button>`).join('')
+            + '<input type="color" id="studioAccentPicker" value="' + studio.accent + '">';
+
+        ['studioEyebrow', 'studioCaption', 'studioTitle', 'studioSubtitle', 'studioNote']
+            .forEach((id) => { byId(id).value = ''; });
+
+        renderStudioSource();
+        if (preset.match_id) byId('studioSource').value = String(preset.match_id);
+        if (preset.award_code) byId('studioSource').value = preset.award_code;
+        byId('studioShadeRow').hidden = studio.background === 'none';
+        byId('studioUploadField').hidden = studio.background !== 'custom';
+
+        openModal('postStudioModal');
+        await renderStudio();
+    } catch (error) {
+        window.alert(error.message);
+    }
+}
+
+async function uploadStudioBackground(file) {
+    const form = new FormData();
+    form.append('background', file);
+    try {
+        showFormError('studioError');
+        const data = await apiJson('/api/tournament-post-background', { method: 'POST', body: form });
+        studio.backgroundPath = data.background_path;
+        renderStudio();
+    } catch (error) {
+        showFormError('studioError', error.message);
+    }
+}
+
+function downloadStudio() {
+    if (!studio.blobUrl) return;
+    const link = document.createElement('a');
+    link.href = studio.blobUrl;
+    link.download = `${studio.template}-${studioValue('studioFormat')}.png`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+}
+
 /* --- Протокол матча: составы, голы, карточки --- */
 
 const POSITION_SHORT = {
@@ -2073,6 +2269,12 @@ function renderProtocol() {
     byId('protocolTitle').textContent =
         `${protocol.home ? protocol.home.team_name : '—'} — ${protocol.away ? protocol.away.team_name : '—'}`;
     byId('protocolScore').textContent = `Счёт ${protocol.home_score}:${protocol.away_score}`;
+    const poster = byId('protocolPoster');
+    const tournament = catalogState.tournaments.find(
+        (row) => Number(row.id) === Number(catalogState.entriesTournamentId));
+    poster.style.backgroundImage = tournament && tournament.poster_url
+        ? `url('${tournament.poster_url}')` : '';
+    poster.classList.toggle('empty', !(tournament && tournament.poster_url));
     byId('protocolGrid').innerHTML =
         protocolSquadMarkup('home', protocol.home) + protocolSquadMarkup('away', protocol.away);
     renderProtocolEvents();
@@ -2783,6 +2985,56 @@ function bindEvents() {
         saveAward(card.dataset.award, select.value).catch(showPageError);
     });
     byId('saveProtocolBtn').addEventListener('click', () => saveProtocol().catch(showPageError));
+    byId('openStudioBtn').addEventListener('click', () => openStudio({
+        age_group: catalogState.playersAge || catalogState.groupAge,
+    }));
+    byId('studioDownload').addEventListener('click', downloadStudio);
+    byId('studioUpload').addEventListener('change', (event) => {
+        const file = event.target.files && event.target.files[0];
+        if (file) uploadStudioBackground(file);
+    });
+    byId('postStudioModal').addEventListener('click', (event) => {
+        const template = event.target.closest('[data-template]');
+        if (template) {
+            studio.template = template.dataset.template;
+            document.querySelectorAll('#studioTemplates .studio-chip').forEach((chip) =>
+                chip.classList.toggle('active', chip.dataset.template === studio.template));
+            renderStudioSource();
+            renderStudio();
+            return;
+        }
+        const background = event.target.closest('[data-background]');
+        if (background) {
+            studio.background = background.dataset.background;
+            document.querySelectorAll('#studioBackgrounds .studio-chip').forEach((chip) =>
+                chip.classList.toggle('active', chip.dataset.background === studio.background));
+            byId('studioShadeRow').hidden = studio.background === 'none';
+            byId('studioUploadField').hidden = studio.background !== 'custom';
+            renderStudio();
+            return;
+        }
+        const swatch = event.target.closest('[data-accent]');
+        if (swatch) {
+            studio.accent = swatch.dataset.accent;
+            document.querySelectorAll('.studio-swatch').forEach((item) =>
+                item.classList.toggle('active', item.dataset.accent === studio.accent));
+            renderStudio();
+        }
+    });
+    byId('postStudioModal').addEventListener('input', (event) => {
+        if (event.target.id === 'studioAccentPicker') {
+            studio.accent = event.target.value;
+            document.querySelectorAll('.studio-swatch').forEach((item) =>
+                item.classList.remove('active'));
+        }
+        if (event.target.matches('input[type="text"], input[type="range"], #studioAccentPicker')) {
+            scheduleStudio();
+        }
+    });
+    byId('postStudioModal').addEventListener('change', (event) => {
+        if (event.target.id === 'studioAge') renderStudioSource();
+        if (event.target.matches('select, input[type="checkbox"]')) renderStudio();
+    });
     byId('matchProtocolModal').addEventListener('click', (event) => {
         if (event.target.closest('[data-close-protocol]')) {
             closeModal('matchProtocolModal');

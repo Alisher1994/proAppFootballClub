@@ -6697,6 +6697,487 @@ def tournament_award_cover(tournament_id, code):
     return send_file(buffer, mimetype='image/png', as_attachment=False, download_name=name)
 
 
+# ===== СТУДИЯ ПУБЛИКАЦИЙ =====
+# Картинку рисует только сервер: предпросмотр в браузере — это тот же PNG,
+# что уйдёт в Telegram. Иначе превью и файл неизбежно разъезжаются.
+
+POST_FONT_DIR = os.path.join(basedir, 'frontend', 'static', 'vendor', 'onest-ttf')
+POST_FONTS = {
+    'onest': ('Onest-VariableFont_wght.ttf', 'Onest — нейтральный'),
+    'unbounded': ('Unbounded.ttf', 'Unbounded — плакатный'),
+    'manrope': ('Manrope.ttf', 'Manrope — округлый'),
+}
+POST_FORMATS = {
+    'post': (1080, 1350, 'Instagram — пост'),
+    'square': (1080, 1080, 'Квадрат'),
+    'story': (1080, 1920, 'Сторис'),
+    'wide': (1200, 675, 'Telegram — широкий'),
+}
+POST_THEMES = {
+    'dark': ('Тёмная', (18, 20, 26), (255, 255, 255), (156, 163, 175)),
+    'light': ('Светлая', (247, 245, 243), (23, 25, 31), (110, 116, 126)),
+    'grass': ('Травяная', (12, 46, 32), (255, 255, 255), (168, 200, 182)),
+    'night': ('Полуночная', (17, 24, 51), (255, 255, 255), (160, 172, 210)),
+}
+POST_TEMPLATES = {
+    'announce': 'Анонс турнира',
+    'match': 'Результат матча',
+    'standings': 'Таблица группы',
+    'results': 'Итоги турнира',
+    'award': 'Награда',
+}
+POST_ACCENTS = ['#ff9a2b', '#e63946', '#2a9d8f', '#4361ee', '#f4a261', '#111827']
+
+
+def post_font(key, size, weight=400):
+    filename = POST_FONTS.get(key, POST_FONTS['onest'])[0]
+    font = ImageFont.truetype(os.path.join(POST_FONT_DIR, filename), size)
+    try:
+        font.set_variation_by_axes([weight])
+    except Exception:
+        pass
+    return font
+
+
+def hex_to_rgb(value, fallback=(255, 154, 43)):
+    value = (value or '').strip().lstrip('#')
+    if len(value) != 6:
+        return fallback
+    try:
+        return tuple(int(value[i:i + 2], 16) for i in (0, 2, 4))
+    except ValueError:
+        return fallback
+
+
+def wrap_text(draw, text, font, max_width):
+    words = (text or '').split()
+    lines, current = [], ''
+    for word in words:
+        probe = f'{current} {word}'.strip()
+        if draw.textlength(probe, font=font) <= max_width or not current:
+            current = probe
+        else:
+            lines.append(current)
+            current = word
+    if current:
+        lines.append(current)
+    return lines
+
+
+def fit_text_font(draw, text, max_width, start, key, weight):
+    size = start
+    while size > 20:
+        font = post_font(key, size, weight)
+        if draw.textlength(text or '', font=font) <= max_width:
+            return font
+        size -= 4
+    return post_font(key, 20, weight)
+
+
+def paste_cover(canvas, image, box):
+    """Вписывает картинку в прямоугольник по короткой стороне."""
+    left, top, right, bottom = box
+    width, height = right - left, bottom - top
+    source = image.convert('RGB')
+    ratio = max(width / source.width, height / source.height)
+    source = source.resize((int(source.width * ratio) + 1, int(source.height * ratio) + 1), Image.LANCZOS)
+    x = (source.width - width) // 2
+    y = (source.height - height) // 2
+    canvas.paste(source.crop((x, y, x + width, y + height)), (left, top))
+
+
+def post_logo(canvas, media_path, center, size, plate):
+    """Логотип команды в круге. Прозрачный PNG кладём на светлую подложку."""
+    draw = ImageDraw.Draw(canvas)
+    cx, cy = center
+    draw.ellipse((cx - size // 2, cy - size // 2, cx + size // 2, cy + size // 2), fill=plate)
+    image = cover_local_image(media_path)
+    if not image:
+        return
+    circle = cover_circle(image, size - 8)
+    canvas.paste(circle, (cx - (size - 8) // 2, cy - (size - 8) // 2), circle)
+
+
+def post_background(canvas, params, theme_bg):
+    """Фон: заливка темы, постер турнира или загруженная картинка."""
+    background = params.get('background')
+    image = None
+    if background == 'poster':
+        image = cover_local_image(params['tournament'].poster_path)
+    elif background == 'custom':
+        image = cover_local_image(params.get('background_path'))
+    if image is None:
+        return canvas
+    paste_cover(canvas, image, (0, 0, canvas.width, canvas.height))
+    if params.get('blur'):
+        canvas = canvas.filter(ImageFilter.GaussianBlur(14))
+    shade = int(params.get('shade', 70))
+    plate = Image.new('RGB', canvas.size, theme_bg)
+    return Image.blend(canvas, plate, max(0, min(95, shade)) / 100)
+
+
+def post_header(canvas, params, margin):
+    draw = ImageDraw.Draw(canvas)
+    tournament = params['tournament']
+    draw.text((margin, margin), (params.get('eyebrow') or tournament.name).upper(),
+              font=post_font(params['font'], 30, 700), fill=params['accent'])
+    line = params.get('caption') or ' · '.join(filter(None, [
+        params.get('age_group'),
+        tournament.start_date.strftime('%d.%m.%Y') if tournament.start_date else None,
+        tournament.location,
+    ]))
+    if line:
+        draw.text((margin, margin + 44), line, font=post_font(params['font'], 26, 400), fill=params['muted'])
+
+
+def post_footer(canvas, params, margin):
+    draw = ImageDraw.Draw(canvas)
+    settings = ClubSettings.query.first()
+    club = (settings.system_name if settings and settings.system_name else 'FK KARASU')
+    draw.text((margin, canvas.height - margin - 30), club,
+              font=post_font(params['font'], 26, 700), fill=params['muted'])
+
+
+def render_announce(canvas, params, margin):
+    draw = ImageDraw.Draw(canvas)
+    tournament = params['tournament']
+    inner = canvas.width - margin * 2
+    y = int(canvas.height * 0.3)
+    title = params.get('title') or tournament.name
+    font = post_font(params['font'], 96 if canvas.width >= 1080 else 64, 750)
+    for line in wrap_text(draw, title, font, inner)[:3]:
+        draw.text((margin, y), line, font=font, fill=params['ink'])
+        y += int(font.size * 1.12)
+
+    subtitle = params.get('subtitle')
+    if subtitle is None:
+        subtitle = ' · '.join(filter(None, [
+            tournament.location,
+            tournament_age_group_labels(tournament) and ', '.join(
+                tournament_age_group_labels(tournament)) or None,
+        ]))
+    if subtitle:
+        y += 24
+        font = post_font(params['font'], 38, 400)
+        for line in wrap_text(draw, subtitle, font, inner)[:3]:
+            draw.text((margin, y), line, font=font, fill=params['muted'])
+            y += int(font.size * 1.3)
+
+    note = params.get('note')
+    if note:
+        y += 34
+        pill = post_font(params['font'], 34, 700)
+        width = draw.textlength(note, font=pill)
+        draw.rounded_rectangle((margin, y, margin + width + 56, y + 74), radius=37, fill=params['accent'])
+        draw.text((margin + 28, y + 16), note, font=pill, fill=params['on_accent'])
+
+
+def render_match(canvas, params, margin):
+    draw = ImageDraw.Draw(canvas)
+    match = params.get('match')
+    if not match:
+        return render_announce(canvas, params, margin)
+    center = canvas.width // 2
+    top = int(canvas.height * 0.28)
+    logo = 190 if canvas.height > 900 else 130
+    gap = int(canvas.width * 0.24)
+
+    for side, offset in (('home', -gap), ('away', gap)):
+        entry = match.home_entry if side == 'home' else match.away_entry
+        team = entry.team if entry else None
+        post_logo(canvas, team.logo_path if team else None, (center + offset, top + logo // 2),
+                  logo, params['plate'])
+        name = team.name if team else '—'
+        font = fit_text_font(draw, name, gap * 1.5, 40, params['font'], 700)
+        width = draw.textlength(name, font=font)
+        draw.text((center + offset - width / 2, top + logo + 26), name, font=font, fill=params['ink'])
+
+    score = f'{match.home_score} : {match.away_score}' if match.is_played else '— : —'
+    font = post_font(params['font'], 92, 750)
+    width = draw.textlength(score, font=font)
+    draw.text((center - width / 2, top + logo // 2 - font.size * 0.62), score, font=font, fill=params['ink'])
+
+    if match.home_penalty is not None and match.home_score == match.away_score:
+        pen = f'по пенальти {match.home_penalty}:{match.away_penalty}'
+        font = post_font(params['font'], 30, 400)
+        width = draw.textlength(pen, font=font)
+        draw.text((center - width / 2, top + logo // 2 + 44), pen, font=font, fill=params['muted'])
+
+    stage = params.get('title') or (match.label or (
+        f'Группа {match.group.name}' if match.group else 'Матч турнира'))
+    font = post_font(params['font'], 40, 700)
+    width = draw.textlength(stage, font=font)
+    draw.text((center - width / 2, top + logo + 130), stage, font=font, fill=params['accent'])
+
+    when = params.get('subtitle')
+    if when is None and match.kickoff_at:
+        when = match.kickoff_at.strftime('%d.%m.%Y, %H:%M')
+    if when:
+        font = post_font(params['font'], 30, 400)
+        width = draw.textlength(when, font=font)
+        draw.text((center - width / 2, top + logo + 190), when, font=font, fill=params['muted'])
+
+
+def render_rows(canvas, params, margin, heading, rows):
+    """Общая отрисовка списка: таблица группы и итоги устроены одинаково."""
+    draw = ImageDraw.Draw(canvas)
+    y = int(canvas.height * 0.24)
+    if heading:
+        font = post_font(params['font'], 56, 750)
+        draw.text((margin, y), heading, font=font, fill=params['ink'])
+        y += 96
+
+    space = canvas.height - y - margin - 60
+    step = max(84, min(150, int(space / max(len(rows), 1))))
+    for index, row in enumerate(rows):
+        cy = y + step // 2
+        badge = post_font(params['font'], 30, 750)
+        number = str(row.get('rank') or index + 1)
+        draw.ellipse((margin, cy - 24, margin + 48, cy + 24),
+                     fill=params['accent'] if index == 0 else params['plate'])
+        width = draw.textlength(number, font=badge)
+        draw.text((margin + 24 - width / 2, cy - 18), number, font=badge,
+                  fill=params['on_accent'] if index == 0 else params['muted'])
+
+        post_logo(canvas, row.get('logo_path'), (margin + 48 + 26 + 26, cy), 52, params['plate'])
+
+        name_font = post_font(params['font'], 38, 700)
+        value_font = post_font(params['font'], 38, 750)
+        value = str(row.get('value') or '')
+        value_width = draw.textlength(value, font=value_font)
+        name_left = margin + 48 + 26 + 52 + 26
+        name_max = canvas.width - margin - value_width - 30 - name_left
+        name = row.get('name') or ''
+        name_font = fit_text_font(draw, name, name_max, 38, params['font'], 700)
+        note = row.get('note')
+        name_top = cy - name_font.size * (1.05 if note else 0.62)
+        draw.text((name_left, name_top), name, font=name_font, fill=params['ink'])
+        if note:
+            draw.text((name_left, cy + 6), note,
+                      font=post_font(params['font'], 24, 400), fill=params['muted'])
+        if value:
+            draw.text((canvas.width - margin - value_width, cy - value_font.size * 0.62),
+                      value, font=value_font, fill=params['accent'])
+        if index < len(rows) - 1:
+            draw.line((margin, y + step - 1, canvas.width - margin, y + step - 1),
+                      fill=params['plate'], width=1)
+        y += step
+
+
+def render_standings(canvas, params, margin):
+    group = params.get('group')
+    if not group:
+        return render_announce(canvas, params, margin)
+    entries = TournamentEntry.query.filter_by(group_id=group.id).all()
+    matches = TournamentMatch.query.filter_by(
+        group_id=group.id, stage=TournamentMatch.STAGE_GROUP).all()
+    rows = []
+    for row in build_standings(entries, matches)[:7]:
+        entry = next((e for e in entries if e.team and e.team.name == row['team_name']), None)
+        rows.append({
+            'rank': row['place'],
+            'name': row['team_name'],
+            'note': f"{row['played']} и · {row['goals_for']}–{row['goals_against']}",
+            'value': str(row['points']),
+            'logo_path': entry.team.logo_path if entry and entry.team else None,
+        })
+    render_rows(canvas, params, margin, params.get('title') or f'Группа {group.name}', rows)
+
+
+def render_results(canvas, params, margin):
+    matches = TournamentMatch.query.filter_by(
+        tournament_id=params['tournament'].id, age_group=params.get('age_group') or '',
+        stage=TournamentMatch.STAGE_PLAYOFF).all()
+    places = playoff_results(matches)
+    titles = {1: 'Победитель', 2: 'Второе место', 3: 'Третье место', 4: 'Четвёртое место'}
+    rows = []
+    for row in places:
+        entry = TournamentEntry.query.filter_by(
+            tournament_id=params['tournament'].id, age_group=params.get('age_group') or '').all()
+        team = next((e.team for e in entry if e.team and e.team.name == row['team_name']), None)
+        rows.append({
+            'rank': row['place'],
+            'name': row['team_name'],
+            'note': titles.get(row['place'], ''),
+            'value': '',
+            'logo_path': team.logo_path if team else None,
+        })
+    render_rows(canvas, params, margin, params.get('title') or 'Итоги турнира', rows)
+
+
+def render_award(canvas, params, margin):
+    draw = ImageDraw.Draw(canvas)
+    award = params.get('award')
+    if not award:
+        return render_announce(canvas, params, margin)
+    center = canvas.width // 2
+    face = 440 if canvas.height > 1100 else 320
+    top = int(canvas.height * 0.22)
+    draw.ellipse((center - face // 2 - 8, top - 8, center + face // 2 + 8, top + face + 8),
+                 fill=params['accent'])
+    member = award.member
+    team = member.team if member else (award.entry.team if award.entry else None)
+    photo = cover_local_image(member.photo_path) if member else None
+    if photo is None and not member:
+        photo = cover_local_image(team.logo_path if team else None)
+    if photo:
+        circle = cover_circle(photo, face)
+        canvas.paste(circle, (center - face // 2, top), circle)
+    else:
+        draw.ellipse((center - face // 2, top, center + face // 2, top + face), fill=params['plate'])
+
+    y = top + face + 60
+    title = params.get('title') or AWARD_CODES.get(award.code, '')
+    font = post_font(params['font'], 38, 700)
+    width = draw.textlength(title.upper(), font=font)
+    draw.text((center - width / 2, y), title.upper(), font=font, fill=params['accent'])
+
+    y += 70
+    name = params.get('subtitle') or (member.full_name if member else (team.name if team else ''))
+    font = fit_text_font(draw, name, canvas.width - margin * 2, 84, params['font'], 750)
+    width = draw.textlength(name, font=font)
+    draw.text((center - width / 2, y), name, font=font, fill=params['ink'])
+
+    y += int(font.size * 1.35)
+    note = params.get('note')
+    if note is None:
+        note = team.name if (member and team) else ''
+    if note:
+        font = post_font(params['font'], 34, 400)
+        width = draw.textlength(note, font=font)
+        draw.text((center - width / 2, y), note, font=font, fill=params['muted'])
+
+
+POST_RENDERERS = {
+    'announce': render_announce,
+    'match': render_match,
+    'standings': render_standings,
+    'results': render_results,
+    'award': render_award,
+}
+
+
+def build_post_image(tournament, data):
+    template = data.get('template') if data.get('template') in POST_RENDERERS else 'announce'
+    width, height, _ = POST_FORMATS.get(data.get('format'), POST_FORMATS['post'])
+    theme_name, theme_bg, theme_ink, theme_muted = POST_THEMES.get(
+        data.get('theme'), POST_THEMES['dark'])
+    accent = hex_to_rgb(data.get('accent'))
+    light_theme = data.get('theme') == 'light'
+
+    canvas = Image.new('RGB', (width, height), theme_bg)
+    params = {
+        'tournament': tournament,
+        'font': data.get('font') if data.get('font') in POST_FONTS else 'onest',
+        'accent': accent,
+        'ink': theme_ink,
+        'muted': theme_muted,
+        'plate': (240, 237, 233) if light_theme else (44, 48, 58),
+        'on_accent': (23, 25, 31),
+        'background': data.get('background'),
+        'background_path': data.get('background_path'),
+        'shade': data.get('shade', 70),
+        'blur': data.get('blur'),
+        'age_group': data.get('age_group'),
+        'title': data.get('title') or None,
+        'subtitle': data.get('subtitle') if data.get('subtitle') != '' else None,
+        'note': data.get('note') or None,
+        'eyebrow': data.get('eyebrow') or None,
+        'caption': data.get('caption') or None,
+    }
+    canvas = post_background(canvas, params, theme_bg)
+
+    if data.get('match_id'):
+        params['match'] = db.session.get(TournamentMatch, int(data['match_id']))
+    if data.get('group_id'):
+        params['group'] = db.session.get(TournamentGroup, int(data['group_id']))
+    if data.get('award_code'):
+        params['award'] = TournamentAward.query.filter_by(
+            tournament_id=tournament.id, age_group=data.get('age_group') or '',
+            code=data['award_code']).first()
+
+    margin = 80 if width >= 1080 else 60
+    post_header(canvas, params, margin)
+    POST_RENDERERS[template](canvas, params, margin)
+    post_footer(canvas, params, margin)
+    return canvas
+
+
+@app.route('/api/tournaments/<int:tournament_id>/post-options')
+@login_required
+def tournament_post_options_api(tournament_id):
+    tournament = db.session.get(Tournament, tournament_id)
+    if not tournament:
+        return jsonify({'success': False, 'message': 'Турнир не найден'}), 404
+    age_groups = tournament_age_group_labels(tournament)
+    matches = TournamentMatch.query.filter_by(tournament_id=tournament.id).all()
+    groups = TournamentGroup.query.filter_by(tournament_id=tournament.id).order_by(
+        TournamentGroup.age_group, TournamentGroup.sort_order).all()
+
+    def match_label(match):
+        home = match.home_entry.team.name if match.home_entry and match.home_entry.team else '—'
+        away = match.away_entry.team.name if match.away_entry and match.away_entry.team else '—'
+        score = f'{match.home_score}:{match.away_score}' if match.is_played else '—:—'
+        return f'{home} {score} {away}'
+
+    awards = []
+    for age_group in age_groups:
+        for row in TournamentAward.query.filter_by(
+                tournament_id=tournament.id, age_group=age_group).all():
+            if row.member_id or row.entry_id:
+                awards.append({'code': row.code, 'age_group': age_group,
+                               'title': AWARD_CODES.get(row.code, row.code)})
+
+    return jsonify({
+        'success': True,
+        'templates': [{'key': key, 'title': title} for key, title in POST_TEMPLATES.items()],
+        'formats': [{'key': key, 'title': value[2], 'width': value[0], 'height': value[1]}
+                    for key, value in POST_FORMATS.items()],
+        'themes': [{'key': key, 'title': value[0]} for key, value in POST_THEMES.items()],
+        'fonts': [{'key': key, 'title': value[1]} for key, value in POST_FONTS.items()],
+        'accents': POST_ACCENTS,
+        'age_groups': age_groups,
+        'has_poster': bool(get_tournament_media_url(tournament.poster_path)),
+        'matches': [{'id': m.id, 'age_group': m.age_group, 'label': match_label(m),
+                     'stage': m.stage} for m in matches
+                    if m.home_entry_id and m.away_entry_id],
+        'groups': [{'id': g.id, 'age_group': g.age_group, 'name': g.name} for g in groups],
+        'awards': awards,
+    })
+
+
+@app.route('/api/tournament-post-background', methods=['POST'])
+@login_required
+def tournament_post_background_api():
+    """Свой фон: сохраняем один раз, дальше рисуем по имени файла."""
+    image_file = request.files.get('background')
+    if not image_file:
+        return jsonify({'success': False, 'message': 'Файл не выбран'}), 400
+    extension = detect_upload_image_extension(image_file)
+    if not extension:
+        return jsonify({'success': False, 'message': 'Поддерживаются PNG, JPG, WEBP'}), 400
+    filename = f'post-bg-{uuid.uuid4().hex}.{extension}'
+    image_file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+    return jsonify({'success': True, 'background_path': filename})
+
+
+@app.route('/api/tournaments/<int:tournament_id>/post.png', methods=['POST'])
+@login_required
+def tournament_post_render_api(tournament_id):
+    tournament = db.session.get(Tournament, tournament_id)
+    if not tournament:
+        return jsonify({'success': False, 'message': 'Турнир не найден'}), 404
+    data = request.get_json() or {}
+    try:
+        image = build_post_image(tournament, data)
+    except Exception as error:
+        return jsonify({'success': False, 'message': f'Не удалось собрать публикацию: {error}'}), 400
+    buffer = io.BytesIO()
+    image.save(buffer, format='PNG')
+    buffer.seek(0)
+    return send_file(buffer, mimetype='image/png', download_name='post.png')
+
+
 @app.route('/tournaments-afisha/<int:tournament_id>/screen')
 def public_tournament_screen_page(tournament_id):
     """Табло для телевизора на стадионе: листает таблицы, сетку и награды."""

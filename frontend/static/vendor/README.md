@@ -4,6 +4,7 @@
 - Chart.js 4.4.9 — MIT license, https://www.chartjs.org/
 - chartjs-plugin-datalabels 2.2.0 — MIT license, https://chartjs-plugin-datalabels.netlify.app/
 - bracketry 1.1.3 — MIT license, https://github.com/sbachinin/bracketry
+- Unbounded и Manrope (TTF, вариативные) из Google Fonts — SIL Open Font License 1.1 — шрифты студии публикаций
 - Onest (TTF, вариативный) из Google Fonts — SIL Open Font License 1.1, https://fonts.google.com/specimen/Onest — нужен Pillow для обложек наград
 - Onest Variable 5.2.11 from Fontsource — SIL Open Font License 1.1, https://fontsource.org/fonts/onest
 
