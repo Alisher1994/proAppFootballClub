@@ -222,10 +222,13 @@ function renderTournaments() {
                     ${items.map((item) => `
                         <tr>
                             <td data-label="Турнир">
-                                <span class="catalog-primary-cell">
+                                <button class="team-table-team" type="button" data-open-tournament="${item.id}">
                                     <span class="catalog-row-icon"><i data-lucide="trophy"></i></span>
-                                    <strong>${escapeHtml(item.name)}</strong>
-                                </span>
+                                    <span class="team-table-name">
+                                        <strong>${escapeHtml(item.name)}</strong>
+                                        <small>Открыть турнир</small>
+                                    </span>
+                                </button>
                             </td>
                             <td data-label="Дата">${escapeHtml(tournamentDates(item))}</td>
                             <td data-label="Время">${escapeHtml(item.start_time || '—')}</td>
@@ -1702,6 +1705,11 @@ function bindEvents() {
         ].filter(Boolean).join('.');
     });
     byId('tournamentList').addEventListener('click', (event) => {
+        const openButton = event.target.closest('[data-open-tournament]');
+        if (openButton) {
+            openTournamentEntries(openButton.dataset.openTournament).catch(showPageError);
+            return;
+        }
         const entriesButton = event.target.closest('[data-entries-tournament]');
         if (entriesButton) {
             entriesButton.closest('details')?.removeAttribute('open');
