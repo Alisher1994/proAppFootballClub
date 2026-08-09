@@ -1499,6 +1499,7 @@ def ensure_tournament_tables():
         stadium_columns = {col['name'] for col in inspector.get_columns('tournament_stadiums')}
         member_columns = {col['name'] for col in inspector.get_columns('tournament_team_members')}
         entry_columns = {col['name'] for col in inspector.get_columns('tournament_entries')}
+        fixture_columns = {col['name'] for col in inspector.get_columns('tournament_fixtures')}
         team_column_definitions = {
             'trainer_name': 'VARCHAR(200)',
             'trainer_photo_path': 'VARCHAR(300)',
@@ -1533,6 +1534,20 @@ def ensure_tournament_tables():
             pending.append(('tournament_team_members', 'position', 'VARCHAR(50)'))
         if 'group_id' not in entry_columns:
             pending.append(('tournament_entries', 'group_id', 'INTEGER'))
+        for column_name, column_type in (
+            ('home_penalty', 'INTEGER'),
+            ('away_penalty', 'INTEGER'),
+            ('label', 'VARCHAR(60)'),
+            ('home_label', 'VARCHAR(120)'),
+            ('away_label', 'VARCHAR(120)'),
+            ('bracket_slot', 'INTEGER'),
+            ('next_match_id', 'INTEGER'),
+            ('next_slot', 'VARCHAR(8)'),
+            ('loser_next_match_id', 'INTEGER'),
+            ('loser_next_slot', 'VARCHAR(8)'),
+        ):
+            if column_name not in fixture_columns:
+                pending.append(('tournament_fixtures', column_name, column_type))
 
         # Каждый ALTER в своей транзакции: в PostgreSQL одна неудачная команда
         # обрывает всю транзакцию, и следом молча теряются все остальные колонки.
@@ -5276,9 +5291,9 @@ def round_robin_rounds(items):
 
 
 def serialize_match(match):
-    def side(entry):
+    def side(entry, placeholder=None):
         if not entry:
-            return {'entry_id': None, 'team_name': '—', 'team_logo_url': None}
+            return {'entry_id': None, 'team_name': placeholder or '—', 'team_logo_url': None}
         team = entry.team
         return {
             'entry_id': entry.id,
@@ -5292,11 +5307,17 @@ def serialize_match(match):
         'group_id': match.group_id,
         'group_name': match.group.name if match.group else None,
         'round_no': match.round_no,
-        'home': side(match.home_entry),
-        'away': side(match.away_entry),
+        'home': side(match.home_entry, match.home_label),
+        'away': side(match.away_entry, match.away_label),
         'home_score': match.home_score,
         'away_score': match.away_score,
         'is_played': match.is_played,
+        'stage': match.stage,
+        'label': match.label,
+        'bracket_slot': match.bracket_slot,
+        'home_penalty': match.home_penalty,
+        'away_penalty': match.away_penalty,
+        'winner_entry_id': match.winner_entry_id,
         'stadium_id': match.stadium_id,
         'stadium_name': match.stadium.name if match.stadium else None,
         'kickoff_at': match.kickoff_at.isoformat(timespec='minutes') if match.kickoff_at else None,
@@ -5392,7 +5413,12 @@ def tournament_matches_api(tournament_id):
         ).order_by(TournamentGroup.sort_order.asc()).all()
         matches = TournamentMatch.query.filter_by(
             tournament_id=tournament_id, age_group=age_group,
+            stage=TournamentMatch.STAGE_GROUP,
         ).order_by(TournamentMatch.round_no.asc(), TournamentMatch.id.asc()).all()
+        playoff = TournamentMatch.query.filter_by(
+            tournament_id=tournament_id, age_group=age_group,
+            stage=TournamentMatch.STAGE_PLAYOFF,
+        ).order_by(TournamentMatch.round_no.asc(), TournamentMatch.bracket_slot.asc()).all()
         entries = TournamentEntry.query.filter_by(
             tournament_id=tournament_id, age_group=age_group,
             status=TournamentEntry.STATUS_CONFIRMED,
@@ -5410,6 +5436,7 @@ def tournament_matches_api(tournament_id):
         return jsonify({
             'success': True,
             'blocks': blocks,
+            'playoff': [serialize_match(m) for m in playoff],
             'stadiums': [{'id': s.id, 'name': s.name}
                          for s in TournamentStadium.query.order_by(TournamentStadium.name.asc()).all()],
         })
@@ -5462,6 +5489,187 @@ def tournament_matches_api(tournament_id):
 
 def match_teams(match):
     return {match.home_entry_id, match.away_entry_id} - {None}
+
+
+# ===== ПЛЕЙ-ОФФ =====
+
+ROUND_NAMES = {1: 'Финал', 2: 'Полуфинал', 4: 'Четвертьфинал', 8: '1/8 финала', 16: '1/16 финала'}
+
+
+def playoff_round_name(matches_in_round):
+    return ROUND_NAMES.get(matches_in_round, f'Раунд на {matches_in_round} матчей')
+
+
+def propagate_playoff(match):
+    """Переносит победителя (и проигравшего) в следующий матч сетки."""
+    if match.stage != TournamentMatch.STAGE_PLAYOFF:
+        return
+    for target_id, slot, entry_id in (
+        (match.next_match_id, match.next_slot, match.winner_entry_id),
+        (match.loser_next_match_id, match.loser_next_slot, match.loser_entry_id),
+    ):
+        if not target_id or not slot:
+            continue
+        target = db.session.get(TournamentMatch, target_id)
+        if not target:
+            continue
+        if slot == 'home':
+            target.home_entry_id = entry_id
+        else:
+            target.away_entry_id = entry_id
+
+
+def qualified_slot_labels(groups, advance):
+    """Плейсхолдеры вида «1 место группы A» до того, как группы доиграны."""
+    labels = []
+    for place in range(1, advance + 1):
+        for group in groups:
+            labels.append((group.id, place, f'{place} место группы {group.name}'))
+    return labels
+
+
+def resolve_qualified(tournament_id, age_group, groups, advance):
+    """Возвращает пары (entry_id | None, подпись) в порядке посева."""
+    entries = TournamentEntry.query.filter_by(
+        tournament_id=tournament_id, age_group=age_group,
+        status=TournamentEntry.STATUS_CONFIRMED,
+    ).all()
+    matches = TournamentMatch.query.filter_by(
+        tournament_id=tournament_id, age_group=age_group,
+        stage=TournamentMatch.STAGE_GROUP,
+    ).all()
+
+    tables = {}
+    for group in groups:
+        group_entries = [e for e in entries if e.group_id == group.id]
+        group_matches = [m for m in matches if m.group_id == group.id]
+        tables[group.id] = build_standings(group_entries, group_matches)
+
+    seeds = []
+    for group_id, place, label in qualified_slot_labels(groups, advance):
+        table = tables.get(group_id) or []
+        # Место засчитываем только когда все матчи группы сыграны — иначе
+        # в сетку попадёт лидер по ходу турнира, а не по итогу.
+        finished = all(m.is_played for m in matches if m.group_id == group_id) and table
+        entry_id = table[place - 1]['entry_id'] if finished and len(table) >= place else None
+        seeds.append((entry_id, label))
+    return seeds
+
+
+@app.route('/api/tournaments/<int:tournament_id>/playoff', methods=['POST'])
+@login_required
+def tournament_playoff_api(tournament_id):
+    ensure_tournament_tables()
+    if not has_tournament_permission('edit'):
+        return jsonify({'success': False, 'message': 'Нет доступа'}), 403
+    tournament = Tournament.query.filter_by(id=tournament_id).first_or_404()
+
+    data = request.get_json() or {}
+    age_group = (data.get('age_group') or '').strip()
+    try:
+        advance = int(data.get('advance') or 2)
+    except (TypeError, ValueError):
+        return jsonify({'success': False, 'message': 'Проверьте количество выходящих команд'}), 400
+    if advance < 1 or advance > 4:
+        return jsonify({'success': False, 'message': 'Из группы могут выходить от 1 до 4 команд'}), 400
+    third_place = bool(data.get('third_place', True))
+
+    groups = TournamentGroup.query.filter_by(
+        tournament_id=tournament_id, age_group=age_group,
+    ).order_by(TournamentGroup.sort_order.asc()).all()
+    if not groups:
+        return jsonify({'success': False, 'message': 'Сначала создайте группы этой категории'}), 400
+
+    seeds = resolve_qualified(tournament_id, age_group, groups, advance)
+    if len(seeds) < 2:
+        return jsonify({'success': False, 'message': 'Для сетки нужно минимум две команды'}), 400
+
+    size = 1
+    while size < len(seeds):
+        size *= 2
+    # Свободные места в сетке: их соперник проходит дальше автоматически.
+    seeds += [(None, None)] * (size - len(seeds))
+
+    TournamentMatch.query.filter_by(
+        tournament_id=tournament_id, age_group=age_group,
+        stage=TournamentMatch.STAGE_PLAYOFF,
+    ).delete(synchronize_session=False)
+    db.session.flush()
+
+    rounds = []
+    round_no = 1
+    pairs = [(seeds[i], seeds[size - 1 - i]) for i in range(size // 2)]
+    current = []
+    for slot, (home, away) in enumerate(pairs, start=1):
+        match = TournamentMatch(
+            tournament_id=tournament_id,
+            age_group=age_group,
+            stage=TournamentMatch.STAGE_PLAYOFF,
+            round_no=round_no,
+            bracket_slot=slot,
+            label=playoff_round_name(len(pairs)),
+            home_entry_id=home[0],
+            away_entry_id=away[0],
+            home_label=home[1],
+            away_label=away[1],
+        )
+        db.session.add(match)
+        current.append(match)
+    db.session.flush()
+    rounds.append(current)
+
+    while len(current) > 1:
+        round_no += 1
+        nxt = []
+        for slot, index in enumerate(range(0, len(current), 2), start=1):
+            match = TournamentMatch(
+                tournament_id=tournament_id,
+                age_group=age_group,
+                stage=TournamentMatch.STAGE_PLAYOFF,
+                round_no=round_no,
+                bracket_slot=slot,
+                label=playoff_round_name(len(current) // 2),
+                home_label=f'Победитель матча {index + 1}',
+                away_label=f'Победитель матча {index + 2}',
+            )
+            db.session.add(match)
+            nxt.append(match)
+        db.session.flush()
+        for index, parent in enumerate(current):
+            target = nxt[index // 2]
+            parent.next_match_id = target.id
+            parent.next_slot = 'home' if index % 2 == 0 else 'away'
+        current = nxt
+        rounds.append(current)
+
+    if third_place and len(rounds) >= 2:
+        semis = rounds[-2]
+        if len(semis) == 2:
+            bronze = TournamentMatch(
+                tournament_id=tournament_id,
+                age_group=age_group,
+                stage=TournamentMatch.STAGE_PLAYOFF,
+                round_no=round_no,
+                bracket_slot=2,
+                label='За 3 место',
+                home_label='Проигравший полуфинала 1',
+                away_label='Проигравший полуфинала 2',
+            )
+            db.session.add(bronze)
+            db.session.flush()
+            for index, semi in enumerate(semis):
+                semi.loser_next_match_id = bronze.id
+                semi.loser_next_slot = 'home' if index == 0 else 'away'
+
+    # Свободные места: соперник проходит сразу, иначе сетка встанет.
+    for match in rounds[0]:
+        if match.home_entry_id and match.away_label is None and match.away_entry_id is None:
+            propagate_playoff(match)
+        elif match.away_entry_id and match.home_label is None and match.home_entry_id is None:
+            propagate_playoff(match)
+
+    db.session.commit()
+    return jsonify({'success': True, 'rounds': len(rounds)})
 
 
 @app.route('/api/tournaments/<int:tournament_id>/matches/schedule', methods=['POST'])
@@ -5598,10 +5806,27 @@ def tournament_match_detail_api(match_id):
             return jsonify({'success': False, 'message': 'Укажите счёт обеих команд'}), 400
         match.home_score = home
         match.away_score = away
+        if home is None:
+            match.home_penalty = None
+            match.away_penalty = None
 
     if 'stadium_id' in data:
         stadium_id = data.get('stadium_id')
         match.stadium_id = int(stadium_id) if stadium_id else None
+
+    if 'home_penalty' in data or 'away_penalty' in data:
+        def parse_penalty(value):
+            if value in (None, ''):
+                return None
+            number = int(value)
+            if number < 0 or number > 99:
+                raise ValueError
+            return number
+        try:
+            match.home_penalty = parse_penalty(data.get('home_penalty'))
+            match.away_penalty = parse_penalty(data.get('away_penalty'))
+        except (TypeError, ValueError):
+            return jsonify({'success': False, 'message': 'Пенальти — число от 0 до 99'}), 400
 
     if 'kickoff_at' in data:
         value = (data.get('kickoff_at') or '').strip()
@@ -5613,6 +5838,7 @@ def tournament_match_detail_api(match_id):
             except ValueError:
                 return jsonify({'success': False, 'message': 'Некорректные дата и время'}), 400
 
+    propagate_playoff(match)
     db.session.commit()
     return jsonify({'success': True, 'match': serialize_match(match)})
 

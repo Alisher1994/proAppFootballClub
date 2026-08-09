@@ -8,7 +8,7 @@
     {% include '_pwa_head.html' %}
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/onest/onest.css') }}">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=2026081001">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=2026081002">
 </head>
 <body>
     {% include '_sidebar.html' %}
@@ -336,6 +336,7 @@
                     <button type="button" class="active" data-entry-tab="entries">Участники</button>
                     <button type="button" data-entry-tab="groups">Группы</button>
                     <button type="button" data-entry-tab="matches">Матчи и таблица</button>
+                    <button type="button" data-entry-tab="playoff">Плей-офф</button>
                 </nav>
 
                 <div data-entry-panel="entries">
@@ -404,6 +405,39 @@
                     </div>
                     <div class="tournament-catalog-form-error" id="matchFormError" hidden></div>
                     <div id="matchBoard"></div>
+                </div>
+
+                <div data-entry-panel="playoff" hidden>
+                    <div class="group-toolbar playoff-toolbar">
+                        <label class="tournament-catalog-field">
+                            <span>Категория</span>
+                            <select id="playoffAgeSelect"></select>
+                        </label>
+                        <label class="tournament-catalog-field">
+                            <span>Выходит из группы</span>
+                            <select id="playoffAdvance">
+                                <option value="1">1 команда</option>
+                                <option value="2" selected>2 команды</option>
+                                <option value="3">3 команды</option>
+                                <option value="4">4 команды</option>
+                            </select>
+                        </label>
+                        <button class="btn-primary" type="button" id="buildPlayoffBtn">
+                            <i data-lucide="git-branch"></i>
+                            Сформировать сетку
+                        </button>
+                    </div>
+                    <label class="tournament-publish-toggle playoff-third">
+                        <input id="playoffThird" type="checkbox" checked>
+                        <span>
+                            <strong>Матч за 3 место</strong>
+                            <small>Проигравшие полуфиналов играют между собой.</small>
+                        </span>
+                    </label>
+                    <div class="tournament-catalog-form-error" id="playoffError" hidden></div>
+                    <p class="group-hint">Участники подставляются, когда все матчи группы сыграны.
+                        Победитель матча автоматически переходит в следующий.</p>
+                    <div id="playoffBoard"></div>
                 </div>
             </div>
         </div>
@@ -748,6 +782,6 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="{{ url_for('static', filename='js/sidebar.js') }}?v=2026080801"></script>
     <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/tournaments.js') }}?v=2026080916"></script>
+    <script src="{{ url_for('static', filename='js/tournaments.js') }}?v=2026081002"></script>
 </body>
 </html>

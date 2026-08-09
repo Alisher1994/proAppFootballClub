@@ -28,6 +28,8 @@ const catalogState = {
     groupAge: '',
     matchAge: '',
     matchBlocks: [],
+    playoffMatches: [],
+    playoffAge: '',
     matchStadiums: [],
     tournamentPosterObjectUrl: null,
     tournamentPosterRemoved: false,
@@ -1302,8 +1304,11 @@ async function openTournamentEntries(tournamentId) {
     await loadEntries();
     await loadGroups();
     catalogState.matchAge = catalogState.groupAge;
+    catalogState.playoffAge = catalogState.groupAge;
     renderMatchAgeSelect();
+    renderPlayoffAgeSelect();
     await loadMatches();
+    await loadPlayoff();
 }
 
 async function addTournamentEntry() {
@@ -1780,6 +1785,141 @@ async function saveMatch(row) {
     }
 }
 
+/* --- Плей-офф: сетка на вылет --- */
+
+function playoffSideMarkup(side, isWinner) {
+    const known = Boolean(side.entry_id);
+    return `<span class="po-team${known ? '' : ' pending'}${isWinner ? ' winner' : ''}">
+        ${escapeHtml(side.team_name)}</span>`;
+}
+
+function playoffMatchMarkup(match, index) {
+    const winner = match.winner_entry_id;
+    const ready = Boolean(match.home.entry_id && match.away.entry_id);
+    return `
+        <div class="po-match${match.is_played ? ' played' : ''}" data-match="${match.id}">
+            <span class="po-number">${index}</span>
+            ${playoffSideMarkup(match.home, winner && winner === match.home.entry_id)}
+            <span class="po-score">
+                <input type="number" min="0" max="99" data-score="home" ${ready ? '' : 'disabled'}
+                    value="${match.home_score === null ? '' : match.home_score}" aria-label="Голы хозяев">
+                <em>:</em>
+                <input type="number" min="0" max="99" data-score="away" ${ready ? '' : 'disabled'}
+                    value="${match.away_score === null ? '' : match.away_score}" aria-label="Голы гостей">
+            </span>
+            ${playoffSideMarkup(match.away, winner && winner === match.away.entry_id)}
+            <span class="po-pen" title="Серия пенальти при ничьей">
+                пен.
+                <input type="number" min="0" max="99" data-pen="home" ${ready ? '' : 'disabled'}
+                    value="${match.home_penalty === null ? '' : match.home_penalty}" aria-label="Пенальти хозяев">
+                <em>:</em>
+                <input type="number" min="0" max="99" data-pen="away" ${ready ? '' : 'disabled'}
+                    value="${match.away_penalty === null ? '' : match.away_penalty}" aria-label="Пенальти гостей">
+            </span>
+        </div>`;
+}
+
+function renderPlayoff() {
+    const board = byId('playoffBoard');
+    const matches = catalogState.playoffMatches;
+    if (!matches.length) {
+        board.innerHTML = emptyCatalogMarkup(
+            'git-branch',
+            'Сетка не сформирована',
+            'Задайте, сколько команд выходит из группы, и нажмите «Сформировать сетку».',
+        );
+        refreshIcons();
+        return;
+    }
+    const byRound = new Map();
+    matches.forEach((match) => {
+        const key = `${match.round_no}|${match.label || ''}`;
+        if (!byRound.has(key)) byRound.set(key, []);
+        byRound.get(key).push(match);
+    });
+
+    let counter = 0;
+    board.innerHTML = [...byRound.entries()].map(([key, items]) => `
+        <section class="po-round">
+            <h3 class="entry-group-title">${escapeHtml(key.split('|')[1] || 'Раунд')}</h3>
+            ${items.map((match) => playoffMatchMarkup(match, ++counter)).join('')}
+        </section>`).join('');
+
+    const champion = matches.find((m) => m.label === 'Финал' && m.winner_entry_id);
+    if (champion) {
+        const name = champion.winner_entry_id === champion.home.entry_id
+            ? champion.home.team_name : champion.away.team_name;
+        board.insertAdjacentHTML('afterbegin',
+            `<p class="po-champion">Победитель турнира — ${escapeHtml(name)}</p>`);
+    }
+    refreshIcons();
+}
+
+function renderPlayoffAgeSelect() {
+    const select = byId('playoffAgeSelect');
+    const ages = catalogState.entryAgeGroups;
+    select.innerHTML = ages.map((age) =>
+        `<option value="${escapeHtml(age)}">${escapeHtml(age)}</option>`).join('');
+    if (!ages.includes(catalogState.playoffAge)) catalogState.playoffAge = ages[0] || '';
+    select.value = catalogState.playoffAge;
+}
+
+async function loadPlayoff() {
+    if (!catalogState.playoffAge) {
+        catalogState.playoffMatches = [];
+        renderPlayoff();
+        return;
+    }
+    const data = await apiJson(
+        `/api/tournaments/${catalogState.entriesTournamentId}/matches`
+        + `?age_group=${encodeURIComponent(catalogState.playoffAge)}`,
+    );
+    catalogState.playoffMatches = data.playoff || [];
+    renderPlayoff();
+}
+
+async function buildPlayoff() {
+    if (catalogState.playoffMatches.length
+        && !window.confirm('Сетка будет создана заново, результаты плей-офф пропадут. Продолжить?')) return;
+    try {
+        showFormError('playoffError');
+        await apiJson(`/api/tournaments/${catalogState.entriesTournamentId}/playoff`, {
+            method: 'POST',
+            body: JSON.stringify({
+                age_group: catalogState.playoffAge,
+                advance: Number(byId('playoffAdvance').value),
+                third_place: byId('playoffThird').checked,
+            }),
+        });
+        await loadPlayoff();
+    } catch (error) {
+        showFormError('playoffError', error.message);
+    }
+}
+
+async function savePlayoffMatch(row) {
+    const scores = row.querySelectorAll('[data-score]');
+    const pens = row.querySelectorAll('[data-pen]');
+    const filled = (input) => input.value.trim() !== '';
+    if (filled(scores[0]) !== filled(scores[1])) return;
+    try {
+        showFormError('playoffError');
+        await apiJson(`/api/tournament-matches/${row.dataset.match}`, {
+            method: 'PUT',
+            body: JSON.stringify({
+                home_score: filled(scores[0]) ? Number(scores[0].value) : null,
+                away_score: filled(scores[1]) ? Number(scores[1].value) : null,
+                home_penalty: filled(pens[0]) ? Number(pens[0].value) : null,
+                away_penalty: filled(pens[1]) ? Number(pens[1].value) : null,
+            }),
+        });
+        await loadPlayoff();
+    } catch (error) {
+        showFormError('playoffError', error.message);
+        await loadPlayoff();
+    }
+}
+
 /* --- Ссылка для тренера: заполнение состава команды --- */
 
 function formatShareDeadline(value) {
@@ -2196,6 +2336,16 @@ function bindEvents() {
         catalogState.matchAge = event.target.value;
         loadMatches().catch(showPageError);
     });
+    byId('playoffAgeSelect').addEventListener('change', (event) => {
+        catalogState.playoffAge = event.target.value;
+        loadPlayoff().catch(showPageError);
+    });
+    byId('buildPlayoffBtn').addEventListener('click', () => buildPlayoff().catch(showPageError));
+    byId('playoffBoard').addEventListener('change', (event) => {
+        const row = event.target.closest('[data-match]');
+        if (row) savePlayoffMatch(row).catch(showPageError);
+    });
+    byId('playoffBoard').addEventListener('input', () => showFormError('playoffError'));
     byId('generateMatchesBtn').addEventListener('click', () => generateMatches().catch(showPageError));
     byId('openScheduleBtn').addEventListener('click', openScheduleDialog);
     byId('runScheduleBtn').addEventListener('click', () => runSchedule().catch(showPageError));

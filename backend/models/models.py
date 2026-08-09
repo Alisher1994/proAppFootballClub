@@ -857,6 +857,7 @@ class TournamentMatch(db.Model):
     __tablename__ = 'tournament_fixtures'
 
     STAGE_GROUP = 'group'
+    STAGE_PLAYOFF = 'playoff'
 
     id = db.Column(db.Integer, primary_key=True)
     tournament_id = db.Column(db.Integer, db.ForeignKey('tournaments.id'), nullable=False, index=True)
@@ -870,6 +871,19 @@ class TournamentMatch(db.Model):
     kickoff_at = db.Column(db.DateTime, nullable=True)
     home_score = db.Column(db.Integer, nullable=True)
     away_score = db.Column(db.Integer, nullable=True)
+    # Серия пенальти нужна только в плей-офф: там ничьей быть не может,
+    # но в счёт и в статистику мячей она не идёт.
+    home_penalty = db.Column(db.Integer, nullable=True)
+    away_penalty = db.Column(db.Integer, nullable=True)
+    # Пока участник не определён, показываем откуда он придёт.
+    label = db.Column(db.String(60), nullable=True)
+    home_label = db.Column(db.String(120), nullable=True)
+    away_label = db.Column(db.String(120), nullable=True)
+    bracket_slot = db.Column(db.Integer, nullable=True)
+    next_match_id = db.Column(db.Integer, nullable=True)
+    next_slot = db.Column(db.String(8), nullable=True)
+    loser_next_match_id = db.Column(db.Integer, nullable=True)
+    loser_next_slot = db.Column(db.String(8), nullable=True)
     created_at = db.Column(db.DateTime, default=get_local_datetime)
     updated_at = db.Column(db.DateTime, default=get_local_datetime, onupdate=get_local_datetime)
 
@@ -882,6 +896,30 @@ class TournamentMatch(db.Model):
     @property
     def is_played(self):
         return self.home_score is not None and self.away_score is not None
+
+    @property
+    def winner_entry_id(self):
+        """Кто проходит дальше. Ничья решается серией пенальти."""
+        if not self.is_played:
+            return None
+        if self.home_score > self.away_score:
+            return self.home_entry_id
+        if self.away_score > self.home_score:
+            return self.away_entry_id
+        if self.home_penalty is None or self.away_penalty is None:
+            return None
+        if self.home_penalty > self.away_penalty:
+            return self.home_entry_id
+        if self.away_penalty > self.home_penalty:
+            return self.away_entry_id
+        return None
+
+    @property
+    def loser_entry_id(self):
+        winner = self.winner_entry_id
+        if winner is None:
+            return None
+        return self.away_entry_id if winner == self.home_entry_id else self.home_entry_id
 
     def __repr__(self):
         return f'<TournamentMatch {self.id} {self.age_group}>'
