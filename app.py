@@ -5669,20 +5669,57 @@ def public_tournament_detail_api(tournament_id):
     ).all()
     entries.sort(key=lambda item: (item.age_group, (item.team.name if item.team else '')))
 
-    groups = []
-    for entry in entries:
-        if not entry.team:
-            continue
-        if not groups or groups[-1]['age_group'] != entry.age_group:
-            groups.append({'age_group': entry.age_group, 'teams': []})
+    groups = TournamentGroup.query.filter_by(tournament_id=tournament.id).order_by(
+        TournamentGroup.age_group.asc(), TournamentGroup.sort_order.asc(),
+    ).all()
+    matches = TournamentMatch.query.filter_by(tournament_id=tournament.id).order_by(
+        TournamentMatch.round_no.asc(), TournamentMatch.id.asc(),
+    ).all()
+
+    def public_team(entry):
         # Наружу отдаём только название и логотип: телефоны тренеров и составы
         # остаются внутри системы.
-        groups[-1]['teams'].append({
-            'name': entry.team.name,
-            'logo_url': get_tournament_media_url(entry.team.logo_path),
+        return {
+            'name': entry.team.name if entry.team else '—',
+            'logo_url': get_tournament_media_url(entry.team.logo_path) if entry.team else None,
+        }
+
+    def public_match(match):
+        data = serialize_match(match)
+        return {
+            'round_no': data['round_no'],
+            'home': data['home']['team_name'],
+            'home_logo_url': data['home']['team_logo_url'],
+            'away': data['away']['team_name'],
+            'away_logo_url': data['away']['team_logo_url'],
+            'home_score': data['home_score'],
+            'away_score': data['away_score'],
+            'is_played': data['is_played'],
+            'kickoff_at': data['kickoff_at'],
+            'stadium_name': data['stadium_name'],
+        }
+
+    categories = []
+    for age_group in tournament_age_group_labels(tournament):
+        age_entries = [e for e in entries if e.age_group == age_group and e.team]
+        age_groups = [g for g in groups if g.age_group == age_group]
+        blocks = []
+        for group in age_groups:
+            group_entries = [e for e in age_entries if e.group_id == group.id]
+            group_matches = [m for m in matches if m.group_id == group.id]
+            blocks.append({
+                'name': group.name,
+                'standings': build_standings(group_entries, group_matches),
+                'matches': [public_match(m) for m in group_matches],
+            })
+        categories.append({
+            'age_group': age_group,
+            'teams': [public_team(e) for e in age_entries],
+            'groups': blocks,
         })
 
-    payload['groups'] = groups
+    # Категории без единой заявки на афише не нужны.
+    payload['categories'] = [c for c in categories if c['teams']]
     return jsonify({'success': True, 'tournament': payload})
 
 
