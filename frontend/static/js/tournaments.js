@@ -1651,11 +1651,22 @@ async function generateMatches() {
     }
 }
 
-async function saveMatch(row) {
+function matchScoreState(row) {
     const scores = row.querySelectorAll('[data-score]');
+    return {
+        scores,
+        homeFilled: scores[0].value.trim() !== '',
+        awayFilled: scores[1].value.trim() !== '',
+    };
+}
+
+async function saveMatch(row) {
+    const { scores, homeFilled, awayFilled } = matchScoreState(row);
+    // Половина счёта серверу не нужна — ждём второе число.
+    if (homeFilled !== awayFilled) return;
     const payload = {
-        home_score: scores[0].value === '' ? null : Number(scores[0].value),
-        away_score: scores[1].value === '' ? null : Number(scores[1].value),
+        home_score: homeFilled ? Number(scores[0].value) : null,
+        away_score: awayFilled ? Number(scores[1].value) : null,
         kickoff_at: row.querySelector('[data-kickoff]').value,
         stadium_id: row.querySelector('[data-stadium]').value || null,
     };
@@ -2092,6 +2103,10 @@ function bindEvents() {
     byId('matchBoard').addEventListener('change', (event) => {
         const row = event.target.closest('[data-match]');
         if (row) saveMatch(row).catch(showPageError);
+    });
+    byId('matchBoard').addEventListener('input', (event) => {
+        // Пока вводят счёт, старое сообщение об ошибке только мешает.
+        if (event.target.matches('[data-score]')) showFormError('matchFormError');
     });
     byId('applyGroupsBtn').addEventListener('click', () => saveGroups(false).catch(showPageError));
     byId('drawGroupsBtn').addEventListener('click', () => {

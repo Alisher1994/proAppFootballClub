@@ -11358,7 +11358,15 @@ main.main-content.tournaments-page .tournament-action-btn.danger:hover {
     font-style: normal;
 }
 
+#tournamentEntriesModal .match-score input::-webkit-outer-spin-button,
+#tournamentEntriesModal .match-score input::-webkit-inner-spin-button {
+    margin: 0;
+    appearance: none;
+}
+
 #tournamentEntriesModal .match-score input {
+    appearance: textfield;
+    -moz-appearance: textfield;
     width: 46px !important;
     min-width: 46px !important;
     height: 36px !important;
