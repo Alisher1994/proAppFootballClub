@@ -8,7 +8,7 @@
     {% include '_pwa_head.html' %}
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/onest/onest.css') }}">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=2026081004">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=2026081007">
 </head>
 <body>
     {% include '_sidebar.html' %}
@@ -337,6 +337,7 @@
                     <button type="button" data-entry-tab="groups">Группы</button>
                     <button type="button" data-entry-tab="matches">Матчи и таблица</button>
                     <button type="button" data-entry-tab="playoff">Плей-офф</button>
+                    <button type="button" data-entry-tab="players">Игроки и награды</button>
                 </nav>
 
                 <div data-entry-panel="entries">
@@ -439,7 +440,61 @@
                         Победитель матча автоматически переходит в следующий.</p>
                     <div id="playoffBoard"></div>
                 </div>
+
+                <div data-entry-panel="players" hidden>
+                    <div class="group-toolbar players-toolbar">
+                        <label class="tournament-catalog-field">
+                            <span>Категория</span>
+                            <select id="playersAgeSelect"></select>
+                        </label>
+                    </div>
+                    <p class="group-hint">Таблицы считаются из протоколов матчей.
+                        Расчётные призы система предлагает сама, остальные выбирает организатор.</p>
+                    <p class="group-hint">
+                        <a id="screenLink" href="#" target="_blank" rel="noopener">
+                            Открыть табло для экрана на стадионе</a>
+                    </p>
+                    <div class="tournament-catalog-form-error" id="playersError" hidden></div>
+                    <div id="awardsBoard"></div>
+                    <div id="playersBoard"></div>
+                </div>
             </div>
+        </div>
+    </div>
+
+    <div class="modal tournament-catalog-modal" id="matchProtocolModal" hidden>
+        <div class="modal-content tournament-protocol-content">
+            <header class="tournament-catalog-modal-header">
+                <div>
+                    <h2 id="protocolTitle">Протокол матча</h2>
+                    <p class="tournament-catalog-modal-sub" id="protocolScore"></p>
+                </div>
+                <button class="modal-close" type="button" data-close-protocol aria-label="Закрыть">
+                    <i data-lucide="x"></i>
+                </button>
+            </header>
+            <div class="tournament-catalog-modal-body">
+                <div class="tournament-catalog-form-error" id="protocolError" hidden></div>
+                <div class="protocol-grid" id="protocolGrid"></div>
+                <div class="protocol-events">
+                    <div class="protocol-events-head">
+                        <h3>События матча</h3>
+                        <span class="protocol-balance" id="protocolBalance"></span>
+                    </div>
+                    <div id="protocolEvents"></div>
+                    <div class="protocol-add">
+                        <button class="btn-secondary" type="button" data-add-event="goal">
+                            <i data-lucide="circle-dot"></i> Гол
+                        </button>
+                        <button class="btn-secondary" type="button" data-add-event="card">
+                            <i data-lucide="square"></i> Карточка
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <footer class="tournament-catalog-modal-footer">
+                <button class="btn-primary" type="button" id="saveProtocolBtn">Сохранить протокол</button>
+            </footer>
         </div>
     </div>
 
@@ -782,6 +837,6 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="{{ url_for('static', filename='js/sidebar.js') }}?v=2026080801"></script>
     <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/tournaments.js') }}?v=2026081004"></script>
+    <script src="{{ url_for('static', filename='js/tournaments.js') }}?v=2026081007"></script>
 </body>
 </html>

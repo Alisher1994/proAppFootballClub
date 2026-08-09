@@ -39,7 +39,7 @@ try:
     load_dotenv()
 except Exception:
     pass
-from PIL import Image, ImageDraw, ImageFont, ImageOps
+from PIL import Image, ImageDraw, ImageFilter, ImageFont, ImageOps
 import psutil
 try:
     import pynvml
@@ -73,7 +73,7 @@ os.environ['FFMPEG_LOG_LEVEL'] = 'quiet'
 # Форсируем использование CUDA/TensorRT в ONNX
 os.environ['ORT_TENSORRT_FP16_ENABLE'] = '1'
 
-from backend.models.models import db, User, Student, Payment, Attendance, AccessLog, Expense, Group, GroupTrainer, Tariff, ClubSettings, RewardType, StudentReward, CashTransfer, Role, RolePermission, CardType, StudentCard, Tournament, TournamentTeamCatalog, TournamentTeamMember, TournamentStadium, TournamentTeamShareLink, TournamentEntry, TournamentGroup, TournamentMatch, DeviceCommand, BridgeStatus
+from backend.models.models import db, User, Student, Payment, Attendance, AccessLog, Expense, Group, GroupTrainer, Tariff, ClubSettings, RewardType, StudentReward, CashTransfer, Role, RolePermission, CardType, StudentCard, Tournament, TournamentTeamCatalog, TournamentTeamMember, TournamentStadium, TournamentTeamShareLink, TournamentEntry, TournamentGroup, TournamentMatch, TournamentMatchAppearance, TournamentMatchEvent, TournamentAward, DeviceCommand, BridgeStatus
 # Live camera recognition stays disabled; access-log verification is separate.
 USE_FACE = False
 from backend.services.face_stub import DummyFaceService as FaceService
@@ -1489,6 +1489,9 @@ def ensure_tournament_tables():
             'tournament_entries',
             'tournament_groups',
             'tournament_fixtures',
+            'tournament_match_appearances',
+            'tournament_match_events',
+            'tournament_awards',
         }
         if not required.issubset(set(tables)):
             db.create_all()
@@ -5905,6 +5908,457 @@ def tournament_match_detail_api(match_id):
     return jsonify({'success': True, 'match': serialize_match(match)})
 
 
+# ===== ПРОТОКОЛ МАТЧА И СТАТИСТИКА ИГРОКОВ =====
+
+AWARD_CODES = {
+    'top_scorer': 'Лучший бомбардир',
+    'best_goalkeeper': 'Лучший вратарь',
+    'best_player': 'Лучший игрок',
+    'best_defender': 'Лучший защитник',
+    'best_midfielder': 'Лучший полузащитник',
+    'fair_play': 'Fair Play',
+}
+# Расчётные призы система предлагает сама, остальные присуждают люди.
+COMPUTED_AWARDS = {'top_scorer', 'best_goalkeeper', 'fair_play'}
+
+
+def member_card(member):
+    if not member:
+        return None
+    return {
+        'id': member.id,
+        'name': member.full_name,
+        'short_name': ' '.join(filter(None, [
+            member.last_name,
+            f'{member.first_name[0]}.' if member.first_name else None,
+        ])),
+        'number': member.team_number,
+        'position': member.position,
+        'photo_url': get_tournament_media_url(member.photo_path),
+    }
+
+
+def serialize_protocol(match):
+    """Протокол матча: составы обеих команд и события."""
+    appearances = TournamentMatchAppearance.query.filter_by(match_id=match.id).all()
+    events = TournamentMatchEvent.query.filter_by(match_id=match.id).order_by(
+        TournamentMatchEvent.minute.is_(None), TournamentMatchEvent.minute, TournamentMatchEvent.id).all()
+
+    def team_block(entry):
+        if not entry or not entry.team:
+            return None
+        squad = [member_card(m) for m in entry.team.members]
+        mine = [a for a in appearances if a.entry_id == entry.id]
+        return {
+            'entry_id': entry.id,
+            'team_name': entry.team.name,
+            'team_logo_url': get_tournament_media_url(entry.team.logo_path),
+            'squad': squad,
+            'lineup': [{
+                'member_id': a.member_id,
+                'is_starting': bool(a.is_starting),
+                'is_goalkeeper': bool(a.is_goalkeeper),
+                'minutes': a.minutes,
+            } for a in mine],
+        }
+
+    return {
+        'match_id': match.id,
+        'home_score': match.home_score,
+        'away_score': match.away_score,
+        'home': team_block(match.home_entry),
+        'away': team_block(match.away_entry),
+        'events': [{
+            'id': e.id,
+            'entry_id': e.entry_id,
+            'kind': e.kind,
+            'member_id': e.member_id,
+            'member_name': e.member.full_name if e.member else None,
+            'minute': e.minute,
+            'is_own_goal': bool(e.is_own_goal),
+            'is_penalty': bool(e.is_penalty),
+            'assist_member_id': e.assist_member_id,
+            'assist_name': e.assist_member.full_name if e.assist_member else None,
+            'card': e.card,
+        } for e in events],
+    }
+
+
+@app.route('/api/tournament-matches/<int:match_id>/protocol', methods=['GET', 'PUT'])
+@login_required
+def tournament_match_protocol_api(match_id):
+    match = db.session.get(TournamentMatch, match_id)
+    if not match:
+        return jsonify({'success': False, 'message': 'Матч не найден'}), 404
+
+    if request.method == 'GET':
+        return jsonify({'success': True, 'protocol': serialize_protocol(match)})
+
+    if not match.home_entry_id or not match.away_entry_id:
+        return jsonify({'success': False, 'message': 'В матче ещё не определены обе команды'}), 400
+
+    data = request.get_json() or {}
+    sides = {'home': match.home_entry_id, 'away': match.away_entry_id}
+
+    # Игрок может попасть в протокол только из состава своей команды.
+    allowed = {}
+    for side, entry_id in sides.items():
+        entry = db.session.get(TournamentEntry, entry_id)
+        allowed[side] = {m.id for m in entry.team.members} if entry and entry.team else set()
+
+    def parse_minute(value):
+        if value in (None, ''):
+            return None
+        number = int(value)
+        if number < 0 or number > 200:
+            raise ValueError
+        return number
+
+    lineups = data.get('lineups') or {}
+    events = data.get('events') or []
+
+    try:
+        goal_count = {'home': 0, 'away': 0}
+        for event in events:
+            side = event.get('side')
+            if side not in sides:
+                raise ValueError('Неизвестная команда в событии')
+            if event.get('kind') == TournamentMatchEvent.KIND_GOAL:
+                goal_count[side] += 1
+
+        # Протокол обязан сходиться со счётом, иначе таблица бомбардиров врёт.
+        if match.is_played:
+            if goal_count['home'] != match.home_score or goal_count['away'] != match.away_score:
+                return jsonify({'success': False, 'message':
+                                f"Голов в протоколе {goal_count['home']}:{goal_count['away']}, "
+                                f'а счёт матча {match.home_score}:{match.away_score}'}), 400
+        elif goal_count['home'] or goal_count['away']:
+            return jsonify({'success': False, 'message': 'Сначала укажите счёт матча'}), 400
+
+        TournamentMatchAppearance.query.filter_by(match_id=match.id).delete()
+        TournamentMatchEvent.query.filter_by(match_id=match.id).delete()
+
+        for side, entry_id in sides.items():
+            keepers = 0
+            for row in (lineups.get(side) or []):
+                member_id = int(row.get('member_id'))
+                if member_id not in allowed[side]:
+                    raise ValueError('Игрок не из состава этой команды')
+                is_keeper = bool(row.get('is_goalkeeper'))
+                keepers += 1 if is_keeper else 0
+                db.session.add(TournamentMatchAppearance(
+                    match_id=match.id,
+                    entry_id=entry_id,
+                    member_id=member_id,
+                    is_starting=bool(row.get('is_starting', True)),
+                    is_goalkeeper=is_keeper,
+                    minutes=parse_minute(row.get('minutes')),
+                ))
+            if keepers > 1:
+                raise ValueError('В одной команде отмечено несколько вратарей')
+
+        for event in events:
+            side = event.get('side')
+            entry_id = sides[side]
+            kind = event.get('kind') or TournamentMatchEvent.KIND_GOAL
+            member_id = event.get('member_id')
+            member_id = int(member_id) if member_id else None
+            # Автогол забивает игрок соперника, поэтому его проверяем по чужому составу.
+            own_goal = bool(event.get('is_own_goal'))
+            other = 'away' if side == 'home' else 'home'
+            if member_id and member_id not in allowed[other if own_goal else side]:
+                raise ValueError('Автор события не из состава своей команды')
+            assist_id = event.get('assist_member_id')
+            assist_id = int(assist_id) if assist_id else None
+            if assist_id and assist_id not in allowed[side]:
+                raise ValueError('Ассистент не из состава этой команды')
+            if kind == TournamentMatchEvent.KIND_CARD and event.get('card') not in (
+                    TournamentMatchEvent.CARD_YELLOW, TournamentMatchEvent.CARD_RED):
+                raise ValueError('Не указан цвет карточки')
+            db.session.add(TournamentMatchEvent(
+                match_id=match.id,
+                entry_id=entry_id,
+                member_id=member_id,
+                kind=kind,
+                minute=parse_minute(event.get('minute')),
+                is_own_goal=own_goal,
+                is_penalty=bool(event.get('is_penalty')),
+                assist_member_id=assist_id if kind == TournamentMatchEvent.KIND_GOAL else None,
+                card=event.get('card') if kind == TournamentMatchEvent.KIND_CARD else None,
+            ))
+    except ValueError as error:
+        db.session.rollback()
+        message = str(error) if str(error) else 'Минута — число от 0 до 200'
+        return jsonify({'success': False, 'message': message}), 400
+
+    db.session.commit()
+    return jsonify({'success': True, 'protocol': serialize_protocol(match)})
+
+
+def collect_player_stats(tournament, age_group):
+    """Личная статистика по категории: бомбардиры, вратари, карточки, Fair Play."""
+    matches = TournamentMatch.query.filter_by(
+        tournament_id=tournament.id, age_group=age_group).all()
+    match_by_id = {m.id: m for m in matches}
+    if not match_by_id:
+        return {'scorers': [], 'goalkeepers': [], 'cards': [], 'fair_play': []}
+
+    ids = list(match_by_id.keys())
+    appearances = TournamentMatchAppearance.query.filter(
+        TournamentMatchAppearance.match_id.in_(ids)).all()
+    events = TournamentMatchEvent.query.filter(
+        TournamentMatchEvent.match_id.in_(ids)).all()
+
+    entries = {e.id: e for e in TournamentEntry.query.filter_by(
+        tournament_id=tournament.id, age_group=age_group).all()}
+
+    def team_of(entry_id):
+        entry = entries.get(entry_id)
+        return entry.team if entry else None
+
+    def base_row(member, entry_id):
+        team = team_of(entry_id)
+        return {
+            'member_id': member.id,
+            'name': member.full_name,
+            'number': member.team_number,
+            'position': member.position,
+            'photo_url': get_tournament_media_url(member.photo_path),
+            'team_name': team.name if team else '—',
+            'team_logo_url': get_tournament_media_url(team.logo_path) if team else None,
+        }
+
+    played = {mid for mid, m in match_by_id.items() if m.is_played}
+
+    # --- бомбардиры ---
+    scorers = {}
+    for event in events:
+        if event.kind != TournamentMatchEvent.KIND_GOAL or event.is_own_goal or not event.member:
+            continue
+        row = scorers.setdefault(event.member_id, {
+            **base_row(event.member, event.entry_id),
+            'goals': 0, 'penalty_goals': 0, 'assists': 0, 'matches': 0,
+        })
+        row['goals'] += 1
+        if event.is_penalty:
+            row['penalty_goals'] += 1
+
+    assists = {}
+    for event in events:
+        if event.kind != TournamentMatchEvent.KIND_GOAL or not event.assist_member_id:
+            continue
+        assists[event.assist_member_id] = assists.get(event.assist_member_id, 0) + 1
+        if event.assist_member_id not in scorers and event.assist_member:
+            scorers[event.assist_member_id] = {
+                **base_row(event.assist_member, event.entry_id),
+                'goals': 0, 'penalty_goals': 0, 'assists': 0, 'matches': 0,
+            }
+
+    member_matches = {}
+    for appearance in appearances:
+        if appearance.match_id not in played:
+            continue
+        member_matches.setdefault(appearance.member_id, set()).add(appearance.match_id)
+
+    for member_id, row in scorers.items():
+        row['assists'] = assists.get(member_id, 0)
+        row['matches'] = len(member_matches.get(member_id, ()))
+    # Больше голов; при равенстве выше тот, кто забил за меньшее число матчей.
+    scorer_rows = sorted(scorers.values(), key=lambda r: (
+        -r['goals'], -r['assists'], r['matches'] or 99, r['name']))
+
+    # --- вратари ---
+    conceded = {}
+    for event in events:
+        if event.kind != TournamentMatchEvent.KIND_GOAL:
+            continue
+        conceded[(event.match_id, event.entry_id)] = conceded.get(
+            (event.match_id, event.entry_id), 0) + 1
+
+    keepers = {}
+    for appearance in appearances:
+        if not appearance.is_goalkeeper or appearance.match_id not in played:
+            continue
+        match = match_by_id[appearance.match_id]
+        against = match.away_entry_id if appearance.entry_id == match.home_entry_id else match.home_entry_id
+        # Мячи, забитые сопернику, — это пропущенные нашим вратарём.
+        goals_against = conceded.get((match.id, against), 0)
+        row = keepers.setdefault(appearance.member_id, {
+            **base_row(appearance.member, appearance.entry_id),
+            'matches': 0, 'conceded': 0, 'clean_sheets': 0,
+        })
+        row['matches'] += 1
+        row['conceded'] += goals_against
+        if goals_against == 0:
+            row['clean_sheets'] += 1
+
+    team_match_count = {}
+    for match in matches:
+        if not match.is_played:
+            continue
+        for entry_id in (match.home_entry_id, match.away_entry_id):
+            if entry_id:
+                team_match_count[entry_id] = team_match_count.get(entry_id, 0) + 1
+
+    keeper_rows = []
+    for member_id, row in keepers.items():
+        row['avg_conceded'] = round(row['conceded'] / row['matches'], 2) if row['matches'] else None
+        # Ценз: иначе вратарь одного матча 0:0 обходит того, кто отыграл весь турнир.
+        entry_id = next((a.entry_id for a in appearances if a.member_id == member_id), None)
+        need = team_match_count.get(entry_id, 0)
+        row['qualified'] = row['matches'] * 2 >= need if need else False
+        keeper_rows.append(row)
+    keeper_rows.sort(key=lambda r: (
+        not r['qualified'], -r['clean_sheets'], r['avg_conceded'] if r['avg_conceded'] is not None else 99,
+        -r['matches'], r['name']))
+
+    # --- карточки и Fair Play ---
+    cards = {}
+    team_penalty = {}
+    for event in events:
+        if event.kind != TournamentMatchEvent.KIND_CARD:
+            continue
+        weight = 3 if event.card == TournamentMatchEvent.CARD_RED else 1
+        team_penalty[event.entry_id] = team_penalty.get(event.entry_id, 0) + weight
+        if not event.member:
+            continue
+        row = cards.setdefault(event.member_id, {
+            **base_row(event.member, event.entry_id), 'yellow': 0, 'red': 0,
+        })
+        if event.card == TournamentMatchEvent.CARD_RED:
+            row['red'] += 1
+        else:
+            row['yellow'] += 1
+    card_rows = sorted(cards.values(), key=lambda r: (-r['red'], -r['yellow'], r['name']))
+
+    fair_play = []
+    for entry_id, entry in entries.items():
+        if not entry.team or not team_match_count.get(entry_id):
+            continue
+        team = entry.team
+        fair_play.append({
+            'entry_id': entry_id,
+            'team_name': team.name,
+            'team_logo_url': get_tournament_media_url(team.logo_path),
+            'penalty': team_penalty.get(entry_id, 0),
+            'matches': team_match_count.get(entry_id, 0),
+        })
+    fair_play.sort(key=lambda r: (r['penalty'], r['team_name']))
+
+    return {
+        'scorers': scorer_rows,
+        'goalkeepers': keeper_rows,
+        'cards': card_rows,
+        'fair_play': fair_play,
+    }
+
+
+def suggested_awards(stats):
+    """Кого система предлагает наградить по расчётным призам."""
+    out = {}
+    if stats['scorers'] and stats['scorers'][0]['goals']:
+        out['top_scorer'] = stats['scorers'][0]
+    qualified = [k for k in stats['goalkeepers'] if k['qualified']]
+    if qualified:
+        out['best_goalkeeper'] = qualified[0]
+    if stats['fair_play']:
+        out['fair_play'] = stats['fair_play'][0]
+    return out
+
+
+def serialize_awards(tournament, age_group, stats):
+    stored = {a.code: a for a in TournamentAward.query.filter_by(
+        tournament_id=tournament.id, age_group=age_group).all()}
+    suggested = suggested_awards(stats)
+    rows = []
+    for code, title in AWARD_CODES.items():
+        award = stored.get(code)
+        winner = None
+        if award and award.member:
+            team = award.member.team
+            winner = {
+                'member_id': award.member.id,
+                'name': award.member.full_name,
+                'number': award.member.team_number,
+                'photo_url': get_tournament_media_url(award.member.photo_path),
+                'team_name': team.name if team else '—',
+                'team_logo_url': get_tournament_media_url(team.logo_path) if team else None,
+            }
+        elif award and award.entry and award.entry.team:
+            team = award.entry.team
+            winner = {
+                'member_id': None,
+                'name': team.name,
+                'number': None,
+                'photo_url': None,
+                'team_name': team.name,
+                'team_logo_url': get_tournament_media_url(team.logo_path),
+            }
+        rows.append({
+            'code': code,
+            'title': title,
+            'computed': code in COMPUTED_AWARDS,
+            'winner': winner,
+            'note': award.note if award else None,
+            'suggested': suggested.get(code),
+        })
+    return rows
+
+
+@app.route('/api/tournaments/<int:tournament_id>/players', methods=['GET'])
+@login_required
+def tournament_players_api(tournament_id):
+    tournament = db.session.get(Tournament, tournament_id)
+    if not tournament:
+        return jsonify({'success': False, 'message': 'Турнир не найден'}), 404
+    age_group = (request.args.get('age_group') or '').strip()
+    labels = tournament_age_group_labels(tournament)
+    if not age_group and labels:
+        age_group = labels[0]
+    stats = collect_player_stats(tournament, age_group)
+    return jsonify({
+        'success': True,
+        'age_group': age_group,
+        'stats': stats,
+        'awards': serialize_awards(tournament, age_group, stats),
+    })
+
+
+@app.route('/api/tournaments/<int:tournament_id>/awards', methods=['PUT'])
+@login_required
+def tournament_awards_api(tournament_id):
+    tournament = db.session.get(Tournament, tournament_id)
+    if not tournament:
+        return jsonify({'success': False, 'message': 'Турнир не найден'}), 404
+    data = request.get_json() or {}
+    age_group = (data.get('age_group') or '').strip()
+    code = (data.get('code') or '').strip()
+    if code not in AWARD_CODES:
+        return jsonify({'success': False, 'message': 'Неизвестная награда'}), 400
+
+    award = TournamentAward.query.filter_by(
+        tournament_id=tournament.id, age_group=age_group, code=code).first()
+    member_id = data.get('member_id')
+    entry_id = data.get('entry_id')
+
+    if not member_id and not entry_id:
+        if award:
+            db.session.delete(award)
+            db.session.commit()
+        return jsonify({'success': True})
+
+    if not award:
+        award = TournamentAward(tournament_id=tournament.id, age_group=age_group, code=code)
+        db.session.add(award)
+    award.member_id = int(member_id) if member_id else None
+    award.entry_id = int(entry_id) if entry_id else None
+    award.note = (data.get('note') or '').strip() or None
+    db.session.commit()
+
+    stats = collect_player_stats(tournament, age_group)
+    return jsonify({'success': True, 'awards': serialize_awards(tournament, age_group, stats)})
+
+
 # ===== ПУБЛИЧНАЯ АФИША ТУРНИРОВ =====
 
 def public_tournament_payload(tournament, stadium_by_name):
@@ -5934,6 +6388,30 @@ def public_tournament_payload(tournament, stadium_by_name):
             'latitude': stadium.latitude,
             'longitude': stadium.longitude,
         } if stadium else None,
+    }
+
+
+def public_player_stats(tournament, age_group):
+    """Личная статистика для афиши: без дат рождения, телефонов и адресов."""
+    stats = collect_player_stats(tournament, age_group)
+    keep = ('member_id', 'name', 'number', 'position', 'photo_url',
+            'team_name', 'team_logo_url')
+
+    def trim(row, extra):
+        out = {key: row.get(key) for key in keep}
+        out.update({key: row.get(key) for key in extra})
+        return out
+
+    awards = [a for a in serialize_awards(tournament, age_group, stats) if a['winner']]
+    return {
+        'scorers': [trim(r, ('goals', 'penalty_goals', 'assists', 'matches'))
+                    for r in stats['scorers'][:10]],
+        'goalkeepers': [trim(r, ('matches', 'conceded', 'clean_sheets', 'avg_conceded'))
+                        for r in stats['goalkeepers'][:10] if r['qualified']],
+        'cards': [trim(r, ('yellow', 'red')) for r in stats['cards'][:10]],
+        'fair_play': stats['fair_play'][:10],
+        'awards': [{'code': a['code'], 'title': a['title'], 'winner': a['winner'],
+                    'note': a['note']} for a in awards],
     }
 
 
@@ -6015,6 +6493,7 @@ def public_tournament_detail_api(tournament_id):
             'groups': blocks,
             'playoff': [dict(public_match(m), label=m.label) for m in age_playoff],
             'results': playoff_results(age_playoff),
+            'players': public_player_stats(tournament, age_group),
         })
 
     # Категории без единой заявки на афише не нужны.
@@ -6025,6 +6504,206 @@ def public_tournament_detail_api(tournament_id):
 @app.route('/tournaments-afisha')
 def public_tournaments_page():
     return render_template('public_tournaments.html')
+
+
+# ===== ОБЛОЖКА НАГРАДЫ =====
+
+COVER_FONT_PATH = os.path.join(basedir, 'frontend', 'static', 'vendor',
+                               'onest-ttf', 'Onest-VariableFont_wght.ttf')
+COVER_SIZE = (1080, 1350)
+COVER_BG = (23, 25, 31)
+COVER_ACCENT = (255, 154, 43)
+
+
+def plural_ru(number, one, few, many):
+    if 11 <= number % 100 <= 14:
+        return many
+    tail = number % 10
+    if tail == 1:
+        return one
+    if 2 <= tail <= 4:
+        return few
+    return many
+
+
+def cover_font(size, weight=400):
+    """Шрифт обложки. Файл вариативный, поэтому вес задаётся осью, а не отдельным файлом."""
+    font = ImageFont.truetype(COVER_FONT_PATH, size)
+    try:
+        font.set_variation_by_axes([weight])
+    except Exception:
+        pass
+    return font
+
+
+def cover_circle(image, size):
+    """Кадрирует картинку в круг заданного диаметра."""
+    if image.mode in ('RGBA', 'LA', 'P'):
+        source = image.convert('RGBA')
+        plate = Image.new('RGBA', source.size, (255, 255, 255, 255))
+        source = Image.alpha_composite(plate, source).convert('RGB')
+    else:
+        source = image.convert('RGB')
+    width, height = source.size
+    side = min(width, height)
+    source = source.crop(((width - side) // 2, (height - side) // 2,
+                          (width + side) // 2, (height + side) // 2)).resize((size, size), Image.LANCZOS)
+    mask = Image.new('L', (size * 4, size * 4), 0)
+    ImageDraw.Draw(mask).ellipse((0, 0, size * 4 - 1, size * 4 - 1), fill=255)
+    source.putalpha(mask.resize((size, size), Image.LANCZOS))
+    return source
+
+
+def cover_local_image(media_path):
+    if not media_path:
+        return None
+    filename = media_path.replace('\\', '/').split('/')[-1]
+    full = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    if not os.path.exists(full):
+        return None
+    try:
+        return Image.open(full)
+    except Exception:
+        return None
+
+
+def draw_centered(draw, y, text, font, fill):
+    width = draw.textlength(text, font=font)
+    draw.text(((COVER_SIZE[0] - width) / 2, y), text, font=font, fill=fill)
+    return width
+
+
+def fit_font(draw, text, max_width, start_size, weight=750):
+    """Подбирает кегль, чтобы длинная фамилия не выехала за поля."""
+    size = start_size
+    while size > 24:
+        font = cover_font(size, weight)
+        if draw.textlength(text, font=font) <= max_width:
+            return font
+        size -= 4
+    return cover_font(24, weight)
+
+
+def build_award_cover(tournament, age_group, title, winner, value_line):
+    canvas = Image.new('RGB', COVER_SIZE, COVER_BG)
+    draw = ImageDraw.Draw(canvas)
+    margin = 70
+    inner = COVER_SIZE[0] - margin * 2
+
+    # Подложка: постер турнира, приглушённый, чтобы текст читался.
+    poster = cover_local_image(tournament.poster_path)
+    if poster:
+        poster = poster.convert('RGB')
+        ratio = max(COVER_SIZE[0] / poster.width, COVER_SIZE[1] / poster.height)
+        poster = poster.resize((int(poster.width * ratio) + 1, int(poster.height * ratio) + 1), Image.LANCZOS)
+        left = (poster.width - COVER_SIZE[0]) // 2
+        top = (poster.height - COVER_SIZE[1]) // 2
+        poster = poster.crop((left, top, left + COVER_SIZE[0], top + COVER_SIZE[1]))
+        poster = poster.filter(ImageFilter.GaussianBlur(18))
+        canvas.paste(poster, (0, 0))
+        canvas = Image.blend(canvas, Image.new('RGB', COVER_SIZE, COVER_BG), 0.62)
+        draw = ImageDraw.Draw(canvas)
+
+    draw.text((margin, margin), tournament.name.upper(), font=cover_font(30, 700), fill=(255, 255, 255))
+    subtitle = ' · '.join(filter(None, [
+        age_group,
+        tournament.start_date.strftime('%d.%m.%Y') if tournament.start_date else None,
+    ]))
+    draw.text((margin, margin + 42), subtitle, font=cover_font(26, 400), fill=(170, 175, 185))
+
+    photo = cover_local_image(winner.get('photo_path'))
+    if photo is None and winner.get('team_award'):
+        photo = cover_local_image(winner.get('logo_path'))
+    face_size = 460
+    face_top = 250
+    ring = 8
+    draw.ellipse((COVER_SIZE[0] / 2 - face_size / 2 - ring, face_top - ring,
+                  COVER_SIZE[0] / 2 + face_size / 2 + ring, face_top + face_size + ring),
+                 fill=COVER_ACCENT)
+    if photo:
+        circle = cover_circle(photo, face_size)
+        canvas.paste(circle, (int(COVER_SIZE[0] / 2 - face_size / 2), face_top), circle)
+    else:
+        draw.ellipse((COVER_SIZE[0] / 2 - face_size / 2, face_top,
+                      COVER_SIZE[0] / 2 + face_size / 2, face_top + face_size), fill=(44, 47, 56))
+        initials = (winner.get('name') or '?')[:2].upper()
+        font = cover_font(150, 750)
+        draw_centered(draw, face_top + face_size / 2 - 100, initials, font, (120, 125, 135))
+
+    y = face_top + face_size + 70
+    draw_centered(draw, y, title.upper(), cover_font(34, 700), COVER_ACCENT)
+
+    y += 70
+    name_font = fit_font(draw, winner.get('name') or '', inner, 88)
+    draw_centered(draw, y, winner.get('name') or '', name_font, (255, 255, 255))
+
+    y += 110
+    draw_centered(draw, y, winner.get('team_name') or '', cover_font(34, 400), (170, 175, 185))
+
+    if value_line:
+        y += 80
+        draw_centered(draw, y, value_line, cover_font(64, 750), (255, 255, 255))
+
+    settings = ClubSettings.query.first()
+    club = (settings.system_name if settings and settings.system_name else 'FK KARASU')
+    draw_centered(draw, COVER_SIZE[1] - 110, club, cover_font(28, 700), (120, 125, 135))
+    return canvas
+
+
+@app.route('/api/tournaments/<int:tournament_id>/awards/<code>/cover.png')
+@login_required
+def tournament_award_cover(tournament_id, code):
+    tournament = db.session.get(Tournament, tournament_id)
+    if not tournament or code not in AWARD_CODES:
+        return jsonify({'success': False, 'message': 'Награда не найдена'}), 404
+    age_group = (request.args.get('age_group') or '').strip()
+    award = TournamentAward.query.filter_by(
+        tournament_id=tournament.id, age_group=age_group, code=code).first()
+    if not award or not (award.member_id or award.entry_id):
+        return jsonify({'success': False, 'message': 'Награда ещё не присуждена'}), 404
+
+    stats = collect_player_stats(tournament, age_group)
+    value_line = ''
+    if award.member:
+        team = award.member.team
+        winner = {
+            'name': award.member.full_name,
+            'team_name': team.name if team else '',
+            'photo_path': award.member.photo_path,
+            'logo_path': team.logo_path if team else None,
+        }
+        row = next((r for r in stats['scorers'] if r['member_id'] == award.member_id), None)
+        keeper = next((r for r in stats['goalkeepers'] if r['member_id'] == award.member_id), None)
+        if code == 'top_scorer' and row:
+            value_line = f"{row['goals']} " + plural_ru(row['goals'], 'гол', 'гола', 'голов')
+        elif code == 'best_goalkeeper' and keeper:
+            value_line = f"{keeper['clean_sheets']} " + plural_ru(
+                keeper['clean_sheets'], 'сухой матч', 'сухих матча', 'сухих матчей')
+    else:
+        team = award.entry.team if award.entry else None
+        winner = {
+            'name': team.name if team else '',
+            'team_name': age_group,
+            'photo_path': None,
+            'logo_path': team.logo_path if team else None,
+            'team_award': True,
+        }
+
+    image = build_award_cover(tournament, age_group, AWARD_CODES[code], winner, value_line)
+    buffer = io.BytesIO()
+    image.save(buffer, format='PNG')
+    buffer.seek(0)
+    name = f'{code}-{age_group or "all"}.png'
+    return send_file(buffer, mimetype='image/png', as_attachment=False, download_name=name)
+
+
+@app.route('/tournaments-afisha/<int:tournament_id>/screen')
+def public_tournament_screen_page(tournament_id):
+    """Табло для телевизора на стадионе: листает таблицы, сетку и награды."""
+    tournament = Tournament.query.filter_by(id=tournament_id, is_published=True).first()
+    if not tournament:
+        return redirect(url_for('public_tournaments_page'))
+    return render_template('public_tournament_screen.html', tournament=tournament)
 
 
 @app.route('/api/public/tournaments')

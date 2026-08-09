@@ -30,6 +30,11 @@ const catalogState = {
     matchBlocks: [],
     playoffMatches: [],
     playoffResults: [],
+    playersAge: '',
+    playersStats: null,
+    playersAwards: [],
+    protocol: null,
+    protocolEvents: [],
     playoffAge: '',
     matchStadiums: [],
     tournamentPosterObjectUrl: null,
@@ -1302,12 +1307,17 @@ async function openTournamentEntries(tournamentId) {
     showFormError('entryFormError');
     openModal('tournamentEntriesModal');
     switchEntryTab('entries');
+    catalogState.playersStats = null;
+    catalogState.playersAwards = [];
     await loadEntries();
     await loadGroups();
     catalogState.matchAge = catalogState.groupAge;
     catalogState.playoffAge = catalogState.groupAge;
+    catalogState.playersAge = catalogState.groupAge;
     renderMatchAgeSelect();
     renderPlayoffAgeSelect();
+    renderPlayersAgeSelect();
+    renderScreenLink();
     await loadMatches();
     await loadPlayoff();
 }
@@ -1635,6 +1645,10 @@ function matchRowMarkup(match) {
             <input class="match-time" type="datetime-local" data-kickoff
                 value="${match.kickoff_at || ''}" aria-label="Дата и время матча">
             <select class="match-stadium" data-stadium aria-label="Стадион">${stadiums.join('')}</select>
+            <button class="match-protocol" type="button" data-protocol="${match.id}"
+                ${match.is_played ? '' : 'disabled'} title="Протокол матча">
+                <i data-lucide="clipboard-list"></i>
+            </button>
         </div>`;
 }
 
@@ -1839,6 +1853,10 @@ function playoffMatchMarkup(match, index) {
                     value="${draw && match.away_penalty !== null ? match.away_penalty : ''}"
                     aria-label="Пенальти гостей">
             </span>
+            <button class="match-protocol" type="button" data-protocol="${match.id}"
+                ${match.is_played ? '' : 'disabled'} title="Протокол матча">
+                <i data-lucide="clipboard-list"></i>
+            </button>
         </div>`;
 }
 
@@ -1936,6 +1954,371 @@ async function savePlayoffMatch(row) {
     } catch (error) {
         showFormError('playoffError', error.message);
         await loadPlayoff();
+    }
+}
+
+/* --- Протокол матча: составы, голы, карточки --- */
+
+const POSITION_SHORT = {
+    'Вратарь': 'ВР', 'Защитник': 'ЗЩ', 'Полузащитник': 'ПЗ', 'Нападающий': 'НП',
+};
+
+function protocolSquadMarkup(side, block) {
+    if (!block) return '';
+    const lineup = new Map(block.lineup.map((row) => [row.member_id, row]));
+    return `
+        <section class="protocol-team" data-side="${side}">
+            <header>
+                <span class="protocol-logo"${block.team_logo_url
+                    ? ` style="background-image:url('${escapeHtml(block.team_logo_url)}')"` : ''}></span>
+                <strong>${escapeHtml(block.team_name)}</strong>
+                <span class="protocol-count" data-count>${lineup.size}</span>
+            </header>
+            <div class="protocol-squad">
+                ${block.squad.length ? block.squad.map((player) => {
+                    const row = lineup.get(player.id);
+                    return `
+                    <label class="protocol-player${row ? ' on' : ''}" data-member="${player.id}">
+                        <input type="checkbox" data-play ${row ? 'checked' : ''}>
+                        <span class="protocol-num">${escapeHtml(player.number || '')}</span>
+                        <span class="protocol-name">${escapeHtml(player.name)}</span>
+                        <span class="protocol-pos">${escapeHtml(
+                            POSITION_SHORT[player.position] || player.position || '')}</span>
+                        <button type="button" class="protocol-gk${row && row.is_goalkeeper ? ' on' : ''}"
+                            data-gk title="Вратарь в этом матче">ВР</button>
+                    </label>`;
+                }).join('') : '<p class="match-empty">В команде нет игроков</p>'}
+            </div>
+        </section>`;
+}
+
+function protocolPlayers(side) {
+    // В событиях выбираем только тех, кто отмечен вышедшим на поле.
+    const block = catalogState.protocol[side];
+    if (!block) return [];
+    const on = new Set([...document.querySelectorAll(
+        `.protocol-team[data-side="${side}"] .protocol-player input[data-play]:checked`)]
+        .map((input) => Number(input.closest('.protocol-player').dataset.member)));
+    return block.squad.filter((player) => on.has(player.id));
+}
+
+function eventRowMarkup(event, index) {
+    const protocol = catalogState.protocol;
+    const sideName = (side) => (protocol[side] ? protocol[side].team_name : side);
+    // Автогол забивает игрок соперника, поэтому список берём с другой стороны.
+    const authorSide = event.kind === 'goal' && event.is_own_goal
+        ? (event.side === 'home' ? 'away' : 'home') : event.side;
+    const options = (list, selected) => ['<option value="">— выберите игрока —</option>'].concat(
+        list.map((player) => `<option value="${player.id}" ${
+            Number(selected) === player.id ? 'selected' : ''}>${escapeHtml(player.name)}</option>`)).join('');
+
+    return `
+        <div class="protocol-event" data-index="${index}">
+            <select data-field="side" aria-label="Команда">
+                <option value="home" ${event.side === 'home' ? 'selected' : ''}>${escapeHtml(sideName('home'))}</option>
+                <option value="away" ${event.side === 'away' ? 'selected' : ''}>${escapeHtml(sideName('away'))}</option>
+            </select>
+            <select data-field="member_id" aria-label="Игрок">
+                ${options(protocolPlayers(authorSide), event.member_id)}
+            </select>
+            ${event.kind === 'goal' ? `
+                <select data-field="assist_member_id" aria-label="Ассистент">
+                    <option value="">без ассиста</option>
+                    ${protocolPlayers(event.side).map((player) =>
+                        `<option value="${player.id}" ${Number(event.assist_member_id) === player.id
+                            ? 'selected' : ''}>${escapeHtml(player.name)}</option>`).join('')}
+                </select>
+                <label class="protocol-flag"><input type="checkbox" data-field="is_own_goal"
+                    ${event.is_own_goal ? 'checked' : ''}> автогол</label>
+                <label class="protocol-flag"><input type="checkbox" data-field="is_penalty"
+                    ${event.is_penalty ? 'checked' : ''}> с пенальти</label>`
+            : `
+                <select data-field="card" aria-label="Карточка">
+                    <option value="yellow" ${event.card === 'yellow' ? 'selected' : ''}>жёлтая</option>
+                    <option value="red" ${event.card === 'red' ? 'selected' : ''}>красная</option>
+                </select>`}
+            <input class="protocol-minute" type="number" min="0" max="200" data-field="minute"
+                value="${event.minute === null || event.minute === undefined ? '' : event.minute}"
+                placeholder="мин" aria-label="Минута">
+            <button type="button" class="protocol-remove" data-remove-event title="Убрать">
+                <i data-lucide="x"></i>
+            </button>
+        </div>`;
+}
+
+function renderProtocolEvents() {
+    const box = byId('protocolEvents');
+    const events = catalogState.protocolEvents;
+    box.innerHTML = events.length
+        ? events.map(eventRowMarkup).join('')
+        : '<p class="match-empty">Событий пока нет</p>';
+
+    const protocol = catalogState.protocol;
+    const goals = { home: 0, away: 0 };
+    events.forEach((event) => { if (event.kind === 'goal') goals[event.side] += 1; });
+    const ok = goals.home === protocol.home_score && goals.away === protocol.away_score;
+    const balance = byId('protocolBalance');
+    balance.textContent = `Голов в протоколе ${goals.home}:${goals.away}`
+        + ` · счёт ${protocol.home_score}:${protocol.away_score}`;
+    balance.classList.toggle('ok', ok);
+    balance.classList.toggle('bad', !ok);
+    refreshIcons();
+}
+
+function renderProtocol() {
+    const protocol = catalogState.protocol;
+    byId('protocolTitle').textContent =
+        `${protocol.home ? protocol.home.team_name : '—'} — ${protocol.away ? protocol.away.team_name : '—'}`;
+    byId('protocolScore').textContent = `Счёт ${protocol.home_score}:${protocol.away_score}`;
+    byId('protocolGrid').innerHTML =
+        protocolSquadMarkup('home', protocol.home) + protocolSquadMarkup('away', protocol.away);
+    renderProtocolEvents();
+}
+
+async function openProtocol(matchId) {
+    try {
+        showFormError('protocolError');
+        const data = await apiJson(`/api/tournament-matches/${matchId}/protocol`);
+        catalogState.protocol = data.protocol;
+        catalogState.protocolEvents = (data.protocol.events || []).map((event) => ({
+            side: event.entry_id === data.protocol.home.entry_id ? 'home' : 'away',
+            kind: event.kind,
+            member_id: event.member_id,
+            assist_member_id: event.assist_member_id,
+            minute: event.minute,
+            is_own_goal: event.is_own_goal,
+            is_penalty: event.is_penalty,
+            card: event.card,
+        }));
+        openModal('matchProtocolModal');
+        renderProtocol();
+    } catch (error) {
+        window.alert(error.message);
+    }
+}
+
+function collectLineups() {
+    const lineups = { home: [], away: [] };
+    document.querySelectorAll('.protocol-team').forEach((team) => {
+        const side = team.dataset.side;
+        team.querySelectorAll('.protocol-player').forEach((row) => {
+            if (!row.querySelector('[data-play]').checked) return;
+            lineups[side].push({
+                member_id: Number(row.dataset.member),
+                is_starting: true,
+                is_goalkeeper: row.querySelector('[data-gk]').classList.contains('on'),
+            });
+        });
+    });
+    return lineups;
+}
+
+async function saveProtocol() {
+    try {
+        showFormError('protocolError');
+        const data = await apiJson(`/api/tournament-matches/${catalogState.protocol.match_id}/protocol`, {
+            method: 'PUT',
+            body: JSON.stringify({
+                lineups: collectLineups(),
+                events: catalogState.protocolEvents,
+            }),
+        });
+        catalogState.protocol = data.protocol;
+        closeModal('matchProtocolModal');
+        if (catalogState.playersAge) await loadPlayers();
+    } catch (error) {
+        showFormError('protocolError', error.message);
+    }
+}
+
+/* --- Игроки и награды --- */
+
+function renderScreenLink() {
+    const link = byId('screenLink');
+    if (link) link.href = `/tournaments-afisha/${catalogState.entriesTournamentId}/screen`;
+}
+
+function renderPlayersAgeSelect() {
+    const select = byId('playersAgeSelect');
+    const ages = catalogState.entryAgeGroups;
+    select.innerHTML = ages.map((age) =>
+        `<option value="${escapeHtml(age)}">${escapeHtml(age)}</option>`).join('');
+    if (!ages.includes(catalogState.playersAge)) catalogState.playersAge = ages[0] || '';
+    select.value = catalogState.playersAge;
+}
+
+function statTableMarkup(title, headers, rows) {
+    if (!rows.length) return '';
+    return `
+        <section class="stat-block">
+            <h3>${escapeHtml(title)}</h3>
+            <div class="table-wrap">
+                <table class="stat-table">
+                    <thead><tr>${headers.map((h) => `<th>${escapeHtml(h)}</th>`).join('')}</tr></thead>
+                    <tbody>${rows.join('')}</tbody>
+                </table>
+            </div>
+        </section>`;
+}
+
+function playerCellMarkup(row) {
+    return `<span class="stat-player">
+        <span class="stat-photo"${row.photo_url
+            ? ` style="background-image:url('${escapeHtml(row.photo_url)}')"` : ''}></span>
+        <span>
+            <strong>${escapeHtml(row.name)}</strong>
+            <small>${escapeHtml(row.team_name)}</small>
+        </span>
+    </span>`;
+}
+
+function renderPlayers() {
+    const board = byId('playersBoard');
+    const stats = catalogState.playersStats;
+    if (!stats) { board.innerHTML = ''; return; }
+    const empty = !stats.scorers.length && !stats.goalkeepers.length && !stats.cards.length;
+    if (empty) {
+        board.innerHTML = emptyCatalogMarkup(
+            'clipboard-list',
+            'Протоколы ещё не заполнены',
+            'Откройте сыгранный матч во вкладке «Матчи и таблица» и внесите голы.',
+        );
+        refreshIcons();
+        return;
+    }
+
+    board.innerHTML = [
+        statTableMarkup('Бомбардиры',
+            ['#', 'Игрок', 'Голы', 'С пенальти', 'Ассисты', 'Матчи'],
+            stats.scorers.map((row, index) => `
+                <tr><td>${index + 1}</td><td>${playerCellMarkup(row)}</td>
+                    <td><strong>${row.goals}</strong></td><td>${row.penalty_goals}</td>
+                    <td>${row.assists}</td><td>${row.matches}</td></tr>`)),
+        statTableMarkup('Вратари',
+            ['#', 'Вратарь', 'Матчи', 'Пропущено', 'В среднем', 'Сухие матчи'],
+            stats.goalkeepers.map((row, index) => `
+                <tr class="${row.qualified ? '' : 'stat-muted'}">
+                    <td>${index + 1}</td><td>${playerCellMarkup(row)}</td>
+                    <td>${row.matches}</td><td>${row.conceded}</td>
+                    <td>${row.avg_conceded === null ? '—' : row.avg_conceded}</td>
+                    <td><strong>${row.clean_sheets}</strong></td></tr>`)),
+        statTableMarkup('Карточки',
+            ['#', 'Игрок', 'Жёлтые', 'Красные'],
+            stats.cards.map((row, index) => `
+                <tr><td>${index + 1}</td><td>${playerCellMarkup(row)}</td>
+                    <td>${row.yellow}</td><td>${row.red}</td></tr>`)),
+        statTableMarkup('Fair Play',
+            ['#', 'Команда', 'Матчи', 'Штрафные очки'],
+            stats.fair_play.map((row, index) => `
+                <tr><td>${index + 1}</td>
+                    <td><span class="stat-player">
+                        <span class="stat-photo round"${row.team_logo_url
+                            ? ` style="background-image:url('${escapeHtml(row.team_logo_url)}')"` : ''}></span>
+                        <span><strong>${escapeHtml(row.team_name)}</strong></span></span></td>
+                    <td>${row.matches}</td><td><strong>${row.penalty}</strong></td></tr>`)),
+    ].join('');
+    refreshIcons();
+}
+
+function awardOptionsMarkup(award) {
+    const stats = catalogState.playersStats;
+    if (award.code === 'fair_play') {
+        return ['<option value="">— не присуждена —</option>'].concat(
+            (stats.fair_play || []).map((row) => `<option value="team:${row.entry_id}" ${
+                award.winner && award.winner.team_name === row.team_name && !award.winner.member_id
+                    ? 'selected' : ''}>${escapeHtml(row.team_name)}</option>`)).join('');
+    }
+    const seen = new Map();
+    ['scorers', 'goalkeepers', 'cards'].forEach((key) => {
+        (stats[key] || []).forEach((row) => seen.set(row.member_id, row));
+    });
+    const people = [...seen.values()].sort((a, b) => a.name.localeCompare(b.name, 'ru'));
+    return ['<option value="">— не присуждена —</option>'].concat(
+        people.map((row) => `<option value="member:${row.member_id}" ${
+            award.winner && award.winner.member_id === row.member_id ? 'selected' : ''
+        }>${escapeHtml(row.name)} · ${escapeHtml(row.team_name)}</option>`)).join('');
+}
+
+function awardFace(winner) {
+    return winner.member_id ? winner.photo_url : winner.team_logo_url;
+}
+
+function renderAwards() {
+    const board = byId('awardsBoard');
+    const awards = catalogState.playersAwards;
+    if (!awards.length) { board.innerHTML = ''; return; }
+    board.innerHTML = `
+        <section class="awards-block">
+            <h3>Награды турнира</h3>
+            <div class="awards-grid">
+                ${awards.map((award) => `
+                    <div class="award-card" data-award="${award.code}">
+                        <p class="award-title">${escapeHtml(award.title)}
+                            ${award.computed ? '<span class="award-auto">расчётная</span>' : ''}</p>
+                        <div class="award-winner">
+                            <span class="award-photo${award.winner && !award.winner.member_id ? ' round' : ''}"${
+                                award.winner && awardFace(award.winner)
+                                    ? ` style="background-image:url('${escapeHtml(
+                                        awardFace(award.winner))}')"` : ''}></span>
+                            <span>
+                                <strong>${award.winner ? escapeHtml(award.winner.name) : 'не присуждена'}</strong>
+                                <small>${award.winner ? escapeHtml(award.winner.team_name) : ''}</small>
+                            </span>
+                        </div>
+                        ${award.suggested ? `<p class="award-hint">Система предлагает:
+                            ${escapeHtml(award.suggested.name || award.suggested.team_name)}</p>` : ''}
+                        <select data-award-select>${awardOptionsMarkup(award)}</select>
+                        ${award.winner ? `<a class="award-cover"
+                            href="/api/tournaments/${catalogState.entriesTournamentId}/awards/${award.code}`
+                            + `/cover.png?age_group=${encodeURIComponent(catalogState.playersAge)}"
+                            download><i data-lucide="image-down"></i> Обложка для соцсетей</a>` : ''}
+                    </div>`).join('')}
+            </div>
+        </section>`;
+    refreshIcons();
+}
+
+async function loadPlayers() {
+    if (!catalogState.playersAge) {
+        catalogState.playersStats = null;
+        catalogState.playersAwards = [];
+        renderPlayers();
+        renderAwards();
+        return;
+    }
+    try {
+        showFormError('playersError');
+        const data = await apiJson(
+            `/api/tournaments/${catalogState.entriesTournamentId}/players`
+            + `?age_group=${encodeURIComponent(catalogState.playersAge)}`,
+        );
+        catalogState.playersStats = data.stats;
+        catalogState.playersAwards = data.awards || [];
+        renderPlayers();
+        renderAwards();
+    } catch (error) {
+        showFormError('playersError', error.message);
+    }
+}
+
+async function saveAward(code, value) {
+    const payload = { age_group: catalogState.playersAge, code };
+    if (value.startsWith('member:')) payload.member_id = Number(value.slice(7));
+    else if (value.startsWith('team:')) payload.entry_id = Number(value.slice(5));
+    try {
+        showFormError('playersError');
+        const data = await apiJson(`/api/tournaments/${catalogState.entriesTournamentId}/awards`, {
+            method: 'PUT',
+            body: JSON.stringify(payload),
+        });
+        if (data.awards) {
+            catalogState.playersAwards = data.awards;
+            renderAwards();
+        } else {
+            await loadPlayers();
+        }
+    } catch (error) {
+        showFormError('playersError', error.message);
     }
 }
 
@@ -2344,7 +2727,10 @@ function bindEvents() {
     byId('memberForm').addEventListener('submit', saveMember);
     byId('stadiumForm').addEventListener('submit', saveStadium);
     document.querySelectorAll('[data-entry-tab]').forEach((button) => {
-        button.addEventListener('click', () => switchEntryTab(button.dataset.entryTab));
+        button.addEventListener('click', () => {
+            switchEntryTab(button.dataset.entryTab);
+            if (button.dataset.entryTab === 'players') loadPlayers();
+        });
     });
     byId('groupAgeSelect').addEventListener('change', (event) => {
         catalogState.groupAge = event.target.value;
@@ -2375,6 +2761,97 @@ function bindEvents() {
     byId('matchBoard').addEventListener('input', (event) => {
         // Пока вводят счёт, старое сообщение об ошибке только мешает.
         if (event.target.matches('[data-score]')) showFormError('matchFormError');
+    });
+    // Кнопка протокола есть и в групповых матчах, и в плей-офф.
+    ['matchBoard', 'playoffBoard'].forEach((id) => {
+        byId(id).addEventListener('click', (event) => {
+            const button = event.target.closest('[data-protocol]');
+            if (button) openProtocol(button.dataset.protocol).catch(showPageError);
+        });
+    });
+    byId('playersAgeSelect').addEventListener('change', (event) => {
+        catalogState.playersAge = event.target.value;
+        loadPlayers().catch(showPageError);
+    });
+    byId('awardsBoard').addEventListener('change', (event) => {
+        const select = event.target.closest('[data-award-select]');
+        if (!select) return;
+        const card = select.closest('[data-award]');
+        saveAward(card.dataset.award, select.value).catch(showPageError);
+    });
+    byId('saveProtocolBtn').addEventListener('click', () => saveProtocol().catch(showPageError));
+    byId('matchProtocolModal').addEventListener('click', (event) => {
+        if (event.target.closest('[data-close-protocol]')) {
+            closeModal('matchProtocolModal');
+            return;
+        }
+        const gk = event.target.closest('[data-gk]');
+        if (gk) {
+            // Вратарь в команде один: отмечая нового, снимаем прежнего.
+            event.preventDefault();
+            const team = gk.closest('.protocol-team');
+            const was = gk.classList.contains('on');
+            team.querySelectorAll('[data-gk]').forEach((item) => item.classList.remove('on'));
+            if (!was) {
+                gk.classList.add('on');
+                const box = gk.closest('.protocol-player').querySelector('[data-play]');
+                if (!box.checked) {
+                    box.checked = true;
+                    box.closest('.protocol-player').classList.add('on');
+                }
+            }
+            renderProtocolEvents();
+            return;
+        }
+        const add = event.target.closest('[data-add-event]');
+        if (add) {
+            catalogState.protocolEvents.push({
+                side: 'home',
+                kind: add.dataset.addEvent,
+                member_id: null,
+                assist_member_id: null,
+                minute: null,
+                is_own_goal: false,
+                is_penalty: false,
+                card: add.dataset.addEvent === 'card' ? 'yellow' : null,
+            });
+            renderProtocolEvents();
+            return;
+        }
+        const remove = event.target.closest('[data-remove-event]');
+        if (remove) {
+            catalogState.protocolEvents.splice(Number(remove.closest('.protocol-event').dataset.index), 1);
+            renderProtocolEvents();
+        }
+    });
+    byId('matchProtocolModal').addEventListener('change', (event) => {
+        const player = event.target.closest('[data-play]');
+        if (player) {
+            const row = player.closest('.protocol-player');
+            row.classList.toggle('on', player.checked);
+            if (!player.checked) row.querySelector('[data-gk]').classList.remove('on');
+            const team = row.closest('.protocol-team');
+            team.querySelector('[data-count]').textContent =
+                team.querySelectorAll('[data-play]:checked').length;
+            renderProtocolEvents();
+            return;
+        }
+        const field = event.target.closest('[data-field]');
+        if (!field) return;
+        const row = field.closest('.protocol-event');
+        const item = catalogState.protocolEvents[Number(row.dataset.index)];
+        const name = field.dataset.field;
+        if (field.type === 'checkbox') item[name] = field.checked;
+        else if (name === 'minute') item[name] = field.value === '' ? null : Number(field.value);
+        else if (name === 'member_id' || name === 'assist_member_id') {
+            item[name] = field.value ? Number(field.value) : null;
+        } else item[name] = field.value;
+        // Смена стороны или автогола меняет список игроков в строке.
+        if (name === 'side' || name === 'is_own_goal') {
+            item.member_id = null;
+            item.assist_member_id = null;
+        }
+        renderProtocolEvents();
     });
     byId('applyGroupsBtn').addEventListener('click', () => saveGroups(false).catch(showPageError));
     byId('drawGroupsBtn').addEventListener('click', () => {

@@ -925,6 +925,98 @@ class TournamentMatch(db.Model):
         return f'<TournamentMatch {self.id} {self.age_group}>'
 
 
+class TournamentMatchAppearance(db.Model):
+    """Кто вышел на матч: состав команды на конкретную игру.
+
+    Без этой таблицы нельзя посчитать ни приз лучшему вратарю (нужно знать,
+    кто стоял в воротах), ни ценз сыгранных матчей у бомбардиров.
+    """
+    __tablename__ = 'tournament_match_appearances'
+    __table_args__ = (
+        db.UniqueConstraint('match_id', 'member_id', name='uq_match_appearance'),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    match_id = db.Column(db.Integer, db.ForeignKey('tournament_fixtures.id'), nullable=False, index=True)
+    entry_id = db.Column(db.Integer, db.ForeignKey('tournament_entries.id'), nullable=False, index=True)
+    member_id = db.Column(db.Integer, db.ForeignKey('tournament_team_members.id'), nullable=False, index=True)
+    is_starting = db.Column(db.Boolean, nullable=False, default=True)
+    is_goalkeeper = db.Column(db.Boolean, nullable=False, default=False)
+    minutes = db.Column(db.Integer, nullable=True)
+    created_at = db.Column(db.DateTime, default=get_local_datetime)
+
+    match = db.relationship('TournamentMatch', foreign_keys=[match_id])
+    entry = db.relationship('TournamentEntry', foreign_keys=[entry_id])
+    member = db.relationship('TournamentTeamMember', foreign_keys=[member_id])
+
+    def __repr__(self):
+        return f'<TournamentMatchAppearance match={self.match_id} member={self.member_id}>'
+
+
+class TournamentMatchEvent(db.Model):
+    """Событие матча: гол или карточка.
+
+    Автогол записывается на команду соперника (entry_id — кому засчитан мяч),
+    но автору в бомбардиры не идёт: за это отвечает флаг is_own_goal.
+    Голы серии пенальти сюда не попадают — они не входят в счёт матча.
+    """
+    __tablename__ = 'tournament_match_events'
+
+    KIND_GOAL = 'goal'
+    KIND_CARD = 'card'
+    CARD_YELLOW = 'yellow'
+    CARD_RED = 'red'
+
+    id = db.Column(db.Integer, primary_key=True)
+    match_id = db.Column(db.Integer, db.ForeignKey('tournament_fixtures.id'), nullable=False, index=True)
+    entry_id = db.Column(db.Integer, db.ForeignKey('tournament_entries.id'), nullable=False, index=True)
+    member_id = db.Column(db.Integer, db.ForeignKey('tournament_team_members.id'), nullable=True, index=True)
+    kind = db.Column(db.String(20), nullable=False, default=KIND_GOAL)
+    minute = db.Column(db.Integer, nullable=True)
+    is_own_goal = db.Column(db.Boolean, nullable=False, default=False)
+    is_penalty = db.Column(db.Boolean, nullable=False, default=False)
+    assist_member_id = db.Column(db.Integer, db.ForeignKey('tournament_team_members.id'), nullable=True)
+    card = db.Column(db.String(10), nullable=True)
+    created_at = db.Column(db.DateTime, default=get_local_datetime)
+
+    match = db.relationship('TournamentMatch', foreign_keys=[match_id])
+    entry = db.relationship('TournamentEntry', foreign_keys=[entry_id])
+    member = db.relationship('TournamentTeamMember', foreign_keys=[member_id])
+    assist_member = db.relationship('TournamentTeamMember', foreign_keys=[assist_member_id])
+
+    def __repr__(self):
+        return f'<TournamentMatchEvent {self.kind} match={self.match_id}>'
+
+
+class TournamentAward(db.Model):
+    """Награда турнира.
+
+    Часть призов считается по данным (бомбардир, вратарь), часть присуждают
+    люди (лучший игрок, лучший защитник). Здесь хранится именно решение —
+    даже у расчётных призов, чтобы организатор мог его переопределить.
+    """
+    __tablename__ = 'tournament_awards'
+    __table_args__ = (
+        db.UniqueConstraint('tournament_id', 'age_group', 'code', name='uq_tournament_award'),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    tournament_id = db.Column(db.Integer, db.ForeignKey('tournaments.id'), nullable=False, index=True)
+    age_group = db.Column(db.String(50), nullable=False)
+    code = db.Column(db.String(40), nullable=False)
+    member_id = db.Column(db.Integer, db.ForeignKey('tournament_team_members.id'), nullable=True)
+    entry_id = db.Column(db.Integer, db.ForeignKey('tournament_entries.id'), nullable=True)
+    note = db.Column(db.String(200), nullable=True)
+    created_at = db.Column(db.DateTime, default=get_local_datetime)
+    updated_at = db.Column(db.DateTime, default=get_local_datetime, onupdate=get_local_datetime)
+
+    member = db.relationship('TournamentTeamMember', foreign_keys=[member_id])
+    entry = db.relationship('TournamentEntry', foreign_keys=[entry_id])
+
+    def __repr__(self):
+        return f'<TournamentAward {self.code} {self.age_group}>'
+
+
 class TournamentStadium(db.Model):
     """Справочник стадионов с координатами на карте."""
     __tablename__ = 'tournament_stadiums'

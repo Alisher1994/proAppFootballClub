@@ -567,6 +567,56 @@
             font-size: 11.5px;
         }
 
+        .std-team .person small {
+            display: block;
+            color: var(--muted);
+            font-size: 11.5px;
+            font-weight: 500;
+        }
+
+        .awards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+            gap: 9px;
+            margin-bottom: 16px;
+        }
+
+        .award {
+            padding: 11px 13px;
+            border: 1px solid #f0e5d8;
+            border-radius: 13px;
+            background: #fffaf4;
+        }
+
+        .award-name {
+            margin: 0 0 9px;
+            color: #b45f09;
+            font-size: 12px;
+            font-weight: 750;
+        }
+
+        .award-body {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .award-face {
+            flex: 0 0 40px;
+            width: 40px;
+            height: 40px;
+            border-radius: 11px;
+            background: #f4f1ee center/cover no-repeat;
+        }
+
+        .award-face.round { border-radius: 50%; }
+
+        .award-body small {
+            display: block;
+            color: var(--muted);
+            font-size: 11.5px;
+        }
+
         .cat-block + .cat-block {
             margin-top: 22px;
             padding-top: 20px;
@@ -1067,6 +1117,82 @@
             });
         }
 
+        function statTable(title, headers, rows) {
+            if (!rows.length) return '';
+            return `
+                <div class="grp-block">
+                    <p class="grp-title">${escapeHtml(title)}</p>
+                    <div class="table-wrap">
+                        <table class="standings">
+                            <thead><tr>${headers.map((h) => `<th>${escapeHtml(h)}</th>`).join('')}</tr></thead>
+                            <tbody>${rows.join('')}</tbody>
+                        </table>
+                    </div>
+                </div>`;
+        }
+
+        function personCell(row) {
+            return `<span class="std-team">
+                <span class="logo"${row.photo_url
+                    ? ` style="background-image:url('${escapeHtml(row.photo_url)}')"` : ''}></span>
+                <span class="person">
+                    <strong>${escapeHtml(row.name)}</strong>
+                    <small>${escapeHtml(row.team_name)}</small>
+                </span>
+            </span>`;
+        }
+
+        function awardFace(winner) {
+            return winner.member_id ? winner.photo_url : winner.team_logo_url;
+        }
+
+        function awardsMarkup(awards) {
+            if (!awards.length) return '';
+            return `
+                <div class="awards">
+                    ${awards.map((award) => `
+                        <div class="award">
+                            <p class="award-name">${escapeHtml(award.title)}</p>
+                            <div class="award-body">
+                                <span class="award-face${award.winner.member_id ? '' : ' round'}"${
+                                    awardFace(award.winner)
+                                        ? ` style="background-image:url('${escapeHtml(
+                                            awardFace(award.winner))}')"` : ''}></span>
+                                <span>
+                                    <strong>${escapeHtml(award.winner.name)}</strong>
+                                    <small>${escapeHtml(award.winner.team_name)}</small>
+                                </span>
+                            </div>
+                        </div>`).join('')}
+                </div>`;
+        }
+
+        function playersPane(category) {
+            const players = category.players || {};
+            const parts = [
+                awardsMarkup(players.awards || []),
+                statTable('Бомбардиры', ['#', 'Игрок', 'Голы', 'Ассисты', 'Матчи'],
+                    (players.scorers || []).map((row, index) => `
+                        <tr><td>${index + 1}</td><td>${personCell(row)}</td>
+                            <td><strong>${row.goals}</strong></td><td>${row.assists}</td>
+                            <td>${row.matches}</td></tr>`)),
+                statTable('Вратари', ['#', 'Вратарь', 'Матчи', 'Пропущено', 'Сухие матчи'],
+                    (players.goalkeepers || []).map((row, index) => `
+                        <tr><td>${index + 1}</td><td>${personCell(row)}</td>
+                            <td>${row.matches}</td><td>${row.conceded}</td>
+                            <td><strong>${row.clean_sheets}</strong></td></tr>`)),
+                statTable('Fair Play', ['#', 'Команда', 'Матчи', 'Штрафные очки'],
+                    (players.fair_play || []).map((row, index) => `
+                        <tr><td>${index + 1}</td>
+                            <td><span class="std-team"><span class="logo"${row.team_logo_url
+                                ? ` style="background-image:url('${escapeHtml(row.team_logo_url)}')"` : ''}></span>
+                                ${escapeHtml(row.team_name)}</span></td>
+                            <td>${row.matches}</td><td><strong>${row.penalty}</strong></td></tr>`)),
+            ].filter(Boolean);
+            return parts.length ? parts.join('')
+                : '<p class="lead" style="margin:0">Протоколы матчей ещё не заполнены.</p>';
+        }
+
         function playoffPane(category) {
             const matches = category.playoff || [];
             if (!matches.length) {
@@ -1117,11 +1243,13 @@
                     : '<p class="lead" style="margin:0">Итоги появятся после финала.</p>',
                 tables: tablesPane(category),
                 playoff: playoffPane(category),
+                players: playersPane(category),
             };
             const tabs = [
                 ['results', 'Итоги'],
                 ['tables', 'Таблицы'],
                 ['playoff', 'Плей-офф'],
+                ['players', 'Игроки'],
             ];
             return `
                 ${categories.length > 1 ? `

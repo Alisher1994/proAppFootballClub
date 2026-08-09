@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ tournament.name }} — табло</title>
+    <link rel="icon" href="{{ url_for('static', filename='pwa/icon-192.png') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/onest.css') }}">
+    <style>
+        /* Табло рассчитано на телевизор или проектор: всё считается от ширины
+           экрана, чтобы одинаково читалось и на 1920×1080, и на 4K. */
+        :root {
+            --ink: #17191f;
+            --muted: #7a8089;
+            --line: #e8e4e0;
+            --accent: #b45f09;
+            --u: 1vw;
+        }
+
+        * { box-sizing: border-box; }
+
+        html, body {
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+        }
+
+        body {
+            display: flex;
+            flex-direction: column;
+            background: #f6f4f2;
+            color: var(--ink);
+            font-family: 'Onest', system-ui, sans-serif;
+        }
+
+        header.bar {
+            display: flex;
+            align-items: center;
+            gap: calc(var(--u) * 1.2);
+            padding: calc(var(--u) * 1.1) calc(var(--u) * 2);
+            border-bottom: 1px solid var(--line);
+            background: #fff;
+        }
+
+        .bar-logo {
+            width: calc(var(--u) * 3.4);
+            height: calc(var(--u) * 3.4);
+            border-radius: 50%;
+            background: #f4f1ee center/cover no-repeat;
+        }
+
+        .bar h1 {
+            margin: 0;
+            font-size: calc(var(--u) * 1.7);
+            font-weight: 750;
+        }
+
+        .bar .sub {
+            color: var(--muted);
+            font-size: calc(var(--u) * 1.05);
+        }
+
+        .bar .scene-name {
+            margin-left: auto;
+            padding: calc(var(--u) * .4) calc(var(--u) * 1.1);
+            border-radius: 999px;
+            background: #fff5eb;
+            color: var(--accent);
+            font-size: calc(var(--u) * 1.05);
+            font-weight: 750;
+        }
+
+        main {
+            flex: 1 1 auto;
+            min-height: 0;
+            padding: calc(var(--u) * 1.6) calc(var(--u) * 2);
+        }
+
+        .scene {
+            display: none;
+            height: 100%;
+        }
+
+        .scene.on { display: block; }
+
+        .scene-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(calc(var(--u) * 26), 1fr));
+            gap: calc(var(--u) * 1.4);
+            height: 100%;
+        }
+
+        .panel {
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            padding: calc(var(--u) * 1.2);
+            border: 1px solid var(--line);
+            border-radius: calc(var(--u) * .9);
+            background: #fff;
+        }
+
+        .panel h2 {
+            margin: 0 0 calc(var(--u) * .8);
+            color: var(--accent);
+            font-size: calc(var(--u) * 1.3);
+            font-weight: 750;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: calc(var(--u) * 1.15);
+        }
+
+        th {
+            padding: calc(var(--u) * .4) calc(var(--u) * .5);
+            border-bottom: 1px solid var(--line);
+            color: var(--muted);
+            font-size: calc(var(--u) * .85);
+            font-weight: 650;
+            text-align: left;
+            white-space: nowrap;
+        }
+
+        td {
+            padding: calc(var(--u) * .5);
+            border-bottom: 1px solid #f4f1ee;
+        }
+
+        td.num { text-align: center; }
+
+        .team {
+            display: flex;
+            align-items: center;
+            gap: calc(var(--u) * .6);
+            font-weight: 650;
+        }
+
+        .team .logo {
+            flex: 0 0 calc(var(--u) * 2);
+            width: calc(var(--u) * 2);
+            height: calc(var(--u) * 2);
+            border-radius: 50%;
+            background: #f4f1ee center/cover no-repeat;
+        }
+
+        .team small {
+            display: block;
+            color: var(--muted);
+            font-size: calc(var(--u) * .8);
+            font-weight: 500;
+        }
+
+        .hero {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            gap: calc(var(--u) * 4);
+        }
+
+        .hero-face {
+            width: calc(var(--u) * 20);
+            height: calc(var(--u) * 20);
+            border-radius: 50%;
+            background: #eceae7 center/cover no-repeat;
+        }
+
+        .hero-title {
+            color: var(--accent);
+            font-size: calc(var(--u) * 1.8);
+            font-weight: 750;
+            letter-spacing: .04em;
+            text-transform: uppercase;
+        }
+
+        .hero-name {
+            margin: calc(var(--u) * .5) 0;
+            font-size: calc(var(--u) * 4);
+            font-weight: 750;
+            line-height: 1.05;
+        }
+
+        .hero-team {
+            color: var(--muted);
+            font-size: calc(var(--u) * 1.5);
+        }
+
+        .hero-value {
+            margin-top: calc(var(--u) * 1.2);
+            font-size: calc(var(--u) * 3);
+            font-weight: 750;
+        }
+
+        .bracket-host { height: 100%; }
+
+        .bracket-host .bronze-title {
+            display: block;
+            padding-bottom: calc(var(--u) * .3);
+            color: var(--accent);
+            font-size: calc(var(--u) * .9);
+            font-weight: 750;
+            text-align: center;
+        }
+
+        .bk-logo {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .bracket-host .bracket-root .match-body {
+            border: 1px solid var(--line);
+            border-radius: calc(var(--u) * .6);
+            background: #fff;
+        }
+
+        .bracket-host .bk-logo {
+            flex: 0 0 calc(var(--u) * 1.7);
+            width: calc(var(--u) * 1.7);
+            height: calc(var(--u) * 1.7);
+            border-radius: 50%;
+            background: #f4f1ee;
+        }
+
+        .bracket-host .bk-logo img {
+            width: calc(var(--u) * 1.7);
+            height: calc(var(--u) * 1.7);
+            object-fit: cover;
+        }
+
+        footer.dots {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: calc(var(--u) * .5);
+            padding: calc(var(--u) * .8);
+            border-top: 1px solid var(--line);
+            background: #fff;
+        }
+
+        .dot {
+            width: calc(var(--u) * .6);
+            height: calc(var(--u) * .6);
+            border-radius: 50%;
+            background: #ddd7d1;
+        }
+
+        .dot.on { background: var(--accent); }
+
+        .hint {
+            position: fixed;
+            right: calc(var(--u) * 1);
+            bottom: calc(var(--u) * 1);
+            color: var(--muted);
+            font-size: calc(var(--u) * .8);
+        }
+    </style>
+</head>
+<body>
+    <header class="bar">
+        <span class="bar-logo" id="barLogo"></span>
+        <span>
+            <h1 id="barTitle">{{ tournament.name }}</h1>
+            <span class="sub" id="barSub"></span>
+        </span>
+        <span class="scene-name" id="sceneName"></span>
+    </header>
+
+    <main id="stage"></main>
+
+    <footer class="dots" id="dots"></footer>
+    <p class="hint">← → листать · пробел пауза</p>
+
+    <script type="module">
+        import { createBracket } from "{{ url_for('static', filename='vendor/bracketry/bracketry-1.1.3.esm.js') }}";
+
+        const TOURNAMENT_ID = {{ tournament.id }};
+        const STEP_MS = 20000;
+
+        const state = { scenes: [], index: 0, paused: false, timer: null };
+
+        function escapeHtml(value) {
+            return String(value == null ? '' : value)
+                .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        }
+
+        function teamCell(name, logo, sub) {
+            return `<span class="team">
+                <span class="logo"${logo ? ` style="background-image:url('${escapeHtml(logo)}')"` : ''}></span>
+                <span>${escapeHtml(name)}${sub ? `<small>${escapeHtml(sub)}</small>` : ''}</span>
+            </span>`;
+        }
+
+        function standingsPanel(group) {
+            return `
+                <section class="panel">
+                    <h2>Группа ${escapeHtml(group.name)}</h2>
+                    <table>
+                        <thead><tr><th>#</th><th>Команда</th><th>И</th><th>Мячи</th><th>Очки</th></tr></thead>
+                        <tbody>${group.standings.map((row) => `
+                            <tr>
+                                <td class="num">${row.place}</td>
+                                <td>${teamCell(row.team_name, row.team_logo_url)}</td>
+                                <td class="num">${row.played}</td>
+                                <td class="num">${row.goals_for}–${row.goals_against}</td>
+                                <td class="num"><strong>${row.points}</strong></td>
+                            </tr>`).join('')}</tbody>
+                    </table>
+                </section>`;
+        }
+
+        function scorersPanel(players) {
+            const rows = (players.scorers || []).slice(0, 8);
+            if (!rows.length) return '';
+            return `
+                <section class="panel">
+                    <h2>Бомбардиры</h2>
+                    <table>
+                        <thead><tr><th>#</th><th>Игрок</th><th>Голы</th><th>Матчи</th></tr></thead>
+                        <tbody>${rows.map((row, index) => `
+                            <tr>
+                                <td class="num">${index + 1}</td>
+                                <td>${teamCell(row.name, row.photo_url, row.team_name)}</td>
+                                <td class="num"><strong>${row.goals}</strong></td>
+                                <td class="num">${row.matches}</td>
+                            </tr>`).join('')}</tbody>
+                    </table>
+                </section>`;
+        }
+
+        function keepersPanel(players) {
+            const rows = (players.goalkeepers || []).slice(0, 8);
+            if (!rows.length) return '';
+            return `
+                <section class="panel">
+                    <h2>Вратари</h2>
+                    <table>
+                        <thead><tr><th>#</th><th>Вратарь</th><th>Сухие</th><th>Пропущено</th></tr></thead>
+                        <tbody>${rows.map((row, index) => `
+                            <tr>
+                                <td class="num">${index + 1}</td>
+                                <td>${teamCell(row.name, row.photo_url, row.team_name)}</td>
+                                <td class="num"><strong>${row.clean_sheets}</strong></td>
+                                <td class="num">${row.conceded}</td>
+                            </tr>`).join('')}</tbody>
+                    </table>
+                </section>`;
+        }
+
+        function resultsPanel(results) {
+            const titles = { 1: 'Победитель', 2: 'Второе место', 3: 'Третье место', 4: 'Четвёртое место' };
+            return `
+                <section class="panel">
+                    <h2>Итоги</h2>
+                    <table>
+                        <tbody>${results.map((row) => `
+                            <tr>
+                                <td class="num">${row.place}</td>
+                                <td>${teamCell(row.team_name, row.team_logo_url, titles[row.place] || '')}</td>
+                            </tr>`).join('')}</tbody>
+                    </table>
+                </section>`;
+        }
+
+        function awardScene(award) {
+            const winner = award.winner;
+            const face = winner.member_id ? winner.photo_url : winner.team_logo_url;
+            return `
+                <div class="hero">
+                    <span class="hero-face"${face
+                        ? ` style="background-image:url('${escapeHtml(face)}')"` : ''}></span>
+                    <span>
+                        <p class="hero-title">${escapeHtml(award.title)}</p>
+                        <p class="hero-name">${escapeHtml(winner.name)}</p>
+                        <p class="hero-team">${escapeHtml(winner.team_name)}</p>
+                    </span>
+                </div>`;
+        }
+
+        function bracketDataFor(matches) {
+            const bronze = matches.find((m) => m.label === 'За 3 место') || null;
+            const main = matches.filter((m) => m !== bronze);
+            const rounds = [];
+            const byRound = new Map();
+            main.forEach((match) => {
+                if (!byRound.has(match.round_no)) {
+                    byRound.set(match.round_no, []);
+                    rounds.push({ no: match.round_no, name: match.label || '' });
+                }
+                byRound.get(match.round_no).push(match);
+            });
+            rounds.sort((a, b) => a.no - b.no);
+
+            const contestants = {};
+            const side = (match, which) => {
+                const name = match[which];
+                const id = match[`${which}_id`];
+                const key = id ? `t${id}` : `p${match.round_no}-${which}-${name}`;
+                if (!contestants[key]) {
+                    contestants[key] = {
+                        players: [{ title: name, logo: match[`${which}_logo_url`] || null, known: Boolean(id) }],
+                    };
+                }
+                const score = match[`${which}_score`];
+                const other = match[which === 'home' ? 'away_score' : 'home_score'];
+                return {
+                    contestantId: key,
+                    scores: [{
+                        mainScore: score === null ? '–' : String(score),
+                        isWinner: match.is_played && score > other,
+                    }],
+                };
+            };
+
+            const built = rounds.flatMap((round, roundIndex) =>
+                byRound.get(round.no).map((match, order) => ({
+                    roundIndex, order, sides: [side(match, 'home'), side(match, 'away')],
+                })));
+            if (bronze) {
+                built.push({
+                    roundIndex: rounds.length - 1, order: 1, isBronzeMatch: true,
+                    sides: [side(bronze, 'home'), side(bronze, 'away')],
+                });
+            }
+            return { rounds: rounds.map((r) => ({ name: r.name })), matches: built, contestants };
+        }
+
+        function drawScene() {
+            const scene = state.scenes[state.index];
+            if (!scene) return;
+            byId('sceneName').textContent = scene.name;
+            byId('stage').innerHTML = scene.html;
+            byId('dots').innerHTML = state.scenes.map((_, index) =>
+                `<span class="dot${index === state.index ? ' on' : ''}"></span>`).join('');
+            if (scene.bracket) {
+                const host = document.getElementById('screenBracket');
+                if (host) createBracket(bracketDataFor(scene.bracket), host, {
+                    rootBgColor: 'transparent',
+                    rootBorderColor: 'transparent',
+                    connectionLinesColor: '#ddd4ca',
+                    roundTitleColor: '#b45f09',
+                    matchTextColor: '#17191f',
+                    matchFontSize: Math.round(window.innerWidth / 90),
+                    roundTitlesFontSize: Math.round(window.innerWidth / 110),
+                    matchMaxWidth: Math.round(window.innerWidth / 6),
+                    matchHorMargin: Math.round(window.innerWidth / 70),
+                    useClassicalLayout: true,
+                    displayWholeRounds: true,
+                    navButtonsPosition: 'hidden',
+                    width: '100%',
+                    getNationalityHTML: (player) => {
+                        if (!player.known) return '';
+                        if (player.logo) {
+                            return `<span class="bk-logo"><img src="${escapeHtml(player.logo)}" alt=""></span>`;
+                        }
+                        return `<span class="bk-logo">${escapeHtml(
+                            (player.title || '?').slice(0, 2).toUpperCase())}</span>`;
+                    },
+                    getPlayerTitleHTML: (player) => `<span>${escapeHtml(player.title)}</span>`,
+                    getMatchTopHTML: (match) => (match && match.isBronzeMatch
+                        ? '<span class="bronze-title">За 3 место</span>' : ''),
+                });
+            }
+        }
+
+        function byId(id) { return document.getElementById(id); }
+
+        function formatRange(from, to) {
+            const fmt = (value) => (value
+                ? new Intl.DateTimeFormat('ru-RU', { day: '2-digit', month: 'long' }).format(new Date(value))
+                : '');
+            const year = to || from ? new Date(to || from).getFullYear() : '';
+            const left = fmt(from);
+            const right = fmt(to);
+            if (!left) return '';
+            return (right && right !== left ? `${left} — ${right}` : left) + ` ${year} г.`;
+        }
+
+        function step(delta) {
+            if (!state.scenes.length) return;
+            state.index = (state.index + delta + state.scenes.length) % state.scenes.length;
+            drawScene();
+            restart();
+        }
+
+        function restart() {
+            window.clearInterval(state.timer);
+            if (!state.paused) state.timer = window.setInterval(() => step(1), STEP_MS);
+        }
+
+        function buildScenes(item) {
+            const scenes = [];
+            (item.categories || []).forEach((category) => {
+                const tag = category.age_group ? `${category.age_group} · ` : '';
+                const groups = (category.groups || []).filter((g) => g.standings.length);
+                for (let i = 0; i < groups.length; i += 2) {
+                    scenes.push({
+                        name: `${tag}Группы`,
+                        html: `<div class="scene-grid">${groups.slice(i, i + 2)
+                            .map(standingsPanel).join('')}</div>`,
+                    });
+                }
+                if ((category.playoff || []).length) {
+                    scenes.push({
+                        name: `${tag}Плей-офф`,
+                        html: '<div id="screenBracket" class="bracket-host"></div>',
+                        bracket: category.playoff,
+                    });
+                }
+                const players = category.players || {};
+                const tables = [scorersPanel(players), keepersPanel(players)].filter(Boolean);
+                if (tables.length) {
+                    scenes.push({ name: `${tag}Игроки`, html: `<div class="scene-grid">${tables.join('')}</div>` });
+                }
+                (players.awards || []).forEach((award) => {
+                    scenes.push({ name: `${tag}${award.title}`, html: awardScene(award) });
+                });
+                if ((category.results || []).length) {
+                    scenes.push({
+                        name: `${tag}Итоги`,
+                        html: `<div class="scene-grid">${resultsPanel(category.results)}</div>`,
+                    });
+                }
+            });
+            return scenes;
+        }
+
+        fetch(`/api/public/tournaments/${TOURNAMENT_ID}`)
+            .then((response) => response.json())
+            .then((data) => {
+                const item = data.tournament;
+                byId('barTitle').textContent = item.name;
+                byId('barSub').textContent = [
+                    formatRange(item.start_date, item.end_date),
+                    item.location,
+                ].filter(Boolean).join(' · ');
+                if (item.poster_url) {
+                    byId('barLogo').style.backgroundImage = `url('${item.poster_url}')`;
+                }
+                state.scenes = buildScenes(item);
+                if (!state.scenes.length) {
+                    byId('stage').innerHTML =
+                        '<div class="hero"><span><p class="hero-title">Данных пока нет</p></span></div>';
+                    return;
+                }
+                drawScene();
+                restart();
+            })
+            .catch(() => {
+                byId('stage').innerHTML =
+                    '<div class="hero"><span><p class="hero-title">Не удалось загрузить турнир</p></span></div>';
+            });
+
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'ArrowRight') step(1);
+            else if (event.key === 'ArrowLeft') step(-1);
+            else if (event.key === ' ') {
+                event.preventDefault();
+                state.paused = !state.paused;
+                restart();
+            }
+        });
+
+        // Табло висит часами: раз в 5 минут подтягиваем свежие результаты.
+        window.setInterval(() => {
+            fetch(`/api/public/tournaments/${TOURNAMENT_ID}`)
+                .then((response) => response.json())
+                .then((data) => {
+                    const scenes = buildScenes(data.tournament);
+                    if (scenes.length) {
+                        state.scenes = scenes;
+                        state.index = Math.min(state.index, scenes.length - 1);
+                        drawScene();
+                    }
+                })
+                .catch(() => {});
+        }, 300000);
+    </script>
+</body>
+</html>
