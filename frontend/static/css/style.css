@@ -11410,6 +11410,8 @@ main.main-content.tournaments-page .tournament-action-btn.danger:hover {
     white-space: nowrap;
 }
 
+.po-pen.muted { opacity: .45; }
+
 .po-score em,
 .po-pen em {
     color: #969ca6;

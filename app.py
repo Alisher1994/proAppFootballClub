@@ -1560,6 +1560,17 @@ def ensure_tournament_tables():
                 print(f"✓ Добавлена колонка {table_name}.{column_name}")
             except Exception as column_error:
                 print(f"‼ Не удалось добавить {table_name}.{column_name}: {column_error}")
+
+        # Раньше поля «пен.» сохранялись при любом счёте, и в афише появлялись
+        # скобки вида «0 : 5 (0:3)». Чистим один раз: серия бывает только при ничьей.
+        try:
+            with db.engine.begin() as conn:
+                conn.execute(db.text(
+                    "UPDATE tournament_fixtures SET home_penalty = NULL, away_penalty = NULL "
+                    "WHERE home_penalty IS NOT NULL "
+                    "AND (home_score IS NULL OR home_score <> away_score)"))
+        except Exception as cleanup_error:
+            print(f"‼ Не удалось очистить пенальти без ничьей: {cleanup_error}")
     except Exception as e:
         print(f"Ошибка при проверке таблиц турниров: {e}")
 
@@ -5882,6 +5893,12 @@ def tournament_match_detail_api(match_id):
                 match.kickoff_at = datetime.fromisoformat(value)
             except ValueError:
                 return jsonify({'success': False, 'message': 'Некорректные дата и время'}), 400
+
+    # Серия пенальти бывает только при ничьей: при любом другом счёте
+    # оставшиеся в форме числа — мусор, и хранить их нельзя.
+    if match.home_score is None or match.home_score != match.away_score:
+        match.home_penalty = None
+        match.away_penalty = None
 
     propagate_playoff(match)
     db.session.commit()

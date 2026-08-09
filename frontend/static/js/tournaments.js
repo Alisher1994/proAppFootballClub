@@ -1816,6 +1816,7 @@ function playoffSideMarkup(side, isWinner) {
 function playoffMatchMarkup(match, index) {
     const winner = match.winner_entry_id;
     const ready = Boolean(match.home.entry_id && match.away.entry_id);
+    const draw = ready && match.home_score !== null && match.home_score === match.away_score;
     return `
         <div class="po-match${match.is_played ? ' played' : ''}" data-match="${match.id}">
             <span class="po-number">${index}</span>
@@ -1828,13 +1829,15 @@ function playoffMatchMarkup(match, index) {
                     value="${match.away_score === null ? '' : match.away_score}" aria-label="Голы гостей">
             </span>
             ${playoffSideMarkup(match.away, winner && winner === match.away.entry_id)}
-            <span class="po-pen" title="Серия пенальти при ничьей">
+            <span class="po-pen${draw ? '' : ' muted'}" title="Серия пенальти при ничьей">
                 пен.
-                <input type="number" min="0" max="99" data-pen="home" ${ready ? '' : 'disabled'}
-                    value="${match.home_penalty === null ? '' : match.home_penalty}" aria-label="Пенальти хозяев">
+                <input type="number" min="0" max="99" data-pen="home" ${draw ? '' : 'disabled'}
+                    value="${draw && match.home_penalty !== null ? match.home_penalty : ''}"
+                    aria-label="Пенальти хозяев">
                 <em>:</em>
-                <input type="number" min="0" max="99" data-pen="away" ${ready ? '' : 'disabled'}
-                    value="${match.away_penalty === null ? '' : match.away_penalty}" aria-label="Пенальти гостей">
+                <input type="number" min="0" max="99" data-pen="away" ${draw ? '' : 'disabled'}
+                    value="${draw && match.away_penalty !== null ? match.away_penalty : ''}"
+                    aria-label="Пенальти гостей">
             </span>
         </div>`;
 }
