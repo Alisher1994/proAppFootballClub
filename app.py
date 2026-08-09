@@ -5629,8 +5629,6 @@ def tournament_playoff_api(tournament_id):
                 round_no=round_no,
                 bracket_slot=slot,
                 label=playoff_round_name(len(current) // 2),
-                home_label=f'Победитель матча {index + 1}',
-                away_label=f'Победитель матча {index + 2}',
             )
             db.session.add(match)
             nxt.append(match)
@@ -5660,6 +5658,25 @@ def tournament_playoff_api(tournament_id):
             for index, semi in enumerate(semis):
                 semi.loser_next_match_id = bronze.id
                 semi.loser_next_slot = 'home' if index == 0 else 'away'
+
+    numbers = {}
+    position = 0
+    for round_matches in rounds:
+        for match in round_matches:
+            position += 1
+            numbers[match.id] = position
+    for round_matches in rounds:
+        for match in round_matches:
+            if not match.next_match_id:
+                continue
+            target = db.session.get(TournamentMatch, match.next_match_id)
+            if not target:
+                continue
+            text = f'Победитель матча {numbers[match.id]}'
+            if match.next_slot == 'home':
+                target.home_label = text
+            else:
+                target.away_label = text
 
     # Свободные места: соперник проходит сразу, иначе сетка встанет.
     for match in rounds[0]:
