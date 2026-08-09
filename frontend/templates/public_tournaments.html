@@ -403,6 +403,68 @@
             object-fit: cover;
         }
 
+        .results {
+            margin-bottom: 14px;
+            padding: 12px 14px;
+            border: 1px solid #ffd9b0;
+            border-radius: 13px;
+            background: #fff8f0;
+        }
+
+        .results-title {
+            margin: 0 0 10px;
+            color: #b45f09;
+            font-size: 13px;
+            font-weight: 750;
+        }
+
+        .results-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+            gap: 8px;
+        }
+
+        .place {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            padding: 8px 11px;
+            border: 1px solid #f0e5d8;
+            border-radius: 10px;
+            background: #fff;
+        }
+
+        .medal {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex: 0 0 28px;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: #eceae7;
+            color: #5f6673;
+            font-size: 12.5px;
+            font-weight: 750;
+        }
+
+        .place-1 .medal { background: #ffd45e; color: #6b4a00; }
+
+        .place-2 .medal { background: #dfe3e8; color: #4b5563; }
+
+        .place-3 .medal { background: #f0c08a; color: #6b3f0d; }
+
+        .place-team strong {
+            display: block;
+            font-size: 13.5px;
+            overflow-wrap: anywhere;
+        }
+
+        .place-team small {
+            color: var(--muted);
+            font-size: 11.5px;
+        }
+
         .cat-block + .cat-block {
             margin-top: 22px;
             padding-top: 20px;
@@ -723,6 +785,41 @@
             }).format(dt);
         }
 
+        const PLACE_TITLES = { 1: 'Победитель', 2: 'Второе место', 3: 'Третье место', 4: 'Четвёртое место' };
+
+        function resultsMarkup(results) {
+            if (!results.length) return '';
+            return `
+                <div class="results">
+                    <p class="results-title">Итоги</p>
+                    <div class="results-list">
+                        ${results.map((row) => `
+                            <div class="place place-${row.place}">
+                                <span class="medal">${row.place}</span>
+                                <span class="place-team">
+                                    <strong>${escapeHtml(row.team_name)}</strong>
+                                    <small>${escapeHtml(PLACE_TITLES[row.place] || '')}</small>
+                                </span>
+                            </div>`).join('')}
+                    </div>
+                </div>`;
+        }
+
+        function playoffMarkup(matches) {
+            if (!matches.length) return '';
+            const byLabel = new Map();
+            matches.forEach((m) => {
+                const key = m.label || 'Плей-офф';
+                if (!byLabel.has(key)) byLabel.set(key, []);
+                byLabel.get(key).push(m);
+            });
+            return [...byLabel.entries()].map(([label, items]) => `
+                <div class="grp-block">
+                    <p class="grp-title">${escapeHtml(label)}</p>
+                    <div class="fixtures">${items.map(fixtureMarkup).join('')}</div>
+                </div>`).join('');
+        }
+
         function categoriesMarkup(categories) {
             if (!categories.length) {
                 return '<h3>Участники</h3><p class="lead" style="margin:0">Список участников ещё формируется.</p>';
@@ -750,7 +847,9 @@
                 return `
                     <div class="cat-block">
                         <h3 class="cat-title">${escapeHtml(category.age_group)}</h3>
+                        ${resultsMarkup(category.results || [])}
                         ${body}
+                        ${playoffMarkup(category.playoff || [])}
                     </div>`;
             }).join('');
         }

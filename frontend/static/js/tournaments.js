@@ -29,6 +29,7 @@ const catalogState = {
     matchAge: '',
     matchBlocks: [],
     playoffMatches: [],
+    playoffResults: [],
     playoffAge: '',
     matchStadiums: [],
     tournamentPosterObjectUrl: null,
@@ -1787,6 +1788,25 @@ async function saveMatch(row) {
 
 /* --- Плей-офф: сетка на вылет --- */
 
+const PLACE_TITLES = { 1: 'Победитель', 2: 'Второе место', 3: 'Третье место', 4: 'Четвёртое место' };
+
+function resultsMarkup(results) {
+    return `
+        <section class="po-results">
+            <h3>Итоги</h3>
+            <div class="po-results-list">
+                ${results.map((row) => `
+                    <div class="po-place po-place-${row.place}">
+                        <span class="po-medal">${row.place}</span>
+                        <span class="po-place-team">
+                            <strong>${escapeHtml(row.team_name)}</strong>
+                            <small>${escapeHtml(PLACE_TITLES[row.place] || '')}</small>
+                        </span>
+                    </div>`).join('')}
+            </div>
+        </section>`;
+}
+
 function playoffSideMarkup(side, isWinner) {
     const known = Boolean(side.entry_id);
     return `<span class="po-team${known ? '' : ' pending'}${isWinner ? ' winner' : ''}">
@@ -1845,13 +1865,8 @@ function renderPlayoff() {
             ${items.map((match) => playoffMatchMarkup(match, ++counter)).join('')}
         </section>`).join('');
 
-    const champion = matches.find((m) => m.label === 'Финал' && m.winner_entry_id);
-    if (champion) {
-        const name = champion.winner_entry_id === champion.home.entry_id
-            ? champion.home.team_name : champion.away.team_name;
-        board.insertAdjacentHTML('afterbegin',
-            `<p class="po-champion">Победитель турнира — ${escapeHtml(name)}</p>`);
-    }
+    const results = catalogState.playoffResults;
+    if (results.length) board.insertAdjacentHTML('afterbegin', resultsMarkup(results));
     refreshIcons();
 }
 
@@ -1875,6 +1890,7 @@ async function loadPlayoff() {
         + `?age_group=${encodeURIComponent(catalogState.playoffAge)}`,
     );
     catalogState.playoffMatches = data.playoff || [];
+    catalogState.playoffResults = data.results || [];
     renderPlayoff();
 }
 

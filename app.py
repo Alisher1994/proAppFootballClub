@@ -5437,6 +5437,7 @@ def tournament_matches_api(tournament_id):
             'success': True,
             'blocks': blocks,
             'playoff': [serialize_match(m) for m in playoff],
+            'results': playoff_results(playoff),
             'stadiums': [{'id': s.id, 'name': s.name}
                          for s in TournamentStadium.query.order_by(TournamentStadium.name.asc()).all()],
         })
@@ -5554,6 +5555,33 @@ def resolve_qualified(tournament_id, age_group, groups, advance):
         entry_id = table[place - 1]['entry_id'] if finished and len(table) >= place else None
         seeds.append((entry_id, label))
     return seeds
+
+
+def playoff_results(matches):
+    """Итоговые места. Финал разводит первое и второе, матч за 3 место — третье и четвёртое."""
+    final = next((m for m in matches if m.label == 'Финал'), None)
+    bronze = next((m for m in matches if m.label == 'За 3 место'), None)
+
+    places = []
+
+    def add(place, entry_id):
+        if not entry_id:
+            return
+        entry = db.session.get(TournamentEntry, entry_id)
+        team = entry.team if entry else None
+        places.append({
+            'place': place,
+            'team_name': team.name if team else '—',
+            'team_logo_url': get_tournament_media_url(team.logo_path) if team else None,
+        })
+
+    if final and final.winner_entry_id:
+        add(1, final.winner_entry_id)
+        add(2, final.loser_entry_id)
+    if bronze and bronze.winner_entry_id:
+        add(3, bronze.winner_entry_id)
+        add(4, bronze.loser_entry_id)
+    return places
 
 
 @app.route('/api/tournaments/<int:tournament_id>/playoff', methods=['POST'])
@@ -5949,16 +5977,23 @@ def public_tournament_detail_api(tournament_id):
         blocks = []
         for group in age_groups:
             group_entries = [e for e in age_entries if e.group_id == group.id]
-            group_matches = [m for m in matches if m.group_id == group.id]
+            group_matches = [m for m in matches if m.group_id == group.id
+                             and m.stage == TournamentMatch.STAGE_GROUP]
             blocks.append({
                 'name': group.name,
                 'standings': build_standings(group_entries, group_matches),
                 'matches': [public_match(m) for m in group_matches],
             })
+        age_playoff = [m for m in matches
+                       if m.age_group == age_group
+                       and m.stage == TournamentMatch.STAGE_PLAYOFF]
+        age_playoff.sort(key=lambda m: (m.round_no, m.bracket_slot or 0))
         categories.append({
             'age_group': age_group,
             'teams': [public_team(e) for e in age_entries],
             'groups': blocks,
+            'playoff': [dict(public_match(m), label=m.label) for m in age_playoff],
+            'results': playoff_results(age_playoff),
         })
 
     # Категории без единой заявки на афише не нужны.

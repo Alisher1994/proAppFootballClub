@@ -11291,15 +11291,66 @@ main.main-content.tournaments-page .tournament-action-btn.danger:hover {
     margin-bottom: 12px;
 }
 
-.po-champion {
-    margin: 0 0 16px;
-    padding: 12px 16px;
+.po-results {
+    margin-bottom: 18px;
+    padding: 14px 16px;
     border: 1px solid #ffd9b0;
-    border-radius: 12px;
-    background: #fff5eb;
+    border-radius: 13px;
+    background: #fff8f0;
+}
+
+.po-results h3 {
+    margin: 0 0 12px;
     color: #b45f09;
     font-size: 14px;
     font-weight: 750;
+}
+
+.po-results-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 10px;
+}
+
+.po-place {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 12px;
+    border: 1px solid #f0e5d8;
+    border-radius: 11px;
+    background: #fff;
+}
+
+.po-medal {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 30px;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: #eceae7;
+    color: #5f6673;
+    font-size: 13px;
+    font-weight: 750;
+}
+
+.po-place-1 .po-medal { background: #ffd45e; color: #6b4a00; }
+
+.po-place-2 .po-medal { background: #dfe3e8; color: #4b5563; }
+
+.po-place-3 .po-medal { background: #f0c08a; color: #6b3f0d; }
+
+.po-place-team strong {
+    display: block;
+    font-size: 13.5px;
+    overflow-wrap: anywhere;
+}
+
+.po-place-team small {
+    color: #969ca6;
+    font-size: 11.5px;
 }
 
 .po-round + .po-round { margin-top: 22px; }
