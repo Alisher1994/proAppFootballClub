@@ -10846,7 +10846,8 @@ main.main-content.tournaments-page .tournament-action-btn.danger:hover {
 .tournament-catalog-field.full,
 .team-catalog-logo-picker.full,
 .tournament-catalog-form-actions.full,
-.tournament-catalog-form-error {
+.tournament-catalog-form-error,
+.tournament-catalog-form > .full {
     grid-column: 1 / -1;
 }
 
@@ -11010,6 +11011,19 @@ main.main-content.tournaments-page .tournament-action-btn.danger:hover {
 
 .schedule-form {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: start;
+}
+
+/* Все поля формы расстановки одной высоты. */
+#scheduleModal .tournament-catalog-field input,
+#scheduleModal .tournament-catalog-field select {
+    height: 42px !important;
+    min-height: 42px !important;
+}
+
+#scheduleModal .tournament-publish-toggle {
+    align-items: center;
+    height: 100%;
 }
 
 @media (max-width: 760px) {
@@ -11707,13 +11721,45 @@ main.main-content.tournaments-page .tournament-action-btn.danger:hover {
     cursor: pointer;
 }
 
-.tournament-publish-toggle input {
-    width: 18px !important;
-    min-width: 18px !important;
-    height: 18px !important;
-    min-height: 18px !important;
-    margin-top: 2px;
-    accent-color: #ff8a00;
+.tournament-publish-toggle input[type="checkbox"] {
+    appearance: none !important;
+    -webkit-appearance: none !important;
+    position: relative;
+    flex: 0 0 auto;
+    width: 20px !important;
+    min-width: 20px !important;
+    max-width: 20px !important;
+    height: 20px !important;
+    min-height: 20px !important;
+    max-height: 20px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 1.5px solid #d7d9de !important;
+    border-radius: 6px !important;
+    background: #fff !important;
+    cursor: pointer;
+}
+
+.tournament-publish-toggle input[type="checkbox"]:checked {
+    border-color: #ff8a00 !important;
+    background: #ff8a00 !important;
+}
+
+.tournament-publish-toggle input[type="checkbox"]:checked::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 6px;
+    width: 5px;
+    height: 10px;
+    border: solid #fff;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+}
+
+.tournament-publish-toggle input[type="checkbox"]:focus-visible {
+    outline: 2px solid #ffb066;
+    outline-offset: 2px;
 }
 
 .tournament-publish-toggle strong {
