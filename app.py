@@ -5460,6 +5460,114 @@ def tournament_matches_api(tournament_id):
     return jsonify({'success': True, 'created': created})
 
 
+def match_teams(match):
+    return {match.home_entry_id, match.away_entry_id} - {None}
+
+
+@app.route('/api/tournaments/<int:tournament_id>/matches/schedule', methods=['POST'])
+@login_required
+def tournament_schedule_api(tournament_id):
+    """Расставляет матчи по дням и слотам времени."""
+    ensure_tournament_tables()
+    if not has_tournament_permission('edit'):
+        return jsonify({'success': False, 'message': 'Нет доступа'}), 403
+    tournament = Tournament.query.filter_by(id=tournament_id).first_or_404()
+
+    data = request.get_json() or {}
+    try:
+        duration = int(data.get('duration') or 30)
+        gap = int(data.get('gap') or 10)
+        pitches = int(data.get('pitches') or 1)
+    except (TypeError, ValueError):
+        return jsonify({'success': False, 'message': 'Проверьте числовые параметры'}), 400
+    if duration < 5 or duration > 240:
+        return jsonify({'success': False, 'message': 'Длительность матча — от 5 до 240 минут'}), 400
+    if gap < 0 or gap > 240:
+        return jsonify({'success': False, 'message': 'Перерыв — от 0 до 240 минут'}), 400
+    if pitches < 1 or pitches > 10:
+        return jsonify({'success': False, 'message': 'Полей может быть от 1 до 10'}), 400
+
+    start_date = parse_date_value(data.get('start_date')) or tournament.start_date
+    start_time = parse_time_value(data.get('start_time')) or tournament.start_time or dt_time(10, 0)
+    end_time = parse_time_value(data.get('end_time')) or dt_time(18, 0)
+    if not start_date:
+        return jsonify({'success': False, 'message': 'Укажите дату начала'}), 400
+    if end_time <= start_time:
+        return jsonify({'success': False, 'message': 'Конец дня должен быть позже начала'}), 400
+
+    overwrite = bool(data.get('overwrite'))
+    age_group = (data.get('age_group') or '').strip()
+    only_current = bool(data.get('only_current')) and age_group
+
+    stadium_id = data.get('stadium_id')
+    stadium_id = int(stadium_id) if stadium_id else None
+
+    query = TournamentMatch.query.filter_by(tournament_id=tournament_id)
+    if only_current:
+        query = query.filter_by(age_group=age_group)
+    all_matches = query.all()
+
+    # Порядок расстановки — по турам: внутри тура команда играет не больше
+    # одного раза, поэтому такие матчи можно ставить параллельно без коллизий.
+    def order_key(match):
+        return (match.round_no, match.age_group, match.group.sort_order if match.group else 0, match.id)
+
+    pending = sorted([m for m in all_matches if overwrite or not m.kickoff_at], key=order_key)
+    if not pending:
+        return jsonify({'success': False, 'message': 'Все матчи уже расставлены по времени'}), 400
+
+    # Слоты, занятые матчами, которые мы не трогаем, — их нельзя занимать повторно.
+    busy = {}
+    if not overwrite:
+        fixed = TournamentMatch.query.filter(
+            TournamentMatch.tournament_id == tournament_id,
+            TournamentMatch.kickoff_at.isnot(None),
+        ).all()
+        for match in fixed:
+            busy.setdefault(match.kickoff_at, []).append(match)
+
+    slot = datetime.combine(start_date, start_time)
+    day_end = datetime.combine(start_date, end_time)
+    scheduled = 0
+    days = set()
+
+    for match in pending:
+        placed = False
+        while not placed:
+            if slot + timedelta(minutes=duration) > day_end:
+                next_day = (slot.date() + timedelta(days=1))
+                slot = datetime.combine(next_day, start_time)
+                day_end = datetime.combine(next_day, end_time)
+                continue
+
+            taken = busy.get(slot, [])
+            busy_teams = set()
+            for other in taken:
+                busy_teams |= match_teams(other)
+            # Одна команда не может играть два матча в одно время — даже если
+            # свободное поле есть (например, клуб заявлен в двух категориях).
+            if len(taken) >= pitches or (match_teams(match) & busy_teams):
+                slot += timedelta(minutes=duration + gap)
+                continue
+
+            match.kickoff_at = slot
+            if stadium_id:
+                match.stadium_id = stadium_id
+            busy.setdefault(slot, []).append(match)
+            days.add(slot.date())
+            scheduled += 1
+            placed = True
+
+    db.session.commit()
+    return jsonify({
+        'success': True,
+        'scheduled': scheduled,
+        'days': len(days),
+        'first': min(days).isoformat() if days else None,
+        'last': max(days).isoformat() if days else None,
+    })
+
+
 @app.route('/api/tournament-matches/<int:match_id>', methods=['PUT'])
 @login_required
 def tournament_match_detail_api(match_id):

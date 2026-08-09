@@ -8,7 +8,7 @@
     {% include '_pwa_head.html' %}
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/onest/onest.css') }}">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=2026080915">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=2026080916">
 </head>
 <body>
     {% include '_sidebar.html' %}
@@ -393,9 +393,13 @@
                             <span>Категория</span>
                             <select id="matchAgeSelect"></select>
                         </label>
-                        <button class="btn-primary" type="button" id="generateMatchesBtn">
+                        <button class="btn-secondary" type="button" id="generateMatchesBtn">
                             <i data-lucide="list-checks"></i>
                             Сформировать календарь
+                        </button>
+                        <button class="btn-primary" type="button" id="openScheduleBtn">
+                            <i data-lucide="calendar-clock"></i>
+                            Расставить по времени
                         </button>
                     </div>
                     <div class="tournament-catalog-form-error" id="matchFormError" hidden></div>
@@ -573,6 +577,77 @@
         </div>
     </div>
 
+    <div class="modal tournament-catalog-modal" id="scheduleModal" hidden>
+        <div class="modal-content team-share-modal-content">
+            <header class="tournament-catalog-modal-header">
+                <div>
+                    <span class="tournament-catalog-eyebrow">Календарь</span>
+                    <h2>Расставить матчи по времени</h2>
+                </div>
+                <button class="icon-button" type="button" data-close-modal="scheduleModal" aria-label="Закрыть">
+                    <i data-lucide="x"></i>
+                </button>
+            </header>
+            <div class="tournament-catalog-form schedule-form">
+                <p class="team-share-hint full">
+                    Матчи раскладываются по турам: внутри тура команда играет не больше одного
+                    раза, поэтому такие матчи можно ставить параллельно. Время и стадион потом
+                    правятся вручную в любой строке.
+                </p>
+                <label class="tournament-catalog-field">
+                    <span>Первый матч — дата</span>
+                    <input id="scheduleStartDate" type="date">
+                </label>
+                <label class="tournament-catalog-field">
+                    <span>Первый матч — время</span>
+                    <input id="scheduleStartTime" type="time">
+                </label>
+                <label class="tournament-catalog-field">
+                    <span>Конец игрового дня</span>
+                    <input id="scheduleEndTime" type="time" value="18:00">
+                </label>
+                <label class="tournament-catalog-field">
+                    <span>Длительность матча, мин</span>
+                    <input id="scheduleDuration" type="number" min="5" max="240" step="5" value="30">
+                </label>
+                <label class="tournament-catalog-field">
+                    <span>Перерыв между матчами, мин</span>
+                    <input id="scheduleGap" type="number" min="0" max="240" step="5" value="10">
+                </label>
+                <label class="tournament-catalog-field">
+                    <span>Полей параллельно</span>
+                    <input id="schedulePitches" type="number" min="1" max="10" step="1" value="1">
+                </label>
+                <label class="tournament-catalog-field full">
+                    <span>Стадион по умолчанию</span>
+                    <select id="scheduleStadium"><option value="">Не менять</option></select>
+                </label>
+                <label class="tournament-publish-toggle full">
+                    <input id="scheduleOnlyCurrent" type="checkbox">
+                    <span>
+                        <strong>Только текущая категория</strong>
+                        <small>По умолчанию расставляется весь турнир — иначе категории
+                            начнут в одно время на одном поле.</small>
+                    </span>
+                </label>
+                <label class="tournament-publish-toggle full">
+                    <input id="scheduleOverwrite" type="checkbox">
+                    <span>
+                        <strong>Перезаписать уже проставленное время</strong>
+                        <small>Без галочки матчи с датой не трогаем, их слоты считаются занятыми.</small>
+                    </span>
+                </label>
+                <div class="tournament-catalog-form-error" id="scheduleError" hidden></div>
+                <div class="team-share-result full" id="scheduleResult" hidden>
+                    <div class="team-share-status open" id="scheduleStatus"></div>
+                </div>
+                <footer class="tournament-catalog-form-actions full team-share-footer">
+                    <button class="btn-primary" type="button" id="runScheduleBtn">Расставить</button>
+                </footer>
+            </div>
+        </div>
+    </div>
+
     <div class="modal tournament-catalog-modal" id="stadiumImportModal" hidden>
         <div class="modal-content team-share-modal-content">
             <header class="tournament-catalog-modal-header">
@@ -673,6 +748,6 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="{{ url_for('static', filename='js/sidebar.js') }}?v=2026080801"></script>
     <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/tournaments.js') }}?v=2026080915"></script>
+    <script src="{{ url_for('static', filename='js/tournaments.js') }}?v=2026080916"></script>
 </body>
 </html>

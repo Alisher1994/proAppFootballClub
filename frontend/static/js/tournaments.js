@@ -1682,6 +1682,58 @@ async function loadMatches() {
     renderMatches();
 }
 
+function openScheduleDialog() {
+    const tournament = catalogState.tournaments
+        .find((row) => Number(row.id) === Number(catalogState.entriesTournamentId));
+    if (tournament) {
+        byId('scheduleStartDate').value = tournament.start_date || '';
+        byId('scheduleStartTime').value = tournament.start_time || '10:00';
+    }
+    const select = byId('scheduleStadium');
+    select.innerHTML = ['<option value="">Не менять</option>']
+        .concat(catalogState.matchStadiums.map((item) =>
+            `<option value="${item.id}">${escapeHtml(item.name)}</option>`))
+        .join('');
+    showFormError('scheduleError');
+    byId('scheduleResult').hidden = true;
+    openModal('scheduleModal');
+}
+
+async function runSchedule() {
+    const button = byId('runScheduleBtn');
+    button.disabled = true;
+    try {
+        showFormError('scheduleError');
+        const data = await apiJson(
+            `/api/tournaments/${catalogState.entriesTournamentId}/matches/schedule`,
+            {
+                method: 'POST',
+                body: JSON.stringify({
+                    start_date: byId('scheduleStartDate').value,
+                    start_time: byId('scheduleStartTime').value,
+                    end_time: byId('scheduleEndTime').value,
+                    duration: Number(byId('scheduleDuration').value),
+                    gap: Number(byId('scheduleGap').value),
+                    pitches: Number(byId('schedulePitches').value),
+                    stadium_id: byId('scheduleStadium').value || null,
+                    only_current: byId('scheduleOnlyCurrent').checked,
+                    overwrite: byId('scheduleOverwrite').checked,
+                    age_group: catalogState.matchAge,
+                }),
+            },
+        );
+        byId('scheduleResult').hidden = false;
+        byId('scheduleStatus').textContent = data.days > 1
+            ? `Расставлено ${data.scheduled} матчей на ${data.days} дня: ${formatDate(data.first)} — ${formatDate(data.last)}`
+            : `Расставлено ${data.scheduled} матчей на ${formatDate(data.first)}`;
+        await loadMatches();
+    } catch (error) {
+        showFormError('scheduleError', error.message);
+    } finally {
+        button.disabled = false;
+    }
+}
+
 async function generateMatches() {
     if (!window.confirm('Календарь категории будет создан заново, введённые счета пропадут. Продолжить?')) return;
     try {
@@ -2145,6 +2197,8 @@ function bindEvents() {
         loadMatches().catch(showPageError);
     });
     byId('generateMatchesBtn').addEventListener('click', () => generateMatches().catch(showPageError));
+    byId('openScheduleBtn').addEventListener('click', openScheduleDialog);
+    byId('runScheduleBtn').addEventListener('click', () => runSchedule().catch(showPageError));
     byId('matchBoard').addEventListener('change', (event) => {
         const row = event.target.closest('[data-match]');
         if (row) saveMatch(row).catch(showPageError);
