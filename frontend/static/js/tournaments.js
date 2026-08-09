@@ -1044,15 +1044,39 @@ function renderEntryTournamentCard(tournament) {
                     ? 'Скрыт с сайта — черновик'
                     : 'Опубликован в афише на сайте'}</span>
             </div>
-        </div>`;
+        </div>
+        <div class="entry-ring" id="entryRing"></div>`;
     refreshIcons();
+    renderEntryRing();
+}
+
+function renderEntryRing() {
+    const box = byId('entryRing');
+    if (!box) return;
+    const total = catalogState.entries.length;
+    const confirmed = catalogState.entries.filter((item) => item.status === 'confirmed').length;
+    const radius = 32;
+    const circumference = 2 * Math.PI * radius;
+    const filled = total ? (confirmed / total) * circumference : 0;
+    const label = `Подтвердили ${confirmed} из ${total}`;
+
+    // Доля от целого: заливка и трек — один тон, число в центре несёт значение.
+    box.innerHTML = `
+        <svg viewBox="0 0 80 80" role="img" aria-label="${escapeHtml(label)}">
+            <title>${escapeHtml(label)}</title>
+            <circle cx="40" cy="40" r="${radius}" fill="none" stroke="#ffe4c4" stroke-width="9"></circle>
+            <circle cx="40" cy="40" r="${radius}" fill="none" stroke="#ee7800" stroke-width="9"
+                stroke-linecap="round" transform="rotate(-90 40 40)"
+                stroke-dasharray="${filled} ${circumference}"></circle>
+            <text x="40" y="40" text-anchor="middle" dominant-baseline="central"
+                class="entry-ring-value">${confirmed}</text>
+        </svg>`;
 }
 
 function renderEntryPickers() {
-    const teamSelect = byId('entryTeamSelect');
-    teamSelect.innerHTML = ['<option value="">Выберите команду</option>']
-        .concat(catalogState.teams.map((team) =>
-            `<option value="${team.id}">${escapeHtml(team.name)}</option>`))
+    // datalist даёт поиск по названию силами браузера, без своего выпадающего списка.
+    byId('entryTeamOptions').innerHTML = catalogState.teams
+        .map((team) => `<option value="${escapeHtml(team.name)}"></option>`)
         .join('');
 
     const ageSelect = byId('entryAgeSelect');
@@ -1067,10 +1091,7 @@ function renderEntryPickers() {
 function renderEntries() {
     const list = byId('entriesList');
     const entries = catalogState.entries;
-    const confirmed = entries.filter((item) => item.status === 'confirmed').length;
-    byId('entrySummary').textContent = entries.length
-        ? `Заявок: ${entries.length} · подтвердили: ${confirmed}`
-        : '';
+    renderEntryRing();
 
     if (!entries.length) {
         list.innerHTML = emptyCatalogMarkup(
@@ -1181,19 +1202,25 @@ async function openTournamentEntries(tournamentId) {
 }
 
 async function addTournamentEntry() {
-    const teamId = byId('entryTeamSelect').value;
+    const typed = byId('entryTeamInput').value.trim().toLowerCase();
+    const team = catalogState.teams.find((item) => (item.name || '').trim().toLowerCase() === typed);
     const ageGroup = byId('entryAgeSelect').value;
-    if (!teamId || !ageGroup) {
-        showFormError('entryFormError', 'Выберите команду и возрастную категорию');
+    if (!typed || !team) {
+        showFormError('entryFormError', 'Выберите команду из списка');
         return;
     }
+    if (!ageGroup) {
+        showFormError('entryFormError', 'Выберите возрастную категорию');
+        return;
+    }
+    const teamId = team.id;
     try {
         showFormError('entryFormError');
         await apiJson(`/api/tournaments/${catalogState.entriesTournamentId}/entries`, {
             method: 'POST',
             body: JSON.stringify({ team_id: Number(teamId), age_group: ageGroup }),
         });
-        byId('entryTeamSelect').value = '';
+        byId('entryTeamInput').value = '';
         await loadEntries();
     } catch (error) {
         showFormError('entryFormError', error.message);
@@ -1225,22 +1252,14 @@ async function deleteTournamentEntry(entryId) {
 /* --- Группы турнира: жеребьёвка и ручное распределение --- */
 
 function groupTeamMarkup(entry) {
-    const options = ['<option value="">Без группы</option>'].concat(
-        catalogState.groups
-            .filter((group) => group.age_group === catalogState.groupAge)
-            .map((group) => `<option value="${group.id}" ${Number(entry.group_id) === group.id ? 'selected' : ''}>
-                Группа ${escapeHtml(group.name)}</option>`),
-    );
     return `
-        <div class="group-team" draggable="true" data-entry="${entry.id}">
+        <div class="group-team" data-entry="${entry.id}">
             <span class="catalog-row-icon">
                 ${entry.team_logo_url
                     ? `<img src="${escapeHtml(entry.team_logo_url)}" alt="">`
                     : `<span>${escapeHtml(initials(entry.team_name))}</span>`}
             </span>
             <span class="group-team-name">${escapeHtml(entry.team_name)}</span>
-            <select class="group-move" data-move-entry="${entry.id}"
-                aria-label="Перенести ${escapeHtml(entry.team_name)}">${options.join('')}</select>
         </div>`;
 }
 
@@ -1345,46 +1364,96 @@ async function moveEntryToGroup(entryId, groupId) {
 
 function bindGroupBoard() {
     const board = byId('groupBoard');
+    let drag = null;
 
-    board.addEventListener('dragstart', (event) => {
+    const clearHighlight = () => board.querySelectorAll('.group-drop.over')
+        .forEach((el) => el.classList.remove('over'));
+
+    function startDrag(event) {
+        drag.active = true;
+        drag.team.classList.add('dragging');
+        const rect = drag.team.getBoundingClientRect();
+        drag.ghost = drag.team.cloneNode(true);
+        drag.ghost.classList.add('drag-ghost');
+        drag.ghost.style.width = `${rect.width}px`;
+        document.body.appendChild(drag.ghost);
+        drag.offsetX = event.clientX - rect.left;
+        drag.offsetY = event.clientY - rect.top;
+        moveGhost(event);
+    }
+
+    function moveGhost(event) {
+        drag.ghost.style.left = `${event.clientX - drag.offsetX}px`;
+        drag.ghost.style.top = `${event.clientY - drag.offsetY}px`;
+    }
+
+    function dropTargetAt(event) {
+        drag.ghost.style.display = 'none';
+        const element = document.elementFromPoint(event.clientX, event.clientY);
+        drag.ghost.style.display = '';
+        return element ? element.closest('[data-group-drop]') : null;
+    }
+
+    function cleanup() {
+        if (!drag) return;
+        window.clearTimeout(drag.timer);
+        drag.team.classList.remove('dragging');
+        drag.ghost?.remove();
+        clearHighlight();
+        drag = null;
+    }
+
+    board.addEventListener('pointerdown', (event) => {
         const team = event.target.closest('[data-entry]');
-        if (!team) return;
-        event.dataTransfer.setData('text/plain', team.dataset.entry);
-        event.dataTransfer.effectAllowed = 'move';
-        team.classList.add('dragging');
+        if (!team || (event.pointerType === 'mouse' && event.button !== 0)) return;
+        drag = {
+            team,
+            entryId: team.dataset.entry,
+            startX: event.clientX,
+            startY: event.clientY,
+            touch: event.pointerType !== 'mouse',
+            active: false,
+            timer: null,
+        };
+        // На пальце ждём удержания, иначе жест прокрутки превратится в перенос.
+        if (drag.touch) {
+            const pointer = { clientX: event.clientX, clientY: event.clientY };
+            drag.timer = window.setTimeout(() => { if (drag) startDrag(pointer); }, 260);
+        }
     });
 
-    board.addEventListener('dragend', (event) => {
-        event.target.closest('[data-entry]')?.classList.remove('dragging');
-        board.querySelectorAll('.group-drop.over').forEach((el) => el.classList.remove('over'));
-    });
-
-    board.addEventListener('dragover', (event) => {
-        const drop = event.target.closest('[data-group-drop]');
-        if (!drop) return;
-        // Без preventDefault браузер не считает область приёмником.
+    board.addEventListener('pointermove', (event) => {
+        if (!drag) return;
+        const shift = Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY);
+        if (!drag.active) {
+            if (drag.touch) {
+                if (shift > 12) cleanup();
+                return;
+            }
+            if (shift < 5) return;
+            startDrag(event);
+        }
         event.preventDefault();
-        drop.classList.add('over');
+        moveGhost(event);
+        clearHighlight();
+        dropTargetAt(event)?.classList.add('over');
     });
 
-    board.addEventListener('dragleave', (event) => {
-        event.target.closest('[data-group-drop]')?.classList.remove('over');
-    });
+    const finish = (event) => {
+        if (!drag) return;
+        if (drag.active) {
+            const target = dropTargetAt(event);
+            const entryId = drag.entryId;
+            const groupId = target ? target.dataset.groupDrop : null;
+            cleanup();
+            if (target) moveEntryToGroup(entryId, groupId).catch(showPageError);
+            return;
+        }
+        cleanup();
+    };
 
-    board.addEventListener('drop', (event) => {
-        const drop = event.target.closest('[data-group-drop]');
-        if (!drop) return;
-        event.preventDefault();
-        drop.classList.remove('over');
-        const entryId = event.dataTransfer.getData('text/plain');
-        if (entryId) moveEntryToGroup(entryId, drop.dataset.groupDrop).catch(showPageError);
-    });
-
-    // Список в строке — запасной путь для телефона, где перетаскивание неудобно.
-    board.addEventListener('change', (event) => {
-        const select = event.target.closest('[data-move-entry]');
-        if (select) moveEntryToGroup(select.dataset.moveEntry, select.value).catch(showPageError);
-    });
+    board.addEventListener('pointerup', finish);
+    board.addEventListener('pointercancel', () => cleanup());
 }
 
 /* --- Ссылка для тренера: заполнение состава команды --- */

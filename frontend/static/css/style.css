@@ -10978,7 +10978,7 @@ main.main-content.tournaments-page .tournament-action-btn.danger:hover {
     background: #f8f7f6;
 }
 
-.tournament-catalog-modal .entry-tabs button {
+#tournamentEntriesModal .entry-tabs button {
     min-height: 34px !important;
     padding: 0 16px !important;
     border: 0 !important;
@@ -10989,7 +10989,7 @@ main.main-content.tournaments-page .tournament-action-btn.danger:hover {
     font-weight: 650 !important;
 }
 
-.tournament-catalog-modal .entry-tabs button.active {
+#tournamentEntriesModal .entry-tabs button.active {
     background: #fff !important;
     color: #b45f09 !important;
     box-shadow: 0 1px 3px rgba(23, 25, 31, .08);
@@ -11005,7 +11005,7 @@ main.main-content.tournaments-page .tournament-action-btn.danger:hover {
 
 .group-toolbar .btn-primary,
 .group-toolbar .btn-secondary {
-    min-height: 45px !important;
+    align-self: end;
     white-space: nowrap;
 }
 
@@ -11072,8 +11072,12 @@ main.main-content.tournaments-page .tournament-action-btn.danger:hover {
 }
 
 .group-team {
-    display: grid;
-    grid-template-columns: auto minmax(0, 1fr);
+    display: flex;
+    align-items: center;
+    /* Перенос идёт на pointer-событиях, поэтому браузерные жесты на карточке
+       отключаем — прокрутка остаётся на колонках и фоне. */
+    touch-action: none;
+    user-select: none;
     align-items: center;
     gap: 9px;
     padding: 8px 10px;
@@ -11081,6 +11085,15 @@ main.main-content.tournaments-page .tournament-action-btn.danger:hover {
     border-radius: 10px;
     background: #fff;
     cursor: grab;
+}
+
+.group-team.drag-ghost {
+    position: fixed;
+    z-index: 5000;
+    margin: 0;
+    pointer-events: none;
+    box-shadow: 0 12px 28px rgba(23, 25, 31, .22);
+    transform: rotate(-1.5deg);
 }
 
 .group-team.dragging {
@@ -11093,19 +11106,6 @@ main.main-content.tournaments-page .tournament-action-btn.danger:hover {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-}
-
-.tournament-catalog-modal select.group-move {
-    grid-column: 1 / -1;
-    width: 100%;
-    min-height: 32px !important;
-    padding: 0 8px;
-    border: 1px solid #e8e6e3;
-    border-radius: 8px;
-    background: #fbfaf9;
-    font: inherit;
-    font-size: 12px;
-    color: #5f6673;
 }
 
 @media (max-width: 760px) {
@@ -11127,7 +11127,7 @@ main.main-content.tournaments-page .tournament-action-btn.danger:hover {
 /* Шапка окна участников: афиша и данные турнира */
 .entry-tournament-card {
     display: grid;
-    grid-template-columns: 220px minmax(0, 1fr);
+    grid-template-columns: 220px minmax(0, 1fr) auto;
     gap: 18px;
     margin-bottom: 18px;
     padding: 16px;
@@ -11152,6 +11152,23 @@ main.main-content.tournaments-page .tournament-action-btn.danger:hover {
 .entry-tournament-poster.empty svg {
     width: 28px;
     height: 28px;
+}
+
+.entry-ring {
+    align-self: center;
+    width: 96px;
+}
+
+.entry-ring svg {
+    width: 96px;
+    height: 96px;
+}
+
+.entry-ring-value {
+    fill: #17191f;
+    font-family: inherit;
+    font-size: 26px;
+    font-weight: 750;
 }
 
 .entry-tournament-info {
@@ -11231,8 +11248,19 @@ main.main-content.tournaments-page .tournament-action-btn.danger:hover {
     margin-bottom: 14px;
 }
 
+#tournamentEntriesModal .entry-add-row input,
+#tournamentEntriesModal .entry-add-row select,
+#tournamentEntriesModal .entry-add-row .btn-primary,
+#tournamentEntriesModal .group-toolbar input,
+#tournamentEntriesModal .group-toolbar select,
+#tournamentEntriesModal .group-toolbar .btn-primary,
+#tournamentEntriesModal .group-toolbar .btn-secondary {
+    height: 42px !important;
+    min-height: 42px !important;
+}
+
 .entry-add-row .btn-primary {
-    min-height: 45px !important;
+    align-self: end;
     white-space: nowrap;
 }
 
@@ -11564,6 +11592,12 @@ main.main-content.tournaments-page .tournament-action-btn.danger:hover {
 
 .tournament-catalog-modal .tournament-entries-content {
     width: min(1180px, 100%) !important;
+}
+
+/* Окно высокое, по центру оно упирается в края — прижимаем к верху. */
+#tournamentEntriesModal {
+    align-items: flex-start !important;
+    padding-top: 24px;
 }
 
 .tournament-catalog-modal .member-catalog-modal-content,

@@ -8,7 +8,7 @@
     {% include '_pwa_head.html' %}
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/onest/onest.css') }}">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=2026080907">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=2026080908">
 </head>
 <body>
     {% include '_sidebar.html' %}
@@ -341,7 +341,9 @@
                 <div class="entry-add-row">
                     <label class="tournament-catalog-field">
                         <span>Команда</span>
-                        <select id="entryTeamSelect"><option value="">Выберите команду</option></select>
+                        <input id="entryTeamInput" list="entryTeamOptions" autocomplete="off"
+                            placeholder="Начните вводить название">
+                        <datalist id="entryTeamOptions"></datalist>
                     </label>
                     <label class="tournament-catalog-field">
                         <span>Возрастная категория</span>
@@ -354,7 +356,6 @@
                 </div>
                 <div class="tournament-catalog-form-error" id="entryFormError" hidden></div>
 
-                <div class="entry-summary" id="entrySummary"></div>
                 <div id="entriesList">
                     <div class="tournament-catalog-empty">Загрузка заявок…</div>
                 </div>
@@ -653,6 +654,6 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="{{ url_for('static', filename='js/sidebar.js') }}?v=2026080801"></script>
     <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/tournaments.js') }}?v=2026080907"></script>
+    <script src="{{ url_for('static', filename='js/tournaments.js') }}?v=2026080908"></script>
 </body>
 </html>
