@@ -1512,6 +1512,8 @@ def ensure_tournament_tables():
             pending.append(('tournaments', 'start_time', 'TIME'))
         if 'age_groups' not in tournament_columns:
             pending.append(('tournaments', 'age_groups', 'TEXT'))
+        if 'poster_path' not in tournament_columns:
+            pending.append(('tournaments', 'poster_path', 'VARCHAR(300)'))
         if 'is_published' not in tournament_columns:
             # Уже существующие турниры показываем на сайте, чтобы афиша не была пустой.
             # DEFAULT TRUE, а не 1: в PostgreSQL единица для BOOLEAN недопустима.
@@ -3406,6 +3408,7 @@ def save_tournament_catalog_photo(photo_file, prefix, old_photo_path=None):
 
 
 def delete_tournament_catalog_media(media_path, allowed_prefixes=(
+    'tournament_poster_',
     'tournament_team_logo_',
     'tournament_trainer_',
     'tournament_member_',
@@ -4518,6 +4521,15 @@ def parse_time_value(value):
         return None
 
 
+def parse_bool_field(value, default=False):
+    """FormData присылает булевы значения строками, JSON — настоящим bool."""
+    if value is None:
+        return default
+    if isinstance(value, bool):
+        return value
+    return str(value).strip().lower() in {'1', 'true', 'on', 'yes', 'да'}
+
+
 def normalize_age_groups(value):
     if isinstance(value, str):
         value = re.split(r'[,;\n]+', value)
@@ -4544,6 +4556,7 @@ def serialize_tournament(tournament):
         'start_time': tournament.start_time.strftime('%H:%M') if tournament.start_time else None,
         'end_date': tournament.end_date.isoformat() if tournament.end_date else None,
         'age_groups': age_groups,
+        'poster_url': get_tournament_media_url(tournament.poster_path),
         'is_published': bool(tournament.is_published),
         'created_at': tournament.created_at.isoformat() if tournament.created_at else None,
     }
@@ -4668,14 +4681,15 @@ def tournaments_api():
 
     if not has_tournament_permission('edit'):
         return jsonify({'success': False, 'message': 'Нет доступа'}), 403
-    data = request.get_json() or {}
+    # Форма отправляет FormData из-за файла афиши; JSON оставлен для совместимости.
+    data = request.form if request.form else (request.get_json() or {})
     name = (data.get('name') or '').strip()
     location = (data.get('location') or '').strip()
     start_date = parse_date_value(data.get('start_date'))
     start_time = parse_time_value(data.get('start_time'))
     end_date = parse_date_value(data.get('end_date'))
     age_groups = normalize_age_groups(data.get('age_groups'))
-    is_published = bool(data.get('is_published', True))
+    is_published = parse_bool_field(data.get('is_published'), default=True)
     if not all([name, location, start_date, start_time, end_date]) or not age_groups:
         return jsonify({'success': False, 'message': 'Заполните все поля турнира'}), 400
     if end_date < start_date:
@@ -4690,6 +4704,12 @@ def tournaments_api():
         is_published=is_published,
         created_by=current_user.id,
     )
+    poster_file = request.files.get('poster')
+    if poster_file and poster_file.filename:
+        try:
+            tournament.poster_path = save_tournament_catalog_photo(poster_file, 'tournament_poster')
+        except ValueError as exc:
+            return jsonify({'success': False, 'message': str(exc)}), 400
     db.session.add(tournament)
     db.session.commit()
     return jsonify({'success': True, 'tournament': serialize_tournament(tournament)}), 201
@@ -4710,18 +4730,21 @@ def tournament_detail_api(tournament_id):
         return jsonify({'success': False, 'message': 'Нет доступа'}), 403
 
     if request.method == 'DELETE':
+        poster_path = tournament.poster_path
         db.session.delete(tournament)
         db.session.commit()
+        delete_tournament_catalog_media(poster_path, ('tournament_poster_',))
         return jsonify({'success': True})
 
-    data = request.get_json() or {}
+    # Форма отправляет FormData из-за файла афиши; JSON оставлен для совместимости.
+    data = request.form if request.form else (request.get_json() or {})
     name = (data.get('name') or '').strip()
     location = (data.get('location') or '').strip()
     start_date = parse_date_value(data.get('start_date'))
     start_time = parse_time_value(data.get('start_time'))
     end_date = parse_date_value(data.get('end_date'))
     age_groups = normalize_age_groups(data.get('age_groups'))
-    is_published = bool(data.get('is_published', True))
+    is_published = parse_bool_field(data.get('is_published'), default=True)
     if not all([name, location, start_date, start_time, end_date]) or not age_groups:
         return jsonify({'success': False, 'message': 'Заполните все поля турнира'}), 400
     if end_date < start_date:
@@ -4733,6 +4756,21 @@ def tournament_detail_api(tournament_id):
     tournament.end_date = end_date
     tournament.age_groups = json.dumps(age_groups, ensure_ascii=False)
     tournament.is_published = is_published
+
+    poster_file = request.files.get('poster')
+    if poster_file and poster_file.filename:
+        try:
+            tournament.poster_path = save_tournament_catalog_photo(
+                poster_file, 'tournament_poster', tournament.poster_path,
+            )
+        except ValueError as exc:
+            db.session.rollback()
+            return jsonify({'success': False, 'message': str(exc)}), 400
+    elif parse_bool_field(data.get('remove_poster'), default=False):
+        removed = tournament.poster_path
+        tournament.poster_path = None
+        delete_tournament_catalog_media(removed, ('tournament_poster_',))
+
     db.session.commit()
     return jsonify({'success': True, 'tournament': serialize_tournament(tournament)})
 
@@ -4926,6 +4964,7 @@ def public_tournament_payload(tournament, stadium_by_name):
     return {
         'id': tournament.id,
         'name': tournament.name,
+        'poster_url': get_tournament_media_url(tournament.poster_path),
         'location': tournament.location,
         'start_date': tournament.start_date.isoformat() if tournament.start_date else None,
         'start_time': tournament.start_time.strftime('%H:%M') if tournament.start_time else None,

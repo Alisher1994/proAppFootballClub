@@ -18,6 +18,8 @@ const catalogState = {
     shareLink: null,
     tournamentLocation: '',
     tournamentAgeGroups: [],
+    tournamentPosterObjectUrl: null,
+    tournamentPosterRemoved: false,
     activeFilterTab: 'tournaments',
     filters: {
         tournaments: { search: '', location: '', age: '' },
@@ -32,9 +34,15 @@ const AGE_GROUP_MIN_YEAR = 1980;
 const ADD_STADIUM_OPTION = '__add_stadium__';
 
 function escapeHtml(value) {
-    const node = document.createElement('div');
-    node.textContent = value == null ? '' : String(value);
-    return node.innerHTML;
+    // Значение подставляется и в текст, и в атрибуты. innerHTML не трогает
+    // кавычки, из-за чего название вида «"Джар" спорт комплекс» обрывало
+    // value="..." и опция приходила пустой. Экранируем вручную.
+    return String(value == null ? '' : value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
 }
 
 function refreshIcons() {
@@ -559,11 +567,36 @@ function addCustomAgeGroup() {
     input.value = '';
 }
 
+function setTournamentPoster(url, caption) {
+    const box = byId('tournamentPosterPreview');
+    if (url) {
+        box.innerHTML = '';
+        box.style.backgroundImage = `url('${url}')`;
+    } else {
+        box.style.backgroundImage = '';
+        box.innerHTML = '<i data-lucide="image-plus"></i>';
+    }
+    byId('tournamentPosterHint').textContent = caption || 'Необязательно · нажмите, чтобы выбрать';
+    byId('tournamentPosterClear').hidden = !url;
+    refreshIcons();
+}
+
+function releaseTournamentPoster() {
+    if (catalogState.tournamentPosterObjectUrl) {
+        URL.revokeObjectURL(catalogState.tournamentPosterObjectUrl);
+        catalogState.tournamentPosterObjectUrl = null;
+    }
+}
+
 function resetTournamentForm() {
     catalogState.editingTournamentId = null;
     byId('tournamentForm').reset();
     byId('tournamentModalTitle').textContent = 'Новый турнир';
     catalogState.tournamentLocation = '';
+    catalogState.tournamentPosterRemoved = false;
+    releaseTournamentPoster();
+    byId('tournamentPoster').value = '';
+    setTournamentPoster('');
     byId('tournamentPublished').checked = true;
     renderStadiumOptions('');
     renderAgeGroupYearOptions();
@@ -582,6 +615,11 @@ function openTournamentEditor(id) {
     byId('tournamentStartTime').value = item.start_time || '';
     byId('tournamentEndDate').value = item.end_date || '';
     byId('tournamentPublished').checked = item.is_published !== false;
+    catalogState.tournamentPosterRemoved = false;
+    releaseTournamentPoster();
+    byId('tournamentPoster').value = '';
+    setTournamentPoster(item.poster_url || '',
+        item.poster_url ? 'Текущая афиша · нажмите, чтобы заменить' : '');
     renderStadiumOptions(item.location || '');
     renderAgeGroupYearOptions();
     setAgeGroups(item.age_groups || []);
@@ -600,17 +638,21 @@ async function saveTournament(event) {
             showFormError('tournamentFormError', 'Добавьте хотя бы одну возрастную группу');
             return;
         }
+        // FormData, а не JSON: вместе с полями уходит файл афиши.
+        const payload = new FormData();
+        payload.append('name', byId('tournamentName').value);
+        payload.append('start_date', byId('tournamentStartDate').value);
+        payload.append('start_time', byId('tournamentStartTime').value);
+        payload.append('end_date', byId('tournamentEndDate').value);
+        payload.append('location', byId('tournamentLocation').value);
+        payload.append('age_groups', byId('tournamentAgeGroups').value);
+        payload.append('is_published', byId('tournamentPublished').checked ? 'true' : 'false');
+        const posterFile = byId('tournamentPoster').files[0];
+        if (posterFile) payload.append('poster', posterFile);
+        if (catalogState.tournamentPosterRemoved) payload.append('remove_poster', 'true');
         await apiJson(editingId ? `/api/tournaments/${editingId}` : '/api/tournaments', {
             method: editingId ? 'PUT' : 'POST',
-            body: JSON.stringify({
-                name: byId('tournamentName').value,
-                start_date: byId('tournamentStartDate').value,
-                start_time: byId('tournamentStartTime').value,
-                end_date: byId('tournamentEndDate').value,
-                location: byId('tournamentLocation').value,
-                age_groups: byId('tournamentAgeGroups').value,
-                is_published: byId('tournamentPublished').checked,
-            }),
+            body: payload,
         });
         closeModal('tournamentModal');
         resetTournamentForm();
@@ -1313,6 +1355,26 @@ function bindEvents() {
     byId('openMemberModalBtn').addEventListener('click', () => {
         resetMemberForm();
         openModal('memberModal');
+    });
+    byId('tournamentPoster').addEventListener('change', () => {
+        const file = byId('tournamentPoster').files[0];
+        releaseTournamentPoster();
+        if (!file) {
+            setTournamentPoster('');
+            return;
+        }
+        catalogState.tournamentPosterRemoved = false;
+        catalogState.tournamentPosterObjectUrl = URL.createObjectURL(file);
+        setTournamentPoster(catalogState.tournamentPosterObjectUrl, file.name);
+    });
+    byId('tournamentPosterClear').addEventListener('click', (event) => {
+        // Слот — это <label>, поэтому крестик не должен открывать выбор файла.
+        event.preventDefault();
+        event.stopPropagation();
+        releaseTournamentPoster();
+        byId('tournamentPoster').value = '';
+        catalogState.tournamentPosterRemoved = true;
+        setTournamentPoster('');
     });
     byId('tournamentLocation').addEventListener('change', handleTournamentLocationChange);
     byId('tournamentAgeGroupYear').addEventListener('change', (event) => {

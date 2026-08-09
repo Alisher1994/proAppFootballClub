@@ -8,7 +8,7 @@
     {% include '_pwa_head.html' %}
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/onest/onest.css') }}">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=2026080901">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=2026080902">
 </head>
 <body>
     {% include '_sidebar.html' %}
@@ -190,6 +190,18 @@
                 </button>
             </header>
             <form id="tournamentForm" class="tournament-catalog-form">
+                <label class="tournament-poster-picker full">
+                    <input id="tournamentPoster" type="file" accept="image/*" hidden>
+                    <span class="tournament-poster-preview" id="tournamentPosterPreview" aria-hidden="true">
+                        <i data-lucide="image-plus"></i>
+                    </span>
+                    <span class="tournament-poster-copy">
+                        <strong>Афиша турнира</strong>
+                        <small id="tournamentPosterHint">Необязательно · нажмите, чтобы выбрать</small>
+                    </span>
+                    <button class="tournament-poster-clear" type="button" id="tournamentPosterClear" hidden
+                        aria-label="Убрать афишу">&times;</button>
+                </label>
                 <label class="tournament-catalog-field full">
                     <span>Название турнира</span>
                     <input id="tournamentName" type="text" maxlength="200" placeholder="Например, CAM Cup 2026" required>
@@ -574,6 +586,6 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="{{ url_for('static', filename='js/sidebar.js') }}?v=2026080801"></script>
     <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/tournaments.js') }}?v=2026080901"></script>
+    <script src="{{ url_for('static', filename='js/tournaments.js') }}?v=2026080902"></script>
 </body>
 </html>

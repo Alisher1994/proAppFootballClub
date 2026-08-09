@@ -508,9 +508,13 @@
         const form = byId('memberForm');
 
         function escapeHtml(value) {
-            const node = document.createElement('div');
-            node.textContent = value == null ? '' : String(value);
-            return node.innerHTML;
+            // innerHTML не экранирует кавычки, а значение попадает и в атрибуты.
+            return String(value == null ? '' : value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
         }
 
         function formatDate(value) {

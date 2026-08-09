@@ -268,9 +268,13 @@
         const byId = (id) => document.getElementById(id);
 
         function escapeHtml(value) {
-            const node = document.createElement('div');
-            node.textContent = value == null ? '' : String(value);
-            return node.innerHTML;
+            // innerHTML не экранирует кавычки, а значение попадает и в атрибуты.
+            return String(value == null ? '' : value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
         }
 
         function formatDate(value) {
@@ -303,14 +307,15 @@
         const ICON_BALL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m12 7 4 3-1.5 4.5h-5L8 10z"/></svg>';
 
         function cardMarkup(item, finished) {
-            const photo = item.stadium && item.stadium.photo_url
-                ? `<div class="card-photo" style="background-image:url('${escapeHtml(item.stadium.photo_url)}')">`
+            const image = item.poster_url || (item.stadium && item.stadium.photo_url) || '';
+            const photo = image
+                ? `<div class="card-photo" style="background-image:url('${escapeHtml(image)}')">`
                 : `<div class="card-photo empty">${ICON_BALL}`;
             const mapLink = item.stadium && item.stadium.latitude
                 ? `<a class="map-link" target="_blank" rel="noopener"
                      href="https://www.openstreetmap.org/?mlat=${item.stadium.latitude}&mlon=${item.stadium.longitude}#map=17/${item.stadium.latitude}/${item.stadium.longitude}">Открыть на карте</a>`
                 : '';
-            const credit = item.stadium && item.stadium.photo_source
+            const credit = !item.poster_url && item.stadium && item.stadium.photo_source
                 ? `<div class="credit">Фото: ${escapeHtml(item.stadium.photo_source)}</div>` : '';
             return `
                 <article class="card${finished ? ' finished' : ''}">
