@@ -5960,8 +5960,10 @@ def public_tournament_detail_api(tournament_id):
         return {
             'round_no': data['round_no'],
             'home': data['home']['team_name'],
+            'home_id': data['home']['entry_id'],
             'home_logo_url': data['home']['team_logo_url'],
             'away': data['away']['team_name'],
+            'away_id': data['away']['entry_id'],
             'away_logo_url': data['away']['team_logo_url'],
             'home_score': data['home_score'],
             'away_score': data['away_score'],

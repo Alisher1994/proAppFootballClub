@@ -296,7 +296,7 @@
 
         .sheet-box {
             position: relative;
-            width: min(760px, 100%);
+            width: min(960px, 100%);
             max-height: calc(100dvh - 40px);
             overflow-y: auto;
             border-radius: 18px;
@@ -444,84 +444,46 @@
             box-shadow: 0 1px 3px rgba(23, 25, 31, .08);
         }
 
-        /* Сетка плей-офф: колонки по стадиям */
-        .bk-scroll {
-            overflow-x: auto;
-            padding-bottom: 6px;
-            scrollbar-width: thin;
-            scrollbar-color: rgba(23, 25, 31, .16) transparent;
+        /* Сетка плей-офф рисуется библиотекой bracketry */
+        .bracket-host {
+            width: 100%;
         }
 
-        .bk {
-            display: flex;
-            gap: 26px;
-            min-width: min-content;
-        }
-
-        .bk-col {
-            display: flex;
-            flex-direction: column;
-            flex: 0 0 210px;
-        }
-
-        .bk-col-body {
-            display: flex;
-            flex: 1 1 auto;
-            flex-direction: column;
-            justify-content: space-around;
-            gap: 10px;
-        }
-
-        .bk-round {
-            margin: 0 0 10px;
-            color: #b45f09;
-            font-size: 12px;
-            font-weight: 750;
-            text-align: center;
-        }
-
-        .bk-card {
-            position: relative;
-            display: grid;
-            gap: 2px;
-            padding: 8px 10px;
+        .bracket-host .match-wrapper {
             border: 1px solid var(--line);
             border-radius: 10px;
             background: #fff;
         }
 
-        .bk-col:not(:last-child) .bk-card::after {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 100%;
-            width: 26px;
-            border-top: 1px solid var(--line);
-        }
-
-        .bk-side {
-            display: flex;
+        .bracket-host .bk-logo {
+            display: inline-flex;
             align-items: center;
-            justify-content: space-between;
-            gap: 8px;
-            font-size: 13px;
-            font-weight: 600;
-        }
-
-        .bk-side.idle .bk-name { color: #6b7280; }
-
-        .bk-side.win { color: #0f7a4a; font-weight: 750; }
-
-        .bk-name {
+            justify-content: center;
+            flex: 0 0 22px;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: #f4f1ee;
             overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
         }
 
-        .bk-score {
-            flex: 0 0 auto;
-            color: #444a54;
+        .bracket-host .bk-logo img {
+            width: 22px;
+            height: 22px;
+            object-fit: cover;
+        }
+
+        .bracket-host .bk-logo.empty {
+            background: #efe9e3;
+            color: #8b6b4a;
+            font-size: 9px;
             font-weight: 750;
+            letter-spacing: .2px;
+        }
+
+        .bracket-host .bk-title.pending {
+            color: var(--muted);
+            font-style: italic;
         }
 
         .bk-bronze { margin-top: 18px; }
@@ -754,7 +716,9 @@
         </div>
     </div>
 
-    <script>
+    <script type="module">
+        import { createBracket } from "{{ url_for('static', filename='vendor/bracketry/bracketry-1.1.3.esm.js') }}";
+
         const state = {
             tab: 'upcoming',
             data: { upcoming: [], past: [] },
@@ -950,44 +914,108 @@
                 </div>`).join('');
         }
 
-        function bracketMarkup(matches) {
-            const bronze = matches.filter((m) => m.label === 'За 3 место');
-            const main = matches.filter((m) => m.label !== 'За 3 место');
-            const rounds = new Map();
-            main.forEach((m) => {
-                if (!rounds.has(m.round_no)) rounds.set(m.round_no, { label: m.label, items: [] });
-                rounds.get(m.round_no).items.push(m);
+        function bracketData(matches) {
+            const rounds = [];
+            const byRound = new Map();
+            matches.forEach((match) => {
+                if (!byRound.has(match.round_no)) {
+                    byRound.set(match.round_no, []);
+                    rounds.push({ no: match.round_no, name: match.label || '' });
+                }
+                byRound.get(match.round_no).push(match);
             });
+            rounds.sort((a, bb) => a.no - bb.no);
 
-            const card = (match) => {
-                const line = (name, score, isWinner) => `
-                    <span class="bk-side${isWinner ? ' win' : ''}${match.is_played ? '' : ' idle'}">
-                        <span class="bk-name">${escapeHtml(name)}</span>
-                        <span class="bk-score">${score === null ? '–' : score}</span>
-                    </span>`;
-                const homeWin = match.is_played && match.home_score > match.away_score;
-                const awayWin = match.is_played && match.away_score > match.home_score;
-                return `<div class="bk-card">
-                    ${line(match.home, match.home_score, homeWin)}
-                    ${line(match.away, match.away_score, awayWin)}
-                </div>`;
+            const contestants = {};
+            const side = (match, which) => {
+                const name = match[which];
+                const id = match[`${which}_id`];
+                // Плейсхолдеры вроде «Победитель матча 5» уникальны для своего места,
+                // иначе библиотека сочла бы их одной и той же командой.
+                const key = id ? `t${id}` : `p${match.round_no}-${which}-${name}`;
+                if (!contestants[key]) {
+                    contestants[key] = {
+                        players: [{ title: name, logo: match[`${which}_logo_url`] || null, known: Boolean(id) }],
+                    };
+                }
+                const score = match[`${which}_score`];
+                const other = match[which === 'home' ? 'away_score' : 'home_score'];
+                return {
+                    contestantId: key,
+                    scores: [{
+                        mainScore: score === null ? '–' : String(score),
+                        isWinner: match.is_played && score > other,
+                    }],
+                };
             };
 
-            const columns = [...rounds.entries()]
-                .sort((a, bb) => a[0] - bb[0])
-                .map(([, round]) => `
-                    <div class="bk-col">
-                        <p class="bk-round">${escapeHtml(round.label || '')}</p>
-                        <div class="bk-col-body">${round.items.map(card).join('')}</div>
-                    </div>`).join('');
+            return {
+                rounds: rounds.map((round) => ({ name: round.name })),
+                matches: rounds.flatMap((round, roundIndex) =>
+                    byRound.get(round.no).map((match, order) => ({
+                        roundIndex,
+                        order,
+                        sides: [side(match, 'home'), side(match, 'away')],
+                    }))),
+                contestants,
+            };
+        }
 
-            return `
-                <div class="bk-scroll"><div class="bk">${columns}</div></div>
-                ${bronze.length ? `
-                    <div class="bk-bronze">
-                        <p class="grp-title">За 3 место</p>
-                        ${bronze.map(card).join('')}
-                    </div>` : ''}`;
+        function drawBracket(matches) {
+            const host = byId('bracketHost');
+            if (!host) return;
+            const main = matches.filter((m) => m.label !== 'За 3 место');
+            if (!main.length) return;
+            // Библиотека тянется на высоту контейнера, поэтому считаем её по первому раунду.
+            const firstRound = Math.min(...main.map((m) => m.round_no));
+            const rows = main.filter((m) => m.round_no === firstRound).length;
+            host.style.height = `${Math.max(300, rows * 92 + 96)}px`;
+            createBracket(bracketData(main), host, {
+                rootBgColor: 'transparent',
+                rootBorderColor: 'transparent',
+                matchTextColor: '#17191f',
+                connectionLinesColor: '#ddd4ca',
+                highlightedConnectionLinesColor: '#ff8a00',
+                roundTitleColor: '#b45f09',
+                roundTitlesFontSize: 12,
+                roundTitlesBorderColor: '#efe9e3',
+                hoveredMatchBorderColor: '#ffd9b0',
+                highlightedPlayerTitleColor: '#b45f09',
+                matchFontSize: 13,
+                matchMaxWidth: 190,
+                matchHorMargin: 12,
+                matchMinVerticalGap: 14,
+                useClassicalLayout: true,
+                verticalScrollMode: 'native',
+                scrollbarWidth: 6,
+                scrollbarColor: 'rgba(23, 25, 31, .16)',
+                navButtonsPosition: 'gutters',
+                navButtonSvgColor: '#c98a3a',
+                navButtonArrowSize: 11,
+                navGutterBorderColor: 'transparent',
+                displayWholeRounds: true,
+                width: '100%',
+                getNationalityHTML: (player) => {
+                    if (!player.known) return '';
+                    if (player.logo) {
+                        return `<span class="bk-logo"><img src="${escapeHtml(player.logo)}" alt=""></span>`;
+                    }
+                    const initials = (player.title || '?').trim().slice(0, 2).toUpperCase();
+                    return `<span class="bk-logo empty">${escapeHtml(initials)}</span>`;
+                },
+                getPlayerTitleHTML: (player) => `<span class="bk-title${player.known ? '' : ' pending'}">`
+                    + `${escapeHtml(player.title)}</span>`,
+            });
+        }
+
+        function bronzeMarkup(matches) {
+            // Матч за 3 место не часть дерева: его играют проигравшие, а не победители.
+            const bronze = matches.filter((m) => m.label === 'За 3 место');
+            if (!bronze.length) return '';
+            return `<div class="bk-bronze">
+                <p class="grp-title">За 3 место</p>
+                <div class="fixtures">${bronze.map(fixtureMarkup).join('')}</div>
+            </div>`;
         }
 
         function playoffPane(category) {
@@ -1000,7 +1028,10 @@
                     <button type="button" class="${state.bracket ? 'active' : ''}" data-view="bracket">Сетка</button>
                     <button type="button" class="${state.bracket ? '' : 'active'}" data-view="list">Список</button>
                 </div>
-                ${state.bracket ? bracketMarkup(matches) : playoffMarkup(matches)}`;
+                ${state.bracket
+                    ? `<div id="bracketHost" class="bracket-host"></div>
+                       ${bronzeMarkup(matches)}`
+                    : playoffMarkup(matches)}`;
         }
 
         function tablesPane(category) {
@@ -1061,7 +1092,14 @@
 
         function renderSheetBody() {
             const box = byId('sheetBody');
-            if (box) box.innerHTML = sheetBodyMarkup();
+            if (!box) return;
+            box.innerHTML = sheetBodyMarkup();
+            if (state.sheetTab === 'playoff' && state.bracket) {
+                const item = state.sheet;
+                const categories = item.categories || [];
+                const category = categories[Math.min(state.category, categories.length - 1)];
+                if (category) drawBracket(category.playoff || []);
+            }
         }
 
         function categoriesMarkup(categories) {
