@@ -8,7 +8,7 @@
     {% include '_pwa_head.html' %}
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/onest/onest.css') }}">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=2026080904">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=2026080905">
 </head>
 <body>
     {% include '_sidebar.html' %}
@@ -319,7 +319,7 @@
     </div>
 
     <div class="modal tournament-catalog-modal" id="tournamentEntriesModal" hidden>
-        <div class="modal-content tournament-team-details-content">
+        <div class="modal-content tournament-entries-content">
             <header class="tournament-catalog-modal-header">
                 <div>
                     <span class="tournament-catalog-eyebrow">Участники турнира</span>
@@ -330,6 +330,7 @@
                 </button>
             </header>
             <div class="team-details-body">
+                <section class="entry-tournament-card" id="entryTournamentCard"></section>
                 <div class="entry-add-row">
                     <label class="tournament-catalog-field">
                         <span>Команда</span>
@@ -622,6 +623,6 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="{{ url_for('static', filename='js/sidebar.js') }}?v=2026080801"></script>
     <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/tournaments.js') }}?v=2026080903"></script>
+    <script src="{{ url_for('static', filename='js/tournaments.js') }}?v=2026080905"></script>
 </body>
 </html>

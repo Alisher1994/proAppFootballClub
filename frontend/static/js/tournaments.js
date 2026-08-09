@@ -1010,6 +1010,38 @@ function ensureStadiumMap(latitude = 41.3111, longitude = 69.2797, hasSelection 
 
 const ENTRY_STATUS_ORDER = ['confirmed', 'invited', 'declined'];
 
+function renderEntryTournamentCard(tournament) {
+    const card = byId('entryTournamentCard');
+    const poster = tournament.poster_url
+        ? `<div class="entry-tournament-poster" style="background-image:url('${escapeHtml(tournament.poster_url)}')"></div>`
+        : '<div class="entry-tournament-poster empty"><i data-lucide="image"></i></div>';
+    const rows = [
+        ['calendar-days', tournamentDates(tournament)],
+        ['clock', tournament.start_time || '—'],
+        ['map-pin', tournament.location || 'Локация не указана'],
+    ];
+    card.innerHTML = `
+        ${poster}
+        <div class="entry-tournament-info">
+            <div class="entry-tournament-facts">
+                ${rows.map(([icon, text]) => `
+                    <div><i data-lucide="${icon}"></i><span>${escapeHtml(text)}</span></div>
+                `).join('')}
+            </div>
+            <div class="entry-tournament-ages">
+                ${(tournament.age_groups || []).map((age) =>
+                    `<span class="age-group-chip static">${escapeHtml(age)}</span>`).join('')}
+            </div>
+            <div class="entry-tournament-state ${tournament.is_published === false ? 'hidden-state' : ''}">
+                <i data-lucide="${tournament.is_published === false ? 'eye-off' : 'globe'}"></i>
+                <span>${tournament.is_published === false
+                    ? 'Скрыт с сайта — черновик'
+                    : 'Опубликован в афише на сайте'}</span>
+            </div>
+        </div>`;
+    refreshIcons();
+}
+
 function renderEntryPickers() {
     const teamSelect = byId('entryTeamSelect');
     teamSelect.innerHTML = ['<option value="">Выберите команду</option>']
@@ -1125,6 +1157,7 @@ async function openTournamentEntries(tournamentId) {
     catalogState.entriesTournamentId = tournament.id;
     catalogState.entries = [];
     byId('entriesTournamentTitle').textContent = tournament.name;
+    renderEntryTournamentCard(tournament);
     showFormError('entryFormError');
     openModal('tournamentEntriesModal');
     await loadEntries();
