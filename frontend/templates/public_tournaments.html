@@ -261,6 +261,39 @@
             background: rgba(23, 25, 31, .55);
         }
 
+        .sheet-box,
+        .table-wrap {
+            scrollbar-width: thin;
+            scrollbar-color: rgba(23, 25, 31, .16) transparent;
+        }
+
+        .sheet-box::-webkit-scrollbar,
+        .table-wrap::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+            background: transparent;
+        }
+
+        .sheet-box::-webkit-scrollbar-track,
+        .table-wrap::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .sheet-box::-webkit-scrollbar-thumb,
+        .table-wrap::-webkit-scrollbar-thumb {
+            min-height: 32px;
+            border: 1px solid transparent;
+            border-radius: 999px;
+            background: rgba(23, 25, 31, .16);
+            background-clip: padding-box;
+        }
+
+        .sheet-box::-webkit-scrollbar-thumb:hover,
+        .table-wrap::-webkit-scrollbar-thumb:hover {
+            background: rgba(23, 25, 31, .3);
+            background-clip: padding-box;
+        }
+
         .sheet-box {
             position: relative;
             width: min(760px, 100%);
