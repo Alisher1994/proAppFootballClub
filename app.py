@@ -1507,30 +1507,35 @@ def ensure_tournament_tables():
             'photo_path': 'VARCHAR(300)',
             'photo_source': 'VARCHAR(300)',
         }
-        with db.engine.begin() as conn:
-            if 'start_time' not in tournament_columns:
-                conn.execute(db.text("ALTER TABLE tournaments ADD COLUMN start_time TIME"))
-            if 'age_groups' not in tournament_columns:
-                conn.execute(db.text("ALTER TABLE tournaments ADD COLUMN age_groups TEXT"))
-            if 'is_published' not in tournament_columns:
-                # Уже существующие турниры показываем на сайте, чтобы афиша не была пустой.
-                conn.execute(db.text(
-                    "ALTER TABLE tournaments ADD COLUMN is_published BOOLEAN NOT NULL DEFAULT 1"
-                ))
-            for column_name, column_type in team_column_definitions.items():
-                if column_name not in team_columns:
+        pending = []
+        if 'start_time' not in tournament_columns:
+            pending.append(('tournaments', 'start_time', 'TIME'))
+        if 'age_groups' not in tournament_columns:
+            pending.append(('tournaments', 'age_groups', 'TEXT'))
+        if 'is_published' not in tournament_columns:
+            # Уже существующие турниры показываем на сайте, чтобы афиша не была пустой.
+            # DEFAULT TRUE, а не 1: в PostgreSQL единица для BOOLEAN недопустима.
+            pending.append(('tournaments', 'is_published', 'BOOLEAN NOT NULL DEFAULT TRUE'))
+        for column_name, column_type in team_column_definitions.items():
+            if column_name not in team_columns:
+                pending.append(('tournament_team_catalog', column_name, column_type))
+        for column_name, column_type in stadium_column_definitions.items():
+            if column_name not in stadium_columns:
+                pending.append(('tournament_stadiums', column_name, column_type))
+        if 'position' not in member_columns:
+            pending.append(('tournament_team_members', 'position', 'VARCHAR(50)'))
+
+        # Каждый ALTER в своей транзакции: в PostgreSQL одна неудачная команда
+        # обрывает всю транзакцию, и следом молча теряются все остальные колонки.
+        for table_name, column_name, column_type in pending:
+            try:
+                with db.engine.begin() as conn:
                     conn.execute(db.text(
-                        f"ALTER TABLE tournament_team_catalog ADD COLUMN {column_name} {column_type}"
+                        f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_type}"
                     ))
-            for column_name, column_type in stadium_column_definitions.items():
-                if column_name not in stadium_columns:
-                    conn.execute(db.text(
-                        f"ALTER TABLE tournament_stadiums ADD COLUMN {column_name} {column_type}"
-                    ))
-            if 'position' not in member_columns:
-                conn.execute(db.text(
-                    "ALTER TABLE tournament_team_members ADD COLUMN position VARCHAR(50)"
-                ))
+                print(f"✓ Добавлена колонка {table_name}.{column_name}")
+            except Exception as column_error:
+                print(f"‼ Не удалось добавить {table_name}.{column_name}: {column_error}")
     except Exception as e:
         print(f"Ошибка при проверке таблиц турниров: {e}")
 

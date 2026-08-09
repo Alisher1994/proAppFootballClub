@@ -63,13 +63,7 @@
             color: inherit;
         }
 
-        .brand img { height: 38px; width: auto; }
-
-        .brand span {
-            font-size: 17px;
-            font-weight: 750;
-            overflow-wrap: anywhere;
-        }
+        .brand img { height: 40px; width: auto; }
 
         .login-link {
             flex: 0 0 auto;
@@ -250,7 +244,6 @@
         <div class="wrap">
             <a class="brand" href="{{ url_for('public_tournaments_page') }}">
                 <img src="{{ system_logo_url }}" alt="{{ system_name }}">
-                <span>{{ system_name }}</span>
             </a>
             <a class="login-link" href="{{ url_for('login') }}">Войти</a>
         </div>
