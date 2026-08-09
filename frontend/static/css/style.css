@@ -11249,6 +11249,16 @@ main.main-content.tournaments-page .tournament-action-btn.danger:hover {
     white-space: nowrap;
 }
 
+.match-empty {
+    margin: 10px 0 0;
+    padding: 14px;
+    border: 1px dashed #e4ddd6;
+    border-radius: 11px;
+    color: #969ca6;
+    font-size: 12.5px;
+    text-align: center;
+}
+
 .match-list {
     display: grid;
     gap: 8px;
@@ -11768,10 +11778,24 @@ main.main-content.tournaments-page .tournament-action-btn.danger:hover {
     width: min(1180px, 100%) !important;
 }
 
-/* Окно высокое, по центру оно упирается в края — прижимаем к верху. */
-#tournamentEntriesModal {
-    align-items: flex-start !important;
-    padding-top: 24px;
+@media (min-width: 769px) {
+    /* Окно высокое: прижимаем к верху и разрешаем прокрутку внутри —
+       базовое правило .modal-content режет высоту и прячет переполнение. */
+    #tournamentEntriesModal {
+        align-items: flex-start !important;
+        padding: 0 !important;
+    }
+
+    #tournamentEntriesModal .modal-content {
+        margin: 24px auto !important;
+        max-height: calc(100vh - 48px) !important;
+        overflow-y: auto !important;
+        overscroll-behavior: contain;
+    }
+}
+
+#tournamentEntriesModal .modal-content {
+    overflow-y: auto !important;
 }
 
 .tournament-catalog-modal .member-catalog-modal-content,

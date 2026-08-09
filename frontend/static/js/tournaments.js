@@ -1604,12 +1604,10 @@ function renderMatches() {
                 <span>${escapeHtml(pluralizeTeams(block.standings.length))}</span>
             </h3>
             ${block.standings.length ? standingsMarkup(block.standings)
-                : '<p class="group-empty">В группе нет команд</p>'}
-            <div class="match-list">
-                ${block.matches.length
-                    ? block.matches.map(matchRowMarkup).join('')
-                    : '<p class="group-empty">Матчи не созданы</p>'}
-            </div>
+                : '<p class="match-empty">В группе нет команд — распределите их во вкладке «Группы»</p>'}
+            ${block.matches.length
+                ? `<div class="match-list">${block.matches.map(matchRowMarkup).join('')}</div>`
+                : '<p class="match-empty">Матчи не созданы</p>'}
         </section>`).join('');
     refreshIcons();
 }
