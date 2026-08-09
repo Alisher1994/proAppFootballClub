@@ -232,9 +232,156 @@
 
         .card.finished .card-photo { filter: grayscale(.55); }
 
+        .card {
+            cursor: pointer;
+            transition: transform .15s ease, box-shadow .15s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 28px rgba(23, 25, 31, .10);
+        }
+
+        /* Окно с деталями турнира */
+        .sheet {
+            position: fixed;
+            inset: 0;
+            z-index: 50;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px 14px;
+        }
+
+        .sheet[hidden] { display: none; }
+
+        .sheet-backdrop {
+            position: absolute;
+            inset: 0;
+            background: rgba(23, 25, 31, .55);
+        }
+
+        .sheet-box {
+            position: relative;
+            width: min(760px, 100%);
+            max-height: calc(100dvh - 40px);
+            overflow-y: auto;
+            border-radius: 18px;
+            background: #fff;
+            box-shadow: 0 24px 60px rgba(23, 25, 31, .28);
+        }
+
+        .sheet-close {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            z-index: 2;
+            width: 36px;
+            height: 36px;
+            min-height: 36px;
+            padding: 0;
+            border: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, .92);
+            color: #444a54;
+            font-size: 22px;
+            line-height: 1;
+            box-shadow: 0 2px 8px rgba(23, 25, 31, .16);
+        }
+
+        .sheet-poster {
+            height: 220px;
+            background: #efe9e3 center/cover no-repeat;
+        }
+
+        .sheet-poster.empty {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #b9b2ab;
+        }
+
+        .sheet-poster.empty svg { width: 54px; height: 54px; }
+
+        .sheet-body {
+            display: grid;
+            gap: 16px;
+            padding: 20px 22px 24px;
+        }
+
+        .sheet-body h2 {
+            margin: 0;
+            font-size: 22px;
+            line-height: 1.25;
+            overflow-wrap: anywhere;
+        }
+
+        .sheet-teams h3 {
+            margin: 0 0 10px;
+            font-size: 14px;
+            font-weight: 750;
+        }
+
+        .sheet-age + .sheet-age { margin-top: 16px; }
+
+        .sheet-age-title {
+            margin: 0 0 8px;
+            color: #b45f09;
+            font-size: 13px;
+            font-weight: 750;
+        }
+
+        .sheet-team-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+            gap: 8px;
+        }
+
+        .sheet-team {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 9px 12px;
+            border: 1px solid var(--line);
+            border-radius: 11px;
+            background: #fbfaf9;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .sheet-team span.logo {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex: 0 0 30px;
+            width: 30px;
+            height: 30px;
+            border-radius: 8px;
+            background: #f4f1ee;
+            color: #9aa1ab;
+            font-size: 11px;
+            font-weight: 700;
+            overflow: hidden;
+        }
+
+        .sheet-team img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
         @media (max-width: 520px) {
             h1 { font-size: 22px; }
             .grid { grid-template-columns: 1fr; }
+            .sheet { padding: 0; align-items: flex-end; }
+
+            .sheet-box {
+                width: 100%;
+                max-height: 92dvh;
+                border-radius: 18px 18px 0 0;
+            }
+
+            .sheet-poster { height: 180px; }
         }
     </style>
 </head>
@@ -260,6 +407,14 @@
 
         <div class="grid" id="tournamentGrid">
             <div class="empty-state">Загрузка…</div>
+        </div>
+    </div>
+
+    <div class="sheet" id="tournamentSheet" hidden>
+        <div class="sheet-backdrop" data-close-sheet></div>
+        <div class="sheet-box" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+            <button class="sheet-close" type="button" data-close-sheet aria-label="Закрыть">&times;</button>
+            <div id="sheetContent"></div>
         </div>
     </div>
 
@@ -328,7 +483,8 @@
             const credit = !item.poster_url && item.stadium && item.stadium.photo_source
                 ? `<div class="credit">Фото: ${escapeHtml(item.stadium.photo_source)}</div>` : '';
             return `
-                <article class="card${finished ? ' finished' : ''}">
+                <article class="card${finished ? ' finished' : ''}" data-tournament-id="${item.id}"
+                    role="button" tabindex="0">
                     ${photo}
                         <span class="card-date">${escapeHtml(shortDate(item.start_date))}</span>
                     </div>
@@ -349,6 +505,93 @@
                     </div>
                 </article>`;
         }
+
+        function factsMarkup(item) {
+            const rows = [
+                [ICON_CLOCK, `${formatRange(item.start_date, item.end_date)}${item.start_time ? `, ${item.start_time}` : ''}`],
+                [ICON_PIN, item.location || 'Место уточняется'],
+            ];
+            if (item.teams_count) rows.push([ICON_TEAMS, pluralizeTeams(item.teams_count)]);
+            return `<div class="meta">${rows.map(([icon, text]) =>
+                `<div>${icon}<span>${escapeHtml(text)}</span></div>`).join('')}</div>`;
+        }
+
+        function openSheet(id) {
+            const sheet = byId('tournamentSheet');
+            byId('sheetContent').innerHTML = '<div class="sheet-body"><p>Загрузка…</p></div>';
+            sheet.hidden = false;
+            document.body.style.overflow = 'hidden';
+
+            fetch(`/api/public/tournaments/${id}`, { credentials: 'same-origin' })
+                .then((response) => response.json())
+                .then((data) => {
+                    if (!data.success) throw new Error(data.message || 'Турнир не найден');
+                    const item = data.tournament;
+                    const image = item.poster_url || (item.stadium && item.stadium.photo_url) || '';
+                    const mapLink = item.stadium && item.stadium.latitude
+                        ? `<a class="map-link" target="_blank" rel="noopener"
+                             href="https://www.openstreetmap.org/?mlat=${item.stadium.latitude}&mlon=${item.stadium.longitude}#map=17/${item.stadium.latitude}/${item.stadium.longitude}">Открыть на карте</a>`
+                        : '';
+                    const groups = item.groups || [];
+                    const teams = groups.length
+                        ? groups.map((group) => `
+                            <div class="sheet-age">
+                                <p class="sheet-age-title">${escapeHtml(group.age_group)}</p>
+                                <div class="sheet-team-list">
+                                    ${group.teams.map((team) => `
+                                        <div class="sheet-team">
+                                            <span class="logo">${team.logo_url
+                                                ? `<img src="${escapeHtml(team.logo_url)}" alt="">`
+                                                : escapeHtml((team.name || '?').slice(0, 2).toUpperCase())}</span>
+                                            <span>${escapeHtml(team.name)}</span>
+                                        </div>`).join('')}
+                                </div>
+                            </div>`).join('')
+                        : '<p class="lead" style="margin:0">Список участников ещё формируется.</p>';
+
+                    byId('sheetContent').innerHTML = `
+                        ${image
+                            ? `<div class="sheet-poster" style="background-image:url('${escapeHtml(image)}')"></div>`
+                            : `<div class="sheet-poster empty">${ICON_BALL}</div>`}
+                        <div class="sheet-body">
+                            <h2 id="sheetTitle">${escapeHtml(item.name)}</h2>
+                            ${factsMarkup(item)}
+                            ${item.age_groups.length
+                                ? `<div class="ages">${item.age_groups.map((age) =>
+                                    `<span class="age">${escapeHtml(age)}</span>`).join('')}</div>`
+                                : ''}
+                            ${mapLink}
+                            <div class="sheet-teams">
+                                <h3>Участники</h3>
+                                ${teams}
+                            </div>
+                            ${!item.poster_url && item.stadium && item.stadium.photo_source
+                                ? `<div class="credit">Фото: ${escapeHtml(item.stadium.photo_source)}</div>` : ''}
+                        </div>`;
+                })
+                .catch((error) => {
+                    byId('sheetContent').innerHTML =
+                        `<div class="sheet-body"><p>${escapeHtml(error.message)}</p></div>`;
+                });
+        }
+
+        function closeSheet() {
+            byId('tournamentSheet').hidden = true;
+            document.body.style.overflow = '';
+        }
+
+        document.addEventListener('click', (event) => {
+            if (event.target.closest('[data-close-sheet]')) closeSheet();
+        });
+
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && !byId('tournamentSheet').hidden) closeSheet();
+        });
+
+        byId('tournamentGrid').addEventListener('click', (event) => {
+            const card = event.target.closest('[data-tournament-id]');
+            if (card) openSheet(card.dataset.tournamentId);
+        });
 
         function render() {
             const items = state.data[state.tab] || [];

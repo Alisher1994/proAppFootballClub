@@ -5104,6 +5104,43 @@ def public_tournament_payload(tournament, stadium_by_name):
     }
 
 
+@app.route('/api/public/tournaments/<int:tournament_id>')
+def public_tournament_detail_api(tournament_id):
+    """Карточка турнира для гостя: сам турнир и команды, но без персональных данных."""
+    ensure_tournament_tables()
+    tournament = Tournament.query.filter_by(id=tournament_id).first()
+    if not tournament or not tournament.is_published:
+        return jsonify({'success': False, 'message': 'Турнир не найден'}), 404
+
+    stadium_by_name = {
+        (item.name or '').strip().lower(): item
+        for item in TournamentStadium.query.all()
+    }
+    payload = public_tournament_payload(tournament, stadium_by_name)
+
+    entries = TournamentEntry.query.filter_by(
+        tournament_id=tournament.id,
+        status=TournamentEntry.STATUS_CONFIRMED,
+    ).all()
+    entries.sort(key=lambda item: (item.age_group, (item.team.name if item.team else '')))
+
+    groups = []
+    for entry in entries:
+        if not entry.team:
+            continue
+        if not groups or groups[-1]['age_group'] != entry.age_group:
+            groups.append({'age_group': entry.age_group, 'teams': []})
+        # Наружу отдаём только название и логотип: телефоны тренеров и составы
+        # остаются внутри системы.
+        groups[-1]['teams'].append({
+            'name': entry.team.name,
+            'logo_url': get_tournament_media_url(entry.team.logo_path),
+        })
+
+    payload['groups'] = groups
+    return jsonify({'success': True, 'tournament': payload})
+
+
 @app.route('/tournaments-afisha')
 def public_tournaments_page():
     return render_template('public_tournaments.html')
