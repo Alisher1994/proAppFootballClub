@@ -848,6 +848,45 @@ class TournamentTeamShareLink(db.Model):
         return f'<TournamentTeamShareLink team={self.team_id} tournament={self.tournament_id}>'
 
 
+class TournamentMatch(db.Model):
+    """Матч турнира. Пока групповой этап, поле stage оставлено под плей-офф.
+
+    Таблица называется tournament_fixtures, а не tournament_matches: последнее
+    имя занято таблицей из прежней версии проекта, и занимать его нельзя.
+    """
+    __tablename__ = 'tournament_fixtures'
+
+    STAGE_GROUP = 'group'
+
+    id = db.Column(db.Integer, primary_key=True)
+    tournament_id = db.Column(db.Integer, db.ForeignKey('tournaments.id'), nullable=False, index=True)
+    age_group = db.Column(db.String(50), nullable=False)
+    stage = db.Column(db.String(20), nullable=False, default=STAGE_GROUP)
+    group_id = db.Column(db.Integer, db.ForeignKey('tournament_groups.id'), nullable=True, index=True)
+    round_no = db.Column(db.Integer, nullable=False, default=1)
+    home_entry_id = db.Column(db.Integer, db.ForeignKey('tournament_entries.id'), nullable=True)
+    away_entry_id = db.Column(db.Integer, db.ForeignKey('tournament_entries.id'), nullable=True)
+    stadium_id = db.Column(db.Integer, db.ForeignKey('tournament_stadiums.id'), nullable=True)
+    kickoff_at = db.Column(db.DateTime, nullable=True)
+    home_score = db.Column(db.Integer, nullable=True)
+    away_score = db.Column(db.Integer, nullable=True)
+    created_at = db.Column(db.DateTime, default=get_local_datetime)
+    updated_at = db.Column(db.DateTime, default=get_local_datetime, onupdate=get_local_datetime)
+
+    tournament = db.relationship('Tournament', foreign_keys=[tournament_id])
+    group = db.relationship('TournamentGroup', foreign_keys=[group_id])
+    home_entry = db.relationship('TournamentEntry', foreign_keys=[home_entry_id])
+    away_entry = db.relationship('TournamentEntry', foreign_keys=[away_entry_id])
+    stadium = db.relationship('TournamentStadium', foreign_keys=[stadium_id])
+
+    @property
+    def is_played(self):
+        return self.home_score is not None and self.away_score is not None
+
+    def __repr__(self):
+        return f'<TournamentMatch {self.id} {self.age_group}>'
+
+
 class TournamentStadium(db.Model):
     """Справочник стадионов с координатами на карте."""
     __tablename__ = 'tournament_stadiums'

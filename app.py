@@ -73,7 +73,7 @@ os.environ['FFMPEG_LOG_LEVEL'] = 'quiet'
 # Форсируем использование CUDA/TensorRT в ONNX
 os.environ['ORT_TENSORRT_FP16_ENABLE'] = '1'
 
-from backend.models.models import db, User, Student, Payment, Attendance, AccessLog, Expense, Group, GroupTrainer, Tariff, ClubSettings, RewardType, StudentReward, CashTransfer, Role, RolePermission, CardType, StudentCard, Tournament, TournamentTeamCatalog, TournamentTeamMember, TournamentStadium, TournamentTeamShareLink, TournamentEntry, TournamentGroup, DeviceCommand, BridgeStatus
+from backend.models.models import db, User, Student, Payment, Attendance, AccessLog, Expense, Group, GroupTrainer, Tariff, ClubSettings, RewardType, StudentReward, CashTransfer, Role, RolePermission, CardType, StudentCard, Tournament, TournamentTeamCatalog, TournamentTeamMember, TournamentStadium, TournamentTeamShareLink, TournamentEntry, TournamentGroup, TournamentMatch, DeviceCommand, BridgeStatus
 # Live camera recognition stays disabled; access-log verification is separate.
 USE_FACE = False
 from backend.services.face_stub import DummyFaceService as FaceService
@@ -1488,6 +1488,7 @@ def ensure_tournament_tables():
             'tournament_team_share_links',
             'tournament_entries',
             'tournament_groups',
+            'tournament_fixtures',
         }
         if not required.issubset(set(tables)):
             db.create_all()
@@ -5210,6 +5211,272 @@ def tournament_group_detail_api(group_id):
     db.session.delete(group)
     db.session.commit()
     return jsonify({'success': True})
+
+
+# ===== МАТЧИ И ТАБЛИЦА =====
+
+WIN_POINTS = 3
+DRAW_POINTS = 1
+
+
+def round_robin_rounds(items):
+    """Круговая система в один круг: каждый играет с каждым по разу.
+
+    Классический круговой метод: один участник фиксирован, остальные сдвигаются.
+    При нечётном числе добавляем «пустого» — его соперник в этом туре отдыхает.
+    """
+    players = list(items)
+    if len(players) < 2:
+        return []
+    if len(players) % 2:
+        players.append(None)
+
+    half = len(players) // 2
+    rounds = []
+    for _ in range(len(players) - 1):
+        pairs = []
+        for index in range(half):
+            home, away = players[index], players[-1 - index]
+            if home is not None and away is not None:
+                # Чередуем хозяев, чтобы поля распределялись ровнее.
+                pairs.append((home, away) if len(rounds) % 2 == 0 else (away, home))
+        rounds.append(pairs)
+        players = [players[0]] + [players[-1]] + players[1:-1]
+    return rounds
+
+
+def serialize_match(match):
+    def side(entry):
+        if not entry:
+            return {'entry_id': None, 'team_name': '—', 'team_logo_url': None}
+        team = entry.team
+        return {
+            'entry_id': entry.id,
+            'team_name': team.name if team else '—',
+            'team_logo_url': get_tournament_media_url(team.logo_path) if team else None,
+        }
+
+    return {
+        'id': match.id,
+        'age_group': match.age_group,
+        'group_id': match.group_id,
+        'group_name': match.group.name if match.group else None,
+        'round_no': match.round_no,
+        'home': side(match.home_entry),
+        'away': side(match.away_entry),
+        'home_score': match.home_score,
+        'away_score': match.away_score,
+        'is_played': match.is_played,
+        'stadium_id': match.stadium_id,
+        'stadium_name': match.stadium.name if match.stadium else None,
+        'kickoff_at': match.kickoff_at.isoformat(timespec='minutes') if match.kickoff_at else None,
+    }
+
+
+def build_standings(entries, matches):
+    """Таблица считается из матчей и нигде не хранится — иначе разъедется."""
+    rows = {}
+    for entry in entries:
+        rows[entry.id] = {
+            'entry_id': entry.id,
+            'team_name': entry.team.name if entry.team else '—',
+            'team_logo_url': get_tournament_media_url(entry.team.logo_path) if entry.team else None,
+            'played': 0, 'won': 0, 'drawn': 0, 'lost': 0,
+            'goals_for': 0, 'goals_against': 0, 'diff': 0, 'points': 0,
+        }
+
+    played = [m for m in matches if m.is_played
+              and m.home_entry_id in rows and m.away_entry_id in rows]
+    for match in played:
+        home, away = rows[match.home_entry_id], rows[match.away_entry_id]
+        home['played'] += 1
+        away['played'] += 1
+        home['goals_for'] += match.home_score
+        home['goals_against'] += match.away_score
+        away['goals_for'] += match.away_score
+        away['goals_against'] += match.home_score
+        if match.home_score > match.away_score:
+            home['won'] += 1
+            away['lost'] += 1
+            home['points'] += WIN_POINTS
+        elif match.home_score < match.away_score:
+            away['won'] += 1
+            home['lost'] += 1
+            away['points'] += WIN_POINTS
+        else:
+            home['drawn'] += 1
+            away['drawn'] += 1
+            home['points'] += DRAW_POINTS
+            away['points'] += DRAW_POINTS
+
+    for row in rows.values():
+        row['diff'] = row['goals_for'] - row['goals_against']
+
+    table = sorted(
+        rows.values(),
+        key=lambda row: (-row['points'], -row['diff'], -row['goals_for'], row['team_name']),
+    )
+
+    # Личная встреча решает только чистую пару: при тройном равенстве она
+    # зацикливается, и общепринятого простого правила там нет.
+    for index in range(len(table) - 1):
+        first, second = table[index], table[index + 1]
+        same = (first['points'], first['diff'], first['goals_for']) == \
+               (second['points'], second['diff'], second['goals_for'])
+        if not same:
+            continue
+        neighbours = [row for row in table
+                      if (row['points'], row['diff'], row['goals_for'])
+                      == (first['points'], first['diff'], first['goals_for'])]
+        if len(neighbours) != 2:
+            continue
+        for match in played:
+            pair = {match.home_entry_id, match.away_entry_id}
+            if pair != {first['entry_id'], second['entry_id']}:
+                continue
+            winner = None
+            if match.home_score > match.away_score:
+                winner = match.home_entry_id
+            elif match.away_score > match.home_score:
+                winner = match.away_entry_id
+            if winner == second['entry_id']:
+                table[index], table[index + 1] = second, first
+
+    for place, row in enumerate(table, start=1):
+        row['place'] = place
+    return table
+
+
+@app.route('/api/tournaments/<int:tournament_id>/matches', methods=['GET', 'POST'])
+@login_required
+def tournament_matches_api(tournament_id):
+    ensure_tournament_tables()
+    tournament = Tournament.query.filter_by(id=tournament_id).first_or_404()
+
+    if request.method == 'GET':
+        if not has_tournament_permission('view'):
+            return jsonify({'success': False, 'message': 'Нет доступа'}), 403
+        age_group = (request.args.get('age_group') or '').strip()
+        groups = TournamentGroup.query.filter_by(
+            tournament_id=tournament_id, age_group=age_group,
+        ).order_by(TournamentGroup.sort_order.asc()).all()
+        matches = TournamentMatch.query.filter_by(
+            tournament_id=tournament_id, age_group=age_group,
+        ).order_by(TournamentMatch.round_no.asc(), TournamentMatch.id.asc()).all()
+        entries = TournamentEntry.query.filter_by(
+            tournament_id=tournament_id, age_group=age_group,
+            status=TournamentEntry.STATUS_CONFIRMED,
+        ).all()
+
+        blocks = []
+        for group in groups:
+            group_entries = [e for e in entries if e.group_id == group.id]
+            group_matches = [m for m in matches if m.group_id == group.id]
+            blocks.append({
+                'group': serialize_tournament_group(group),
+                'standings': build_standings(group_entries, group_matches),
+                'matches': [serialize_match(m) for m in group_matches],
+            })
+        return jsonify({
+            'success': True,
+            'blocks': blocks,
+            'stadiums': [{'id': s.id, 'name': s.name}
+                         for s in TournamentStadium.query.order_by(TournamentStadium.name.asc()).all()],
+        })
+
+    if not has_tournament_permission('edit'):
+        return jsonify({'success': False, 'message': 'Нет доступа'}), 403
+
+    data = request.get_json() or {}
+    age_group = (data.get('age_group') or '').strip()
+    groups = TournamentGroup.query.filter_by(
+        tournament_id=tournament_id, age_group=age_group,
+    ).order_by(TournamentGroup.sort_order.asc()).all()
+    if not groups:
+        return jsonify({'success': False, 'message': 'Сначала создайте группы этой категории'}), 400
+
+    entries = TournamentEntry.query.filter_by(
+        tournament_id=tournament_id, age_group=age_group,
+        status=TournamentEntry.STATUS_CONFIRMED,
+    ).all()
+
+    created = 0
+    for group in groups:
+        group_entries = [e for e in entries if e.group_id == group.id]
+        # Пересоздаём календарь группы целиком: частичная досборка запутала бы туры.
+        TournamentMatch.query.filter_by(
+            tournament_id=tournament_id, group_id=group.id,
+        ).delete(synchronize_session=False)
+        for round_index, pairs in enumerate(round_robin_rounds(group_entries), start=1):
+            for home, away in pairs:
+                db.session.add(TournamentMatch(
+                    tournament_id=tournament_id,
+                    age_group=age_group,
+                    group_id=group.id,
+                    round_no=round_index,
+                    home_entry_id=home.id,
+                    away_entry_id=away.id,
+                ))
+                created += 1
+
+    if not created:
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'message': 'В группах меньше двух команд — играть некому',
+        }), 400
+
+    db.session.commit()
+    return jsonify({'success': True, 'created': created})
+
+
+@app.route('/api/tournament-matches/<int:match_id>', methods=['PUT'])
+@login_required
+def tournament_match_detail_api(match_id):
+    ensure_tournament_tables()
+    if not has_tournament_permission('edit'):
+        return jsonify({'success': False, 'message': 'Нет доступа'}), 403
+    match = db.session.get(TournamentMatch, match_id)
+    if not match:
+        return jsonify({'success': False, 'message': 'Матч не найден'}), 404
+
+    data = request.get_json() or {}
+
+    if 'home_score' in data or 'away_score' in data:
+        def parse_score(value):
+            if value in (None, ''):
+                return None
+            number = int(value)
+            if number < 0 or number > 99:
+                raise ValueError
+            return number
+        try:
+            home = parse_score(data.get('home_score'))
+            away = parse_score(data.get('away_score'))
+        except (TypeError, ValueError):
+            return jsonify({'success': False, 'message': 'Счёт должен быть числом от 0 до 99'}), 400
+        # Счёт либо есть целиком, либо матч считается несыгранным.
+        if (home is None) != (away is None):
+            return jsonify({'success': False, 'message': 'Укажите счёт обеих команд'}), 400
+        match.home_score = home
+        match.away_score = away
+
+    if 'stadium_id' in data:
+        stadium_id = data.get('stadium_id')
+        match.stadium_id = int(stadium_id) if stadium_id else None
+
+    if 'kickoff_at' in data:
+        value = (data.get('kickoff_at') or '').strip()
+        if not value:
+            match.kickoff_at = None
+        else:
+            try:
+                match.kickoff_at = datetime.fromisoformat(value)
+            except ValueError:
+                return jsonify({'success': False, 'message': 'Некорректные дата и время'}), 400
+
+    db.session.commit()
+    return jsonify({'success': True, 'match': serialize_match(match)})
 
 
 # ===== ПУБЛИЧНАЯ АФИША ТУРНИРОВ =====

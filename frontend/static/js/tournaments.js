@@ -26,6 +26,9 @@ const catalogState = {
     groups: [],
     groupEntries: [],
     groupAge: '',
+    matchAge: '',
+    matchBlocks: [],
+    matchStadiums: [],
     tournamentPosterObjectUrl: null,
     tournamentPosterRemoved: false,
     activeFilterTab: 'tournaments',
@@ -1255,6 +1258,9 @@ async function openTournamentEntries(tournamentId) {
     switchEntryTab('entries');
     await loadEntries();
     await loadGroups();
+    catalogState.matchAge = catalogState.groupAge;
+    renderMatchAgeSelect();
+    await loadMatches();
 }
 
 async function addTournamentEntry() {
@@ -1402,6 +1408,8 @@ async function saveGroups(draw) {
             body: JSON.stringify({ age_group: catalogState.groupAge, count, draw: Boolean(draw) }),
         });
         await loadGroups();
+        renderMatchAgeSelect();
+        await loadMatches();
     } catch (error) {
         showFormError('groupFormError', error.message);
     }
@@ -1513,6 +1521,156 @@ function bindGroupBoard() {
 
     board.addEventListener('pointerup', finish);
     board.addEventListener('pointercancel', () => cleanup());
+}
+
+/* --- Матчи и таблица --- */
+
+function standingsMarkup(rows) {
+    return `
+        <div class="catalog-table-wrap">
+            <table class="catalog-data-table standings-table">
+                <thead>
+                    <tr>
+                        <th>#</th><th>Команда</th><th>И</th><th>В</th><th>Н</th><th>П</th>
+                        <th>Мячи</th><th>±</th><th>О</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${rows.map((row) => `
+                        <tr>
+                            <td data-label="Место">${row.place}</td>
+                            <td data-label="Команда">
+                                <span class="catalog-primary-cell">
+                                    <span class="catalog-row-icon">
+                                        ${row.team_logo_url
+                                            ? `<img src="${escapeHtml(row.team_logo_url)}" alt="">`
+                                            : `<span>${escapeHtml(initials(row.team_name))}</span>`}
+                                    </span>
+                                    <strong>${escapeHtml(row.team_name)}</strong>
+                                </span>
+                            </td>
+                            <td data-label="И">${row.played}</td>
+                            <td data-label="В">${row.won}</td>
+                            <td data-label="Н">${row.drawn}</td>
+                            <td data-label="П">${row.lost}</td>
+                            <td data-label="Мячи">${row.goals_for}–${row.goals_against}</td>
+                            <td data-label="Разница">${row.diff > 0 ? '+' : ''}${row.diff}</td>
+                            <td data-label="Очки"><strong>${row.points}</strong></td>
+                        </tr>`).join('')}
+                </tbody>
+            </table>
+        </div>`;
+}
+
+function matchRowMarkup(match) {
+    const stadiums = ['<option value="">Стадион не выбран</option>'].concat(
+        catalogState.matchStadiums.map((item) =>
+            `<option value="${item.id}" ${match.stadium_id === item.id ? 'selected' : ''}>
+                ${escapeHtml(item.name)}</option>`),
+    );
+    return `
+        <div class="match-row${match.is_played ? ' played' : ''}" data-match="${match.id}">
+            <span class="match-round">Тур ${match.round_no}</span>
+            <span class="match-team home">${escapeHtml(match.home.team_name)}</span>
+            <span class="match-score">
+                <input type="number" min="0" max="99" data-score="home"
+                    value="${match.home_score === null ? '' : match.home_score}" aria-label="Голы хозяев">
+                <em>:</em>
+                <input type="number" min="0" max="99" data-score="away"
+                    value="${match.away_score === null ? '' : match.away_score}" aria-label="Голы гостей">
+            </span>
+            <span class="match-team away">${escapeHtml(match.away.team_name)}</span>
+            <input class="match-time" type="datetime-local" data-kickoff
+                value="${match.kickoff_at || ''}" aria-label="Дата и время матча">
+            <select class="match-stadium" data-stadium aria-label="Стадион">${stadiums.join('')}</select>
+        </div>`;
+}
+
+function renderMatches() {
+    const board = byId('matchBoard');
+    const blocks = catalogState.matchBlocks;
+    if (!blocks.length) {
+        board.innerHTML = emptyCatalogMarkup(
+            'list-checks',
+            'Календарь не сформирован',
+            'Создайте группы во вкладке «Группы», затем сформируйте календарь.',
+        );
+        refreshIcons();
+        return;
+    }
+    board.innerHTML = blocks.map((block) => `
+        <section class="match-block">
+            <h3 class="entry-group-title">Группа ${escapeHtml(block.group.name)}
+                <span>${escapeHtml(pluralizeTeams(block.standings.length))}</span>
+            </h3>
+            ${block.standings.length ? standingsMarkup(block.standings)
+                : '<p class="group-empty">В группе нет команд</p>'}
+            <div class="match-list">
+                ${block.matches.length
+                    ? block.matches.map(matchRowMarkup).join('')
+                    : '<p class="group-empty">Матчи не созданы</p>'}
+            </div>
+        </section>`).join('');
+    refreshIcons();
+}
+
+function renderMatchAgeSelect() {
+    const select = byId('matchAgeSelect');
+    const ages = catalogState.entryAgeGroups;
+    select.innerHTML = ages.map((age) =>
+        `<option value="${escapeHtml(age)}">${escapeHtml(age)}</option>`).join('');
+    if (!ages.includes(catalogState.matchAge)) catalogState.matchAge = ages[0] || '';
+    select.value = catalogState.matchAge;
+}
+
+async function loadMatches() {
+    if (!catalogState.matchAge) {
+        catalogState.matchBlocks = [];
+        renderMatches();
+        return;
+    }
+    const data = await apiJson(
+        `/api/tournaments/${catalogState.entriesTournamentId}/matches`
+        + `?age_group=${encodeURIComponent(catalogState.matchAge)}`,
+    );
+    catalogState.matchBlocks = data.blocks || [];
+    catalogState.matchStadiums = data.stadiums || [];
+    renderMatches();
+}
+
+async function generateMatches() {
+    if (!window.confirm('Календарь категории будет создан заново, введённые счета пропадут. Продолжить?')) return;
+    try {
+        showFormError('matchFormError');
+        await apiJson(`/api/tournaments/${catalogState.entriesTournamentId}/matches`, {
+            method: 'POST',
+            body: JSON.stringify({ age_group: catalogState.matchAge }),
+        });
+        await loadMatches();
+    } catch (error) {
+        showFormError('matchFormError', error.message);
+    }
+}
+
+async function saveMatch(row) {
+    const scores = row.querySelectorAll('[data-score]');
+    const payload = {
+        home_score: scores[0].value === '' ? null : Number(scores[0].value),
+        away_score: scores[1].value === '' ? null : Number(scores[1].value),
+        kickoff_at: row.querySelector('[data-kickoff]').value,
+        stadium_id: row.querySelector('[data-stadium]').value || null,
+    };
+    try {
+        showFormError('matchFormError');
+        await apiJson(`/api/tournament-matches/${row.dataset.match}`, {
+            method: 'PUT',
+            body: JSON.stringify(payload),
+        });
+        await loadMatches();
+    } catch (error) {
+        showFormError('matchFormError', error.message);
+        await loadMatches();
+    }
 }
 
 /* --- Ссылка для тренера: заполнение состава команды --- */
@@ -1926,6 +2084,15 @@ function bindEvents() {
         catalogState.groupAge = event.target.value;
         renderGroupAgeSelect();
         renderGroups();
+    });
+    byId('matchAgeSelect').addEventListener('change', (event) => {
+        catalogState.matchAge = event.target.value;
+        loadMatches().catch(showPageError);
+    });
+    byId('generateMatchesBtn').addEventListener('click', () => generateMatches().catch(showPageError));
+    byId('matchBoard').addEventListener('change', (event) => {
+        const row = event.target.closest('[data-match]');
+        if (row) saveMatch(row).catch(showPageError);
     });
     byId('applyGroupsBtn').addEventListener('click', () => saveGroups(false).catch(showPageError));
     byId('drawGroupsBtn').addEventListener('click', () => {

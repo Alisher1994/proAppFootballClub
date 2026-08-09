@@ -11239,6 +11239,111 @@ main.main-content.tournaments-page .tournament-action-btn.danger:hover {
     }
 }
 
+/* Матчи и таблица */
+.match-block + .match-block {
+    margin-top: 26px;
+}
+
+.standings-table th,
+.standings-table td {
+    white-space: nowrap;
+}
+
+.match-list {
+    display: grid;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.match-row {
+    display: grid;
+    grid-template-columns: 62px minmax(0, 1fr) auto minmax(0, 1fr) 180px 190px;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 12px;
+    border: 1px solid #ecebe9;
+    border-radius: 11px;
+    background: #fbfaf9;
+}
+
+.match-row.played {
+    border-color: #cfe9d9;
+    background: #f6fbf8;
+}
+
+.match-round {
+    color: #969ca6;
+    font-size: 11.5px;
+    font-weight: 650;
+}
+
+.match-team {
+    font-size: 13.5px;
+    font-weight: 650;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.match-team.away {
+    text-align: left;
+}
+
+.match-team.home {
+    text-align: right;
+}
+
+.match-score {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.match-score em {
+    color: #969ca6;
+    font-style: normal;
+}
+
+#tournamentEntriesModal .match-score input {
+    width: 46px !important;
+    min-width: 46px !important;
+    height: 36px !important;
+    min-height: 36px !important;
+    padding: 0 !important;
+    border: 1px solid #dfe1e5 !important;
+    border-radius: 8px !important;
+    text-align: center;
+    font-weight: 700;
+}
+
+#tournamentEntriesModal .match-time,
+#tournamentEntriesModal .match-stadium {
+    width: 100% !important;
+    height: 36px !important;
+    min-height: 36px !important;
+    padding: 0 8px !important;
+    border: 1px solid #dfe1e5 !important;
+    border-radius: 8px !important;
+    background: #fff !important;
+    font-size: 12.5px !important;
+}
+
+@media (max-width: 900px) {
+    .match-row {
+        grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+        row-gap: 8px;
+    }
+
+    .match-round {
+        grid-column: 1 / -1;
+    }
+
+    #tournamentEntriesModal .match-time,
+    #tournamentEntriesModal .match-stadium {
+        grid-column: 1 / -1;
+    }
+}
+
 /* Выбор команды: поиск со списком и логотипами */
 .team-picker {
     position: relative;

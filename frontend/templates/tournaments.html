@@ -8,7 +8,7 @@
     {% include '_pwa_head.html' %}
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/onest/onest.css') }}">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=2026080909">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=2026080910">
 </head>
 <body>
     {% include '_sidebar.html' %}
@@ -335,6 +335,7 @@
                 <nav class="entry-tabs" id="entryTabs">
                     <button type="button" class="active" data-entry-tab="entries">Участники</button>
                     <button type="button" data-entry-tab="groups">Группы</button>
+                    <button type="button" data-entry-tab="matches">Матчи и таблица</button>
                 </nav>
 
                 <div data-entry-panel="entries">
@@ -382,6 +383,21 @@
                     <p class="group-hint">Команду можно перетащить мышью между группами или перенести
                         выпадающим списком в её строке.</p>
                     <div class="group-board" id="groupBoard"></div>
+                </div>
+
+                <div data-entry-panel="matches" hidden>
+                    <div class="group-toolbar">
+                        <label class="tournament-catalog-field">
+                            <span>Категория</span>
+                            <select id="matchAgeSelect"></select>
+                        </label>
+                        <button class="btn-primary" type="button" id="generateMatchesBtn">
+                            <i data-lucide="list-checks"></i>
+                            Сформировать календарь
+                        </button>
+                    </div>
+                    <div class="tournament-catalog-form-error" id="matchFormError" hidden></div>
+                    <div id="matchBoard"></div>
                 </div>
             </div>
         </div>
@@ -655,6 +671,6 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="{{ url_for('static', filename='js/sidebar.js') }}?v=2026080801"></script>
     <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/tournaments.js') }}?v=2026080909"></script>
+    <script src="{{ url_for('static', filename='js/tournaments.js') }}?v=2026080910"></script>
 </body>
 </html>
