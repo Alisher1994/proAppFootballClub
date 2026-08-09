@@ -12052,11 +12052,26 @@ body .tournaments-page .catalog-filter-button:hover {
     border-radius: 9px;
     background: #fff3e5;
     color: #ee7800;
+    overflow: hidden;
 }
 
 .catalog-row-icon svg {
     width: 17px;
     height: 17px;
+}
+
+/* Раньше размеры задавались только для svg, и логотип команды растягивал
+   строку на всю таблицу. Ограничиваем любое содержимое иконки. */
+.catalog-row-icon img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.catalog-row-icon > span {
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1;
 }
 
 .catalog-age-list {
