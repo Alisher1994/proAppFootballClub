@@ -11411,6 +11411,67 @@ main.main-content.tournaments-page .tournament-action-btn.danger:hover {
     position: relative;
 }
 
+.team-picker-box {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    min-height: 42px;
+    padding: 5px 8px;
+    border: 1px solid #dfe1e5;
+    border-radius: 11px;
+    background: #fff;
+    cursor: text;
+}
+
+.team-picker-box:focus-within {
+    border-color: #ff9b38;
+    box-shadow: 0 0 0 3px rgba(255, 139, 26, .12);
+}
+
+#tournamentEntriesModal .team-picker-box input {
+    flex: 1 1 140px;
+    min-width: 120px;
+    height: 30px !important;
+    min-height: 30px !important;
+    padding: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+}
+
+.team-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 28px;
+    padding: 0 4px 0 10px;
+    border: 1px solid #ffd9b0;
+    border-radius: 999px;
+    background: #fff5eb;
+    color: #b45f09;
+    font-size: 12.5px;
+    font-weight: 650;
+    white-space: nowrap;
+}
+
+#tournamentEntriesModal .team-chip button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 19px !important;
+    min-width: 19px !important;
+    height: 19px !important;
+    min-height: 19px !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 50% !important;
+    background: rgba(180, 95, 9, .12) !important;
+    color: #b45f09 !important;
+    font-size: 14px !important;
+    line-height: 1;
+}
+
 .team-picker-list {
     position: absolute;
     top: calc(100% + 6px);

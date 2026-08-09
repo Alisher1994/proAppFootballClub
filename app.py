@@ -5019,38 +5019,68 @@ def tournament_entries_api(tournament_id):
         return jsonify({'success': False, 'message': 'Нет доступа'}), 403
 
     data = request.get_json() or {}
-    team_id = data.get('team_id')
     age_group = (data.get('age_group') or '').strip()
-    team = db.session.get(TournamentTeamCatalog, int(team_id)) if team_id else None
-    if not team:
+
+    # Команд может прийти сразу несколько: заявлять по одной неудобно.
+    raw_ids = data.get('team_ids')
+    if not isinstance(raw_ids, list):
+        raw_ids = [data.get('team_id')]
+    team_ids = []
+    for value in raw_ids:
+        try:
+            number = int(value)
+        except (TypeError, ValueError):
+            continue
+        if number not in team_ids:
+            team_ids.append(number)
+    if not team_ids:
         return jsonify({'success': False, 'message': 'Выберите команду'}), 400
 
     allowed = tournament_age_group_labels(tournament)
-    if allowed and age_group not in allowed:
-        return jsonify({'success': False, 'message': 'Выберите возрастную категорию турнира'}), 400
     if not age_group:
         return jsonify({'success': False, 'message': 'Выберите возрастную категорию'}), 400
+    if allowed and age_group not in allowed:
+        return jsonify({'success': False, 'message': 'Выберите возрастную категорию турнира'}), 400
 
-    exists = TournamentEntry.query.filter_by(
-        tournament_id=tournament_id, team_id=team.id, age_group=age_group,
-    ).first()
-    if exists:
-        return jsonify({
-            'success': False,
-            'message': f'«{team.name}» уже заявлена в категории {age_group}',
-        }), 400
+    status = data.get('status') if data.get('status') in ENTRY_STATUSES else TournamentEntry.STATUS_INVITED
+    note = (data.get('note') or '').strip() or None
+    already = {
+        entry.team_id for entry in TournamentEntry.query.filter_by(
+            tournament_id=tournament_id, age_group=age_group,
+        ).all()
+    }
 
-    entry = TournamentEntry(
-        tournament_id=tournament_id,
-        team_id=team.id,
-        age_group=age_group,
-        status=data.get('status') if data.get('status') in ENTRY_STATUSES else TournamentEntry.STATUS_INVITED,
-        note=(data.get('note') or '').strip() or None,
-        created_by=current_user.id,
-    )
-    db.session.add(entry)
+    added, skipped, missing = [], [], 0
+    for team_id in team_ids:
+        team = db.session.get(TournamentTeamCatalog, team_id)
+        if not team:
+            missing += 1
+            continue
+        if team.id in already:
+            skipped.append(team.name)
+            continue
+        db.session.add(TournamentEntry(
+            tournament_id=tournament_id,
+            team_id=team.id,
+            age_group=age_group,
+            status=status,
+            note=note,
+            created_by=current_user.id,
+        ))
+        already.add(team.id)
+        added.append(team.name)
+
+    if not added:
+        if skipped:
+            names = ', '.join(f'«{name}»' for name in skipped)
+            return jsonify({
+                'success': False,
+                'message': f'{names} уже заявлены в категории {age_group}',
+            }), 400
+        return jsonify({'success': False, 'message': 'Команда не найдена'}), 400
+
     db.session.commit()
-    return jsonify({'success': True, 'entry': serialize_tournament_entry(entry)}), 201
+    return jsonify({'success': True, 'added': added, 'skipped': skipped, 'missing': missing}), 201
 
 
 @app.route('/api/tournament-entries/<int:entry_id>', methods=['PUT', 'DELETE'])
