@@ -449,10 +449,19 @@
             width: 100%;
         }
 
-        .bracket-host .match-wrapper {
+        .bracket-host .bracket-root .match-body {
             border: 1px solid var(--line);
             border-radius: 10px;
             background: #fff;
+        }
+
+        .bracket-host .bronze-title {
+            display: block;
+            padding-bottom: 4px;
+            color: #b45f09;
+            font-size: 11px;
+            font-weight: 750;
+            text-align: center;
         }
 
         .bracket-host .bk-logo {
@@ -538,6 +547,14 @@
         .place-2 .medal { background: #dfe3e8; color: #4b5563; }
 
         .place-3 .medal { background: #f0c08a; color: #6b3f0d; }
+
+        .place-logo {
+            flex: 0 0 26px;
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            background: #f4f1ee center/cover no-repeat;
+        }
 
         .place-team strong {
             display: block;
@@ -631,9 +648,26 @@
             font-size: 13.5px;
         }
 
-        .fixture .home { text-align: right; font-weight: 650; }
+        .fixture .home,
+        .fixture .away {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            min-width: 0;
+            font-weight: 650;
+        }
 
-        .fixture .away { text-align: left; font-weight: 650; }
+        .fixture .home { justify-content: flex-end; text-align: right; }
+
+        .fixture .away { justify-content: flex-start; text-align: left; }
+
+        .fixture .fx-logo {
+            flex: 0 0 22px;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: #f4f1ee center/cover no-repeat;
+        }
 
         .fixture .score {
             min-width: 62px;
@@ -860,14 +894,18 @@
                 match.kickoff_at ? formatKickoff(match.kickoff_at) : '',
                 match.stadium_name || '',
             ].filter(Boolean).join(' · ');
+            const pen = match.home_penalty === null || match.home_penalty === undefined
+                ? '' : ` (${match.home_penalty}:${match.away_penalty})`;
             const score = match.is_played
-                ? `${match.home_score} : ${match.away_score}`
+                ? `${match.home_score} : ${match.away_score}${pen}`
                 : '– : –';
+            const logo = (url) => `<span class="fx-logo"${url
+                ? ` style="background-image:url('${escapeHtml(url)}')"` : ''}></span>`;
             return `
                 <div class="fixture">
-                    <span class="home">${escapeHtml(match.home)}</span>
+                    <span class="home">${escapeHtml(match.home)}${logo(match.home_logo_url)}</span>
                     <span class="score${match.is_played ? '' : ' pending'}">${escapeHtml(score)}</span>
-                    <span class="away">${escapeHtml(match.away)}</span>
+                    <span class="away">${logo(match.away_logo_url)}${escapeHtml(match.away)}</span>
                     ${when ? `<span class="when">${escapeHtml(when)}</span>` : ''}
                 </div>`;
         }
@@ -890,6 +928,8 @@
                         ${results.map((row) => `
                             <div class="place place-${row.place}">
                                 <span class="medal">${row.place}</span>
+                                <span class="place-logo"${row.team_logo_url
+                                    ? ` style="background-image:url('${escapeHtml(row.team_logo_url)}')"` : ''}></span>
                                 <span class="place-team">
                                     <strong>${escapeHtml(row.team_name)}</strong>
                                     <small>${escapeHtml(PLACE_TITLES[row.place] || '')}</small>
@@ -914,7 +954,9 @@
                 </div>`).join('');
         }
 
-        function bracketData(matches) {
+        function bracketData(allMatches) {
+            const bronze = allMatches.find((m) => m.label === 'За 3 место') || null;
+            const matches = allMatches.filter((m) => m !== bronze);
             const rounds = [];
             const byRound = new Map();
             matches.forEach((match) => {
@@ -940,25 +982,38 @@
                 }
                 const score = match[`${which}_score`];
                 const other = match[which === 'home' ? 'away_score' : 'home_score'];
+                const penalty = match[`${which}_penalty`];
+                const otherPenalty = match[which === 'home' ? 'away_penalty' : 'home_penalty'];
+                // Ничью в плей-офф разводят пенальти, поэтому победителя считаем по ним.
+                const won = match.is_played
+                    && (score > other || (score === other && penalty > otherPenalty));
                 return {
                     contestantId: key,
                     scores: [{
-                        mainScore: score === null ? '–' : String(score),
-                        isWinner: match.is_played && score > other,
+                        mainScore: score === null ? '–' : String(score)
+                            + (penalty === null || penalty === undefined ? '' : ` (${penalty})`),
+                        isWinner: won,
                     }],
                 };
             };
 
-            return {
-                rounds: rounds.map((round) => ({ name: round.name })),
-                matches: rounds.flatMap((round, roundIndex) =>
-                    byRound.get(round.no).map((match, order) => ({
-                        roundIndex,
-                        order,
-                        sides: [side(match, 'home'), side(match, 'away')],
-                    }))),
-                contestants,
-            };
+            const built = rounds.flatMap((round, roundIndex) =>
+                byRound.get(round.no).map((match, order) => ({
+                    roundIndex,
+                    order,
+                    sides: [side(match, 'home'), side(match, 'away')],
+                })));
+            // Библиотека сама рисует матч за 3 место, если он идёт вторым в последнем раунде.
+            if (bronze) {
+                built.push({
+                    roundIndex: rounds.length - 1,
+                    order: 1,
+                    isBronzeMatch: true,
+                    sides: [side(bronze, 'home'), side(bronze, 'away')],
+                });
+            }
+
+            return { rounds: rounds.map((round) => ({ name: round.name })), matches: built, contestants };
         }
 
         function drawBracket(matches) {
@@ -970,7 +1025,7 @@
             const firstRound = Math.min(...main.map((m) => m.round_no));
             const rows = main.filter((m) => m.round_no === firstRound).length;
             host.style.height = `${Math.max(300, rows * 92 + 96)}px`;
-            createBracket(bracketData(main), host, {
+            createBracket(bracketData(matches), host, {
                 rootBgColor: 'transparent',
                 rootBorderColor: 'transparent',
                 matchTextColor: '#17191f',
@@ -1005,17 +1060,9 @@
                 },
                 getPlayerTitleHTML: (player) => `<span class="bk-title${player.known ? '' : ' pending'}">`
                     + `${escapeHtml(player.title)}</span>`,
+                getMatchTopHTML: (match) => (match && match.isBronzeMatch
+                    ? '<span class="bronze-title">За 3 место</span>' : ''),
             });
-        }
-
-        function bronzeMarkup(matches) {
-            // Матч за 3 место не часть дерева: его играют проигравшие, а не победители.
-            const bronze = matches.filter((m) => m.label === 'За 3 место');
-            if (!bronze.length) return '';
-            return `<div class="bk-bronze">
-                <p class="grp-title">За 3 место</p>
-                <div class="fixtures">${bronze.map(fixtureMarkup).join('')}</div>
-            </div>`;
         }
 
         function playoffPane(category) {
@@ -1029,8 +1076,7 @@
                     <button type="button" class="${state.bracket ? '' : 'active'}" data-view="list">Список</button>
                 </div>
                 ${state.bracket
-                    ? `<div id="bracketHost" class="bracket-host"></div>
-                       ${bronzeMarkup(matches)}`
+                    ? '<div id="bracketHost" class="bracket-host"></div>'
                     : playoffMarkup(matches)}`;
         }
 

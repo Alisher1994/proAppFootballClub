@@ -5967,6 +5967,8 @@ def public_tournament_detail_api(tournament_id):
             'away_logo_url': data['away']['team_logo_url'],
             'home_score': data['home_score'],
             'away_score': data['away_score'],
+            'home_penalty': data['home_penalty'],
+            'away_penalty': data['away_penalty'],
             'is_played': data['is_played'],
             'kickoff_at': data['kickoff_at'],
             'stadium_name': data['stadium_name'],
