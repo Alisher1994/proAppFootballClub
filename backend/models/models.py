@@ -765,6 +765,30 @@ class TournamentTeamMember(db.Model):
         return f'<TournamentTeamMember {self.full_name}>'
 
 
+class TournamentGroup(db.Model):
+    """Группа турнира внутри возрастной категории: A, B, C.
+
+    Группа не самостоятельный справочник — она живёт только внутри турнира
+    и внутри категории: группа A у 2015 и группа A у 2014 разные.
+    """
+    __tablename__ = 'tournament_groups'
+    __table_args__ = (
+        db.UniqueConstraint('tournament_id', 'age_group', 'name', name='uq_tournament_group'),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    tournament_id = db.Column(db.Integer, db.ForeignKey('tournaments.id'), nullable=False, index=True)
+    age_group = db.Column(db.String(50), nullable=False)
+    name = db.Column(db.String(20), nullable=False)
+    sort_order = db.Column(db.Integer, nullable=False, default=0)
+    created_at = db.Column(db.DateTime, default=get_local_datetime)
+
+    tournament = db.relationship('Tournament', foreign_keys=[tournament_id])
+
+    def __repr__(self):
+        return f'<TournamentGroup {self.age_group} {self.name}>'
+
+
 class TournamentEntry(db.Model):
     """Заявка команды на турнир в конкретной возрастной категории.
 
@@ -785,6 +809,7 @@ class TournamentEntry(db.Model):
     team_id = db.Column(db.Integer, db.ForeignKey('tournament_team_catalog.id'), nullable=False, index=True)
     age_group = db.Column(db.String(50), nullable=False)
     status = db.Column(db.String(20), nullable=False, default=STATUS_INVITED)
+    group_id = db.Column(db.Integer, db.ForeignKey('tournament_groups.id'), nullable=True, index=True)
     note = db.Column(db.String(500), nullable=True)
     created_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
     created_at = db.Column(db.DateTime, default=get_local_datetime)
@@ -792,6 +817,7 @@ class TournamentEntry(db.Model):
 
     tournament = db.relationship('Tournament', foreign_keys=[tournament_id])
     team = db.relationship('TournamentTeamCatalog', foreign_keys=[team_id])
+    group = db.relationship('TournamentGroup', foreign_keys=[group_id])
 
     def __repr__(self):
         return f'<TournamentEntry t={self.tournament_id} team={self.team_id} {self.age_group}>'

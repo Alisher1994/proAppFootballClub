@@ -21,6 +21,9 @@ const catalogState = {
     entriesTournamentId: null,
     entries: [],
     entryAgeGroups: [],
+    groups: [],
+    groupEntries: [],
+    groupAge: '',
     tournamentPosterObjectUrl: null,
     tournamentPosterRemoved: false,
     activeFilterTab: 'tournaments',
@@ -1154,6 +1157,15 @@ async function loadEntries() {
     renderEntries();
 }
 
+function switchEntryTab(name) {
+    document.querySelectorAll('[data-entry-tab]').forEach((button) => {
+        button.classList.toggle('active', button.dataset.entryTab === name);
+    });
+    document.querySelectorAll('[data-entry-panel]').forEach((panel) => {
+        panel.hidden = panel.dataset.entryPanel !== name;
+    });
+}
+
 async function openTournamentEntries(tournamentId) {
     const tournament = catalogState.tournaments.find((row) => Number(row.id) === Number(tournamentId));
     if (!tournament) return;
@@ -1163,7 +1175,9 @@ async function openTournamentEntries(tournamentId) {
     renderEntryTournamentCard(tournament);
     showFormError('entryFormError');
     openModal('tournamentEntriesModal');
+    switchEntryTab('entries');
     await loadEntries();
+    await loadGroups();
 }
 
 async function addTournamentEntry() {
@@ -1194,6 +1208,7 @@ async function updateEntryStatus(entryId, status) {
             body: JSON.stringify({ status }),
         });
         await loadEntries();
+        await loadGroups();
     } catch (error) {
         showFormError('entryFormError', error.message);
         await loadEntries();
@@ -1205,6 +1220,171 @@ async function deleteTournamentEntry(entryId) {
     if (!entry || !window.confirm(`Убрать «${entry.team_name}» из турнира?`)) return;
     await apiJson(`/api/tournament-entries/${entryId}`, { method: 'DELETE' });
     await loadEntries();
+}
+
+/* --- Группы турнира: жеребьёвка и ручное распределение --- */
+
+function groupTeamMarkup(entry) {
+    const options = ['<option value="">Без группы</option>'].concat(
+        catalogState.groups
+            .filter((group) => group.age_group === catalogState.groupAge)
+            .map((group) => `<option value="${group.id}" ${Number(entry.group_id) === group.id ? 'selected' : ''}>
+                Группа ${escapeHtml(group.name)}</option>`),
+    );
+    return `
+        <div class="group-team" draggable="true" data-entry="${entry.id}">
+            <span class="catalog-row-icon">
+                ${entry.team_logo_url
+                    ? `<img src="${escapeHtml(entry.team_logo_url)}" alt="">`
+                    : `<span>${escapeHtml(initials(entry.team_name))}</span>`}
+            </span>
+            <span class="group-team-name">${escapeHtml(entry.team_name)}</span>
+            <select class="group-move" data-move-entry="${entry.id}"
+                aria-label="Перенести ${escapeHtml(entry.team_name)}">${options.join('')}</select>
+        </div>`;
+}
+
+function renderGroups() {
+    const board = byId('groupBoard');
+    const age = catalogState.groupAge;
+    const groups = catalogState.groups.filter((group) => group.age_group === age);
+    const entries = catalogState.groupEntries.filter((entry) => entry.age_group === age);
+
+    if (!entries.length) {
+        board.innerHTML = emptyCatalogMarkup(
+            'users-round',
+            'Нет подтверждённых команд',
+            'Сначала подтвердите заявки во вкладке «Участники».',
+        );
+        refreshIcons();
+        return;
+    }
+
+    const unassigned = entries.filter((entry) => !entry.group_id);
+    const columns = groups.map((group) => {
+        const items = entries.filter((entry) => Number(entry.group_id) === group.id);
+        return `
+            <section class="group-column" data-group="${group.id}">
+                <header>
+                    <strong>Группа ${escapeHtml(group.name)}</strong>
+                    <span>${escapeHtml(pluralizeTeams(items.length))}</span>
+                </header>
+                <div class="group-drop" data-group-drop="${group.id}">
+                    ${items.map(groupTeamMarkup).join('') || '<p class="group-empty">Перетащите команду сюда</p>'}
+                </div>
+            </section>`;
+    });
+
+    columns.unshift(`
+        <section class="group-column unassigned" data-group="">
+            <header>
+                <strong>Без группы</strong>
+                <span>${escapeHtml(pluralizeTeams(unassigned.length))}</span>
+            </header>
+            <div class="group-drop" data-group-drop="">
+                ${unassigned.map(groupTeamMarkup).join('') || '<p class="group-empty">Все команды распределены</p>'}
+            </div>
+        </section>`);
+
+    board.innerHTML = columns.join('');
+    refreshIcons();
+}
+
+function renderGroupAgeSelect() {
+    const select = byId('groupAgeSelect');
+    const ages = catalogState.entryAgeGroups;
+    select.innerHTML = ages.map((age) =>
+        `<option value="${escapeHtml(age)}">${escapeHtml(age)}</option>`).join('');
+    if (!ages.includes(catalogState.groupAge)) catalogState.groupAge = ages[0] || '';
+    select.value = catalogState.groupAge;
+
+    const count = catalogState.groups.filter((group) => group.age_group === catalogState.groupAge).length;
+    if (count) byId('groupCount').value = count;
+}
+
+async function loadGroups() {
+    const data = await apiJson(`/api/tournaments/${catalogState.entriesTournamentId}/groups`);
+    catalogState.groups = data.groups || [];
+    catalogState.groupEntries = data.entries || [];
+    catalogState.entryAgeGroups = data.age_groups || catalogState.entryAgeGroups;
+    renderGroupAgeSelect();
+    renderGroups();
+}
+
+async function saveGroups(draw) {
+    const count = Number(byId('groupCount').value);
+    if (!catalogState.groupAge) {
+        showFormError('groupFormError', 'У турнира не задана возрастная категория');
+        return;
+    }
+    try {
+        showFormError('groupFormError');
+        await apiJson(`/api/tournaments/${catalogState.entriesTournamentId}/groups`, {
+            method: 'POST',
+            body: JSON.stringify({ age_group: catalogState.groupAge, count, draw: Boolean(draw) }),
+        });
+        await loadGroups();
+    } catch (error) {
+        showFormError('groupFormError', error.message);
+    }
+}
+
+async function moveEntryToGroup(entryId, groupId) {
+    try {
+        showFormError('groupFormError');
+        await apiJson(`/api/tournament-entries/${entryId}`, {
+            method: 'PUT',
+            body: JSON.stringify({ group_id: groupId ? Number(groupId) : null }),
+        });
+        await loadGroups();
+    } catch (error) {
+        showFormError('groupFormError', error.message);
+        await loadGroups();
+    }
+}
+
+function bindGroupBoard() {
+    const board = byId('groupBoard');
+
+    board.addEventListener('dragstart', (event) => {
+        const team = event.target.closest('[data-entry]');
+        if (!team) return;
+        event.dataTransfer.setData('text/plain', team.dataset.entry);
+        event.dataTransfer.effectAllowed = 'move';
+        team.classList.add('dragging');
+    });
+
+    board.addEventListener('dragend', (event) => {
+        event.target.closest('[data-entry]')?.classList.remove('dragging');
+        board.querySelectorAll('.group-drop.over').forEach((el) => el.classList.remove('over'));
+    });
+
+    board.addEventListener('dragover', (event) => {
+        const drop = event.target.closest('[data-group-drop]');
+        if (!drop) return;
+        // Без preventDefault браузер не считает область приёмником.
+        event.preventDefault();
+        drop.classList.add('over');
+    });
+
+    board.addEventListener('dragleave', (event) => {
+        event.target.closest('[data-group-drop]')?.classList.remove('over');
+    });
+
+    board.addEventListener('drop', (event) => {
+        const drop = event.target.closest('[data-group-drop]');
+        if (!drop) return;
+        event.preventDefault();
+        drop.classList.remove('over');
+        const entryId = event.dataTransfer.getData('text/plain');
+        if (entryId) moveEntryToGroup(entryId, drop.dataset.groupDrop).catch(showPageError);
+    });
+
+    // Список в строке — запасной путь для телефона, где перетаскивание неудобно.
+    board.addEventListener('change', (event) => {
+        const select = event.target.closest('[data-move-entry]');
+        if (select) moveEntryToGroup(select.dataset.moveEntry, select.value).catch(showPageError);
+    });
 }
 
 /* --- Ссылка для тренера: заполнение состава команды --- */
@@ -1611,6 +1791,20 @@ function bindEvents() {
     byId('teamForm').addEventListener('submit', saveTeam);
     byId('memberForm').addEventListener('submit', saveMember);
     byId('stadiumForm').addEventListener('submit', saveStadium);
+    document.querySelectorAll('[data-entry-tab]').forEach((button) => {
+        button.addEventListener('click', () => switchEntryTab(button.dataset.entryTab));
+    });
+    byId('groupAgeSelect').addEventListener('change', (event) => {
+        catalogState.groupAge = event.target.value;
+        renderGroupAgeSelect();
+        renderGroups();
+    });
+    byId('applyGroupsBtn').addEventListener('click', () => saveGroups(false).catch(showPageError));
+    byId('drawGroupsBtn').addEventListener('click', () => {
+        if (!window.confirm('Жеребьёвка заново распределит все команды категории. Продолжить?')) return;
+        saveGroups(true).catch(showPageError);
+    });
+    bindGroupBoard();
     byId('addEntryBtn').addEventListener('click', () => addTournamentEntry().catch(showPageError));
     byId('entriesList').addEventListener('change', (event) => {
         const select = event.target.closest('[data-entry-status]');

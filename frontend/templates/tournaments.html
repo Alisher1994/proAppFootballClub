@@ -8,7 +8,7 @@
     {% include '_pwa_head.html' %}
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/onest/onest.css') }}">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=2026080905">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=2026080907">
 </head>
 <body>
     {% include '_sidebar.html' %}
@@ -331,6 +331,13 @@
             </header>
             <div class="team-details-body">
                 <section class="entry-tournament-card" id="entryTournamentCard"></section>
+
+                <nav class="entry-tabs" id="entryTabs">
+                    <button type="button" class="active" data-entry-tab="entries">Участники</button>
+                    <button type="button" data-entry-tab="groups">Группы</button>
+                </nav>
+
+                <div data-entry-panel="entries">
                 <div class="entry-add-row">
                     <label class="tournament-catalog-field">
                         <span>Команда</span>
@@ -350,6 +357,29 @@
                 <div class="entry-summary" id="entrySummary"></div>
                 <div id="entriesList">
                     <div class="tournament-catalog-empty">Загрузка заявок…</div>
+                </div>
+                </div>
+
+                <div data-entry-panel="groups" hidden>
+                    <div class="group-toolbar">
+                        <label class="tournament-catalog-field">
+                            <span>Категория</span>
+                            <select id="groupAgeSelect"></select>
+                        </label>
+                        <label class="tournament-catalog-field">
+                            <span>Количество групп</span>
+                            <input id="groupCount" type="number" min="1" max="16" step="1" value="2">
+                        </label>
+                        <button class="btn-secondary" type="button" id="applyGroupsBtn">Создать группы</button>
+                        <button class="btn-primary" type="button" id="drawGroupsBtn">
+                            <i data-lucide="shuffle"></i>
+                            Жеребьёвка
+                        </button>
+                    </div>
+                    <div class="tournament-catalog-form-error" id="groupFormError" hidden></div>
+                    <p class="group-hint">Команду можно перетащить мышью между группами или перенести
+                        выпадающим списком в её строке.</p>
+                    <div class="group-board" id="groupBoard"></div>
                 </div>
             </div>
         </div>
@@ -623,6 +653,6 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="{{ url_for('static', filename='js/sidebar.js') }}?v=2026080801"></script>
     <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/tournaments.js') }}?v=2026080906"></script>
+    <script src="{{ url_for('static', filename='js/tournaments.js') }}?v=2026080907"></script>
 </body>
 </html>

@@ -10967,6 +10967,163 @@ main.main-content.tournaments-page .tournament-action-btn.danger:hover {
     line-height: 1.3;
 }
 
+/* Вкладки и доска групп внутри окна турнира */
+.entry-tabs {
+    display: inline-flex;
+    gap: 4px;
+    margin-bottom: 16px;
+    padding: 4px;
+    border: 1px solid #ecebe9;
+    border-radius: 11px;
+    background: #f8f7f6;
+}
+
+.tournament-catalog-modal .entry-tabs button {
+    min-height: 34px !important;
+    padding: 0 16px !important;
+    border: 0 !important;
+    border-radius: 8px !important;
+    background: transparent !important;
+    color: #5f6673 !important;
+    font-size: 13px !important;
+    font-weight: 650 !important;
+}
+
+.tournament-catalog-modal .entry-tabs button.active {
+    background: #fff !important;
+    color: #b45f09 !important;
+    box-shadow: 0 1px 3px rgba(23, 25, 31, .08);
+}
+
+.group-toolbar {
+    display: grid;
+    grid-template-columns: minmax(0, 200px) minmax(0, 170px) auto auto;
+    align-items: end;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+.group-toolbar .btn-primary,
+.group-toolbar .btn-secondary {
+    min-height: 45px !important;
+    white-space: nowrap;
+}
+
+.group-hint {
+    margin: 0 0 14px;
+    color: #969ca6;
+    font-size: 12.5px;
+}
+
+.group-board {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 12px;
+    align-items: start;
+}
+
+.group-column {
+    border: 1px solid #ecebe9;
+    border-radius: 13px;
+    background: #fbfaf9;
+    overflow: hidden;
+}
+
+.group-column.unassigned {
+    background: #fff7ed;
+    border-color: #ffd9b0;
+}
+
+.group-column header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 11px 13px;
+    border-bottom: 1px solid #ecebe9;
+    font-size: 13.5px;
+}
+
+.group-column header span {
+    color: #969ca6;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.group-drop {
+    display: grid;
+    gap: 8px;
+    min-height: 76px;
+    padding: 11px;
+}
+
+.group-drop.over {
+    background: #fff2e0;
+    outline: 2px dashed #ffb066;
+    outline-offset: -6px;
+}
+
+.group-empty {
+    margin: 0;
+    align-self: center;
+    color: #b6b0a9;
+    font-size: 12.5px;
+    text-align: center;
+}
+
+.group-team {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: 9px;
+    padding: 8px 10px;
+    border: 1px solid #e8e6e3;
+    border-radius: 10px;
+    background: #fff;
+    cursor: grab;
+}
+
+.group-team.dragging {
+    opacity: .45;
+}
+
+.group-team-name {
+    font-size: 13.5px;
+    font-weight: 650;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.tournament-catalog-modal select.group-move {
+    grid-column: 1 / -1;
+    width: 100%;
+    min-height: 32px !important;
+    padding: 0 8px;
+    border: 1px solid #e8e6e3;
+    border-radius: 8px;
+    background: #fbfaf9;
+    font: inherit;
+    font-size: 12px;
+    color: #5f6673;
+}
+
+@media (max-width: 760px) {
+    .group-toolbar {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .group-toolbar .btn-primary,
+    .group-toolbar .btn-secondary {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .group-board {
+        grid-template-columns: 1fr;
+    }
+}
+
 /* Шапка окна участников: афиша и данные турнира */
 .entry-tournament-card {
     display: grid;

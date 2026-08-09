@@ -14,6 +14,7 @@ import requests
 import hashlib
 import smtplib
 import secrets
+import random
 import cv2
 import numpy as np
 from datetime import datetime, timedelta, date, timezone
@@ -72,7 +73,7 @@ os.environ['FFMPEG_LOG_LEVEL'] = 'quiet'
 # Форсируем использование CUDA/TensorRT в ONNX
 os.environ['ORT_TENSORRT_FP16_ENABLE'] = '1'
 
-from backend.models.models import db, User, Student, Payment, Attendance, AccessLog, Expense, Group, GroupTrainer, Tariff, ClubSettings, RewardType, StudentReward, CashTransfer, Role, RolePermission, CardType, StudentCard, Tournament, TournamentTeamCatalog, TournamentTeamMember, TournamentStadium, TournamentTeamShareLink, TournamentEntry, DeviceCommand, BridgeStatus
+from backend.models.models import db, User, Student, Payment, Attendance, AccessLog, Expense, Group, GroupTrainer, Tariff, ClubSettings, RewardType, StudentReward, CashTransfer, Role, RolePermission, CardType, StudentCard, Tournament, TournamentTeamCatalog, TournamentTeamMember, TournamentStadium, TournamentTeamShareLink, TournamentEntry, TournamentGroup, DeviceCommand, BridgeStatus
 # Live camera recognition stays disabled; access-log verification is separate.
 USE_FACE = False
 from backend.services.face_stub import DummyFaceService as FaceService
@@ -1486,6 +1487,7 @@ def ensure_tournament_tables():
             'tournament_stadiums',
             'tournament_team_share_links',
             'tournament_entries',
+            'tournament_groups',
         }
         if not required.issubset(set(tables)):
             db.create_all()
@@ -1495,6 +1497,7 @@ def ensure_tournament_tables():
         team_columns = {col['name'] for col in inspector.get_columns('tournament_team_catalog')}
         stadium_columns = {col['name'] for col in inspector.get_columns('tournament_stadiums')}
         member_columns = {col['name'] for col in inspector.get_columns('tournament_team_members')}
+        entry_columns = {col['name'] for col in inspector.get_columns('tournament_entries')}
         team_column_definitions = {
             'trainer_name': 'VARCHAR(200)',
             'trainer_photo_path': 'VARCHAR(300)',
@@ -1527,6 +1530,8 @@ def ensure_tournament_tables():
                 pending.append(('tournament_stadiums', column_name, column_type))
         if 'position' not in member_columns:
             pending.append(('tournament_team_members', 'position', 'VARCHAR(50)'))
+        if 'group_id' not in entry_columns:
+            pending.append(('tournament_entries', 'group_id', 'INTEGER'))
 
         # Каждый ALTER в своей транзакции: в PostgreSQL одна неудачная команда
         # обрывает всю транзакцию, и следом молча теряются все остальные колонки.
@@ -4984,6 +4989,7 @@ def serialize_tournament_entry(entry):
         'age_group': entry.age_group,
         'status': entry.status,
         'status_label': ENTRY_STATUSES.get(entry.status, entry.status),
+        'group_id': entry.group_id,
         'note': entry.note,
         'member_count': members,
         'created_at': entry.created_at.isoformat() if entry.created_at else None,
@@ -5062,14 +5068,148 @@ def tournament_entry_detail_api(entry_id):
         return jsonify({'success': True})
 
     data = request.get_json() or {}
+
+    if 'group_id' in data:
+        group_id = data.get('group_id')
+        if group_id in (None, '', 0):
+            entry.group_id = None
+        else:
+            group = db.session.get(TournamentGroup, int(group_id))
+            # Группа должна быть из этого турнира и этой же категории.
+            if (not group or group.tournament_id != entry.tournament_id
+                    or group.age_group != entry.age_group):
+                return jsonify({'success': False, 'message': 'Группа не подходит этой заявке'}), 400
+            entry.group_id = group.id
+        if 'status' not in data:
+            db.session.commit()
+            return jsonify({'success': True, 'entry': serialize_tournament_entry(entry)})
+
     status = data.get('status')
     if status not in ENTRY_STATUSES:
         return jsonify({'success': False, 'message': 'Неизвестный статус заявки'}), 400
     entry.status = status
+    # Отказавшаяся команда не может оставаться в группе.
+    if status != TournamentEntry.STATUS_CONFIRMED:
+        entry.group_id = None
     if 'note' in data:
         entry.note = (data.get('note') or '').strip() or None
     db.session.commit()
     return jsonify({'success': True, 'entry': serialize_tournament_entry(entry)})
+
+
+# ===== ГРУППЫ ТУРНИРА =====
+
+GROUP_NAMES = 'ABCDEFGHIJKLMNOP'
+
+
+def serialize_tournament_group(group):
+    return {
+        'id': group.id,
+        'name': group.name,
+        'age_group': group.age_group,
+        'sort_order': group.sort_order,
+    }
+
+
+def ensure_tournament_groups(tournament_id, age_group, count):
+    """Доводит число групп категории до нужного: лишние пустые убираем."""
+    count = max(0, min(int(count), len(GROUP_NAMES)))
+    groups = TournamentGroup.query.filter_by(
+        tournament_id=tournament_id, age_group=age_group,
+    ).order_by(TournamentGroup.sort_order.asc()).all()
+
+    for index in range(len(groups), count):
+        groups.append(TournamentGroup(
+            tournament_id=tournament_id,
+            age_group=age_group,
+            name=GROUP_NAMES[index],
+            sort_order=index,
+        ))
+        db.session.add(groups[-1])
+
+    for extra in groups[count:]:
+        # Команды из удаляемой группы возвращаются в «без группы», а не пропадают.
+        TournamentEntry.query.filter_by(group_id=extra.id).update({'group_id': None})
+        db.session.delete(extra)
+
+    db.session.flush()
+    return groups[:count]
+
+
+@app.route('/api/tournaments/<int:tournament_id>/groups', methods=['GET', 'POST'])
+@login_required
+def tournament_groups_api(tournament_id):
+    ensure_tournament_tables()
+    tournament = Tournament.query.filter_by(id=tournament_id).first_or_404()
+
+    if request.method == 'GET':
+        if not has_tournament_permission('view'):
+            return jsonify({'success': False, 'message': 'Нет доступа'}), 403
+        groups = TournamentGroup.query.filter_by(tournament_id=tournament_id).order_by(
+            TournamentGroup.age_group.asc(), TournamentGroup.sort_order.asc(),
+        ).all()
+        entries = TournamentEntry.query.filter_by(
+            tournament_id=tournament_id, status=TournamentEntry.STATUS_CONFIRMED,
+        ).all()
+        entries.sort(key=lambda item: (item.team.name if item.team else ''))
+        return jsonify({
+            'success': True,
+            'age_groups': tournament_age_group_labels(tournament),
+            'groups': [serialize_tournament_group(group) for group in groups],
+            'entries': [serialize_tournament_entry(entry) for entry in entries],
+        })
+
+    if not has_tournament_permission('edit'):
+        return jsonify({'success': False, 'message': 'Нет доступа'}), 403
+
+    data = request.get_json() or {}
+    age_group = (data.get('age_group') or '').strip()
+    allowed = tournament_age_group_labels(tournament)
+    if allowed and age_group not in allowed:
+        return jsonify({'success': False, 'message': 'Выберите возрастную категорию турнира'}), 400
+    try:
+        count = int(data.get('count'))
+    except (TypeError, ValueError):
+        return jsonify({'success': False, 'message': 'Укажите количество групп'}), 400
+    if count < 1 or count > len(GROUP_NAMES):
+        return jsonify({'success': False, 'message': f'Групп может быть от 1 до {len(GROUP_NAMES)}'}), 400
+
+    groups = ensure_tournament_groups(tournament_id, age_group, count)
+
+    if data.get('draw'):
+        entries = TournamentEntry.query.filter_by(
+            tournament_id=tournament_id,
+            age_group=age_group,
+            status=TournamentEntry.STATUS_CONFIRMED,
+        ).all()
+        if not entries:
+            db.session.rollback()
+            return jsonify({
+                'success': False,
+                'message': 'В этой категории нет подтверждённых команд',
+            }), 400
+        # Змейкой по группам, порядок случайный — так составы получаются ровными.
+        random.shuffle(entries)
+        for index, entry in enumerate(entries):
+            entry.group_id = groups[index % len(groups)].id
+
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@app.route('/api/tournament-groups/<int:group_id>', methods=['DELETE'])
+@login_required
+def tournament_group_detail_api(group_id):
+    ensure_tournament_tables()
+    if not has_tournament_permission('edit'):
+        return jsonify({'success': False, 'message': 'Нет доступа'}), 403
+    group = db.session.get(TournamentGroup, group_id)
+    if not group:
+        return jsonify({'success': False, 'message': 'Группа не найдена'}), 404
+    TournamentEntry.query.filter_by(group_id=group.id).update({'group_id': None})
+    db.session.delete(group)
+    db.session.commit()
+    return jsonify({'success': True})
 
 
 # ===== ПУБЛИЧНАЯ АФИША ТУРНИРОВ =====
