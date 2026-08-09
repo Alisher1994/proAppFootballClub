@@ -8,7 +8,7 @@
     {% include '_pwa_head.html' %}
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/onest/onest.css') }}">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=2026080806">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=2026080901">
 </head>
 <body>
     {% include '_sidebar.html' %}
@@ -227,6 +227,13 @@
                     <input id="tournamentAgeGroups" type="hidden">
                     <small>Выберите годы из списка (с 1980 по текущий) или добавьте свою группу.</small>
                 </div>
+                <label class="tournament-publish-toggle full">
+                    <input id="tournamentPublished" type="checkbox" checked>
+                    <span>
+                        <strong>Показывать на сайте</strong>
+                        <small>Турнир появится в афише на странице входа. Снимите галочку, пока турнир черновик.</small>
+                    </span>
+                </label>
                 <div class="tournament-catalog-form-error" id="tournamentFormError" hidden></div>
                 <footer class="tournament-catalog-form-actions full">
                     <button class="btn-secondary" type="button" data-close-modal="tournamentModal">Отмена</button>
@@ -567,6 +574,6 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="{{ url_for('static', filename='js/sidebar.js') }}?v=2026080801"></script>
     <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/tournaments.js') }}?v=2026080806"></script>
+    <script src="{{ url_for('static', filename='js/tournaments.js') }}?v=2026080901"></script>
 </body>
 </html>

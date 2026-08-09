@@ -564,6 +564,7 @@ function resetTournamentForm() {
     byId('tournamentForm').reset();
     byId('tournamentModalTitle').textContent = 'Новый турнир';
     catalogState.tournamentLocation = '';
+    byId('tournamentPublished').checked = true;
     renderStadiumOptions('');
     renderAgeGroupYearOptions();
     setAgeGroups([]);
@@ -580,6 +581,7 @@ function openTournamentEditor(id) {
     byId('tournamentStartDate').value = item.start_date || '';
     byId('tournamentStartTime').value = item.start_time || '';
     byId('tournamentEndDate').value = item.end_date || '';
+    byId('tournamentPublished').checked = item.is_published !== false;
     renderStadiumOptions(item.location || '');
     renderAgeGroupYearOptions();
     setAgeGroups(item.age_groups || []);
@@ -607,6 +609,7 @@ async function saveTournament(event) {
                 end_date: byId('tournamentEndDate').value,
                 location: byId('tournamentLocation').value,
                 age_groups: byId('tournamentAgeGroups').value,
+                is_published: byId('tournamentPublished').checked,
             }),
         });
         closeModal('tournamentModal');
@@ -1090,8 +1093,14 @@ async function runStadiumImport() {
             body: JSON.stringify({ area: byId('stadiumImportArea').value }),
         });
         byId('stadiumImportResult').hidden = false;
-        byId('stadiumImportStatus').textContent = data.added
-            ? `${data.area}: добавлено ${data.added}, пропущено как дубли ${data.skipped}`
+        const parts = [];
+        if (data.added) parts.push(`добавлено ${data.added}`);
+        if (data.with_photo || data.enriched) {
+            parts.push(`фото у ${(data.with_photo || 0) + (data.enriched || 0)}`);
+        }
+        if (data.skipped) parts.push(`пропущено как дубли ${data.skipped}`);
+        byId('stadiumImportStatus').textContent = parts.length
+            ? `${data.area}: ${parts.join(', ')}`
             : `${data.area}: новых стадионов не нашлось (проверено ${data.found})`;
         await loadStadiums();
     } catch (error) {

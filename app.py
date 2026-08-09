@@ -1512,6 +1512,11 @@ def ensure_tournament_tables():
                 conn.execute(db.text("ALTER TABLE tournaments ADD COLUMN start_time TIME"))
             if 'age_groups' not in tournament_columns:
                 conn.execute(db.text("ALTER TABLE tournaments ADD COLUMN age_groups TEXT"))
+            if 'is_published' not in tournament_columns:
+                # Уже существующие турниры показываем на сайте, чтобы афиша не была пустой.
+                conn.execute(db.text(
+                    "ALTER TABLE tournaments ADD COLUMN is_published BOOLEAN NOT NULL DEFAULT 1"
+                ))
             for column_name, column_type in team_column_definitions.items():
                 if column_name not in team_columns:
                     conn.execute(db.text(
@@ -2469,6 +2474,12 @@ def get_tournament_media_url(media_path):
     if not media_path:
         return None
     filename = media_path.replace('\\', '/').split('/')[-1]
+    # Если файл потерялся (перенос, ручная чистка), лучше отдать пустоту и показать
+    # заглушку, чем ссылку на битую картинку. Отсутствующую папку не проверяем,
+    # чтобы при нестандартном размещении не спрятать разом все фото.
+    folder = app.config['UPLOAD_FOLDER']
+    if os.path.isdir(folder) and not os.path.exists(os.path.join(folder, filename)):
+        return None
     return url_for('static', filename=f'uploads/{filename}')
 
 
@@ -2508,6 +2519,8 @@ SERVICE_LOCK_BYPASS_PATH_PREFIXES = (
     '/favicon.ico',
     '/manifest.webmanifest',
     '/sw.js',
+    '/tournaments-afisha',
+    '/api/public/tournaments',
     '/api/service-control/state',
     '/api/telegram/service-control/status',
     '/api/telegram/service-control/toggle',
@@ -4526,6 +4539,7 @@ def serialize_tournament(tournament):
         'start_time': tournament.start_time.strftime('%H:%M') if tournament.start_time else None,
         'end_date': tournament.end_date.isoformat() if tournament.end_date else None,
         'age_groups': age_groups,
+        'is_published': bool(tournament.is_published),
         'created_at': tournament.created_at.isoformat() if tournament.created_at else None,
     }
     return payload
@@ -4656,6 +4670,7 @@ def tournaments_api():
     start_time = parse_time_value(data.get('start_time'))
     end_date = parse_date_value(data.get('end_date'))
     age_groups = normalize_age_groups(data.get('age_groups'))
+    is_published = bool(data.get('is_published', True))
     if not all([name, location, start_date, start_time, end_date]) or not age_groups:
         return jsonify({'success': False, 'message': 'Заполните все поля турнира'}), 400
     if end_date < start_date:
@@ -4667,6 +4682,7 @@ def tournaments_api():
         start_time=start_time,
         end_date=end_date,
         age_groups=json.dumps(age_groups, ensure_ascii=False),
+        is_published=is_published,
         created_by=current_user.id,
     )
     db.session.add(tournament)
@@ -4700,6 +4716,7 @@ def tournament_detail_api(tournament_id):
     start_time = parse_time_value(data.get('start_time'))
     end_date = parse_date_value(data.get('end_date'))
     age_groups = normalize_age_groups(data.get('age_groups'))
+    is_published = bool(data.get('is_published', True))
     if not all([name, location, start_date, start_time, end_date]) or not age_groups:
         return jsonify({'success': False, 'message': 'Заполните все поля турнира'}), 400
     if end_date < start_date:
@@ -4710,6 +4727,7 @@ def tournament_detail_api(tournament_id):
     tournament.start_time = start_time
     tournament.end_date = end_date
     tournament.age_groups = json.dumps(age_groups, ensure_ascii=False)
+    tournament.is_published = is_published
     db.session.commit()
     return jsonify({'success': True, 'tournament': serialize_tournament(tournament)})
 
@@ -4888,6 +4906,63 @@ def tournament_team_member_detail_api(member_id):
             return jsonify({'success': False, 'message': str(exc)}), 400
     db.session.commit()
     return jsonify({'success': True, 'member': serialize_tournament_team_member(member)})
+
+
+# ===== ПУБЛИЧНАЯ АФИША ТУРНИРОВ =====
+
+def public_tournament_payload(tournament, stadium_by_name):
+    """Карточка для афиши: только турнир и площадка, без персональных данных."""
+    try:
+        age_groups = json.loads(tournament.age_groups or '[]')
+    except Exception:
+        age_groups = normalize_age_groups(tournament.age_groups)
+
+    stadium = stadium_by_name.get((tournament.location or '').strip().lower())
+    return {
+        'id': tournament.id,
+        'name': tournament.name,
+        'location': tournament.location,
+        'start_date': tournament.start_date.isoformat() if tournament.start_date else None,
+        'start_time': tournament.start_time.strftime('%H:%M') if tournament.start_time else None,
+        'end_date': tournament.end_date.isoformat() if tournament.end_date else None,
+        'age_groups': age_groups,
+        'stadium': {
+            'photo_url': get_tournament_media_url(stadium.photo_path),
+            'photo_source': stadium.photo_source,
+            'latitude': stadium.latitude,
+            'longitude': stadium.longitude,
+        } if stadium else None,
+    }
+
+
+@app.route('/tournaments-afisha')
+def public_tournaments_page():
+    return render_template('public_tournaments.html')
+
+
+@app.route('/api/public/tournaments')
+def public_tournaments_api():
+    ensure_tournament_tables()
+    tournaments = Tournament.query.filter(
+        Tournament.is_published.is_(True),
+        Tournament.start_date.isnot(None),
+    ).order_by(Tournament.start_date.desc()).all()
+
+    stadium_by_name = {
+        (item.name or '').strip().lower(): item
+        for item in TournamentStadium.query.all()
+    }
+
+    today = get_local_datetime().date()
+    upcoming, past = [], []
+    for tournament in tournaments:
+        # Турнир считается идущим до конца последнего дня.
+        finish = tournament.end_date or tournament.start_date
+        payload = public_tournament_payload(tournament, stadium_by_name)
+        (upcoming if finish >= today else past).append(payload)
+
+    upcoming.sort(key=lambda item: item['start_date'])
+    return jsonify({'success': True, 'upcoming': upcoming, 'past': past})
 
 
 # ===== ССЫЛКА ДЛЯ ЗАПОЛНЕНИЯ СОСТАВА ТРЕНЕРОМ =====
@@ -5421,47 +5496,56 @@ def tournament_stadiums_import_osm():
     photo_files = fetch_wikidata_images([venue.get('wikidata') for venue in venues])
 
     existing = TournamentStadium.query.all()
-    existing_keys = {stadium_import_key(item.name) for item in existing}
-    existing_points = [(item.latitude, item.longitude) for item in existing
-                       if item.latitude is not None and item.longitude is not None]
+    by_key = {stadium_import_key(item.name): item for item in existing if item.name}
+    with_point = [item for item in existing
+                  if item.latitude is not None and item.longitude is not None]
 
     venues.sort(key=lambda item: 0 if photo_files.get(item.get('wikidata')) else 1)
+
+    def attach_photo(stadium, file_name):
+        """Скачивает снимок из Commons и прикрепляет к стадиону."""
+        time.sleep(0.6)
+        photo_path = download_commons_photo(file_name)
+        if not photo_path:
+            return False
+        stadium.photo_path = photo_path
+        stadium.photo_source = fetch_commons_credit(file_name)
+        return True
 
     added = 0
     skipped = 0
     with_photo = 0
+    enriched = 0
     for venue in venues:
         key = stadium_import_key(venue['name'])
-        if key and key in existing_keys:
-            skipped += 1
-            continue
-        if any(stadiums_are_close(venue['latitude'], venue['longitude'], lat, lon)
-               for lat, lon in existing_points):
-            skipped += 1
-            continue
-        photo_path = None
-        photo_source = None
+        match = by_key.get(key) if key else None
+        if match is None:
+            match = next((item for item in with_point
+                          if stadiums_are_close(venue['latitude'], venue['longitude'],
+                                                item.latitude, item.longitude)), None)
+
         file_name = photo_files.get(venue.get('wikidata'))
-        if file_name:
-            time.sleep(0.6)
-            photo_path = download_commons_photo(file_name)
-            if photo_path:
-                photo_source = fetch_commons_credit(file_name)
-        db.session.add(TournamentStadium(
+        if match is not None:
+            # Стадион уже заведён: не дублируем, но дозаполняем фото, если его нет.
+            skipped += 1
+            if file_name and not get_tournament_media_url(match.photo_path)                     and attach_photo(match, file_name):
+                enriched += 1
+            continue
+
+        stadium = TournamentStadium(
             name=venue['name'],
             latitude=venue['latitude'],
             longitude=venue['longitude'],
-            photo_path=photo_path,
-            photo_source=photo_source,
             created_by=current_user.id,
-        ))
-        if photo_path:
+        )
+        if file_name and attach_photo(stadium, file_name):
             with_photo += 1
-        existing_keys.add(key)
-        existing_points.append((venue['latitude'], venue['longitude']))
+        db.session.add(stadium)
+        by_key[key] = stadium
+        with_point.append(stadium)
         added += 1
 
-    if added:
+    if added or enriched:
         db.session.commit()
     return jsonify({
         'success': True,
@@ -5470,6 +5554,7 @@ def tournament_stadiums_import_osm():
         'added': added,
         'skipped': skipped,
         'with_photo': with_photo,
+        'enriched': enriched,
     })
 
 

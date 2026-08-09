@@ -695,6 +695,7 @@ class Tournament(db.Model):
     start_time = db.Column(db.Time, nullable=True)
     end_date = db.Column(db.Date, nullable=True)
     age_groups = db.Column(db.Text, nullable=True)
+    is_published = db.Column(db.Boolean, nullable=False, default=True)
     created_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
     created_at = db.Column(db.DateTime, default=get_local_datetime)
     updated_at = db.Column(db.DateTime, default=get_local_datetime, onupdate=get_local_datetime)
