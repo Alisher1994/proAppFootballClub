@@ -1960,7 +1960,7 @@ async function savePlayoffMatch(row) {
 /* --- Протокол матча: составы, голы, карточки --- */
 
 const POSITION_SHORT = {
-    'Вратарь': 'ВР', 'Защитник': 'ЗЩ', 'Полузащитник': 'ПЗ', 'Нападающий': 'НП',
+    'Вратарь': 'вр.', 'Защитник': 'зщ.', 'Полузащитник': 'пз.', 'Нападающий': 'нап.',
 };
 
 function protocolSquadMarkup(side, block) {
@@ -1980,6 +1980,8 @@ function protocolSquadMarkup(side, block) {
                     return `
                     <label class="protocol-player${row ? ' on' : ''}" data-member="${player.id}">
                         <input type="checkbox" data-play ${row ? 'checked' : ''}>
+                        <span class="protocol-face"${player.photo_url
+                            ? ` style="background-image:url('${escapeHtml(player.photo_url)}')"` : ''}></span>
                         <span class="protocol-num">${escapeHtml(player.number || '')}</span>
                         <span class="protocol-name">${escapeHtml(player.name)}</span>
                         <span class="protocol-pos">${escapeHtml(
@@ -2014,6 +2016,7 @@ function eventRowMarkup(event, index) {
 
     return `
         <div class="protocol-event" data-index="${index}">
+            <span class="protocol-kind ${event.kind}">${event.kind === 'goal' ? 'Гол' : 'Карточка'}</span>
             <select data-field="side" aria-label="Команда">
                 <option value="home" ${event.side === 'home' ? 'selected' : ''}>${escapeHtml(sideName('home'))}</option>
                 <option value="away" ${event.side === 'away' ? 'selected' : ''}>${escapeHtml(sideName('away'))}</option>

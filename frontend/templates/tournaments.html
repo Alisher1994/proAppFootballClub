@@ -8,7 +8,7 @@
     {% include '_pwa_head.html' %}
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/onest/onest.css') }}">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=2026081007">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=2026081009">
 </head>
 <body>
     {% include '_sidebar.html' %}
@@ -466,14 +466,15 @@
         <div class="modal-content tournament-protocol-content">
             <header class="tournament-catalog-modal-header">
                 <div>
+                    <span class="tournament-catalog-eyebrow">Протокол матча</span>
                     <h2 id="protocolTitle">Протокол матча</h2>
-                    <p class="tournament-catalog-modal-sub" id="protocolScore"></p>
+                    <p class="protocol-score" id="protocolScore"></p>
                 </div>
-                <button class="modal-close" type="button" data-close-protocol aria-label="Закрыть">
+                <button class="icon-button" type="button" data-close-protocol aria-label="Закрыть">
                     <i data-lucide="x"></i>
                 </button>
             </header>
-            <div class="tournament-catalog-modal-body">
+            <div class="team-details-body">
                 <div class="tournament-catalog-form-error" id="protocolError" hidden></div>
                 <div class="protocol-grid" id="protocolGrid"></div>
                 <div class="protocol-events">
@@ -491,10 +492,10 @@
                         </button>
                     </div>
                 </div>
+                <div class="protocol-footer">
+                    <button class="btn-primary" type="button" id="saveProtocolBtn">Сохранить протокол</button>
+                </div>
             </div>
-            <footer class="tournament-catalog-modal-footer">
-                <button class="btn-primary" type="button" id="saveProtocolBtn">Сохранить протокол</button>
-            </footer>
         </div>
     </div>
 
@@ -837,6 +838,6 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="{{ url_for('static', filename='js/sidebar.js') }}?v=2026080801"></script>
     <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/tournaments.js') }}?v=2026081007"></script>
+    <script src="{{ url_for('static', filename='js/tournaments.js') }}?v=2026081009"></script>
 </body>
 </html>
