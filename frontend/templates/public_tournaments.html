@@ -403,6 +403,129 @@
             object-fit: cover;
         }
 
+        .cat-switch,
+        .sheet-tabs,
+        .view-switch {
+            display: inline-flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            padding: 4px;
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            background: #f8f7f6;
+        }
+
+        .cat-switch { margin-bottom: 10px; }
+
+        .sheet-tabs { margin-bottom: 16px; }
+
+        .view-switch { margin-bottom: 14px; }
+
+        .cat-switch button,
+        .sheet-tabs button,
+        .view-switch button {
+            min-height: 34px;
+            padding: 0 14px;
+            border: 0;
+            border-radius: 9px;
+            background: transparent;
+            color: #5f6673;
+            font: inherit;
+            font-size: 13px;
+            font-weight: 650;
+            cursor: pointer;
+        }
+
+        .cat-switch button.active,
+        .sheet-tabs button.active,
+        .view-switch button.active {
+            background: #fff;
+            color: #b45f09;
+            box-shadow: 0 1px 3px rgba(23, 25, 31, .08);
+        }
+
+        /* Сетка плей-офф: колонки по стадиям */
+        .bk-scroll {
+            overflow-x: auto;
+            padding-bottom: 6px;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(23, 25, 31, .16) transparent;
+        }
+
+        .bk {
+            display: flex;
+            gap: 26px;
+            min-width: min-content;
+        }
+
+        .bk-col {
+            display: flex;
+            flex-direction: column;
+            flex: 0 0 210px;
+        }
+
+        .bk-col-body {
+            display: flex;
+            flex: 1 1 auto;
+            flex-direction: column;
+            justify-content: space-around;
+            gap: 10px;
+        }
+
+        .bk-round {
+            margin: 0 0 10px;
+            color: #b45f09;
+            font-size: 12px;
+            font-weight: 750;
+            text-align: center;
+        }
+
+        .bk-card {
+            position: relative;
+            display: grid;
+            gap: 2px;
+            padding: 8px 10px;
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            background: #fff;
+        }
+
+        .bk-col:not(:last-child) .bk-card::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 100%;
+            width: 26px;
+            border-top: 1px solid var(--line);
+        }
+
+        .bk-side {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .bk-side.idle .bk-name { color: #6b7280; }
+
+        .bk-side.win { color: #0f7a4a; font-weight: 750; }
+
+        .bk-name {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .bk-score {
+            flex: 0 0 auto;
+            color: #444a54;
+            font-weight: 750;
+        }
+
+        .bk-bronze { margin-top: 18px; }
+
         .results {
             margin-bottom: 14px;
             padding: 12px 14px;
@@ -632,7 +755,14 @@
     </div>
 
     <script>
-        const state = { tab: 'upcoming', data: { upcoming: [], past: [] } };
+        const state = {
+            tab: 'upcoming',
+            data: { upcoming: [], past: [] },
+            sheet: null,
+            category: 0,
+            sheetTab: 'results',
+            bracket: true,
+        };
         const byId = (id) => document.getElementById(id);
 
         function escapeHtml(value) {
@@ -820,6 +950,120 @@
                 </div>`).join('');
         }
 
+        function bracketMarkup(matches) {
+            const bronze = matches.filter((m) => m.label === 'За 3 место');
+            const main = matches.filter((m) => m.label !== 'За 3 место');
+            const rounds = new Map();
+            main.forEach((m) => {
+                if (!rounds.has(m.round_no)) rounds.set(m.round_no, { label: m.label, items: [] });
+                rounds.get(m.round_no).items.push(m);
+            });
+
+            const card = (match) => {
+                const line = (name, score, isWinner) => `
+                    <span class="bk-side${isWinner ? ' win' : ''}${match.is_played ? '' : ' idle'}">
+                        <span class="bk-name">${escapeHtml(name)}</span>
+                        <span class="bk-score">${score === null ? '–' : score}</span>
+                    </span>`;
+                const homeWin = match.is_played && match.home_score > match.away_score;
+                const awayWin = match.is_played && match.away_score > match.home_score;
+                return `<div class="bk-card">
+                    ${line(match.home, match.home_score, homeWin)}
+                    ${line(match.away, match.away_score, awayWin)}
+                </div>`;
+            };
+
+            const columns = [...rounds.entries()]
+                .sort((a, bb) => a[0] - bb[0])
+                .map(([, round]) => `
+                    <div class="bk-col">
+                        <p class="bk-round">${escapeHtml(round.label || '')}</p>
+                        <div class="bk-col-body">${round.items.map(card).join('')}</div>
+                    </div>`).join('');
+
+            return `
+                <div class="bk-scroll"><div class="bk">${columns}</div></div>
+                ${bronze.length ? `
+                    <div class="bk-bronze">
+                        <p class="grp-title">За 3 место</p>
+                        ${bronze.map(card).join('')}
+                    </div>` : ''}`;
+        }
+
+        function playoffPane(category) {
+            const matches = category.playoff || [];
+            if (!matches.length) {
+                return '<p class="lead" style="margin:0">Плей-офф ещё не сформирован.</p>';
+            }
+            return `
+                <div class="view-switch">
+                    <button type="button" class="${state.bracket ? 'active' : ''}" data-view="bracket">Сетка</button>
+                    <button type="button" class="${state.bracket ? '' : 'active'}" data-view="list">Список</button>
+                </div>
+                ${state.bracket ? bracketMarkup(matches) : playoffMarkup(matches)}`;
+        }
+
+        function tablesPane(category) {
+            if (!category.groups.length) {
+                return `<div class="sheet-team-list">
+                    ${category.teams.map((team) => `
+                        <div class="sheet-team">
+                            <span class="logo">${team.logo_url
+                                ? `<img src="${escapeHtml(team.logo_url)}" alt="">`
+                                : escapeHtml((team.name || '?').slice(0, 2).toUpperCase())}</span>
+                            <span>${escapeHtml(team.name)}</span>
+                        </div>`).join('')}
+                </div>`;
+            }
+            return category.groups.map((group) => `
+                <div class="grp-block">
+                    <p class="grp-title">Группа ${escapeHtml(group.name)}</p>
+                    ${group.standings.length ? standingsMarkup(group.standings) : ''}
+                    ${group.matches.length
+                        ? `<div class="fixtures">${group.matches.map(fixtureMarkup).join('')}</div>`
+                        : ''}
+                </div>`).join('');
+        }
+
+        function sheetBodyMarkup() {
+            const item = state.sheet;
+            const categories = item.categories || [];
+            if (!categories.length) {
+                return '<p class="lead" style="margin:0">Список участников ещё формируется.</p>';
+            }
+            const category = categories[Math.min(state.category, categories.length - 1)];
+            const panes = {
+                results: (category.results || []).length
+                    ? resultsMarkup(category.results)
+                    : '<p class="lead" style="margin:0">Итоги появятся после финала.</p>',
+                tables: tablesPane(category),
+                playoff: playoffPane(category),
+            };
+            const tabs = [
+                ['results', 'Итоги'],
+                ['tables', 'Таблицы'],
+                ['playoff', 'Плей-офф'],
+            ];
+            return `
+                ${categories.length > 1 ? `
+                    <div class="cat-switch">
+                        ${categories.map((c, index) => `
+                            <button type="button" class="${index === state.category ? 'active' : ''}"
+                                data-category="${index}">${escapeHtml(c.age_group)}</button>`).join('')}
+                    </div>` : ''}
+                <div class="sheet-tabs">
+                    ${tabs.map(([key, title]) => `
+                        <button type="button" class="${state.sheetTab === key ? 'active' : ''}"
+                            data-sheet-tab="${key}">${title}</button>`).join('')}
+                </div>
+                <div class="sheet-pane">${panes[state.sheetTab]}</div>`;
+        }
+
+        function renderSheetBody() {
+            const box = byId('sheetBody');
+            if (box) box.innerHTML = sheetBodyMarkup();
+        }
+
         function categoriesMarkup(categories) {
             if (!categories.length) {
                 return '<h3>Участники</h3><p class="lead" style="margin:0">Список участников ещё формируется.</p>';
@@ -870,7 +1114,10 @@
                         ? `<a class="map-link" target="_blank" rel="noopener"
                              href="https://www.openstreetmap.org/?mlat=${item.stadium.latitude}&mlon=${item.stadium.longitude}#map=17/${item.stadium.latitude}/${item.stadium.longitude}">Открыть на карте</a>`
                         : '';
-                    const teams = categoriesMarkup(item.categories || []);
+                    state.sheet = item;
+                    state.category = 0;
+                    state.sheetTab = (item.categories || []).some((c) => (c.results || []).length)
+                        ? 'results' : 'tables';
 
                     byId('sheetContent').innerHTML = `
                         ${image
@@ -884,12 +1131,11 @@
                                     `<span class="age">${escapeHtml(age)}</span>`).join('')}</div>`
                                 : ''}
                             ${mapLink}
-                            <div class="sheet-teams">
-                                ${teams}
-                            </div>
+                            <div class="sheet-teams" id="sheetBody"></div>
                             ${!item.poster_url && item.stadium && item.stadium.photo_source
                                 ? `<div class="credit">Фото: ${escapeHtml(item.stadium.photo_source)}</div>` : ''}
                         </div>`;
+                    renderSheetBody();
                 })
                 .catch((error) => {
                     byId('sheetContent').innerHTML =
@@ -903,7 +1149,27 @@
         }
 
         document.addEventListener('click', (event) => {
-            if (event.target.closest('[data-close-sheet]')) closeSheet();
+            if (event.target.closest('[data-close-sheet]')) {
+                closeSheet();
+                return;
+            }
+            const tab = event.target.closest('[data-sheet-tab]');
+            if (tab) {
+                state.sheetTab = tab.dataset.sheetTab;
+                renderSheetBody();
+                return;
+            }
+            const category = event.target.closest('[data-category]');
+            if (category) {
+                state.category = Number(category.dataset.category);
+                renderSheetBody();
+                return;
+            }
+            const view = event.target.closest('[data-view]');
+            if (view) {
+                state.bracket = view.dataset.view === 'bracket';
+                renderSheetBody();
+            }
         });
 
         document.addEventListener('keydown', (event) => {
