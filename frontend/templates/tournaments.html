@@ -8,7 +8,7 @@
     {% include '_pwa_head.html' %}
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/onest/onest.css') }}">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=2026080908">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=2026080909">
 </head>
 <body>
     {% include '_sidebar.html' %}
@@ -339,12 +339,13 @@
 
                 <div data-entry-panel="entries">
                 <div class="entry-add-row">
-                    <label class="tournament-catalog-field">
+                    <div class="tournament-catalog-field team-picker" id="entryTeamPicker">
                         <span>Команда</span>
-                        <input id="entryTeamInput" list="entryTeamOptions" autocomplete="off"
+                        <input id="entryTeamInput" type="text" autocomplete="off" role="combobox"
+                            aria-expanded="false" aria-controls="entryTeamList" aria-autocomplete="list"
                             placeholder="Начните вводить название">
-                        <datalist id="entryTeamOptions"></datalist>
-                    </label>
+                        <div class="team-picker-list" id="entryTeamList" role="listbox" hidden></div>
+                    </div>
                     <label class="tournament-catalog-field">
                         <span>Возрастная категория</span>
                         <select id="entryAgeSelect"><option value="">Выберите категорию</option></select>
@@ -654,6 +655,6 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="{{ url_for('static', filename='js/sidebar.js') }}?v=2026080801"></script>
     <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/tournaments.js') }}?v=2026080908"></script>
+    <script src="{{ url_for('static', filename='js/tournaments.js') }}?v=2026080909"></script>
 </body>
 </html>

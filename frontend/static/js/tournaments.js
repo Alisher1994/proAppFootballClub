@@ -21,6 +21,8 @@ const catalogState = {
     entriesTournamentId: null,
     entries: [],
     entryAgeGroups: [],
+    entryTeamId: null,
+    entryTeamHighlight: -1,
     groups: [],
     groupEntries: [],
     groupAge: '',
@@ -1073,11 +1075,65 @@ function renderEntryRing() {
         </svg>`;
 }
 
+function filteredPickerTeams() {
+    const query = byId('entryTeamInput').value.trim().toLowerCase();
+    if (!query) return catalogState.teams;
+    return catalogState.teams.filter((team) => (team.name || '').toLowerCase().includes(query));
+}
+
+function renderTeamPickerList() {
+    const list = byId('entryTeamList');
+    const teams = filteredPickerTeams();
+    if (!teams.length) {
+        list.innerHTML = '<p class="team-picker-empty">Команда не найдена</p>';
+        return;
+    }
+    list.innerHTML = teams.map((team, index) => `
+        <button class="team-picker-option${index === catalogState.entryTeamHighlight ? ' active' : ''}"
+            type="button" role="option" aria-selected="${team.id === catalogState.entryTeamId}"
+            data-pick-team="${team.id}">
+            <span class="catalog-row-icon">
+                ${team.logo_url
+                    ? `<img src="${escapeHtml(team.logo_url)}" alt="">`
+                    : `<span>${escapeHtml(initials(team.name))}</span>`}
+            </span>
+            <span class="team-picker-name">${escapeHtml(team.name)}</span>
+            <small>${escapeHtml(pluralizeMembers(Number(team.member_count) || 0))}</small>
+        </button>`).join('');
+}
+
+function openTeamPicker() {
+    catalogState.entryTeamHighlight = -1;
+    renderTeamPickerList();
+    byId('entryTeamList').hidden = false;
+    byId('entryTeamInput').setAttribute('aria-expanded', 'true');
+}
+
+function closeTeamPicker() {
+    byId('entryTeamList').hidden = true;
+    byId('entryTeamInput').setAttribute('aria-expanded', 'false');
+}
+
+function pickTeam(teamId) {
+    const team = catalogState.teams.find((item) => Number(item.id) === Number(teamId));
+    if (!team) return;
+    catalogState.entryTeamId = team.id;
+    byId('entryTeamInput').value = team.name;
+    closeTeamPicker();
+}
+
+function moveTeamHighlight(step) {
+    const teams = filteredPickerTeams();
+    if (!teams.length) return;
+    const next = catalogState.entryTeamHighlight + step;
+    catalogState.entryTeamHighlight = (next + teams.length) % teams.length;
+    renderTeamPickerList();
+    byId('entryTeamList').querySelector('.team-picker-option.active')
+        ?.scrollIntoView({ block: 'nearest' });
+}
+
 function renderEntryPickers() {
-    // datalist даёт поиск по названию силами браузера, без своего выпадающего списка.
-    byId('entryTeamOptions').innerHTML = catalogState.teams
-        .map((team) => `<option value="${escapeHtml(team.name)}"></option>`)
-        .join('');
+    if (!byId('entryTeamList').hidden) renderTeamPickerList();
 
     const ageSelect = byId('entryAgeSelect');
     const groups = catalogState.entryAgeGroups;
@@ -1203,7 +1259,9 @@ async function openTournamentEntries(tournamentId) {
 
 async function addTournamentEntry() {
     const typed = byId('entryTeamInput').value.trim().toLowerCase();
-    const team = catalogState.teams.find((item) => (item.name || '').trim().toLowerCase() === typed);
+    // Берём выбранную в списке команду; если поле правили руками — ищем точное совпадение.
+    const team = catalogState.teams.find((item) => item.id === catalogState.entryTeamId)
+        || catalogState.teams.find((item) => (item.name || '').trim().toLowerCase() === typed);
     const ageGroup = byId('entryAgeSelect').value;
     if (!typed || !team) {
         showFormError('entryFormError', 'Выберите команду из списка');
@@ -1221,6 +1279,7 @@ async function addTournamentEntry() {
             body: JSON.stringify({ team_id: Number(teamId), age_group: ageGroup }),
         });
         byId('entryTeamInput').value = '';
+        catalogState.entryTeamId = null;
         await loadEntries();
     } catch (error) {
         showFormError('entryFormError', error.message);
@@ -1874,6 +1933,39 @@ function bindEvents() {
         saveGroups(true).catch(showPageError);
     });
     bindGroupBoard();
+    byId('entryTeamInput').addEventListener('focus', openTeamPicker);
+    byId('entryTeamInput').addEventListener('input', () => {
+        catalogState.entryTeamId = null;
+        openTeamPicker();
+    });
+    byId('entryTeamInput').addEventListener('keydown', (event) => {
+        if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+            event.preventDefault();
+            if (byId('entryTeamList').hidden) openTeamPicker();
+            moveTeamHighlight(event.key === 'ArrowDown' ? 1 : -1);
+            return;
+        }
+        if (event.key === 'Enter') {
+            const teams = filteredPickerTeams();
+            const team = teams[catalogState.entryTeamHighlight] || (teams.length === 1 ? teams[0] : null);
+            if (team) {
+                event.preventDefault();
+                pickTeam(team.id);
+            }
+            return;
+        }
+        if (event.key === 'Escape') closeTeamPicker();
+    });
+    byId('entryTeamList').addEventListener('mousedown', (event) => {
+        // mousedown, а не click: до click поле теряет фокус и список успевает закрыться.
+        const option = event.target.closest('[data-pick-team]');
+        if (!option) return;
+        event.preventDefault();
+        pickTeam(option.dataset.pickTeam);
+    });
+    document.addEventListener('click', (event) => {
+        if (!event.target.closest('#entryTeamPicker')) closeTeamPicker();
+    });
     byId('addEntryBtn').addEventListener('click', () => addTournamentEntry().catch(showPageError));
     byId('entriesList').addEventListener('change', (event) => {
         const select = event.target.closest('[data-entry-status]');
