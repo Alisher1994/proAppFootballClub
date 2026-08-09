@@ -72,7 +72,7 @@ os.environ['FFMPEG_LOG_LEVEL'] = 'quiet'
 # Форсируем использование CUDA/TensorRT в ONNX
 os.environ['ORT_TENSORRT_FP16_ENABLE'] = '1'
 
-from backend.models.models import db, User, Student, Payment, Attendance, AccessLog, Expense, Group, GroupTrainer, Tariff, ClubSettings, RewardType, StudentReward, CashTransfer, Role, RolePermission, CardType, StudentCard, Tournament, TournamentTeamCatalog, TournamentTeamMember, TournamentStadium, TournamentTeamShareLink, DeviceCommand, BridgeStatus
+from backend.models.models import db, User, Student, Payment, Attendance, AccessLog, Expense, Group, GroupTrainer, Tariff, ClubSettings, RewardType, StudentReward, CashTransfer, Role, RolePermission, CardType, StudentCard, Tournament, TournamentTeamCatalog, TournamentTeamMember, TournamentStadium, TournamentTeamShareLink, TournamentEntry, DeviceCommand, BridgeStatus
 # Live camera recognition stays disabled; access-log verification is separate.
 USE_FACE = False
 from backend.services.face_stub import DummyFaceService as FaceService
@@ -1485,6 +1485,7 @@ def ensure_tournament_tables():
             'tournament_team_members',
             'tournament_stadiums',
             'tournament_team_share_links',
+            'tournament_entries',
         }
         if not required.issubset(set(tables)):
             db.create_all()
@@ -4951,6 +4952,126 @@ def tournament_team_member_detail_api(member_id):
     return jsonify({'success': True, 'member': serialize_tournament_team_member(member)})
 
 
+# ===== УЧАСТНИКИ ТУРНИРА (ЗАЯВКИ) =====
+
+ENTRY_STATUSES = {
+    TournamentEntry.STATUS_INVITED: 'Приглашена',
+    TournamentEntry.STATUS_CONFIRMED: 'Подтвердила',
+    TournamentEntry.STATUS_DECLINED: 'Отказалась',
+}
+
+
+def tournament_age_group_labels(tournament):
+    """Категории турнира так, как их задал организатор: «2015» или «U-12»."""
+    try:
+        labels = json.loads(tournament.age_groups or '[]')
+    except Exception:
+        labels = normalize_age_groups(tournament.age_groups)
+    return [str(label).strip() for label in (labels or []) if str(label).strip()]
+
+
+def serialize_tournament_entry(entry):
+    team = entry.team
+    members = TournamentTeamMember.query.filter_by(team_id=entry.team_id).count() if team else 0
+    return {
+        'id': entry.id,
+        'tournament_id': entry.tournament_id,
+        'team_id': entry.team_id,
+        'team_name': team.name if team else '—',
+        'team_logo_url': get_tournament_media_url(team.logo_path) if team else None,
+        'trainer_name': team.trainer_name if team else None,
+        'trainer_phone': (team.trainer_phone or team.administration_phone) if team else None,
+        'age_group': entry.age_group,
+        'status': entry.status,
+        'status_label': ENTRY_STATUSES.get(entry.status, entry.status),
+        'note': entry.note,
+        'member_count': members,
+        'created_at': entry.created_at.isoformat() if entry.created_at else None,
+    }
+
+
+@app.route('/api/tournaments/<int:tournament_id>/entries', methods=['GET', 'POST'])
+@login_required
+def tournament_entries_api(tournament_id):
+    ensure_tournament_tables()
+    tournament = Tournament.query.filter_by(id=tournament_id).first_or_404()
+
+    if request.method == 'GET':
+        if not has_tournament_permission('view'):
+            return jsonify({'success': False, 'message': 'Нет доступа'}), 403
+        entries = TournamentEntry.query.filter_by(tournament_id=tournament_id).all()
+        # Сортируем по категории, затем по названию команды — так удобнее читать список.
+        entries.sort(key=lambda item: (item.age_group, (item.team.name if item.team else '')))
+        return jsonify({
+            'success': True,
+            'age_groups': tournament_age_group_labels(tournament),
+            'entries': [serialize_tournament_entry(entry) for entry in entries],
+        })
+
+    if not has_tournament_permission('edit'):
+        return jsonify({'success': False, 'message': 'Нет доступа'}), 403
+
+    data = request.get_json() or {}
+    team_id = data.get('team_id')
+    age_group = (data.get('age_group') or '').strip()
+    team = db.session.get(TournamentTeamCatalog, int(team_id)) if team_id else None
+    if not team:
+        return jsonify({'success': False, 'message': 'Выберите команду'}), 400
+
+    allowed = tournament_age_group_labels(tournament)
+    if allowed and age_group not in allowed:
+        return jsonify({'success': False, 'message': 'Выберите возрастную категорию турнира'}), 400
+    if not age_group:
+        return jsonify({'success': False, 'message': 'Выберите возрастную категорию'}), 400
+
+    exists = TournamentEntry.query.filter_by(
+        tournament_id=tournament_id, team_id=team.id, age_group=age_group,
+    ).first()
+    if exists:
+        return jsonify({
+            'success': False,
+            'message': f'«{team.name}» уже заявлена в категории {age_group}',
+        }), 400
+
+    entry = TournamentEntry(
+        tournament_id=tournament_id,
+        team_id=team.id,
+        age_group=age_group,
+        status=data.get('status') if data.get('status') in ENTRY_STATUSES else TournamentEntry.STATUS_INVITED,
+        note=(data.get('note') or '').strip() or None,
+        created_by=current_user.id,
+    )
+    db.session.add(entry)
+    db.session.commit()
+    return jsonify({'success': True, 'entry': serialize_tournament_entry(entry)}), 201
+
+
+@app.route('/api/tournament-entries/<int:entry_id>', methods=['PUT', 'DELETE'])
+@login_required
+def tournament_entry_detail_api(entry_id):
+    ensure_tournament_tables()
+    if not has_tournament_permission('edit'):
+        return jsonify({'success': False, 'message': 'Нет доступа'}), 403
+    entry = db.session.get(TournamentEntry, entry_id)
+    if not entry:
+        return jsonify({'success': False, 'message': 'Заявка не найдена'}), 404
+
+    if request.method == 'DELETE':
+        db.session.delete(entry)
+        db.session.commit()
+        return jsonify({'success': True})
+
+    data = request.get_json() or {}
+    status = data.get('status')
+    if status not in ENTRY_STATUSES:
+        return jsonify({'success': False, 'message': 'Неизвестный статус заявки'}), 400
+    entry.status = status
+    if 'note' in data:
+        entry.note = (data.get('note') or '').strip() or None
+    db.session.commit()
+    return jsonify({'success': True, 'entry': serialize_tournament_entry(entry)})
+
+
 # ===== ПУБЛИЧНАЯ АФИША ТУРНИРОВ =====
 
 def public_tournament_payload(tournament, stadium_by_name):
@@ -4970,6 +5091,10 @@ def public_tournament_payload(tournament, stadium_by_name):
         'start_time': tournament.start_time.strftime('%H:%M') if tournament.start_time else None,
         'end_date': tournament.end_date.isoformat() if tournament.end_date else None,
         'age_groups': age_groups,
+        'teams_count': TournamentEntry.query.filter_by(
+            tournament_id=tournament.id,
+            status=TournamentEntry.STATUS_CONFIRMED,
+        ).count(),
         'stadium': {
             'photo_url': get_tournament_media_url(stadium.photo_path),
             'photo_source': stadium.photo_source,

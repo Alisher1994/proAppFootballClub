@@ -765,6 +765,38 @@ class TournamentTeamMember(db.Model):
         return f'<TournamentTeamMember {self.full_name}>'
 
 
+class TournamentEntry(db.Model):
+    """Заявка команды на турнир в конкретной возрастной категории.
+
+    Клуб заходит на турнир не целиком, а составом одного возраста, поэтому
+    «Бунёдкор 2015» и «Бунёдкор 2014» — две независимые заявки.
+    """
+    __tablename__ = 'tournament_entries'
+    __table_args__ = (
+        db.UniqueConstraint('tournament_id', 'team_id', 'age_group', name='uq_tournament_entry'),
+    )
+
+    STATUS_INVITED = 'invited'
+    STATUS_CONFIRMED = 'confirmed'
+    STATUS_DECLINED = 'declined'
+
+    id = db.Column(db.Integer, primary_key=True)
+    tournament_id = db.Column(db.Integer, db.ForeignKey('tournaments.id'), nullable=False, index=True)
+    team_id = db.Column(db.Integer, db.ForeignKey('tournament_team_catalog.id'), nullable=False, index=True)
+    age_group = db.Column(db.String(50), nullable=False)
+    status = db.Column(db.String(20), nullable=False, default=STATUS_INVITED)
+    note = db.Column(db.String(500), nullable=True)
+    created_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    created_at = db.Column(db.DateTime, default=get_local_datetime)
+    updated_at = db.Column(db.DateTime, default=get_local_datetime, onupdate=get_local_datetime)
+
+    tournament = db.relationship('Tournament', foreign_keys=[tournament_id])
+    team = db.relationship('TournamentTeamCatalog', foreign_keys=[team_id])
+
+    def __repr__(self):
+        return f'<TournamentEntry t={self.tournament_id} team={self.team_id} {self.age_group}>'
+
+
 class TournamentTeamShareLink(db.Model):
     """Ссылка, по которой тренер сам заполняет состав своей команды.
 
