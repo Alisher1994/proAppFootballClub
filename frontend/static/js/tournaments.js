@@ -1531,8 +1531,9 @@ function standingsMarkup(rows) {
             <table class="catalog-data-table standings-table">
                 <thead>
                     <tr>
-                        <th>#</th><th>Команда</th><th>И</th><th>В</th><th>Н</th><th>П</th>
-                        <th>Мячи</th><th>±</th><th>О</th>
+                        <th>Место</th><th>Команда</th><th>Игры</th><th>Победы</th>
+                        <th>Ничьи</th><th>Поражения</th><th>Мячи</th>
+                        <th title="Разница забитых и пропущенных">Разница</th><th>Очки</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -1549,10 +1550,10 @@ function standingsMarkup(rows) {
                                     <strong>${escapeHtml(row.team_name)}</strong>
                                 </span>
                             </td>
-                            <td data-label="И">${row.played}</td>
-                            <td data-label="В">${row.won}</td>
-                            <td data-label="Н">${row.drawn}</td>
-                            <td data-label="П">${row.lost}</td>
+                            <td data-label="Игры">${row.played}</td>
+                            <td data-label="Победы">${row.won}</td>
+                            <td data-label="Ничьи">${row.drawn}</td>
+                            <td data-label="Поражения">${row.lost}</td>
                             <td data-label="Мячи">${row.goals_for}–${row.goals_against}</td>
                             <td data-label="Разница">${row.diff > 0 ? '+' : ''}${row.diff}</td>
                             <td data-label="Очки"><strong>${row.points}</strong></td>

@@ -11261,9 +11261,36 @@ main.main-content.tournaments-page .tournament-action-btn.danger:hover {
     margin-top: 26px;
 }
 
+.standings-table {
+    table-layout: fixed;
+    width: 100%;
+}
+
 .standings-table th,
 .standings-table td {
     white-space: nowrap;
+}
+
+.standings-table th:first-child,
+.standings-table td:first-child {
+    width: 62px;
+    text-align: center;
+}
+
+.standings-table th:nth-child(2),
+.standings-table td:nth-child(2) {
+    width: auto;
+    text-align: left;
+}
+
+.standings-table th:nth-child(n + 3),
+.standings-table td:nth-child(n + 3) {
+    width: 92px;
+    text-align: center;
+}
+
+.standings-table td:nth-child(2) .catalog-primary-cell {
+    gap: 10px;
 }
 
 .match-empty {
