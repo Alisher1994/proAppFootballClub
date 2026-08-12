@@ -542,6 +542,7 @@ function humanError(error) {
   if (message.includes('aborted due to timeout') || message.includes('AbortError') || message.includes('The operation was aborted')) return 'сервер не ответил вовремя';
   if (code === 'ECONNRESET' || message.includes('ECONNRESET') || message.includes('fetch failed')) return 'соединение с терминалом оборвалось';
   if (code === 'HIKVISION_LOCKED') return `терминал временно заблокирован${error.unlockTime ? `, ждать ${error.unlockTime} сек` : ''}`;
+  if (error?.photoFetchFailed) return error.message;
   if (error?.hikExplained) return error.hikExplained;
   if (message.includes('401')) return 'неверный логин или пароль Hikvision';
   if (message.includes('403')) return 'терминал запретил операцию';
@@ -978,7 +979,15 @@ function jpegSize(buffer) {
 
 async function fetchPhotoBuffer(url) {
   const headers = CONFIG.deviceKey ? { 'x-device-key': CONFIG.deviceKey } : {};
-  const res = await fetch(url, { headers, signal: AbortSignal.timeout(20000) });
+  let res;
+  try {
+    res = await fetch(url, { headers, signal: AbortSignal.timeout(20000) });
+  } catch (error) {
+    // Это обрыв связи с САЙТОМ, а не с терминалом - не путаем причины в логе.
+    const err = new Error(`не удалось скачать фото с сервера (${error.cause?.code || error.name || 'сеть'})`);
+    err.photoFetchFailed = true;
+    throw err;
+  }
   if (!res.ok) {
     let detail = '';
     try {
