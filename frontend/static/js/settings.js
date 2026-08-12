@@ -2063,7 +2063,7 @@ async function loadTerminalMissing() {
     const body = document.getElementById('missingTableBody');
     if (!body) return;
     terminalMissingLoading = true;
-    body.innerHTML = '<tr><td colspan="6" style="text-align:center; color:var(--theme-text-secondary); padding:20px;">Считаем список...</td></tr>';
+    body.innerHTML = '<tr><td colspan="8" style="text-align:center; color:var(--theme-text-secondary); padding:20px;">Считаем список...</td></tr>';
 
     try {
         const response = await fetch('/api/hikvision/terminal-missing');
@@ -2072,7 +2072,7 @@ async function loadTerminalMissing() {
         terminalMissingData = result;
         renderTerminalMissing();
     } catch (error) {
-        body.innerHTML = `<tr><td colspan="6" style="text-align:center; color:#dc2626; padding:20px;">Ошибка: ${escapeHtml(error.message)}</td></tr>`;
+        body.innerHTML = `<tr><td colspan="8" style="text-align:center; color:#dc2626; padding:20px;">Ошибка: ${escapeHtml(error.message)}</td></tr>`;
     } finally {
         terminalMissingLoading = false;
     }
@@ -2142,7 +2142,7 @@ function renderTerminalMissing() {
     if (!body) return;
     const items = terminalMissingFilteredItems();
     if (!items.length) {
-        body.innerHTML = '<tr><td colspan="6" style="text-align:center; color:var(--theme-text-secondary); padding:20px;">Никого нет — все записаны в терминал.</td></tr>';
+        body.innerHTML = '<tr><td colspan="8" style="text-align:center; color:var(--theme-text-secondary); padding:20px;">Никого нет — все записаны в терминал.</td></tr>';
         return;
     }
 
@@ -2154,6 +2154,9 @@ function renderTerminalMissing() {
         const staffMark = item.person_type === 'staff'
             ? ' <span style="font-size:11px; color:var(--theme-text-secondary);">(сотрудник)</span>'
             : '';
+        const period = item.last_payment_period
+            ? ` <span style="font-size:11px; color:var(--theme-text-secondary);">за ${escapeHtml(item.last_payment_period)}</span>`
+            : '';
         return `
             <tr>
                 <td>${photo}</td>
@@ -2161,9 +2164,18 @@ function renderTerminalMissing() {
                 <td>${escapeHtml(item.full_name)}${staffMark}</td>
                 <td>${escapeHtml(item.group || '—')}</td>
                 <td><span style="color:${color}; font-weight:600;">${escapeHtml(item.reason_label)}</span></td>
+                <td style="white-space:nowrap;">${escapeHtml(item.last_payment_date || '—')}${period}</td>
+                <td style="white-space:nowrap; font-weight:600;">${formatTerminalMissingSum(item.last_payment_amount)}</td>
                 <td style="color:var(--theme-text-secondary); font-size:13px;">${escapeHtml(item.detail || '—')}</td>
             </tr>`;
     }).join('');
+}
+
+function formatTerminalMissingSum(value) {
+    if (value === null || value === undefined || value === '') return '—';
+    const amount = Number(value);
+    if (!Number.isFinite(amount)) return '—';
+    return `${Math.round(amount).toLocaleString('ru-RU').replace(/\u00a0/g, ' ')} сум`;
 }
 
 function exportTerminalMissingCsv() {
@@ -2172,13 +2184,17 @@ function exportTerminalMissingCsv() {
         alert('Список пуст — нечего выгружать.');
         return;
     }
-    const header = ['ID', 'ФИО', 'Группа', 'Тип', 'Причина', 'Подробности'];
+    const header = ['ID', 'ФИО', 'Группа', 'Тип', 'Причина',
+        'Дата последней оплаты', 'За период', 'Сумма оплаты', 'Подробности'];
     const rows = items.map(item => [
         item.employee_no,
         item.full_name,
         item.group || '',
         item.person_type === 'staff' ? 'Сотрудник' : 'Ученик',
         item.reason_label,
+        item.last_payment_date || '',
+        item.last_payment_period || '',
+        item.last_payment_amount == null ? '' : Math.round(Number(item.last_payment_amount)),
         item.detail || '',
     ]);
     const csv = [header].concat(rows)

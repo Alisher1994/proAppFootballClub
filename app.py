@@ -10510,6 +10510,34 @@ def get_hikvision_bridge_status():
     })
 
 
+def get_last_payment_map():
+    """student_id -> данные последней по дате оплаты."""
+    rows = db.session.query(
+        Payment.student_id,
+        Payment.payment_date,
+        Payment.amount_paid,
+        Payment.payment_month,
+        Payment.payment_year,
+        Payment.payment_type,
+        Payment.tariff_name,
+        Payment.id
+    ).order_by(Payment.student_id.asc(), Payment.payment_date.asc(), Payment.id.asc()).all()
+
+    latest = {}
+    for student_id, paid_at, amount, month, year, pay_type, tariff_name, payment_id in rows:
+        # Строки идут по возрастанию, поэтому последняя запись и есть свежая оплата.
+        latest[student_id] = {
+            'date': paid_at,
+            'amount': float(amount or 0),
+            'month': month,
+            'year': year,
+            'type': pay_type or '',
+            'tariff_name': tariff_name or '',
+            'payment_id': payment_id,
+        }
+    return latest
+
+
 HIK_MISSING_CATEGORY_LABELS = {
     'no_photo': 'Нет фото для Face ID',
     'photo_broken': 'Фото есть, но терминал его не примет',
@@ -10586,6 +10614,7 @@ def hikvision_terminal_missing():
         else {}
     )
     sync_failures = collect_last_sync_failures()
+    last_payments = get_last_payment_map()
     check_photos = request.args.get('check_photos', '1') not in {'0', 'false', 'no'}
 
     items = []
@@ -10593,7 +10622,15 @@ def hikvision_terminal_missing():
 
     def push(person_type, person_id, employee_no, full_name, group, status_value,
              reason, reason_label, category, has_photo, photo_path, detail=''):
+        payment = last_payments.get(person_id) if person_type == 'student' else None
         items.append({
+            'last_payment_date': payment['date'].strftime('%d.%m.%Y') if payment and payment['date'] else '',
+            'last_payment_amount': payment['amount'] if payment else None,
+            'last_payment_period': (
+                '{:02d}.{}'.format(payment['month'], payment['year'])
+                if payment and payment.get('month') and payment.get('year') else ''
+            ),
+            'last_payment_type': payment['type'] if payment else '',
             'person_type': person_type,
             'person_id': person_id,
             'employee_no': str(employee_no),
