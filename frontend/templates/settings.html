@@ -3371,6 +3371,12 @@
                                         <button type="button" id="hikvisionManualSyncBtn" class="bridge-status-icon-btn" title="Синхронизировать сейчас" aria-label="Синхронизировать сейчас">
                                             <i data-lucide="database-backup"></i>
                                         </button>
+                                        <button type="button" id="bridgeUpdateBtn" class="bridge-status-icon-btn" title="Обновить код bridge и перезапустить" aria-label="Обновить код bridge и перезапустить">
+                                            <i data-lucide="cloud-download"></i>
+                                        </button>
+                                        <button type="button" id="bridgeRestartBtn" class="bridge-status-icon-btn" title="Перезапустить bridge" aria-label="Перезапустить bridge">
+                                            <i data-lucide="power"></i>
+                                        </button>
                                         <button type="button" id="bridgeStatusRefreshBtn" class="bridge-status-icon-btn" title="Обновить статус" aria-label="Обновить статус">
                                             <i data-lucide="refresh-cw"></i>
                                         </button>
@@ -4017,7 +4023,7 @@
                 </div>
             </div>
 
-            <script src="{{ url_for('static', filename='js/settings.js') }}?v=2026081302"></script>
+            <script src="{{ url_for('static', filename='js/settings.js') }}?v=2026081303"></script>
             <script src="{{ url_for('static', filename='js/groups.js') }}?v=2026071501"></script>
             <script src="{{ url_for('static', filename='js/tariffs.js') }}"></script>
             <script src="{{ url_for('static', filename='js/rewards.js') }}"></script>

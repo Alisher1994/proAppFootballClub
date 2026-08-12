@@ -789,7 +789,7 @@ def queue_hikvision_control(action):
     try:
         ensure_device_commands_table()
         action = (action or '').strip()
-        if action not in {'pause', 'resume', 'stop'}:
+        if action not in {'pause', 'resume', 'stop', 'restart', 'update'}:
             raise ValueError('Unknown bridge control action')
 
         cmd = DeviceCommand(command='HIKVISION_CONTROL')
@@ -1119,6 +1119,7 @@ def build_hikvision_person_payload(person_type, person_id, settings=None, today=
             'group': 'Сотрудники клуба',
             'photoUrl': photo_url,
             'facePhotoUrl': face_photo_url,
+            'photoHash': photo_signature(user.photo_path),
             'enabled': bool(allowed and photo_url),
             'access_allowed': allowed,
             'access_reason': final_reason,
@@ -1165,6 +1166,7 @@ def build_hikvision_person_payload(person_type, person_id, settings=None, today=
             f"{base_url}/api/hikvision/face-photo?person_type=student&person_id={student.id}"
             if photo_url else None
         ),
+        'photoHash': photo_signature(student.photo_path),
         'enabled': bool(access_payload['can_sync_to_turnstile']),
         'access_allowed': bool(access_payload['allowed']),
         'access_reason': access_payload['reason'],
@@ -3434,6 +3436,23 @@ def build_hikvision_face_jpeg(photo_path):
     except Exception as exc:
         info['reason'] = f'Фото повреждено или неподдерживаемый формат ({type(exc).__name__})'
         return None, info
+
+
+def photo_signature(photo_path):
+    """Короткая подпись файла фото: меняется, как только фото заменили.
+
+    Нужна bridge, чтобы понять, что в терминале лежит устаревшее лицо.
+    """
+    source_path = resolve_static_photo_file(photo_path)
+    if not source_path:
+        return ''
+    try:
+        stat = os.stat(source_path)
+        return hashlib.sha1(
+            f'{stat.st_mtime_ns}:{stat.st_size}'.encode('utf-8')
+        ).hexdigest()[:16]
+    except OSError:
+        return ''
 
 
 def resolve_person_photo_path(person_type, person_id):
@@ -10425,6 +10444,8 @@ def request_hikvision_bridge_control():
         'pause': 'Пауза отправлена bridge',
         'resume': 'Продолжение отправлено bridge',
         'stop': 'Полная остановка отправлена bridge',
+        'restart': 'Перезапуск отправлен bridge',
+        'update': 'Обновление кода и перезапуск отправлены bridge',
     }
     if action not in labels:
         return jsonify({'success': False, 'message': 'Неизвестная команда управления'}), 400

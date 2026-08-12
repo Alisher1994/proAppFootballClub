@@ -258,6 +258,10 @@ async function initSettings() {
     if (bridgePauseBtn) bridgePauseBtn.addEventListener('click', () => requestBridgeControl(bridgePauseBtn.dataset.action || 'pause'));
     const bridgeStopBtn = document.getElementById('bridgeStopBtn');
     if (bridgeStopBtn) bridgeStopBtn.addEventListener('click', () => requestBridgeControl('stop'));
+    const bridgeRestartBtn = document.getElementById('bridgeRestartBtn');
+    if (bridgeRestartBtn) bridgeRestartBtn.addEventListener('click', () => requestBridgeControl('restart'));
+    const bridgeUpdateBtn = document.getElementById('bridgeUpdateBtn');
+    if (bridgeUpdateBtn) bridgeUpdateBtn.addEventListener('click', () => requestBridgeControl('update'));
 
     const bridgeResultsBtn = document.getElementById('bridgeResultsBtn');
     if (bridgeResultsBtn) bridgeResultsBtn.addEventListener('click', openBridgeResultsModal);
@@ -826,7 +830,9 @@ async function requestBridgeControl(action) {
     const labels = {
         pause: 'поставить запись на паузу',
         resume: 'продолжить запись',
-        stop: 'полностью остановить текущую запись'
+        stop: 'полностью остановить текущую запись',
+        restart: 'перезапустить bridge (связь пропадет на несколько секунд)',
+        update: 'скачать свежий код с GitHub и перезапустить bridge'
     };
     if (!confirm(`Вы уверены, что хотите ${labels[action] || 'управлять bridge'}?`)) return;
 
@@ -840,6 +846,10 @@ async function requestBridgeControl(action) {
         if (result.success) {
             alert(result.message || 'Команда отправлена bridge');
             setTimeout(loadBridgeStatus, 500);
+            if (action === 'restart' || action === 'update') {
+                // Процесс поднимается заново секунд за 10-15.
+                [5000, 12000, 20000].forEach(delay => setTimeout(loadBridgeStatus, delay));
+            }
         } else {
             alert('Ошибка: ' + (result.message || 'не удалось отправить команду'));
         }

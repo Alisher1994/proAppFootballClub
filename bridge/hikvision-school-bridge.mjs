@@ -38,6 +38,60 @@ const CONFIG = {
 };
 
 const deviceOfflineUntil = new Map();
+
+// Терминал отвечает "лицо уже есть" и молча оставляет старое фото. Поэтому
+// помним, какую версию фото мы в него записали, и перезаписываем при смене.
+const FACE_STATE_FILE = process.env.HIK_FACE_STATE_FILE
+  || `${os.homedir()}/.karasu-bridge-faces.json`;
+let faceState = null;
+
+function loadFaceState() {
+  if (faceState) return faceState;
+  try {
+    faceState = JSON.parse(fs.readFileSync(FACE_STATE_FILE, 'utf8')) || {};
+  } catch {
+    faceState = {};
+  }
+  return faceState;
+}
+
+let faceStateDirty = false;
+
+function flushFaceState() {
+  if (!faceStateDirty) return;
+  try {
+    fs.writeFileSync(FACE_STATE_FILE, JSON.stringify(faceState || {}), 'utf8');
+    faceStateDirty = false;
+  } catch (error) {
+    console.warn(`[face] Не удалось сохранить состояние фото: ${error.message}`);
+  }
+}
+
+function faceStateKey(device, employeeNo) {
+  return `${device.name || device.ip}:${employeeNo}`;
+}
+
+function isFaceUpToDate(device, student) {
+  const hash = student.photoHash || '';
+  if (!hash) return false;
+  return loadFaceState()[faceStateKey(device, student.employeeNo)] === hash;
+}
+
+function rememberFace(device, student) {
+  const hash = student.photoHash || '';
+  if (!hash) return;
+  const key = faceStateKey(device, student.employeeNo);
+  if (loadFaceState()[key] === hash) return;
+  faceState[key] = hash;
+  faceStateDirty = true;
+}
+
+function forgetFace(device, employeeNo) {
+  const key = faceStateKey(device, employeeNo);
+  if (!(key in loadFaceState())) return;
+  delete faceState[key];
+  faceStateDirty = true;
+}
 const startTime = Date.now();
 const liveLogs = [];
 const accessEventSeen = new Set();
@@ -319,6 +373,7 @@ function readText(path) {
 }
 
 async function sendHeartbeat(force = false) {
+  flushFaceState();
   const now = Date.now();
   if (!force && now - lastHeartbeatAt < CONFIG.heartbeatIntervalMs) return;
   lastHeartbeatAt = now;
@@ -438,6 +493,8 @@ function reasonLabel(reason) {
     bridge_pause: 'Пауза записи',
     bridge_resume: 'Продолжить запись',
     bridge_stop: 'Остановить запись',
+    bridge_restart: 'Перезапустить bridge',
+    bridge_update: 'Обновить код и перезапустить bridge',
     command: 'Команда из очереди',
     interval: 'Плановая проверка',
   };
@@ -1097,6 +1154,7 @@ async function deleteFaceRecord(device, employeeNo) {
 }
 
 async function deletePersonFromDevice(device, employeeNo) {
+  forgetFace(device, employeeNo);
   const errors = [];
   try {
     await deleteFaceRecord(device, employeeNo);
@@ -1253,9 +1311,19 @@ async function upsertUser(device, student) {
   await requestJson(device, 'PUT', '/ISAPI/AccessControl/UserInfo/SetUp?format=json', body);
 }
 
-async function uploadFace(device, student) {
+async function uploadFace(device, student, options = {}) {
   if (!student.photoUrl && !student.facePhotoUrl) return 'no-photo';
   const photo = await downloadPhoto(student);
+  if (options.replace) {
+    // Без удаления старой записи терминал вернет "лицо уже есть"
+    // и оставит в памяти прежнее фото.
+    try {
+      await deleteFaceRecord(device, student.employeeNo);
+      await sleep(200);
+    } catch (error) {
+      console.warn(`[face] Не удалось удалить старое фото ${student.employeeNo}: ${humanError(error)}`);
+    }
+  }
   const boundary = '----karasu' + Math.random().toString(16).slice(2);
   const record = JSON.stringify({ faceLibType: 'blackFD', FDID: '1', FPID: student.employeeNo });
   const head =
@@ -1454,10 +1522,14 @@ async function syncDevice(device, students, reports) {
       }
       await upsertUser(device, student);
       await sleep(500);
-      const face = await uploadFace(device, student);
+      const faceOutdated = !isFaceUpToDate(device, student);
+      const face = await uploadFace(device, student, { replace: faceOutdated });
+      if (face !== 'no-photo') rememberFace(device, student);
       changed += 1;
       stats.upserted += 1;
-      const faceText = face === 'already-exists' ? 'фото уже было в терминале' : 'фото записано';
+      const faceText = face === 'already-exists'
+        ? 'фото уже было в терминале'
+        : (faceOutdated ? 'фото обновлено' : 'фото записано');
       stats.results.success.push({ employeeNo: student.employeeNo, fullName: student.fullName, detail: faceText });
       capList(stats.results.success);
       const msg = `${logPrefix} УСПЕШНО: записан в терминал: ${studentTitle} (${faceText})`;
@@ -1559,9 +1631,11 @@ async function syncPersonDevice(device, person, reports, action = 'upsert') {
     } else {
       await upsertUser(device, person);
       await sleep(300);
-      const face = await uploadFace(device, person);
+      // Точечная команда приходит после правки карточки, фото могло смениться.
+      const face = await uploadFace(device, person, { replace: true });
+      if (face !== 'no-photo') rememberFace(device, person);
       stats.success = 1;
-      const faceText = face === 'already-exists' ? 'фото уже было в терминале' : 'фото записано';
+      const faceText = face === 'already-exists' ? 'фото уже было в терминале' : 'фото обновлено';
       stats.results.success.push({ employeeNo: person.employeeNo, fullName: person.fullName || '', detail: faceText });
       const msg = `${logPrefix} УСПЕШНО: точечно записан ${studentTitle} (${faceText})`;
       console.log(msg);
@@ -1795,6 +1869,37 @@ async function runControlCommand(payload = {}, commandId = null) {
     stopRequested = true;
     syncPaused = false;
     message = 'Запрошена полная остановка записи.';
+  } else if (action === 'restart' || action === 'update') {
+    if (syncInProgress) {
+      throw new Error('идет синхронизация, сначала остановите запись');
+    }
+    let updateLog = '';
+    if (action === 'update') {
+      try {
+        updateLog = execFileSync('git', ['pull', '--ff-only'], {
+          cwd: process.cwd(),
+          encoding: 'utf8',
+          timeout: 120000,
+        }).trim();
+        console.log(`[control] git pull: ${updateLog}`);
+      } catch (error) {
+        const detail = (error.stderr || error.stdout || error.message || '').toString().trim();
+        throw new Error(`не удалось обновить код: ${detail.slice(0, 300)}`);
+      }
+    }
+    message = action === 'update'
+      ? `Код обновлен, перезапускаем bridge. ${updateLog.split('\n').pop() || ''}`.trim()
+      : 'Перезапускаем bridge.';
+    console.log(`[control] ${message}`);
+    setAction(message);
+    setProgress({ status_text: message });
+    if (commandId) {
+      await reportCommand(commandId, true, `[${new Date().toISOString()}] ${message}\n`);
+    }
+    flushFaceState();
+    // systemd поднимет процесс заново (Restart=always).
+    setTimeout(() => process.exit(0), 1500);
+    return message;
   } else {
     throw new Error(`unknown control action ${action}`);
   }
