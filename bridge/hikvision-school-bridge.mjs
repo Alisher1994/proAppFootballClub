@@ -461,15 +461,76 @@ function capList(list, limit = 250) {
   return copy;
 }
 
-function accessReasonLabel(reason) {
-  const labels = {
-    no_photo: 'нет фото',
-    disabled: 'доступ закрыт',
-    inactive: 'ученик неактивен',
-    unpaid: 'нет оплаты',
-    blocked: 'заблокирован',
-  };
-  return labels[reason] || reason || 'доступ закрыт';
+const ACCESS_REASON_LABELS = {
+  allowed: 'допуск разрешен',
+  no_photo: 'нет фото для Face ID',
+  disabled: 'доступ закрыт',
+  deleted: 'удален из системы',
+  inactive: 'ученик не активен',
+  blacklist: 'ученик в черном списке',
+  unpaid: 'нет оплаты',
+  blocked: 'заблокирован',
+  club_funded: 'клубное финансирование',
+  no_tariff: 'тариф не указан',
+  grace_period: 'льготный период до дня блокировки',
+  current_month_debt: 'есть долг за текущий месяц',
+  paid_full_current_month: 'месяц оплачен полностью',
+  any_payment_this_month: 'есть оплата в этом месяце',
+  no_payment_this_month: 'нет оплаты в этом месяце',
+  partial_current_month: 'есть оплата за этот месяц',
+  no_current_month_payment: 'нет оплаты за текущий месяц',
+  too_many_debt_months: 'долг больше разрешенного срока',
+  staff_active: 'сотрудник активен',
+  staff_inactive: 'сотрудник не активен',
+};
+
+function accessReasonLabel(reason, serverLabel) {
+  const known = ACCESS_REASON_LABELS[reason];
+  if (known) return known;
+  const fromServer = String(serverLabel || '').trim();
+  if (fromServer) return fromServer.toLowerCase();
+  return reason || 'доступ закрыт';
+}
+
+// Расшифровка ответов ISAPI: терминал отвечает кодами, а не текстом.
+const HIK_STATUS_LABELS = {
+  1: 'терминал занят, попробуйте позже',
+  2: 'нет прав на эту операцию',
+  3: 'неверный формат запроса',
+  4: 'неверный формат запроса',
+  5: 'такая запись уже есть в терминале',
+  6: 'терминал отверг данные: скорее всего на фото не найдено лицо, либо оно мелкое/размытое/обрезанное',
+  7: 'нет места в памяти терминала',
+  8: 'операция не поддерживается этой моделью терминала',
+  9: 'терминал занят другой операцией',
+  10: 'внутренняя ошибка терминала',
+};
+
+const HIK_SUB_STATUS_LABELS = {
+  deviceUserAlreadyExistFace: 'фото уже записано для этого сотрудника',
+  lowFaceQuality: 'низкое качество лица на фото',
+  faceQualityLow: 'низкое качество лица на фото',
+  noFaceDetected: 'на фото не найдено лицо',
+  faceTooSmall: 'лицо на фото слишком мелкое',
+  faceNotClear: 'лицо на фото размыто',
+  multipleFaces: 'на фото больше одного лица',
+  badFaceDataFormat: 'неверный формат картинки, терминал ждет JPEG',
+  outOfMemory: 'нет места в памяти терминала',
+  notSupport: 'операция не поддерживается терминалом',
+  invalidContent: 'терминал не смог разобрать картинку',
+};
+
+function hikStatusMessage(res) {
+  const data = parseJsonSafe(res?.body);
+  if (!data) return '';
+  const sub = HIK_SUB_STATUS_LABELS[data.subStatusCode];
+  const main = HIK_STATUS_LABELS[Number(data.statusCode)];
+  const parts = [];
+  if (sub) parts.push(sub);
+  else if (data.subStatusCode) parts.push(String(data.subStatusCode));
+  if (main && !sub) parts.push(main);
+  else if (main && sub) parts.push(`(${main})`);
+  return parts.join(' ');
 }
 
 function humanError(error) {
@@ -481,6 +542,7 @@ function humanError(error) {
   if (message.includes('aborted due to timeout') || message.includes('AbortError') || message.includes('The operation was aborted')) return 'сервер не ответил вовремя';
   if (code === 'ECONNRESET' || message.includes('ECONNRESET') || message.includes('fetch failed')) return 'соединение с терминалом оборвалось';
   if (code === 'HIKVISION_LOCKED') return `терминал временно заблокирован${error.unlockTime ? `, ждать ${error.unlockTime} сек` : ''}`;
+  if (error?.hikExplained) return error.hikExplained;
   if (message.includes('401')) return 'неверный логин или пароль Hikvision';
   if (message.includes('403')) return 'терминал запретил операцию';
   if (message.includes('404')) return 'терминал не нашел нужный ISAPI метод';
@@ -618,6 +680,13 @@ function assertOk(label, res) {
       const err = new Error(`${label} locked, wait ${unlockTime || 'unknown'}s`);
       err.code = 'HIKVISION_LOCKED';
       err.unlockTime = unlockTime;
+      throw err;
+    }
+    const explained = hikStatusMessage(res);
+    if (explained) {
+      const err = new Error(`${label} ISAPI ${res.statusCode}: ${explained}`);
+      err.hikExplained = explained;
+      err.hikStatus = res.statusCode;
       throw err;
     }
     throw new Error(`${label} ISAPI ${res.statusCode}: ${(res.body || '').slice(0, 220)}`);
@@ -882,14 +951,97 @@ async function backfillAccessEvents() {
   console.log('[access-backfill] done');
 }
 
-async function downloadPhoto(url) {
-  if (!url) return null;
-  const res = await fetch(url, { signal: AbortSignal.timeout(15000) });
-  if (!res.ok) throw new Error(`photo ${res.status}`);
+const FACE_MAX_BYTES = 200 * 1024;
+const FACE_MIN_BYTES = 1024;
+
+function isJpeg(buffer) {
+  return buffer && buffer.length > 3 && buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff;
+}
+
+function jpegSize(buffer) {
+  // Пробегаем маркеры SOF, чтобы узнать размер без внешних библиотек.
+  let offset = 2;
+  while (offset + 9 < buffer.length) {
+    if (buffer[offset] !== 0xff) { offset += 1; continue; }
+    const marker = buffer[offset + 1];
+    if (marker === 0xd8 || marker === 0x01 || (marker >= 0xd0 && marker <= 0xd7)) { offset += 2; continue; }
+    const length = buffer.readUInt16BE(offset + 2);
+    const isSof = marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc;
+    if (isSof) {
+      return { height: buffer.readUInt16BE(offset + 5), width: buffer.readUInt16BE(offset + 7) };
+    }
+    if (marker === 0xda) break;
+    offset += 2 + length;
+  }
+  return null;
+}
+
+async function fetchPhotoBuffer(url) {
+  const headers = CONFIG.deviceKey ? { 'x-device-key': CONFIG.deviceKey } : {};
+  const res = await fetch(url, { headers, signal: AbortSignal.timeout(20000) });
+  if (!res.ok) {
+    let detail = '';
+    try {
+      const text = await res.text();
+      detail = (parseJsonSafe(text)?.message || text || '').slice(0, 160);
+    } catch { /* ignore */ }
+    const err = new Error(`photo ${res.status}${detail ? `: ${detail}` : ''}`);
+    err.photoStatus = res.status;
+    err.photoDetail = detail;
+    throw err;
+  }
   return {
     buffer: Buffer.from(await res.arrayBuffer()),
     contentType: res.headers.get('content-type') || 'image/jpeg',
   };
+}
+
+/**
+ * Берем нормализованный сервером JPEG (facePhotoUrl). Если сервер старый или
+ * нормализация упала - откатываемся на исходное фото и проверяем его сами.
+ */
+async function downloadPhoto(student) {
+  const normalizedUrl = student?.facePhotoUrl || null;
+  const rawUrl = student?.photoUrl || null;
+  if (!normalizedUrl && !rawUrl) return null;
+
+  let photo = null;
+  let normalizeError = '';
+  if (normalizedUrl) {
+    try {
+      photo = await fetchPhotoBuffer(normalizedUrl);
+    } catch (error) {
+      normalizeError = error.photoDetail || error.message || '';
+      if (error.photoStatus === 422 || error.photoStatus === 404) {
+        // Сервер уже сказал, чем именно плохо фото - нет смысла слать его в терминал.
+        throw new Error(`фото не подходит для терминала: ${normalizeError || 'сервер не смог подготовить JPEG'}`);
+      }
+    }
+  }
+  if (!photo && rawUrl) {
+    photo = await fetchPhotoBuffer(rawUrl);
+    if (normalizeError) {
+      console.warn(`[photo] Нормализация на сервере недоступна (${normalizeError}), шлем исходное фото ${rawUrl}`);
+    }
+  }
+  if (!photo) throw new Error('фото не удалось скачать');
+
+  const { buffer } = photo;
+  if (!isJpeg(buffer)) {
+    throw new Error('фото не в формате JPEG, терминал такое не принимает');
+  }
+  if (buffer.length < FACE_MIN_BYTES) {
+    throw new Error(`фото слишком маленькое (${buffer.length} байт)`);
+  }
+  if (buffer.length > FACE_MAX_BYTES) {
+    throw new Error(`фото тяжелее ${Math.round(FACE_MAX_BYTES / 1024)} КБ (${Math.round(buffer.length / 1024)} КБ), терминал его отклонит`);
+  }
+  const size = jpegSize(buffer);
+  if (size && (size.width < 100 || size.height < 100)) {
+    throw new Error(`разрешение фото слишком низкое (${size.width}x${size.height})`);
+  }
+
+  return { buffer, contentType: 'image/jpeg', width: size?.width || 0, height: size?.height || 0 };
 }
 
 async function deleteUser(device, employeeNo) {
@@ -1093,8 +1245,8 @@ async function upsertUser(device, student) {
 }
 
 async function uploadFace(device, student) {
-  if (!student.photoUrl) return 'no-photo';
-  const photo = await downloadPhoto(student.photoUrl);
+  if (!student.photoUrl && !student.facePhotoUrl) return 'no-photo';
+  const photo = await downloadPhoto(student);
   const boundary = '----karasu' + Math.random().toString(16).slice(2);
   const record = JSON.stringify({ faceLibType: 'blackFD', FDID: '1', FPID: student.employeeNo });
   const head =
@@ -1150,25 +1302,31 @@ async function fetchPerson(personType, personId) {
 
 function logStudentSummary(students) {
   const summary = students.reduce((acc, student) => {
-    const key = student.enabled ? 'enabled' : (student.access_reason || 'disabled');
+    const key = student.enabled
+      ? 'записываем'
+      : accessReasonLabel(student.access_reason, student.access_reason_label);
     acc[key] = (acc[key] || 0) + 1;
-    if (!student.has_photo && !student.photoUrl) acc.no_photo = (acc.no_photo || 0) + 1;
+    if (!student.has_photo && !student.photoUrl) acc['нет фото'] = (acc['нет фото'] || 0) + 1;
     return acc;
   }, {});
-  console.log(`[sync] summary ${JSON.stringify(summary)}`);
+  const summaryText = Object.entries(summary)
+    .sort((a, b) => b[1] - a[1])
+    .map(([label, count]) => `${label}: ${count}`)
+    .join(', ');
+  console.log(`[sync] Итог по списку — ${summaryText}`);
 
   students
     .filter((student) => !student.enabled)
     .slice(0, 30)
     .forEach((student) => {
       console.log(
-        `[sync] skip ${student.employeeNo} ${student.fullName}: ` +
-        `reason=${student.access_reason || 'disabled'}, ` +
-        `paid=${student.current_month_paid || 0}, ` +
-        `paidThisMonth=${student.paid_this_calendar_month || 0}, ` +
-        `debt=${student.current_month_debt || 0}, ` +
-        `paymentExempt=${student.access_exempt_from_payment ? 'yes' : 'no'}, ` +
-        `photo=${student.has_photo || student.photoUrl ? 'yes' : 'no'}`
+        `[sync] Пропуск ${student.employeeNo} ${student.fullName}: ` +
+        `причина=${accessReasonLabel(student.access_reason, student.access_reason_label)}, ` +
+        `оплачено=${student.current_month_paid || 0}, ` +
+        `оплата в этом месяце=${student.paid_this_calendar_month || 0}, ` +
+        `долг=${student.current_month_debt || 0}, ` +
+        `без оплаты=${student.access_exempt_from_payment ? 'да' : 'нет'}, ` +
+        `фото=${student.has_photo || student.photoUrl ? 'есть' : 'нет'}`
       );
     });
 }
@@ -1239,7 +1397,7 @@ async function syncDevice(device, students, reports) {
     console.warn(msg);
     reports.push(msg);
     reports.push(`Проверьте питание и сеть терминала ${device.ip}:${device.port || 443}. Bridge повторит попытку через ${Math.round(CONFIG.offlineBackoffMs / 1000)} сек.`);
-    reports.unshift(`[${device.name || device.ip}] summary ${JSON.stringify(stats)}`);
+    reports.unshift(`[${deviceShortLabel(device.name)}] Итог: успешно ${stats.upserted || stats.success || 0}, отклонено ${stats.rejected || 0}, ошибок ${stats.errors || 0}`);
     setDeviceProgress(device, { stage: 'offline', status: 'error', errors: 1, status_text: `Терминал ${deviceName} недоступен`, results: stats.results });
     return changed;
   }
@@ -1269,7 +1427,7 @@ async function syncDevice(device, students, reports) {
         await deletePersonFromDevice(device, student.employeeNo);
         changed += 1;
         stats.deleted += 1;
-        const reason = accessReasonLabel(student.access_reason);
+        const reason = accessReasonLabel(student.access_reason, student.access_reason_label);
         stats.results.rejected.push({ employeeNo: student.employeeNo, fullName: student.fullName, reason });
         capList(stats.results.rejected);
         const msg = `${logPrefix} Доступ закрыт: ${studentTitle}. Причина: ${reason}`;
@@ -1328,7 +1486,7 @@ async function syncDevice(device, students, reports) {
     status_text: `${deviceName}: готово. Успешно ${stats.upserted + stats.deleted}, ошибок ${stats.errors}.`,
   });
   setAction(`Терминал ${deviceName}: готово`);
-  reports.unshift(`[${device.name || device.ip}] summary ${JSON.stringify(stats)}`);
+  reports.unshift(`[${deviceShortLabel(device.name)}] Итог: успешно ${stats.upserted || stats.success || 0}, отклонено ${stats.rejected || 0}, ошибок ${stats.errors || 0}`);
   return changed;
 }
 
@@ -1384,7 +1542,7 @@ async function syncPersonDevice(device, person, reports, action = 'upsert') {
     if (action === 'delete' || !person.enabled) {
       await deletePersonFromDevice(device, person.employeeNo);
       stats.rejected = 1;
-      const reason = action === 'delete' ? 'удален из системы' : accessReasonLabel(person.access_reason);
+      const reason = action === 'delete' ? 'удален из системы' : accessReasonLabel(person.access_reason, person.access_reason_label);
       stats.results.rejected.push({ employeeNo: person.employeeNo, fullName: person.fullName || '', reason });
       const msg = `${logPrefix} Доступ закрыт: ${studentTitle}. Причина: ${reason}`;
       console.log(msg);
@@ -1684,12 +1842,17 @@ async function runSync(reason = 'interval', commandId = null) {
     console.log(`[sync] Получено записей с сервера: ${students.length}. Причина: ${reasonLabel(reason)}.`);
 
     const summary = students.reduce((acc, student) => {
-      const key = student.enabled ? 'enabled' : (student.access_reason || 'disabled');
+      const key = student.enabled
+        ? 'записываем'
+        : accessReasonLabel(student.access_reason, student.access_reason_label);
       acc[key] = (acc[key] || 0) + 1;
-      if (!student.has_photo && !student.photoUrl) acc.no_photo = (acc.no_photo || 0) + 1;
+      if (!student.has_photo && !student.photoUrl) acc['нет фото'] = (acc['нет фото'] || 0) + 1;
       return acc;
     }, {});
-    logOutput += `Summary: ${JSON.stringify(summary)}\n`;
+    logOutput += `Итог по списку: ${Object.entries(summary)
+      .sort((a, b) => b[1] - a[1])
+      .map(([label, count]) => `${label}: ${count}`)
+      .join(', ')}\n`;
     logStudentSummary(students);
 
     const deviceProgress = {};

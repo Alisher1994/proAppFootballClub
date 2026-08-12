@@ -56,12 +56,29 @@ if not errorlevel 1 (
     exit /b 1
 )
 
+set "SSH_KEY=%USERPROFILE%\.ssh\id_ed25519"
+if not exist "%SSH_KEY%" (
+    echo ERROR: SSH key not found: %SSH_KEY%
+    echo Create it with:  ssh-keygen -t ed25519
+    echo.
+    pause
+    exit /b 1
+)
+
 echo Starting SSH tunnel...
-ssh -o ExitOnForwardFailure=yes -o ServerAliveInterval=30 -o ServerAliveCountMax=3 -N -L %EXIT_LOCAL_PORT%:%EXIT_DEVICE% -L %ENTRY_LOCAL_PORT%:%ENTRY_DEVICE% %BRIDGE_USER%@%BRIDGE_IP%
+echo (if it asks for a password, the key is not installed on %BRIDGE_HOST% yet)
+echo.
+ssh -o ExitOnForwardFailure=yes -o ServerAliveInterval=30 -o ServerAliveCountMax=3 -o ConnectTimeout=15 -o NumberOfPasswordPrompts=1 -o StrictHostKeyChecking=accept-new -i "%SSH_KEY%" -N -L %EXIT_LOCAL_PORT%:%EXIT_DEVICE% -L %ENTRY_LOCAL_PORT%:%ENTRY_DEVICE% %BRIDGE_USER%@%BRIDGE_IP%
 if errorlevel 1 (
     echo.
-    echo ERROR: SSH tunnel failed.
-    echo Check that %BRIDGE_HOST% is online, SSH is running, and local ports %EXIT_LOCAL_PORT%/%ENTRY_LOCAL_PORT% are free.
+    echo ERROR: SSH tunnel failed or was refused.
+    echo.
+    echo If it asked for a password, install your key on the bridge once:
+    echo.
+    echo   "%ProgramFiles%\Git\bin\bash.exe" -lc "ssh-copy-id -i ~/.ssh/id_ed25519.pub %BRIDGE_USER%@%BRIDGE_IP%"
+    echo.
+    echo Otherwise check that %BRIDGE_HOST% is online, SSH is running,
+    echo and local ports %EXIT_LOCAL_PORT%/%ENTRY_LOCAL_PORT% are free.
 )
 echo.
 echo Tunnel closed.

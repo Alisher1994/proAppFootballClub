@@ -2039,3 +2039,174 @@ function showHikvisionLog(id, createdTime, logText) {
 // Экспортируем функцию глобально
 window.loadSyncHistory = loadSyncHistory;
 window.showHikvisionLog = showHikvisionLog;
+
+
+// ============================================================
+// Вкладка "Не в терминале": кто не записан в Face ID и почему
+// ============================================================
+
+let terminalMissingData = null;
+let terminalMissingCategory = 'all';
+let terminalMissingQuery = '';
+let terminalMissingLoading = false;
+
+const TERMINAL_MISSING_COLORS = {
+    no_photo: '#d97706',
+    photo_broken: '#b45309',
+    payment: '#dc2626',
+    inactive: '#64748b',
+    sync_error: '#7c3aed',
+};
+
+async function loadTerminalMissing() {
+    if (terminalMissingLoading) return;
+    const body = document.getElementById('missingTableBody');
+    if (!body) return;
+    terminalMissingLoading = true;
+    body.innerHTML = '<tr><td colspan="6" style="text-align:center; color:var(--theme-text-secondary); padding:20px;">Считаем список...</td></tr>';
+
+    try {
+        const response = await fetch('/api/hikvision/terminal-missing');
+        const result = await response.json();
+        if (!result.success) throw new Error(result.message || 'Не удалось получить список');
+        terminalMissingData = result;
+        renderTerminalMissing();
+    } catch (error) {
+        body.innerHTML = `<tr><td colspan="6" style="text-align:center; color:#dc2626; padding:20px;">Ошибка: ${escapeHtml(error.message)}</td></tr>`;
+    } finally {
+        terminalMissingLoading = false;
+    }
+}
+
+function terminalMissingFilteredItems() {
+    const items = terminalMissingData?.items || [];
+    const query = terminalMissingQuery.trim().toLowerCase();
+    return items.filter(item => {
+        if (terminalMissingCategory !== 'all' && item.category !== terminalMissingCategory) return false;
+        if (!query) return true;
+        return [item.full_name, item.employee_no, item.group, item.reason_label, item.detail]
+            .some(value => String(value || '').toLowerCase().includes(query));
+    });
+}
+
+function renderTerminalMissing() {
+    const data = terminalMissingData;
+    if (!data) return;
+
+    const generated = document.getElementById('missingGeneratedAt');
+    if (generated) {
+        generated.textContent = data.generated_at
+            ? `Обновлено: ${formatDateTime(data.generated_at)}`
+            : '';
+    }
+
+    const summaryGrid = document.getElementById('missingSummaryGrid');
+    if (summaryGrid) {
+        const summary = data.summary || {};
+        const cards = [
+            { label: 'Всего людей', value: summary.total_people || 0, color: 'var(--theme-text-primary)' },
+            { label: 'Записаны в терминал', value: summary.in_terminal || 0, color: '#16a34a' },
+            { label: 'Нет в терминале', value: summary.missing || 0, color: '#dc2626' },
+        ];
+        summaryGrid.innerHTML = cards.map(card => `
+            <div style="border:1px solid var(--theme-border); border-radius:8px; padding:12px; background:var(--theme-bg-secondary);">
+                <div style="font-size:12px; color:var(--theme-text-secondary);">${escapeHtml(card.label)}</div>
+                <div style="font-size:24px; font-weight:700; color:${card.color};">${card.value}</div>
+            </div>
+        `).join('');
+    }
+
+    const filters = document.getElementById('missingCategoryFilters');
+    if (filters) {
+        const categories = [{ category: 'all', label: 'Все причины', count: (data.items || []).length }]
+            .concat(data.summary?.by_category || []);
+        filters.innerHTML = categories.map(entry => {
+            const active = terminalMissingCategory === entry.category;
+            const color = TERMINAL_MISSING_COLORS[entry.category] || '#334155';
+            return `
+                <button type="button" class="btn-secondary" data-missing-category="${escapeHtml(entry.category)}"
+                    style="padding:6px 12px; border-radius:999px; font-size:13px;
+                    ${active ? `background:${color}; color:#fff; border-color:${color};` : ''}">
+                    ${escapeHtml(entry.label)} · ${entry.count}
+                </button>`;
+        }).join('');
+        filters.querySelectorAll('[data-missing-category]').forEach(button => {
+            button.addEventListener('click', () => {
+                terminalMissingCategory = button.getAttribute('data-missing-category');
+                renderTerminalMissing();
+            });
+        });
+    }
+
+    const body = document.getElementById('missingTableBody');
+    if (!body) return;
+    const items = terminalMissingFilteredItems();
+    if (!items.length) {
+        body.innerHTML = '<tr><td colspan="6" style="text-align:center; color:var(--theme-text-secondary); padding:20px;">Никого нет — все записаны в терминал.</td></tr>';
+        return;
+    }
+
+    body.innerHTML = items.map(item => {
+        const color = TERMINAL_MISSING_COLORS[item.category] || '#334155';
+        const photo = item.photo_url
+            ? `<img src="${escapeHtml(item.photo_url)}" alt="" loading="lazy" style="width:40px; height:40px; border-radius:50%; object-fit:cover;">`
+            : '<span style="display:inline-flex; width:40px; height:40px; border-radius:50%; background:#e2e8f0; align-items:center; justify-content:center; font-size:11px; color:#64748b;">нет</span>';
+        const staffMark = item.person_type === 'staff'
+            ? ' <span style="font-size:11px; color:var(--theme-text-secondary);">(сотрудник)</span>'
+            : '';
+        return `
+            <tr>
+                <td>${photo}</td>
+                <td>${escapeHtml(item.employee_no)}</td>
+                <td>${escapeHtml(item.full_name)}${staffMark}</td>
+                <td>${escapeHtml(item.group || '—')}</td>
+                <td><span style="color:${color}; font-weight:600;">${escapeHtml(item.reason_label)}</span></td>
+                <td style="color:var(--theme-text-secondary); font-size:13px;">${escapeHtml(item.detail || '—')}</td>
+            </tr>`;
+    }).join('');
+}
+
+function exportTerminalMissingCsv() {
+    const items = terminalMissingFilteredItems();
+    if (!items.length) {
+        alert('Список пуст — нечего выгружать.');
+        return;
+    }
+    const header = ['ID', 'ФИО', 'Группа', 'Тип', 'Причина', 'Подробности'];
+    const rows = items.map(item => [
+        item.employee_no,
+        item.full_name,
+        item.group || '',
+        item.person_type === 'staff' ? 'Сотрудник' : 'Ученик',
+        item.reason_label,
+        item.detail || '',
+    ]);
+    const csv = [header].concat(rows)
+        .map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(';'))
+        .join('\r\n');
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'ne-v-terminale.csv';
+    link.click();
+    URL.revokeObjectURL(url);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const refreshBtn = document.getElementById('missingRefreshBtn');
+    if (refreshBtn) refreshBtn.addEventListener('click', () => loadTerminalMissing());
+
+    const exportBtn = document.getElementById('missingExportBtn');
+    if (exportBtn) exportBtn.addEventListener('click', exportTerminalMissingCsv);
+
+    const search = document.getElementById('missingSearchInput');
+    if (search) {
+        search.addEventListener('input', () => {
+            terminalMissingQuery = search.value || '';
+            renderTerminalMissing();
+        });
+    }
+});
+
+window.loadTerminalMissing = loadTerminalMissing;

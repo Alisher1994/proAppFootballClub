@@ -1106,6 +1106,10 @@ def build_hikvision_person_payload(person_type, person_id, settings=None, today=
         allowed = bool(user.is_active)
         reason = 'staff_active' if allowed else 'staff_inactive'
         final_reason = 'no_photo' if allowed and not photo_url else reason
+        face_photo_url = (
+            f"{base_url}/api/hikvision/face-photo?person_type=staff&person_id={user.id}"
+            if photo_url else None
+        )
         return {
             'student_id': None,
             'user_id': user.id,
@@ -1114,6 +1118,7 @@ def build_hikvision_person_payload(person_type, person_id, settings=None, today=
             'fullName': user.full_name or user.username,
             'group': 'Сотрудники клуба',
             'photoUrl': photo_url,
+            'facePhotoUrl': face_photo_url,
             'enabled': bool(allowed and photo_url),
             'access_allowed': allowed,
             'access_reason': final_reason,
@@ -1156,6 +1161,10 @@ def build_hikvision_person_payload(person_type, person_id, settings=None, today=
         'fullName': student.full_name,
         'group': student.group.name if student.group else None,
         'photoUrl': photo_url,
+        'facePhotoUrl': (
+            f"{base_url}/api/hikvision/face-photo?person_type=student&person_id={student.id}"
+            if photo_url else None
+        ),
         'enabled': bool(access_payload['can_sync_to_turnstile']),
         'access_allowed': bool(access_payload['allowed']),
         'access_reason': access_payload['reason'],
@@ -3326,6 +3335,171 @@ def photo_thumbnail(filename):
     except Exception as exc:
         print(f'Photo thumbnail failed for {relative_path}: {type(exc).__name__}: {exc}')
         return '', 404
+
+
+# --- Нормализация фото для терминалов Hikvision -------------------------------
+# Терминалы принимают только JPEG, отклоняют CMYK/градации серого/альфа-канал,
+# слишком маленькие и слишком тяжелые файлы (ISAPI statusCode 6 "Invalid Content").
+HIK_FACE_MIN_SIDE = 480
+HIK_FACE_MAX_SIDE = 1200
+HIK_FACE_MAX_BYTES = 190 * 1024
+HIK_FACE_MIN_BYTES = 12 * 1024
+
+
+def resolve_static_photo_file(photo_path):
+    """Абсолютный путь к файлу фото внутри static, либо None."""
+    relative_path = normalize_static_photo_path(photo_path)
+    if not relative_path:
+        return None
+    static_root = os.path.abspath(app.static_folder)
+    source_path = os.path.abspath(os.path.join(static_root, relative_path))
+    try:
+        if os.path.commonpath([static_root, source_path]) != static_root:
+            return None
+    except ValueError:
+        return None
+    return source_path if os.path.isfile(source_path) else None
+
+
+def build_hikvision_face_jpeg(photo_path):
+    """Привести фото к виду, который терминал точно примет.
+
+    Возвращает (jpeg_bytes, info) или (None, info) с причиной отказа.
+    """
+    info = {'ok': False, 'reason': None, 'width': 0, 'height': 0, 'bytes': 0, 'source_format': None}
+    source_path = resolve_static_photo_file(photo_path)
+    if not source_path:
+        info['reason'] = 'Файл фото не найден на сервере'
+        return None, info
+
+    try:
+        with Image.open(source_path) as raw:
+            info['source_format'] = (raw.format or '').upper()
+            image = ImageOps.exif_transpose(raw)
+            if image.mode in ('RGBA', 'LA', 'P'):
+                image = image.convert('RGBA')
+                flat = Image.new('RGB', image.size, (255, 255, 255))
+                flat.paste(image, mask=image.split()[-1])
+                image = flat
+            else:
+                image = image.convert('RGB')
+
+            width, height = image.size
+            if width < 20 or height < 20:
+                info['reason'] = f'Фото слишком маленькое ({width}x{height})'
+                return None, info
+
+            # Апскейл, если терминалу не хватит пикселей на лицо
+            scale_up = max(HIK_FACE_MIN_SIDE / width, HIK_FACE_MIN_SIDE / height, 1.0)
+            # Даунскейл, если картинка огромная
+            scale_down = min(HIK_FACE_MAX_SIDE / width, HIK_FACE_MAX_SIDE / height, 1.0)
+            scale = scale_up if scale_up > 1.0 else scale_down
+            if abs(scale - 1.0) > 0.01:
+                image = image.resize(
+                    (max(1, int(round(width * scale))), max(1, int(round(height * scale)))),
+                    Image.Resampling.LANCZOS
+                )
+
+            info['width'], info['height'] = image.size
+
+            data = None
+            for quality in (92, 88, 82, 76, 70, 64, 58, 50):
+                buffer = io.BytesIO()
+                image.save(buffer, 'JPEG', quality=quality, optimize=True, subsampling=0)
+                data = buffer.getvalue()
+                if len(data) <= HIK_FACE_MAX_BYTES:
+                    break
+
+            if data and len(data) > HIK_FACE_MAX_BYTES:
+                # Последняя попытка: уменьшить сторону и пережать
+                shrunk = image.copy()
+                shrunk.thumbnail((HIK_FACE_MIN_SIDE, HIK_FACE_MIN_SIDE), Image.Resampling.LANCZOS)
+                buffer = io.BytesIO()
+                shrunk.save(buffer, 'JPEG', quality=72, optimize=True, subsampling=0)
+                data = buffer.getvalue()
+                info['width'], info['height'] = shrunk.size
+
+            if not data:
+                info['reason'] = 'Не удалось пережать фото в JPEG'
+                return None, info
+            if len(data) > HIK_FACE_MAX_BYTES:
+                info['reason'] = f'Фото не сжимается до {HIK_FACE_MAX_BYTES // 1024} КБ'
+                return None, info
+
+            info['bytes'] = len(data)
+            info['ok'] = True
+            if len(data) < HIK_FACE_MIN_BYTES:
+                info['warning'] = 'Фото очень низкого качества, терминал может его отклонить'
+            return data, info
+    except Exception as exc:
+        info['reason'] = f'Фото повреждено или неподдерживаемый формат ({type(exc).__name__})'
+        return None, info
+
+
+def resolve_person_photo_path(person_type, person_id):
+    if person_type == 'staff':
+        user = db.session.get(User, int(person_id))
+        return user.photo_path if user else None
+    student = db.session.get(Student, int(person_id))
+    return student.photo_path if student else None
+
+
+@app.route('/api/hikvision/face-photo', methods=['GET'])
+def hikvision_face_photo():
+    """Готовый к записи в терминал JPEG. Забирает локальный bridge."""
+    if not check_bridge_auth():
+        return jsonify({'success': False, 'message': 'Unauthorized'}), 401
+
+    person_type = (request.args.get('person_type') or 'student').strip()
+    person_id = request.args.get('person_id')
+    if person_type not in {'student', 'staff'} or not person_id:
+        return jsonify({'success': False, 'message': 'Invalid person request'}), 400
+
+    try:
+        photo_path = resolve_person_photo_path(person_type, person_id)
+    except (TypeError, ValueError):
+        return jsonify({'success': False, 'message': 'Invalid person id'}), 400
+    if not photo_path:
+        return jsonify({'success': False, 'message': 'Нет фото для Face ID'}), 404
+
+    # Кэш: одно и то же фото пережимаем один раз, дальше отдаем с диска.
+    cache_path = None
+    source_path = resolve_static_photo_file(photo_path)
+    if source_path:
+        try:
+            stat = os.stat(source_path)
+            cache_key = hashlib.sha1(
+                f'hikface:{source_path}:{stat.st_mtime_ns}:{stat.st_size}'.encode('utf-8')
+            ).hexdigest()[:24]
+            cache_dir = os.path.join(app.config['UPLOAD_FOLDER'], '.hik_face_cache')
+            cache_path = os.path.join(cache_dir, f'{cache_key}.jpg')
+            if os.path.isfile(cache_path):
+                response = send_file(cache_path, mimetype='image/jpeg', conditional=False)
+                response.cache_control.no_store = True
+                return response
+        except OSError:
+            cache_path = None
+
+    data, info = build_hikvision_face_jpeg(photo_path)
+    if not data:
+        return jsonify({'success': False, 'message': info.get('reason') or 'Фото не подходит'}), 422
+
+    if cache_path:
+        try:
+            os.makedirs(os.path.dirname(cache_path), exist_ok=True)
+            temp_path = f'{cache_path}.tmp'
+            with open(temp_path, 'wb') as handle:
+                handle.write(data)
+            os.replace(temp_path, cache_path)
+        except OSError as exc:
+            print(f'hikvision face cache write failed: {type(exc).__name__}: {exc}')
+
+    response = Response(data, mimetype='image/jpeg')
+    response.headers['Content-Length'] = str(len(data))
+    response.headers['X-Face-Width'] = str(info['width'])
+    response.headers['X-Face-Height'] = str(info['height'])
+    response.cache_control.no_store = True
+    return response
 
 
 def get_user_photo_thumb_path(photo_path):
@@ -10333,6 +10507,216 @@ def get_hikvision_bridge_status():
                 'picked_at': processing.picked_at.isoformat() if processing.picked_at else None,
             } if processing else None
         }
+    })
+
+
+HIK_MISSING_CATEGORY_LABELS = {
+    'no_photo': 'Нет фото для Face ID',
+    'photo_broken': 'Фото есть, но терминал его не примет',
+    'inactive': 'Ученик не активен или в черном списке',
+    'payment': 'Оплата',
+    'sync_error': 'Ошибка записи в терминал',
+}
+
+HIK_MISSING_PAYMENT_REASONS = {
+    'no_current_month_payment',
+    'too_many_debt_months',
+    'current_month_debt',
+    'no_payment_this_month',
+}
+
+
+def check_photo_readable(photo_path):
+    """Быстрая проверка фото по заголовку файла, без полного декодирования."""
+    source_path = resolve_static_photo_file(photo_path)
+    if not source_path:
+        return False, 'Файл фото не найден на сервере'
+    try:
+        with Image.open(source_path) as image:
+            width, height = image.size
+            if width < 20 or height < 20:
+                return False, f'Фото слишком маленькое ({width}x{height})'
+        return True, None
+    except Exception as exc:
+        return False, f'Фото повреждено или неподдерживаемый формат ({type(exc).__name__})'
+
+
+def collect_last_sync_failures():
+    """Ошибки последней синхронизации из отчета bridge: employeeNo -> текст."""
+    failures = {}
+    try:
+        ensure_bridge_status_table()
+        status = BridgeStatus.query.order_by(BridgeStatus.last_seen_at.desc()).first()
+        if not status:
+            return failures
+        metrics = status.get_metrics() or {}
+        progress = metrics.get('progress') or {}
+        for device in (progress.get('devices') or {}).values():
+            device_label = device.get('label') or device.get('name') or 'Терминал'
+            for item in ((device.get('results') or {}).get('errors') or []):
+                employee_no = str(item.get('employeeNo') or '').strip()
+                if not employee_no:
+                    continue
+                failures[employee_no] = f"{device_label}: {item.get('reason') or 'ошибка записи'}"
+    except Exception as exc:
+        print(f'collect_last_sync_failures failed: {type(exc).__name__}: {exc}')
+    return failures
+
+
+@app.route('/api/hikvision/terminal-missing', methods=['GET'])
+@login_required
+def hikvision_terminal_missing():
+    """Кто сейчас НЕ записан в терминалы и почему."""
+    if current_user.role not in ['admin']:
+        return jsonify({'success': False, 'message': 'Доступ запрещен'}), 403
+
+    ensure_club_settings_columns()
+    settings = get_club_settings_instance()
+    today = get_local_date()
+    paid_map = get_month_paid_map(today.year, today.month)
+    payment_date_paid_map = get_payment_date_paid_map(today.year, today.month)
+    students = Student.query.options(
+        joinedload(Student.tariff),
+        joinedload(Student.group)
+    ).order_by(Student.full_name.asc()).all()
+    access_policy = get_access_payment_policy(settings)
+    debt_month_counts = (
+        get_debt_month_counts(students, settings, today, include_current=False)
+        if access_policy in {'partial_current_month', 'any_payment_this_month'}
+        else {}
+    )
+    sync_failures = collect_last_sync_failures()
+    check_photos = request.args.get('check_photos', '1') not in {'0', 'false', 'no'}
+
+    items = []
+    counters = {'in_terminal': 0, 'total_people': 0}
+
+    def push(person_type, person_id, employee_no, full_name, group, status_value,
+             reason, reason_label, category, has_photo, photo_path, detail=''):
+        items.append({
+            'person_type': person_type,
+            'person_id': person_id,
+            'employee_no': str(employee_no),
+            'full_name': full_name or '',
+            'group': group or '',
+            'status': status_value or '',
+            'reason': reason,
+            'reason_label': reason_label,
+            'category': category,
+            'category_label': HIK_MISSING_CATEGORY_LABELS.get(category, category),
+            'has_photo': bool(has_photo),
+            'photo_url': build_photo_thumb_url(photo_path) if photo_path else None,
+            'detail': detail or '',
+        })
+
+    for student in students:
+        counters['total_people'] += 1
+        access = build_student_access_payload(
+            student,
+            settings,
+            paid_map,
+            payment_date_paid_map,
+            today,
+            debt_month_count=debt_month_counts.get(student.id)
+        )
+        employee_no = str(student.id)
+        group_name = student.group.name if student.group else ''
+        reason = access['reason']
+        reason_label = access['reason_label']
+
+        if not access['can_sync_to_turnstile']:
+            if reason == 'no_photo' or not access['has_photo']:
+                category = 'no_photo'
+            elif reason in HIK_MISSING_PAYMENT_REASONS:
+                category = 'payment'
+            else:
+                category = 'inactive'
+            detail = ''
+            if category == 'payment' and access['debt']:
+                detail = 'долг: {:,} сум'.format(int(access['debt'])).replace(',', ' ')
+            push('student', student.id, employee_no, student.full_name, group_name,
+                 student.status, reason, reason_label, category,
+                 access['has_photo'], student.photo_path, detail)
+            continue
+
+        failure = sync_failures.get(employee_no)
+        if failure:
+            push('student', student.id, employee_no, student.full_name, group_name,
+                 student.status, 'sync_error', 'Ошибка записи в терминал', 'sync_error',
+                 True, student.photo_path, failure)
+            continue
+
+        if check_photos:
+            readable, photo_problem = check_photo_readable(student.photo_path)
+            if not readable:
+                push('student', student.id, employee_no, student.full_name, group_name,
+                     student.status, 'photo_broken', 'Фото есть, но терминал его не примет',
+                     'photo_broken', True, student.photo_path, photo_problem or '')
+                continue
+
+        counters['in_terminal'] += 1
+
+    for user in User.query.order_by(User.full_name.asc()).all():
+        counters['total_people'] += 1
+        employee_no = '900000{}'.format(user.id)
+        staff_name = user.full_name or user.username
+        photo_url = build_photo_url(user.photo_path)
+        if not user.is_active:
+            push('staff', user.id, employee_no, staff_name, 'Сотрудники клуба',
+                 'inactive', 'staff_inactive', ACCESS_REASON_LABELS['staff_inactive'], 'inactive',
+                 bool(photo_url), user.photo_path)
+            continue
+        if not photo_url:
+            push('staff', user.id, employee_no, staff_name, 'Сотрудники клуба',
+                 'active', 'no_photo', ACCESS_REASON_LABELS['no_photo'], 'no_photo',
+                 False, user.photo_path)
+            continue
+        failure = sync_failures.get(employee_no)
+        if failure:
+            push('staff', user.id, employee_no, staff_name, 'Сотрудники клуба',
+                 'active', 'sync_error', 'Ошибка записи в терминал', 'sync_error',
+                 True, user.photo_path, failure)
+            continue
+        if check_photos:
+            readable, photo_problem = check_photo_readable(user.photo_path)
+            if not readable:
+                push('staff', user.id, employee_no, staff_name, 'Сотрудники клуба',
+                     'active', 'photo_broken', 'Фото есть, но терминал его не примет', 'photo_broken',
+                     True, user.photo_path, photo_problem or '')
+                continue
+        counters['in_terminal'] += 1
+
+    by_category = {}
+    by_reason = {}
+    for item in items:
+        by_category[item['category']] = by_category.get(item['category'], 0) + 1
+        key = (item['reason'], item['reason_label'])
+        by_reason[key] = by_reason.get(key, 0) + 1
+
+    return jsonify({
+        'success': True,
+        'generated_at': get_local_datetime().isoformat(),
+        'month': today.month,
+        'year': today.year,
+        'access_payment_policy': access_policy,
+        'summary': {
+            'total_people': counters['total_people'],
+            'in_terminal': counters['in_terminal'],
+            'missing': len(items),
+            'by_category': [
+                {
+                    'category': key,
+                    'label': HIK_MISSING_CATEGORY_LABELS.get(key, key),
+                    'count': value,
+                }
+                for key, value in sorted(by_category.items(), key=lambda pair: -pair[1])
+            ],
+            'by_reason': [
+                {'reason': key[0], 'label': key[1], 'count': value}
+                for key, value in sorted(by_reason.items(), key=lambda pair: -pair[1])
+            ],
+        },
+        'items': items,
     })
 
 

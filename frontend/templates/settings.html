@@ -2432,6 +2432,7 @@
                     <button class="settings-tab" data-tab="rewards"><i data-lucide="trophy"></i> Вознаграждения</button>
                     <button class="settings-tab" data-tab="camera"><i data-lucide="video"></i> Камера</button>
                     <button class="settings-tab" data-tab="hikvision"><i data-lucide="scan-face"></i> Hikvision</button>
+                    <button class="settings-tab" data-tab="terminal-missing"><i data-lucide="user-x"></i> Не в терминале</button>
                 </div>
             </div>
 
@@ -3488,6 +3489,58 @@
                     </div>
                 </div>
 
+                <!-- Вкладка: Не в терминале -->
+                <div id="terminal-missing-tab" class="settings-tab-content">
+                    <div class="card settings-main-card" style="max-width: 1100px; margin: 0 auto;">
+                        <div class="settings-card-header">
+                            <div class="settings-card-icon"><i data-lucide="user-x"></i></div>
+                            <div>
+                                <h2 class="settings-card-title">Кого нет в терминалах</h2>
+                                <p class="settings-card-subtitle">Список тех, кто не записан в Face ID, и причина по каждому</p>
+                            </div>
+                        </div>
+
+                        <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:14px;">
+                            <button type="button" id="missingRefreshBtn" class="btn-primary" style="padding:8px 14px;">
+                                <i data-lucide="refresh-cw"></i> Обновить
+                            </button>
+                            <button type="button" id="missingExportBtn" class="btn-secondary" style="padding:8px 14px;">
+                                <i data-lucide="download"></i> Скачать CSV
+                            </button>
+                            <input type="search" id="missingSearchInput" class="form-input-modern"
+                                placeholder="Поиск по имени, ID или группе" style="max-width:320px; flex:1 1 220px;">
+                            <span id="missingGeneratedAt" style="font-size:12px; color:var(--theme-text-secondary);"></span>
+                        </div>
+
+                        <div id="missingSummaryGrid"
+                            style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:10px; margin-bottom:14px;"></div>
+
+                        <div id="missingCategoryFilters" style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px;"></div>
+
+                        <div style="overflow-x:auto; border:1px solid var(--theme-border); border-radius:8px;">
+                            <table class="data-table" id="missingTable" style="width:100%;">
+                                <thead>
+                                    <tr>
+                                        <th style="width:56px;">Фото</th>
+                                        <th style="width:90px;">ID</th>
+                                        <th>ФИО</th>
+                                        <th>Группа</th>
+                                        <th>Причина</th>
+                                        <th>Подробности</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="missingTableBody">
+                                    <tr>
+                                        <td colspan="6" style="text-align:center; color:var(--theme-text-secondary); padding:20px;">
+                                            Откройте вкладку, чтобы загрузить список.
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Вкладка: Группы -->
                 <div id="groups-tab" class="settings-tab-content">
                     <table class="data-table" id="groupsTable" style="margin-top: 20px;">
@@ -4027,6 +4080,11 @@
                                 }
                                 if (typeof loadSyncHistory === 'function') {
                                     setTimeout(() => loadSyncHistory(), 100);
+                                }
+                            
+                            } else if (tabName === 'terminal-missing') {
+                                if (typeof loadTerminalMissing === 'function') {
+                                    setTimeout(() => loadTerminalMissing(), 50);
                                 }
                             }
                         }
