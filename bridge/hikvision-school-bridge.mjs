@@ -1150,7 +1150,26 @@ async function deleteFaceRecord(device, employeeNo) {
     if (res.statusCode === 400 && /not.?exist|no.?match|not.?found/i.test(text)) return;
     lastError = new Error(`delete-face ISAPI ${res.statusCode}: ${text.slice(0, 220)}`);
   }
+
+  // Часть терминалов не умеет FaceDataRecord/Delete (statusCode 4, notSupport),
+  // но чистит данные пользователя через контроль доступа.
+  const detailRes = await requestDigest(
+    device,
+    'PUT',
+    '/ISAPI/AccessControl/UserInfoDetail/Delete?format=json',
+    JSON.stringify({
+      UserInfoDetail: {
+        mode: 'byEmployeeNo',
+        EmployeeNoList: [{ employeeNo: String(employeeNo) }],
+      },
+    }),
+    { 'Content-Type': 'application/json' }
+  );
+  if (detailRes.statusCode === 404) return;
+  if (detailRes.statusCode >= 200 && detailRes.statusCode < 300) return;
+
   if (lastError) throw lastError;
+  assertOk('delete-face-detail', detailRes);
 }
 
 async function deletePersonFromDevice(device, employeeNo) {
@@ -1311,38 +1330,71 @@ async function upsertUser(device, student) {
   await requestJson(device, 'PUT', '/ISAPI/AccessControl/UserInfo/SetUp?format=json', body);
 }
 
-async function uploadFace(device, student, options = {}) {
-  if (!student.photoUrl && !student.facePhotoUrl) return 'no-photo';
-  const photo = await downloadPhoto(student);
-  if (options.replace) {
-    // Без удаления старой записи терминал вернет "лицо уже есть"
-    // и оставит в памяти прежнее фото.
-    try {
-      await deleteFaceRecord(device, student.employeeNo);
-      await sleep(200);
-    } catch (error) {
-      console.warn(`[face] Не удалось удалить старое фото ${student.employeeNo}: ${humanError(error)}`);
-    }
-  }
+function buildFaceMultipart(employeeNo, photo) {
   const boundary = '----karasu' + Math.random().toString(16).slice(2);
-  const record = JSON.stringify({ faceLibType: 'blackFD', FDID: '1', FPID: student.employeeNo });
+  const record = JSON.stringify({ faceLibType: 'blackFD', FDID: '1', FPID: String(employeeNo) });
   const head =
     `--${boundary}\r\n` +
     'Content-Disposition: form-data; name="FaceDataRecord"\r\n' +
     'Content-Type: application/json\r\n\r\n' +
     `${record}\r\n` +
     `--${boundary}\r\n` +
-    `Content-Disposition: form-data; name="FaceImage"; filename="${student.employeeNo}.jpg"\r\n` +
+    `Content-Disposition: form-data; name="FaceImage"; filename="${employeeNo}.jpg"\r\n` +
     `Content-Type: ${photo.contentType}\r\n\r\n`;
   const tail = `\r\n--${boundary}--\r\n`;
-  const body = Buffer.concat([Buffer.from(head, 'utf8'), photo.buffer, Buffer.from(tail, 'utf8')]);
-  const res = await requestDigest(device, 'POST', '/ISAPI/Intelligent/FDLib/FaceDataRecord?format=json', body, {
-    'Content-Type': `multipart/form-data; boundary=${boundary}`,
-  });
+  return {
+    body: Buffer.concat([Buffer.from(head, 'utf8'), photo.buffer, Buffer.from(tail, 'utf8')]),
+    contentType: `multipart/form-data; boundary=${boundary}`,
+  };
+}
+
+function isAlreadyExistsResponse(res) {
   const data = parseJsonSafe(res.body);
-  if (res.statusCode === 400 && data?.subStatusCode === 'deviceUserAlreadyExistFace') return 'already-exists';
-  assertOk('face-upload', res);
-  return 'uploaded';
+  return res.statusCode === 400 && data?.subStatusCode === 'deviceUserAlreadyExistFace';
+}
+
+/**
+ * Пишет фото в терминал.
+ *
+ * На повторную запись терминал отвечает "лицо уже есть" и оставляет старое
+ * фото. Поэтому при options.replace пробуем по очереди: штатное изменение
+ * записи (FDSetUp), затем удаление старого лица и повторную запись.
+ */
+async function uploadFace(device, student, options = {}) {
+  if (!student.photoUrl && !student.facePhotoUrl) return 'no-photo';
+  const photo = await downloadPhoto(student);
+  const employeeNo = student.employeeNo;
+
+  const created = buildFaceMultipart(employeeNo, photo);
+  const res = await requestDigest(device, 'POST', '/ISAPI/Intelligent/FDLib/FaceDataRecord?format=json',
+    created.body, { 'Content-Type': created.contentType });
+  if (!isAlreadyExistsResponse(res)) {
+    assertOk('face-upload', res);
+    return 'uploaded';
+  }
+  if (!options.replace) return 'already-exists';
+
+  const updated = buildFaceMultipart(employeeNo, photo);
+  const setUpRes = await requestDigest(device, 'PUT', '/ISAPI/Intelligent/FDLib/FDSetUp?format=json',
+    updated.body, { 'Content-Type': updated.contentType });
+  if (setUpRes.statusCode >= 200 && setUpRes.statusCode < 300) return 'replaced';
+
+  try {
+    await deleteFaceRecord(device, employeeNo);
+  } catch (error) {
+    const detail = hikStatusMessage(setUpRes) || humanError(error);
+    throw new Error(`терминал не дает заменить фото: ${detail}`);
+  }
+  await sleep(300);
+
+  const retry = buildFaceMultipart(employeeNo, photo);
+  const retryRes = await requestDigest(device, 'POST', '/ISAPI/Intelligent/FDLib/FaceDataRecord?format=json',
+    retry.body, { 'Content-Type': retry.contentType });
+  if (isAlreadyExistsResponse(retryRes)) {
+    throw new Error('терминал не дает заменить фото: старое лицо не удаляется');
+  }
+  assertOk('face-replace', retryRes);
+  return 'replaced';
 }
 
 async function fetchStudents() {
@@ -1529,7 +1581,7 @@ async function syncDevice(device, students, reports) {
       stats.upserted += 1;
       const faceText = face === 'already-exists'
         ? 'фото уже было в терминале'
-        : (faceOutdated ? 'фото обновлено' : 'фото записано');
+        : (face === 'replaced' ? 'фото обновлено' : 'фото записано');
       stats.results.success.push({ employeeNo: student.employeeNo, fullName: student.fullName, detail: faceText });
       capList(stats.results.success);
       const msg = `${logPrefix} УСПЕШНО: записан в терминал: ${studentTitle} (${faceText})`;
@@ -1635,7 +1687,7 @@ async function syncPersonDevice(device, person, reports, action = 'upsert') {
       const face = await uploadFace(device, person, { replace: true });
       if (face !== 'no-photo') rememberFace(device, person);
       stats.success = 1;
-      const faceText = face === 'already-exists' ? 'фото уже было в терминале' : 'фото обновлено';
+      const faceText = face === 'replaced' ? 'фото обновлено' : 'фото записано';
       stats.results.success.push({ employeeNo: person.employeeNo, fullName: person.fullName || '', detail: faceText });
       const msg = `${logPrefix} УСПЕШНО: точечно записан ${studentTitle} (${faceText})`;
       console.log(msg);
