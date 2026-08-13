@@ -5085,6 +5085,63 @@
         .group-print-btn:hover { color: #ff8a00 !important; background: none !important; }
         .group-print-btn svg { width: 15px; height: 15px; }
 
+
+        /* Иконки терминалов выносим под фото: раньше они лежали
+           поверх снимка и закрывали лицо. */
+        .student-item-photo {
+            position: relative;
+            display: flex !important;
+            flex-direction: column;
+            align-items: center;
+            gap: 3px;
+        }
+
+        .student-item-terminals {
+            position: static !important;
+            display: flex;
+            gap: 3px;
+            justify-content: center;
+        }
+
+        .student-item-terminals .terminal-badge {
+            padding: 2px !important;
+            border-radius: 50%;
+            box-shadow: none !important;
+            border-width: 1px;
+        }
+
+        .student-item-terminals .terminal-badge svg { width: 10px; height: 10px; }
+
+        .sc-avatar { overflow: visible; }
+
+        .sc-avatar-terminals {
+            position: static !important;
+            display: flex;
+            gap: 4px;
+            justify-content: center;
+            margin-top: 5px;
+            max-width: none !important;
+        }
+
+        .sc-avatar-terminals .terminal-badge {
+            padding: 3px !important;
+            border-radius: 50%;
+            box-shadow: none !important;
+            max-width: none !important;
+        }
+
+        .sc-avatar-terminals .terminal-badge svg { width: 12px; height: 12px; }
+
+
+        /* Фото и под ним иконки терминалов отдельной строкой */
+        .sc-avatar-wrap {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+            flex: 0 0 auto;
+        }
+
     </style>
 </head>
 
@@ -6461,7 +6518,7 @@
         })();
     </script>
     <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/students.js') }}?v=2026081328"></script>
+    <script src="{{ url_for('static', filename='js/students.js') }}?v=2026081329"></script>
     <script src="{{ url_for('static', filename='js/students_rewards.js') }}"></script>
     <script src="{{ url_for('static', filename='js/students_cards.js') }}"></script>
     <script src="{{ url_for('static', filename='js/students_params.js') }}"></script>
@@ -7359,8 +7416,8 @@
 
             return `
                 <header class="sc-head">
-                    <div class="sc-avatar">
-                        ${photo}
+                    <div class="sc-avatar-wrap">
+                        <div class="sc-avatar">${photo}</div>
                         <span class="sc-avatar-terminals" id="photoTerminals_${id}">
                             ${buildTerminalBadgesHtml(student.terminals, { compact: true })}
                         </span>
