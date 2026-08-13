@@ -975,6 +975,38 @@ def get_student_month_due(student, year, month, tariff_price=None):
     return float(tariff_price)
 
 
+def get_students_month_dues(students, year, month, settings=None, apply_attendance_rule=True):
+    """Сколько ждем от каждого ученика за конкретный месяц.
+
+    Единая точка для всей статистики, чтобы цифры совпадали с тем,
+    что показывает карточка ученика и правила турникета:
+      - за месяц поступления берем согласованную сумму, а не полный тариф;
+      - месяц, в котором ученик почти не появлялся, оплаты не ждет;
+      - архивные и неактивные сюда не попадают: их отсеивают запросы выше.
+    """
+    settings = settings or get_club_settings_instance()
+    students = [student for student in students if student is not None]
+    if not students:
+        return {}
+
+    min_lessons = get_min_lessons_for_debt(settings) if apply_attendance_rule else 0
+    attendance_counts = (
+        get_attendance_counts_by_month([student.id for student in students], year)
+        if min_lessons else {}
+    )
+
+    dues = {}
+    for student in students:
+        if student.club_funded or not student.tariff:
+            dues[student.id] = 0.0
+            continue
+        if min_lessons and not month_is_chargeable(student.id, year, month, attendance_counts, min_lessons):
+            dues[student.id] = 0.0
+            continue
+        dues[student.id] = float(get_student_month_due(student, year, month))
+    return dues
+
+
 def get_student_debt_start_pair(student, settings, today=None):
     today = today or get_local_date()
     candidates = []
@@ -3136,17 +3168,21 @@ def build_public_unpaid_periods(student, settings=None, today=None):
     }
 
     tariff_price = float(student.tariff.price or 0)
+    min_lessons = get_min_lessons_for_debt(settings)
+    attendance_counts = get_attendance_counts_by_month([student.id], start_year) if min_lessons else {}
     periods = []
     for year, month in iter_month_pairs(start_year, start_month, today.year, today.month):
         paid = paid_by_month.get((year, month), 0)
-        amount_due = max(0, tariff_price - paid)
+        if min_lessons and not month_is_chargeable(student.id, year, month, attendance_counts, min_lessons):
+            continue
+        amount_due = max(0, get_student_month_due(student, year, month, tariff_price) - paid)
         if amount_due > 0:
             periods.append({
                 'year': year,
                 'month': month,
                 'paid': paid,
                 'amount_due': amount_due,
-                'tariff_price': tariff_price,
+                'tariff_price': get_student_month_due(student, year, month, tariff_price),
             })
     return periods
 
@@ -10250,6 +10286,9 @@ def calculate_month_student_expectation(year, month):
         db.or_(Student.admission_date.is_(None), Student.admission_date <= month_end)
     ).options(joinedload(Student.tariff)).all()
 
+    # Ждем ровно столько, сколько ученик реально должен за этот месяц
+    dues = get_students_month_dues(active_students, year, month)
+
     expected = 0
     student_count = 0
     club_funded_count = 0
@@ -10261,8 +10300,7 @@ def calculate_month_student_expectation(year, month):
             club_funded_count += 1
             club_expected += tariff_price
             continue
-        if student.tariff and student.tariff.price:
-            expected += tariff_price
+        expected += dues.get(student.id, 0.0)
 
     new_student_count = Student.query.filter(
         Student.status == 'active',
@@ -10863,7 +10901,7 @@ def hikvision_terminal_missing():
     students = Student.query.options(
         joinedload(Student.tariff),
         joinedload(Student.group)
-    ).order_by(Student.full_name.asc()).all()
+    ).filter(Student.status != 'archived').order_by(Student.full_name.asc()).all()
     access_policy = get_access_payment_policy(settings)
     debt_month_counts = (
         get_debt_month_counts(students, settings, today, include_current=False)
@@ -12193,17 +12231,13 @@ def build_finance_months(periods, include_name=False):
         ]
         income = income_map.get((year, month), 0.0)
         expense = expense_map.get((year, month), 0.0)
-        expected = sum(
-            float(student.tariff.price or 0)
-            for student in eligible
-            if not student.club_funded and student.tariff
-        )
+        dues = get_students_month_dues(eligible, year, month, settings)
+        expected = sum(dues.values())
         debt = 0.0
         if (year, month) <= (today.year, today.month) and (not global_start or (year, month) >= global_start):
             debt = sum(
-                max(0, float(student.tariff.price or 0) - paid_map.get((year, month, student.id), 0))
+                max(0, dues.get(student.id, 0.0) - paid_map.get((year, month, student.id), 0))
                 for student in eligible
-                if not student.club_funded and student.tariff
             )
         item = {
             'income': float(income),
@@ -12301,6 +12335,7 @@ def get_payment_status_current_month():
         joinedload(Student.tariff),
         joinedload(Student.group)
     ).all()
+    group_dues = get_students_month_dues(students, year, month)
 
     for student in students:
         group_key = student.group_id or no_group_key
@@ -12318,7 +12353,7 @@ def get_payment_status_current_month():
             'club_expected_amount': 0.0,
         })
 
-        tariff_price = float(student.tariff.price or 0) if student.tariff else 0.0
+        tariff_price = float(group_dues.get(student.id, 0.0))
         paid_amount = min(float(paid_by_student.get(student.id, 0)), tariff_price) if tariff_price else float(paid_by_student.get(student.id, 0))
         debt_amount = max(0.0, tariff_price - paid_amount)
 
