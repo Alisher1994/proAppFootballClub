@@ -3485,6 +3485,34 @@
                                             </small>
                                         </div>
                                         <div class="form-group">
+                                            <label>Автоархив: месяцев без занятий</label>
+                                            <div style="display:flex; gap:8px; align-items:center;">
+                                                <input type="number" id="auto_archive_after_months" min="0" max="24"
+                                                    class="form-input-modern" placeholder="0" style="flex:1 1 auto;">
+                                                <button type="button" id="autoArchiveRunBtn" class="btn-secondary"
+                                                    style="white-space:nowrap;">Проверить сейчас</button>
+                                            </div>
+                                            <small id="autoArchiveHint">
+                                                Если ученик не приходил столько месяцев, он автоматически уходит
+                                                в архив: из терминалов удаляется, но из списка не пропадает
+                                                и в любой момент возвращается. 0 — не переводить.
+                                            </small>
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Автоархив: месяцев без занятий</label>
+                                            <div style="display:flex; gap:8px; align-items:center;">
+                                                <input type="number" id="auto_archive_after_months" min="0" max="24"
+                                                    class="form-input-modern" placeholder="0" style="flex:1 1 auto;">
+                                                <button type="button" id="autoArchiveRunBtn" class="btn-secondary"
+                                                    style="white-space:nowrap;">Проверить сейчас</button>
+                                            </div>
+                                            <small id="autoArchiveHint">
+                                                Если ученик не приходил столько месяцев, он автоматически уходит
+                                                в архив: из терминалов удаляется, но из списка не пропадает
+                                                и в любой момент возвращается. 0 — не переводить.
+                                            </small>
+                                        </div>
+                                        <div class="form-group">
                                             <label>Со скольких занятий месяц считается долговым</label>
                                             <input type="number" id="min_lessons_for_debt" min="0" max="31"
                                                 class="form-input-modern" placeholder="4">
@@ -4278,7 +4306,7 @@
                 </div>
             </div>
 
-            <script src="{{ url_for('static', filename='js/settings.js') }}?v=2026081313"></script>
+            <script src="{{ url_for('static', filename='js/settings.js') }}?v=2026081314"></script>
             <script src="{{ url_for('static', filename='js/groups.js') }}?v=2026071501"></script>
             <script src="{{ url_for('static', filename='js/tariffs.js') }}"></script>
             <script src="{{ url_for('static', filename='js/rewards.js') }}"></script>

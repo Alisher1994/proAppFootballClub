@@ -1863,6 +1863,8 @@ def ensure_club_settings_columns():
             conn.execute(db.text("ALTER TABLE club_settings ADD COLUMN access_max_debt_months INTEGER DEFAULT 0"))
         if 'min_lessons_for_debt' not in columns:
             conn.execute(db.text("ALTER TABLE club_settings ADD COLUMN min_lessons_for_debt INTEGER DEFAULT 4"))
+        if 'auto_archive_after_months' not in columns:
+            conn.execute(db.text("ALTER TABLE club_settings ADD COLUMN auto_archive_after_months INTEGER DEFAULT 0"))
         if 'hikvision_device_key' not in columns:
             conn.execute(db.text("ALTER TABLE club_settings ADD COLUMN hikvision_device_key VARCHAR(120)"))
         if 'hikvision_devices' not in columns:
@@ -11589,6 +11591,177 @@ def bulk_change_tariff():
     })
 
 
+AUTO_ARCHIVE_MONTHS_DEFAULT = 0
+
+
+def get_auto_archive_months(settings=None):
+    """Через сколько месяцев без занятий ученик уходит в архив. 0 = не уходит."""
+    settings = settings or get_club_settings_instance()
+    try:
+        value = int(getattr(settings, 'auto_archive_after_months', None) or 0)
+    except (TypeError, ValueError):
+        value = AUTO_ARCHIVE_MONTHS_DEFAULT
+    return max(0, value)
+
+
+def subtract_months(day, months):
+    year = day.year
+    month = day.month - int(months)
+    while month <= 0:
+        month += 12
+        year -= 1
+    last_day = calendar.monthrange(year, month)[1]
+    return date(year, month, min(day.day, last_day))
+
+
+def find_students_to_auto_archive(settings=None, today=None):
+    """Кого пора убрать в архив: не приходит дольше заданного срока."""
+    settings = settings or get_club_settings_instance()
+    today = today or get_local_date()
+    months = get_auto_archive_months(settings)
+    if not months:
+        return []
+
+    threshold = subtract_months(today, months)
+    students = Student.query.filter(Student.status == 'active').all()
+    if not students:
+        return []
+
+    last_visits = dict(
+        db.session.query(Attendance.student_id, func.max(Attendance.date))
+        .filter(Attendance.student_id.in_([student.id for student in students]))
+        .group_by(Attendance.student_id)
+        .all()
+    )
+
+    candidates = []
+    for student in students:
+        last_visit = last_visits.get(student.id)
+        if last_visit:
+            if last_visit >= threshold:
+                continue
+            reason = f'последнее занятие {last_visit.strftime("%d.%m.%Y")}'
+        else:
+            # Ни одного занятия: считаем от даты поступления
+            started = student.admission_date
+            if not started or started >= threshold:
+                continue
+            reason = f'занятий не было с момента поступления {started.strftime("%d.%m.%Y")}'
+        candidates.append({
+            'student': student,
+            'student_id': student.id,
+            'full_name': student.full_name,
+            'group': student.group.name if student.group else '',
+            'last_visit': last_visit.isoformat() if last_visit else None,
+            'reason': reason,
+        })
+    return candidates
+
+
+def run_auto_archive(settings=None, today=None, dry_run=False):
+    """Перевести в архив тех, кто давно не приходит."""
+    settings = settings or get_club_settings_instance()
+    today = today or get_local_date()
+    months = get_auto_archive_months(settings)
+    candidates = find_students_to_auto_archive(settings, today)
+
+    archived = []
+    for item in candidates:
+        student = item['student']
+        if not dry_run:
+            student.previous_status = student.status
+            student.status = 'archived'
+            student.archived_at = get_local_datetime()
+        archived.append({
+            'student_id': item['student_id'],
+            'full_name': item['full_name'],
+            'group': item['group'],
+            'last_visit': item['last_visit'],
+            'reason': item['reason'],
+        })
+
+    if archived and not dry_run:
+        db.session.commit()
+        for item in archived:
+            queue_hikvision_person('student', item['student_id'], 'student_auto_archived',
+                                   action='delete', employee_no=str(item['student_id']))
+        db.session.commit()
+
+    return {
+        'months': months,
+        'checked_at': get_local_datetime().isoformat(),
+        'archived': archived,
+        'count': len(archived),
+        'dry_run': bool(dry_run),
+    }
+
+
+def auto_archive_job():
+    """Ежедневная проверка. Работает только если срок задан в настройках."""
+    with app.app_context():
+        try:
+            settings = get_club_settings_instance()
+            if not get_auto_archive_months(settings):
+                return
+            result = run_auto_archive(settings)
+            if result['count']:
+                names = ', '.join(item['full_name'] for item in result['archived'][:10])
+                print(f"Автоархив: {result['count']} учеников убраны в архив ({names})")
+        except Exception as exc:
+            db.session.rollback()
+            print(f'Ошибка автоархива: {type(exc).__name__}: {exc}')
+
+
+@app.route('/api/students/auto-archive/preview', methods=['GET'])
+@login_required
+def preview_auto_archive():
+    """Кого затронет автоархив, без изменений."""
+    if current_user.role not in ['admin', 'manager']:
+        return jsonify({'success': False, 'message': 'Доступ запрещен'}), 403
+
+    settings = get_club_settings_instance()
+    months = get_auto_archive_months(settings)
+    if not months:
+        return jsonify({'success': True, 'enabled': False, 'months': 0, 'candidates': [], 'count': 0})
+
+    result = run_auto_archive(settings, dry_run=True)
+    return jsonify({
+        'success': True,
+        'enabled': True,
+        'months': months,
+        'count': result['count'],
+        'candidates': result['archived'],
+    })
+
+
+@app.route('/api/students/auto-archive/run', methods=['POST'])
+@login_required
+def run_auto_archive_now():
+    """Запустить автоархив вручную."""
+    if current_user.role not in ['admin', 'manager']:
+        return jsonify({'success': False, 'message': 'Доступ запрещен'}), 403
+
+    settings = get_club_settings_instance()
+    months = get_auto_archive_months(settings)
+    if not months:
+        return jsonify({
+            'success': False,
+            'message': 'Автоархив выключен: задайте срок в настройках'
+        }), 400
+
+    result = run_auto_archive(settings)
+    if result['count']:
+        names = ', '.join(item['full_name'] for item in result['archived'][:8])
+        message = f"В архив убрано учеников: {result['count']} ({names}"
+        message += ')' if result['count'] <= 8 else f" и еще {result['count'] - 8})"
+    else:
+        message = f'Никого не нашли: все активные ученики приходили за последние {months} мес.'
+
+    result['success'] = True
+    result['message'] = message
+    return jsonify(result)
+
+
 @app.route('/api/students/<int:student_id>/archive', methods=['POST'])
 @login_required
 def archive_student(student_id):
@@ -12274,6 +12447,7 @@ def get_club_settings():
         'access_debt_start_month': getattr(settings, 'access_debt_start_month', None),
         'access_max_debt_months': get_access_max_debt_months(settings),
         'min_lessons_for_debt': get_min_lessons_for_debt(settings),
+        'auto_archive_after_months': get_auto_archive_months(settings),
         'hikvision_device_key': get_bridge_key(settings),
         'hikvision_devices': settings.get_hikvision_devices() or default_hikvision_devices(),
         'hikvision_parallel_devices': bool(getattr(settings, 'hikvision_parallel_devices', False)),
@@ -12465,6 +12639,7 @@ def update_club_settings():
         access_debt_start_month = data.get('access_debt_start_month', getattr(settings, 'access_debt_start_month', None))
         access_max_debt_months = data.get('access_max_debt_months', getattr(settings, 'access_max_debt_months', 0) or 0)
         min_lessons_for_debt = data.get('min_lessons_for_debt', getattr(settings, 'min_lessons_for_debt', 4))
+        auto_archive_after_months = data.get('auto_archive_after_months', getattr(settings, 'auto_archive_after_months', 0) or 0)
         hikvision_device_key = get_str_setting('hikvision_device_key', getattr(settings, 'hikvision_device_key', '') or '')
         hikvision_devices = data.get('hikvision_devices') if isinstance(data.get('hikvision_devices'), list) else None
         hikvision_parallel_devices = get_bool_setting('hikvision_parallel_devices', getattr(settings, 'hikvision_parallel_devices', False))
@@ -12566,6 +12741,10 @@ def update_club_settings():
             settings.min_lessons_for_debt = max(0, int(min_lessons_for_debt))
         except (TypeError, ValueError):
             settings.min_lessons_for_debt = MIN_LESSONS_FOR_DEBT_DEFAULT
+        try:
+            settings.auto_archive_after_months = max(0, int(auto_archive_after_months))
+        except (TypeError, ValueError):
+            settings.auto_archive_after_months = AUTO_ARCHIVE_MONTHS_DEFAULT
         settings.hikvision_device_key = hikvision_device_key if hikvision_device_key else None
         settings.hikvision_parallel_devices = hikvision_parallel_devices
         settings.hikvision_cleanup_stale_users = hikvision_cleanup_stale_users
@@ -15543,6 +15722,15 @@ def setup_scheduler():
         replace_existing=True
     )
     
+    # Автоархив тех, кто давно не приходит: раз в сутки ночью
+    scheduler.add_job(
+        func=auto_archive_job,
+        trigger=CronTrigger(hour=4, minute=30),
+        id='auto_archive_students',
+        name='Автоархив учеников без занятий',
+        replace_existing=True
+    )
+
     scheduler.start()
     print("✅ Планировщик запущен: автоматическая отправка напоминаний об оплате в начале месяца")
     return scheduler

@@ -555,6 +555,11 @@ async function loadSettings() {
         const accessDebtStartYearEl = document.getElementById('access_debt_start_year');
         const minLessonsEl = document.getElementById('min_lessons_for_debt');
         if (minLessonsEl) minLessonsEl.value = data.min_lessons_for_debt ?? 4;
+        const autoArchiveEl = document.getElementById('auto_archive_after_months');
+        if (autoArchiveEl) {
+            autoArchiveEl.value = data.auto_archive_after_months ?? 0;
+            refreshAutoArchivePreview();
+        }
         const accessMaxDebtMonthsEl = document.getElementById('access_max_debt_months');
         const hikvisionDeviceKeyEl = document.getElementById('hikvision_device_key');
         if (accessBlockDayEl) {
@@ -1035,6 +1040,7 @@ function gatherAllSettings() {
         access_debt_start_year: document.getElementById('access_debt_start_year')?.value || null,
         access_max_debt_months: accessMaxDebtMonths,
         min_lessons_for_debt: parseInt(document.getElementById('min_lessons_for_debt')?.value ?? '4', 10) || 0,
+        auto_archive_after_months: parseInt(document.getElementById('auto_archive_after_months')?.value ?? '0', 10) || 0,
         hikvision_device_key: (document.getElementById('hikvision_device_key')?.value || '').trim(),
         hikvision_devices: collectHikvisionDevices(),
         rewards_reset_period_months: parseInt(document.getElementById('rewards_reset_period_months').value, 10),
@@ -2068,6 +2074,55 @@ window.loadSyncHistory = loadSyncHistory;
 window.showHikvisionLog = showHikvisionLog;
 
 
+
+// Автоархив: показываем, скольких затронет, и даем запустить вручную
+async function refreshAutoArchivePreview() {
+    const hint = document.getElementById('autoArchiveHint');
+    const input = document.getElementById('auto_archive_after_months');
+    if (!hint || !input) return;
+    if (!Number(input.value)) {
+        hint.dataset.preview = '';
+        return;
+    }
+    try {
+        const response = await fetch('/api/students/auto-archive/preview');
+        const data = await response.json();
+        if (!data.success || !data.enabled) return;
+        const names = (data.candidates || []).slice(0, 5).map(item => item.full_name).join(', ');
+        hint.dataset.preview = data.count
+            ? `Сейчас под правило попадают ${data.count} учеников: ${names}${data.count > 5 ? ' и другие' : ''}`
+            : 'Сейчас под правило никто не попадает';
+        const preview = document.getElementById('autoArchivePreview');
+        if (preview) preview.textContent = hint.dataset.preview;
+    } catch (error) {
+        console.error('Не удалось получить предпросмотр автоархива:', error);
+    }
+}
+
+async function runAutoArchiveNow() {
+    const input = document.getElementById('auto_archive_after_months');
+    const months = Number(input?.value || 0);
+    if (!months) {
+        alert('Сначала укажите срок в месяцах и сохраните настройки.');
+        return;
+    }
+    if (!confirm(
+        `Перевести в архив всех, кто не приходил ${months} мес. и больше?\n\n`
+        + 'Ученики останутся в списке со статусом «В архиве», их записи удалятся из терминалов. '
+        + 'Вернуть можно в любой момент.'
+    )) return;
+
+    try {
+        const response = await fetch('/api/students/auto-archive/run', { method: 'POST' });
+        const data = await response.json();
+        if (!data.success) throw new Error(data.message || 'Не удалось выполнить');
+        alert(data.message);
+        refreshAutoArchivePreview();
+    } catch (error) {
+        alert('Ошибка: ' + error.message);
+    }
+}
+
 // ============================================================
 // Вкладка "Не в терминале": кто не записан в Face ID и почему
 // ============================================================
@@ -2489,6 +2544,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const exportBtn = document.getElementById('missingExportBtn');
     if (exportBtn) exportBtn.addEventListener('click', exportTerminalMissingCsv);
+
+    const autoArchiveBtn = document.getElementById('autoArchiveRunBtn');
+    if (autoArchiveBtn) autoArchiveBtn.addEventListener('click', runAutoArchiveNow);
 
     const search = document.getElementById('missingSearchInput');
     if (search) {
