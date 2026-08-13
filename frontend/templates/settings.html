@@ -3736,9 +3736,14 @@
                                             <select id="fltDebt">
                                                 <option value="">Любой долг</option>
                                                 <option value="0">Без долга</option>
-                                                <option value="1-400000">до 400 000</option>
+                                                <option value="1-50000">до 50 000</option>
+                                                <option value="50001-100000">50 001 – 100 000</option>
+                                                <option value="100001-200000">100 001 – 200 000</option>
+                                                <option value="200001-300000">200 001 – 300 000</option>
+                                                <option value="300001-400000">300 001 – 400 000</option>
                                                 <option value="400001-800000">400 001 – 800 000</option>
-                                                <option value="800001-1600000">800 001 – 1 600 000</option>
+                                                <option value="800001-1200000">800 001 – 1 200 000</option>
+                                                <option value="1200001-1600000">1 200 001 – 1 600 000</option>
                                                 <option value="1600001-">больше 1 600 000</option>
                                             </select>
                                         </th>
@@ -4264,7 +4269,7 @@
                 </div>
             </div>
 
-            <script src="{{ url_for('static', filename='js/settings.js') }}?v=2026081310"></script>
+            <script src="{{ url_for('static', filename='js/settings.js') }}?v=2026081311"></script>
             <script src="{{ url_for('static', filename='js/groups.js') }}?v=2026071501"></script>
             <script src="{{ url_for('static', filename='js/tariffs.js') }}"></script>
             <script src="{{ url_for('static', filename='js/rewards.js') }}"></script>
