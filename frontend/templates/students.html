@@ -3954,6 +3954,65 @@
         .year-month.partial .year-month-date { color: #15803d; }
         .year-month.debt .year-month-date { color: #b91c1c; }
 
+
+        /* История изменений по ученику */
+        .changelog-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .changelog-item {
+            display: flex;
+            gap: 10px;
+            padding: 11px 13px;
+            border: 1px solid var(--theme-border, #e8e2dc);
+            border-left: 3px solid #cbd5e1;
+            border-radius: 12px;
+            background: var(--theme-bg, #fff);
+        }
+
+        .changelog-item.tone-ok { border-left-color: #16a34a; }
+        .changelog-item.tone-bad { border-left-color: #dc2626; }
+        .changelog-item.tone-warn { border-left-color: #a78bfa; }
+
+        .changelog-icon {
+            width: 28px;
+            height: 28px;
+            flex: 0 0 auto;
+            border-radius: 8px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--theme-bg-secondary, #f1f5f9);
+            color: #64748b;
+        }
+
+        .changelog-icon svg { width: 15px; height: 15px; }
+        .changelog-body { min-width: 0; }
+
+        .changelog-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--theme-text-primary, #0f172a);
+            overflow-wrap: anywhere;
+        }
+
+        .changelog-details {
+            margin: 6px 0 0;
+            padding-left: 18px;
+            font-size: 13px;
+            color: var(--theme-text-secondary, #64748b);
+        }
+
+        .changelog-details li { margin-bottom: 2px; }
+
+        .changelog-meta {
+            margin-top: 6px;
+            font-size: 12px;
+            color: var(--theme-text-secondary, #94a3b8);
+        }
+
     </style>
     <style>
         /* Force unified background */
@@ -6215,7 +6274,7 @@
         })();
     </script>
     <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/students.js') }}?v=2026081317"></script>
+    <script src="{{ url_for('static', filename='js/students.js') }}?v=2026081318"></script>
     <script src="{{ url_for('static', filename='js/students_rewards.js') }}"></script>
     <script src="{{ url_for('static', filename='js/students_cards.js') }}"></script>
     <script src="{{ url_for('static', filename='js/students_params.js') }}"></script>
@@ -7156,6 +7215,70 @@
 
         // Блок с турникетом и календарем оплат. Любую половину можно
         // скрыть в настройках, тогда рамка вокруг пустоты не рисуется.
+
+        // История изменений по ученику: кто, что и когда поменял
+        const CHANGELOG_ICONS = {
+            payment_added: 'plus-circle',
+            payment_updated: 'pencil',
+            payment_deleted: 'trash-2',
+            payments_redistributed: 'arrow-left-right',
+            tariff_changed: 'credit-card',
+            archived: 'archive',
+            auto_archived: 'archive',
+            restored: 'rotate-ccw',
+        };
+
+        const CHANGELOG_TONES = {
+            payment_added: 'ok',
+            payment_deleted: 'bad',
+            archived: 'warn',
+            auto_archived: 'warn',
+            restored: 'ok',
+        };
+
+        async function loadStudentChangelog(studentId) {
+            const holder = document.getElementById(`changelog-${studentId}`);
+            if (!holder) return;
+            holder.innerHTML = '<p class="sc-empty">Загрузка...</p>';
+            try {
+                const response = await fetch(`/api/students/${studentId}/logs`);
+                const data = await readJsonResponse(response);
+                if (!data.success) throw new Error(data.message || 'Не удалось загрузить историю');
+
+                const items = data.items || [];
+                if (!items.length) {
+                    holder.innerHTML = '<p class="sc-empty">Изменений пока не было</p>';
+                    return;
+                }
+
+                holder.innerHTML = items.map(item => {
+                    const when = item.created_at
+                        ? new Date(item.created_at).toLocaleString('ru-RU', {
+                            day: '2-digit', month: '2-digit', year: 'numeric',
+                            hour: '2-digit', minute: '2-digit'
+                        })
+                        : '';
+                    const details = (item.details || [])
+                        .filter(Boolean)
+                        .map(line => `<li>${escapeHtml(line)}</li>`).join('');
+                    const tone = CHANGELOG_TONES[item.action] || 'neutral';
+                    return `
+                        <div class="changelog-item tone-${tone}">
+                            <span class="changelog-icon"><i data-lucide="${CHANGELOG_ICONS[item.action] || 'dot'}"></i></span>
+                            <div class="changelog-body">
+                                <div class="changelog-title">${escapeHtml(item.title)}</div>
+                                ${details ? `<ul class="changelog-details">${details}</ul>` : ''}
+                                <div class="changelog-meta">${escapeHtml(when)} · ${escapeHtml(item.actor || 'Система')}</div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+                if (window.lucide) lucide.createIcons();
+            } catch (error) {
+                holder.innerHTML = `<p class="sc-empty">Ошибка: ${escapeHtml(error.message)}</p>`;
+            }
+        }
+
         function buildFinanceSummaryHtml(student, id, willPass) {
             const parts = [];
             if (cardSectionEnabled('turnstile')) {
@@ -7196,6 +7319,7 @@
                         ${cardSectionEnabled('finances') ? `<button class="student-tab" data-tab="finances" data-student-id="${id}"><i data-lucide="wallet"></i><span>Финансы</span></button>` : ''}
                         ${cardSectionEnabled('history') ? `<button class="student-tab" data-tab="history" data-student-id="${id}"><i data-lucide="award"></i><span>Награды</span></button>` : ''}
                         ${cardSectionEnabled('attendance') ? `<button class="student-tab" data-tab="attendance" data-student-id="${id}"><i data-lucide="clipboard-check"></i><span>Посещения</span></button>` : ''}
+                        ${cardSectionEnabled('changelog') ? `<button class="student-tab" data-tab="changelog" data-student-id="${id}"><i data-lucide="history"></i><span>История</span></button>` : ''}
                     </nav>
 
                     <div class="sc-body">
@@ -7246,6 +7370,15 @@
                                 <button class="game-btn game-btn-secondary" id="next-year-btn-${id}"><span id="next-year-label-${id}"></span><span>→</span></button>
                             </div>
                             <div id="attendance-calendar-${id}" class="attendance-calendar-grid"><p class="sc-empty">Загрузка...</p></div>
+                        </div>
+
+                        <div class="student-tab-content" data-section="changelog" id="tab-changelog-${id}">
+                            <div class="sc-section-toolbar">
+                                <h4>История изменений</h4>
+                                <button type="button" class="btn-secondary" onclick="loadStudentChangelog(${id})"
+                                    style="padding:6px 12px; font-size:13px;">Обновить</button>
+                            </div>
+                            <div id="changelog-${id}" class="changelog-list"><p class="sc-empty">Загрузка...</p></div>
                         </div>
                     </div>
                 </div>
@@ -7757,6 +7890,8 @@
                         loadStudentDebt(studentId);
                     } else if (tabName === 'attendance') {
                         loadStudentAttendance(studentId);
+                    } else if (tabName === 'changelog') {
+                        loadStudentChangelog(studentId);
                     }
                 }
             });

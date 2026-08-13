@@ -351,6 +351,23 @@ class TerminalFaceState(db.Model):
         return f'<TerminalFaceState {self.employee_no} @ {self.device_name}>'
 
 
+class StudentLog(db.Model):
+    """История изменений по ученику: кто, что и когда поменял."""
+    __tablename__ = 'student_logs'
+
+    id = db.Column(db.Integer, primary_key=True)
+    student_id = db.Column(db.Integer, db.ForeignKey('students.id'), nullable=False, index=True)
+    action = db.Column(db.String(40), nullable=False)  # payment_added, tariff_changed, archived...
+    title = db.Column(db.String(200), nullable=False)  # Человеческая формулировка
+    details = db.Column(db.Text)  # Подробности, по строке на изменение
+    actor_id = db.Column(db.Integer, db.ForeignKey('users.id'))
+    actor_name = db.Column(db.String(120))
+    created_at = db.Column(db.DateTime, default=get_local_datetime, index=True)
+
+    def __repr__(self):
+        return f'<StudentLog {self.action} student={self.student_id}>'
+
+
 class Attendance(db.Model):
     """Посещаемость"""
     __tablename__ = 'attendance'

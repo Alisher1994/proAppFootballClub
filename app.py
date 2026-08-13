@@ -73,7 +73,7 @@ os.environ['FFMPEG_LOG_LEVEL'] = 'quiet'
 # Форсируем использование CUDA/TensorRT в ONNX
 os.environ['ORT_TENSORRT_FP16_ENABLE'] = '1'
 
-from backend.models.models import db, User, Student, Payment, Attendance, AccessLog, Expense, Group, GroupTrainer, Tariff, ClubSettings, RewardType, StudentReward, CashTransfer, Role, RolePermission, CardType, StudentCard, Tournament, TournamentTeamCatalog, TournamentTeamMember, TournamentStadium, TournamentTeamShareLink, TournamentEntry, TournamentGroup, TournamentMatch, TournamentMatchAppearance, TournamentMatchEvent, TournamentAward, DeviceCommand, BridgeStatus, TerminalFaceState
+from backend.models.models import db, User, Student, Payment, Attendance, AccessLog, Expense, Group, GroupTrainer, Tariff, ClubSettings, RewardType, StudentReward, CashTransfer, Role, RolePermission, CardType, StudentCard, Tournament, TournamentTeamCatalog, TournamentTeamMember, TournamentStadium, TournamentTeamShareLink, TournamentEntry, TournamentGroup, TournamentMatch, TournamentMatchAppearance, TournamentMatchEvent, TournamentAward, DeviceCommand, BridgeStatus, TerminalFaceState, StudentLog
 # Live camera recognition stays disabled; access-log verification is separate.
 USE_FACE = False
 from backend.services.face_stub import DummyFaceService as FaceService
@@ -11420,6 +11420,82 @@ def build_student_access_details(student, settings=None, today=None, paid_map=No
     }
 
 
+def ensure_student_logs_table():
+    try:
+        inspector = db.inspect(db.engine)
+        if 'student_logs' not in inspector.get_table_names():
+            StudentLog.__table__.create(db.engine)
+            print('✓ Создана таблица student_logs')
+    except Exception as exc:
+        print(f'ensure_student_logs_table failed: {type(exc).__name__}: {exc}')
+
+
+def current_actor():
+    """Кто сейчас выполняет действие. Может не быть, если это планировщик."""
+    try:
+        if current_user and getattr(current_user, 'is_authenticated', False):
+            return current_user.id, (current_user.full_name or current_user.username or '')
+    except Exception:
+        pass
+    return None, 'Система'
+
+
+def log_student_event(student_id, action, title, details=None, actor=None):
+    """Записать событие в историю ученика. Коммит делает вызывающий код."""
+    if not student_id:
+        return None
+    try:
+        ensure_student_logs_table()
+        actor_id, actor_name = actor if actor else current_actor()
+        if isinstance(details, (list, tuple)):
+            details = '\n'.join(str(item) for item in details if item)
+        entry = StudentLog(
+            student_id=int(student_id),
+            action=str(action)[:40],
+            title=str(title)[:200],
+            details=(details or None),
+            actor_id=actor_id,
+            actor_name=(actor_name or '')[:120],
+        )
+        db.session.add(entry)
+        return entry
+    except Exception as exc:
+        print(f'log_student_event failed: {type(exc).__name__}: {exc}')
+        return None
+
+
+def format_money_ru(value):
+    try:
+        return f'{int(round(float(value or 0))):,}'.replace(',', ' ')
+    except (TypeError, ValueError):
+        return str(value)
+
+
+@app.route('/api/students/<int:student_id>/logs', methods=['GET'])
+@login_required
+def get_student_logs(student_id):
+    """История изменений по ученику."""
+    ensure_student_logs_table()
+    limit = min(max(request.args.get('limit', 200, type=int) or 200, 1), 500)
+    rows = StudentLog.query.filter_by(student_id=student_id) \
+        .order_by(StudentLog.created_at.desc(), StudentLog.id.desc()) \
+        .limit(limit).all()
+    return jsonify({
+        'success': True,
+        'items': [
+            {
+                'id': row.id,
+                'action': row.action,
+                'title': row.title,
+                'details': (row.details or '').split('\n') if row.details else [],
+                'actor': row.actor_name or 'Система',
+                'created_at': row.created_at.isoformat() if row.created_at else None,
+            }
+            for row in rows
+        ],
+    })
+
+
 @app.route('/api/students/<int:student_id>/access-details', methods=['GET'])
 @login_required
 def student_access_details(student_id):
@@ -11592,6 +11668,14 @@ def redistribute_student_payments(student, settings=None, today=None, actor_id=N
                     deficit[0][2] = need
 
     result['changed'] = bool(result['moves'])
+    if result['changed']:
+        log_student_event(
+            student.id, 'payments_redistributed',
+            f"Оплаты перенесены на ранние месяцы: {format_money_ru(result['moved'])} сум",
+            [f"{item['amount'] and format_money_ru(item['amount'])} сум: {item['from']} → {item['to']}"
+             for item in result['moves']]
+            + [f"Месяцев с долгом: {result['debt_months_before']} → {result['debt_months_after']}"]
+        )
     return result
 
 
@@ -11668,6 +11752,16 @@ def bulk_change_tariff():
     club_funded = data.get('club_funded')
     students = Student.query.options(joinedload(Student.tariff)).filter(Student.id.in_(student_ids)).all()
     for student in students:
+        old_tariff = student.tariff.name if student.tariff else 'Без тарифа'
+        old_price = float(student.tariff.price or 0) if student.tariff else 0
+        new_tariff = tariff.name if tariff else 'Без тарифа'
+        if old_tariff != new_tariff:
+            log_student_event(
+                student.id, 'tariff_changed',
+                f'Тариф изменен: {old_tariff} → {new_tariff}',
+                [f'Стоимость: {format_money_ru(old_price)} → '
+                 f'{format_money_ru(float(tariff.price or 0) if tariff else 0)} сум']
+            )
         student.tariff_id = tariff.id if tariff else None
         if tariff:
             student.tariff_type = tariff.name
@@ -11800,6 +11894,12 @@ def run_auto_archive(settings=None, today=None, dry_run=False):
     for item in candidates:
         student = item['student']
         if not dry_run:
+            log_student_event(
+                student.id, 'auto_archived',
+                f'Автоархив: не приходил {months} мес. и больше',
+                [item['reason']],
+                actor=(None, 'Автоархив')
+            )
             student.previous_status = student.status
             student.status = 'archived'
             student.archived_at = get_local_datetime()
@@ -11849,6 +11949,7 @@ STUDENT_CARD_TABS = [
     ('finances', 'Вкладка «Финансы»'),
     ('history', 'Вкладка «Награды»'),
     ('attendance', 'Вкладка «Посещения»'),
+    ('changelog', 'Вкладка «История изменений»'),
 ]
 
 STUDENT_CARD_BLOCKS = [
@@ -11986,6 +12087,11 @@ def archive_student(student_id):
     if student.status == 'archived':
         return jsonify({'success': True, 'message': 'Ученик уже в архиве'})
 
+    log_student_event(
+        student.id, 'archived',
+        f'Ученик переведен в архив (был статус «{student_status_label(student.status)}»)',
+        ['Запись удалена из терминалов, оплаты и посещения сохранены']
+    )
     student.previous_status = student.status
     student.status = 'archived'
     student.archived_at = get_local_datetime()
@@ -12018,6 +12124,10 @@ def restore_student(student_id):
     restored = getattr(student, 'previous_status', None) or 'active'
     if restored == 'archived':
         restored = 'active'
+    log_student_event(
+        student.id, 'restored',
+        f'Ученик возвращен из архива со статусом «{student_status_label(restored)}»'
+    )
     student.status = restored
     student.archived_at = None
     student.previous_status = None
@@ -15262,6 +15372,12 @@ def add_monthly_payment():
         )
         
         db.session.add(payment)
+        log_student_event(
+            student_id, 'payment_added',
+            f'Добавлена оплата {format_money_ru(amount)} сум за {month:02d}.{year}',
+            [f'Способ: {payment_type}',
+             f'Дата оплаты: {datetime.fromisoformat(payment_date).strftime("%d.%m.%Y")}']
+        )
         queue_hikvision_person('student', student_id, 'monthly_payment_added')
         db.session.commit()
         
@@ -15325,6 +15441,14 @@ def update_payment(payment_id):
         if not payment:
             return jsonify({'success': False, 'message': 'Оплата не найдена'}), 404
         month_labels_to_fix = None
+        # Запоминаем "до", чтобы в истории было видно, что именно поменяли
+        before = {
+            'amount': float(payment.amount_paid or 0),
+            'month': f'{payment.payment_month:02d}.{payment.payment_year}',
+            'date': payment.payment_date.strftime('%d.%m.%Y') if payment.payment_date else '',
+            'type': payment.payment_type or '',
+        }
+        changes = []
 
         # За какой месяц засчитана оплата (тренер мог выбрать не тот)
         if data.get('payment_month') and data.get('payment_year'):
@@ -15343,6 +15467,8 @@ def update_payment(payment_id):
             )
             payment.payment_month = new_month
             payment.payment_year = new_year
+            if before['month'] != f'{new_month:02d}.{new_year}':
+                changes.append(f"Месяц: {before['month']} → {new_month:02d}.{new_year}")
 
         # Валидация суммы
         if 'amount_paid' in data:
@@ -15364,6 +15490,10 @@ def update_payment(payment_id):
                 if existing_paid + new_amount > tariff_price:
                     remainder = max(0, tariff_price - existing_paid)
                     return jsonify({'success': False, 'message': f'Сумма превышает стоимость тарифа. Доступно не более {remainder:.0f} сум'}), 400
+            if abs(before['amount'] - new_amount) > 0.009:
+                changes.append(
+                    f"Сумма: {format_money_ru(before['amount'])} → {format_money_ru(new_amount)} сум"
+                )
             payment.amount_paid = new_amount
 
         if 'payment_date' in data and data.get('payment_date'):
@@ -15373,14 +15503,26 @@ def update_payment(payment_id):
                 if len(payment_date_str) == 10:
                     payment_date_str += 'T00:00:00'
                 payment.payment_date = datetime.fromisoformat(payment_date_str.replace('Z', '+00:00'))
+                if before['date'] != payment.payment_date.strftime('%d.%m.%Y'):
+                    changes.append(f"Дата оплаты: {before['date']} → {payment.payment_date.strftime('%d.%m.%Y')}")
             except ValueError as e:
                 return jsonify({'success': False, 'message': f'Неверный формат даты: {str(e)}'}), 400
 
         if 'payment_type' in data:
+            if (data.get('payment_type') or '') != before['type']:
+                changes.append(f"Способ оплаты: {before['type'] or '—'} → {data.get('payment_type')}")
             payment.payment_type = data.get('payment_type')
 
         if 'notes' in data:
             payment.notes = data.get('notes')
+
+        if changes:
+            log_student_event(
+                payment.student_id, 'payment_updated',
+                f'Оплата изменена: {format_money_ru(payment.amount_paid)} сум '
+                f'за {payment.payment_month:02d}.{payment.payment_year}',
+                changes
+            )
 
         # Подпись "Оплата за 7/2026" правим последней, уже поверх присланного текста
         if month_labels_to_fix and payment.notes:
@@ -15412,6 +15554,13 @@ def delete_payment(payment_id):
 
         student = payment.student
         student_id = payment.student_id
+        log_student_event(
+            student_id, 'payment_deleted',
+            f'Удалена оплата {format_money_ru(payment.amount_paid)} сум '
+            f'за {payment.payment_month:02d}.{payment.payment_year}',
+            [f'Дата оплаты: {payment.payment_date.strftime("%d.%m.%Y")}' if payment.payment_date else '',
+             f'Способ: {payment.payment_type or "—"}']
+        )
         db.session.delete(payment)
         queue_hikvision_person('student', student_id, 'payment_deleted')
         db.session.commit()
