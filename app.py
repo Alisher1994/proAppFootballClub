@@ -895,6 +895,23 @@ def iter_month_pairs(start_year, start_month, end_year, end_month):
 MIN_LESSONS_FOR_DEBT_DEFAULT = 4
 
 
+def get_access_open_until(settings=None):
+    """До какой даты включительно пускаем всех без проверки оплаты."""
+    settings = settings or get_club_settings_instance()
+    value = getattr(settings, 'access_open_until', None)
+    if isinstance(value, datetime):
+        return value.date()
+    return value
+
+
+def is_access_open_day(settings=None, today=None):
+    """Сегодня действует режим "пропустить всех"?"""
+    open_until = get_access_open_until(settings)
+    if not open_until:
+        return False
+    return (today or get_local_date()) <= open_until
+
+
 def get_min_lessons_for_debt(settings=None):
     """Со скольких посещений месяц вообще считается долговым."""
     settings = settings or get_club_settings_instance()
@@ -1053,6 +1070,9 @@ def student_access_state(student, settings=None, paid_map=None, payment_date_pai
 
     if student.status != 'active':
         return False, 'inactive', 0
+    # Режим "пропустить всех": действует до указанной даты включительно
+    if is_access_open_day(settings, today):
+        return True, 'open_day', 0
     if student.club_funded:
         return True, 'club_funded', 0
     if not student.tariff:
@@ -1122,6 +1142,7 @@ ACCESS_REASON_LABELS = {
     'partial_current_month': 'Есть оплата за этот месяц',
     'no_current_month_payment': 'Нет оплаты за текущий месяц',
     'no_lessons_this_month': 'В этом месяце занятий не было',
+    'open_day': 'Открытый день: пускаем всех',
     'too_many_debt_months': 'Долг больше разрешенного срока',
     'no_photo': 'Нет фото для Face ID',
     'staff_active': 'Сотрудник активен',
@@ -1865,6 +1886,8 @@ def ensure_club_settings_columns():
             conn.execute(db.text("ALTER TABLE club_settings ADD COLUMN min_lessons_for_debt INTEGER DEFAULT 4"))
         if 'auto_archive_after_months' not in columns:
             conn.execute(db.text("ALTER TABLE club_settings ADD COLUMN auto_archive_after_months INTEGER DEFAULT 0"))
+        if 'access_open_until' not in columns:
+            conn.execute(db.text("ALTER TABLE club_settings ADD COLUMN access_open_until DATE"))
         if 'hikvision_device_key' not in columns:
             conn.execute(db.text("ALTER TABLE club_settings ADD COLUMN hikvision_device_key VARCHAR(120)"))
         if 'hikvision_devices' not in columns:
@@ -10534,6 +10557,73 @@ def camera_kiosk_recognize():
     return jsonify(response)
 
 
+@app.route('/api/hikvision/open-day', methods=['GET'])
+@login_required
+def get_open_day_state():
+    if current_user.role not in ['admin', 'manager']:
+        return jsonify({'success': False, 'message': 'Доступ запрещен'}), 403
+    settings = get_club_settings_instance()
+    open_until = get_access_open_until(settings)
+    return jsonify({
+        'success': True,
+        'active': is_access_open_day(settings),
+        'open_until': open_until.isoformat() if open_until else None,
+    })
+
+
+@app.route('/api/hikvision/open-day', methods=['POST'])
+@login_required
+def set_open_day():
+    """Пропустить всех: включаем на сегодня и сразу выгружаем список в терминалы."""
+    if current_user.role not in ['admin', 'manager']:
+        return jsonify({'success': False, 'message': 'Доступ запрещен'}), 403
+
+    ensure_club_settings_columns()
+    data = request.get_json(silent=True) or {}
+    enable = data.get('enable', True)
+    settings = get_club_settings_instance()
+    today = get_local_date()
+
+    if not enable:
+        settings.access_open_until = None
+        db.session.commit()
+        queue_hikvision_sync('open_day_off')
+        db.session.commit()
+        return jsonify({
+            'success': True,
+            'active': False,
+            'message': 'Открытый день выключен. Терминалы вернутся к обычным правилам после синхронизации.'
+        })
+
+    # Дату можно задать явно, по умолчанию только сегодня
+    raw_date = (data.get('until') or '').strip()
+    until = today
+    if raw_date:
+        try:
+            until = datetime.strptime(raw_date, '%Y-%m-%d').date()
+        except ValueError:
+            return jsonify({'success': False, 'message': 'Неверная дата'}), 400
+        if until < today:
+            return jsonify({'success': False, 'message': 'Дата уже прошла'}), 400
+
+    settings.access_open_until = until
+    db.session.commit()
+    queue_hikvision_sync('open_day_on')
+    db.session.commit()
+
+    total = Student.query.filter(Student.status == 'active').count()
+    return jsonify({
+        'success': True,
+        'active': True,
+        'open_until': until.isoformat(),
+        'message': (
+            f'Открытый день включен до {until.strftime("%d.%m.%Y")} включительно. '
+            f'Запущена синхронизация: в терминалы уйдут все активные ученики ({total}) с фото. '
+            'На следующий день правила вернутся сами.'
+        )
+    })
+
+
 @app.route('/api/hikvision/sync', methods=['POST'])
 @login_required
 def request_hikvision_sync():
@@ -12448,6 +12538,9 @@ def get_club_settings():
         'access_max_debt_months': get_access_max_debt_months(settings),
         'min_lessons_for_debt': get_min_lessons_for_debt(settings),
         'auto_archive_after_months': get_auto_archive_months(settings),
+        'access_open_until': (get_access_open_until(settings).isoformat()
+                              if get_access_open_until(settings) else None),
+        'access_open_day_active': is_access_open_day(settings),
         'hikvision_device_key': get_bridge_key(settings),
         'hikvision_devices': settings.get_hikvision_devices() or default_hikvision_devices(),
         'hikvision_parallel_devices': bool(getattr(settings, 'hikvision_parallel_devices', False)),

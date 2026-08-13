@@ -1360,6 +1360,7 @@ async function loadSyncHistory() {
 async function loadBridgeStatus() {
     const banner = document.getElementById('bridgeStatusBanner');
     if (!banner) return;
+    if (document.getElementById('openDayState')) loadOpenDayState();
 
     try {
         const resp = await fetch('/api/hikvision/bridge/status');
@@ -2075,6 +2076,62 @@ window.showHikvisionLog = showHikvisionLog;
 
 
 
+
+// Режим "пропустить всех": включается на сегодня и гаснет сам
+async function loadOpenDayState() {
+    const state = document.getElementById('openDayState');
+    const onBtn = document.getElementById('openDayOnBtn');
+    const offBtn = document.getElementById('openDayOffBtn');
+    if (!state) return;
+
+    try {
+        const response = await fetch('/api/hikvision/open-day');
+        const data = await response.json();
+        if (!data.success) throw new Error(data.message || 'Не удалось получить состояние');
+
+        if (data.active) {
+            const until = data.open_until
+                ? new Date(data.open_until).toLocaleDateString('ru-RU')
+                : '';
+            state.textContent = `Включен до ${until} включительно`;
+            state.classList.add('is-active');
+            if (onBtn) onBtn.hidden = true;
+            if (offBtn) offBtn.hidden = false;
+        } else {
+            state.textContent = 'Выключен, действуют обычные правила';
+            state.classList.remove('is-active');
+            if (onBtn) onBtn.hidden = false;
+            if (offBtn) offBtn.hidden = true;
+        }
+    } catch (error) {
+        state.textContent = 'Не удалось получить состояние';
+        console.error(error);
+    }
+}
+
+async function setOpenDay(enable) {
+    if (enable && !confirm(
+        'Пропустить сегодня всех учеников?\n\n'
+        + 'Оплата проверяться не будет, в терминалы уйдут все активные ученики с фото. '
+        + 'Завтра правила вернутся автоматически.'
+    )) return;
+
+    try {
+        const response = await fetch('/api/hikvision/open-day', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ enable })
+        });
+        const data = await response.json();
+        if (!data.success) throw new Error(data.message || 'Не удалось изменить режим');
+        alert(data.message);
+        loadOpenDayState();
+        if (typeof loadBridgeStatus === 'function') setTimeout(loadBridgeStatus, 800);
+    } catch (error) {
+        alert('Ошибка: ' + error.message);
+    }
+}
+
 // Автоархив: показываем, скольких затронет, и даем запустить вручную
 async function refreshAutoArchivePreview() {
     const hint = document.getElementById('autoArchiveHint');
@@ -2544,6 +2601,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const exportBtn = document.getElementById('missingExportBtn');
     if (exportBtn) exportBtn.addEventListener('click', exportTerminalMissingCsv);
+
+    const openDayOnBtn = document.getElementById('openDayOnBtn');
+    if (openDayOnBtn) openDayOnBtn.addEventListener('click', () => setOpenDay(true));
+    const openDayOffBtn = document.getElementById('openDayOffBtn');
+    if (openDayOffBtn) openDayOffBtn.addEventListener('click', () => setOpenDay(false));
 
     const autoArchiveBtn = document.getElementById('autoArchiveRunBtn');
     if (autoArchiveBtn) autoArchiveBtn.addEventListener('click', runAutoArchiveNow);

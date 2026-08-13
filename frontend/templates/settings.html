@@ -2587,6 +2587,37 @@
         .missing-paid-sum { display: block; font-weight: 600; }
         .missing-paid-date { display: block; font-size: 12px; color: var(--theme-text-secondary, #64748b); }
 
+
+        /* Режим "пропустить всех" */
+        .open-day-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .open-day-state {
+            flex: 1 1 180px;
+            padding: 8px 12px;
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 600;
+            background: var(--theme-bg-secondary, #f1f5f9);
+            color: var(--theme-text-secondary, #64748b);
+        }
+
+        .open-day-state.is-active {
+            background: #dcfce7;
+            color: #15803d;
+        }
+
+        .open-day-row .btn-primary,
+        .open-day-row .btn-secondary {
+            padding: 8px 14px;
+            font-size: 13px;
+            white-space: nowrap;
+        }
+
     </style>
     <script src="{{ url_for('static', filename='vendor/lucide-1.24.0.min.js') }}"></script>
 </head>
@@ -3484,18 +3515,21 @@
                                                 Выберите правило допуска для терминала.
                                             </small>
                                         </div>
-                                        <div class="form-group">
-                                            <label>Автоархив: месяцев без занятий</label>
-                                            <div style="display:flex; gap:8px; align-items:center;">
-                                                <input type="number" id="auto_archive_after_months" min="0" max="24"
-                                                    class="form-input-modern" placeholder="0" style="flex:1 1 auto;">
-                                                <button type="button" id="autoArchiveRunBtn" class="btn-secondary"
-                                                    style="white-space:nowrap;">Проверить сейчас</button>
+                                        <div class="form-group open-day-group">
+                                            <label>Пропустить всех</label>
+                                            <div class="open-day-row">
+                                                <div id="openDayState" class="open-day-state">Проверяем...</div>
+                                                <button type="button" id="openDayOnBtn" class="btn-primary">
+                                                    Пропустить всех сегодня
+                                                </button>
+                                                <button type="button" id="openDayOffBtn" class="btn-secondary" hidden>
+                                                    Выключить
+                                                </button>
                                             </div>
-                                            <small id="autoArchiveHint">
-                                                Если ученик не приходил столько месяцев, он автоматически уходит
-                                                в архив: из терминалов удаляется, но из списка не пропадает
-                                                и в любой момент возвращается. 0 — не переводить.
+                                            <small>
+                                                Разовый режим на сегодня: оплата не проверяется, в терминалы уходят
+                                                все активные ученики с фото. Завтра правила вернутся сами,
+                                                ничего выключать не нужно.
                                             </small>
                                         </div>
                                         <div class="form-group">
@@ -4306,7 +4340,7 @@
                 </div>
             </div>
 
-            <script src="{{ url_for('static', filename='js/settings.js') }}?v=2026081314"></script>
+            <script src="{{ url_for('static', filename='js/settings.js') }}?v=2026081315"></script>
             <script src="{{ url_for('static', filename='js/groups.js') }}?v=2026071501"></script>
             <script src="{{ url_for('static', filename='js/tariffs.js') }}"></script>
             <script src="{{ url_for('static', filename='js/rewards.js') }}"></script>
