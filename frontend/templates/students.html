@@ -3835,6 +3835,59 @@
             .sc-sections { grid-template-columns: repeat(3, minmax(0, 1fr)); }
         }
 
+
+        /* Единый блок месяцев: цвет = состояние, внутри сумма */
+        .year-payments-head { align-items: center; }
+
+        .year-payments-total {
+            margin-left: auto;
+            margin-right: 10px;
+            font-size: 12.5px;
+            font-weight: 600;
+            color: var(--theme-text-secondary, #64748b);
+        }
+
+        .year-payments-total.is-bad { color: #dc2626; }
+
+        .year-payments-grid {
+            grid-template-columns: repeat(6, minmax(0, 1fr));
+            gap: 6px;
+        }
+
+        .year-month {
+            height: auto;
+            padding: 8px 4px;
+            gap: 2px;
+            line-height: 1.15;
+        }
+
+        .year-month-name {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: .02em;
+            opacity: .85;
+        }
+
+        .year-month-amount {
+            font-size: 12px;
+            font-weight: 700;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
+            white-space: nowrap;
+        }
+
+        .year-month.future .year-month-amount,
+        .year-month.before_start .year-month-amount,
+        .year-month.no_tariff .year-month-amount {
+            font-weight: 500;
+            opacity: .7;
+        }
+
+        @media (min-width: 768px) {
+            .year-payments-grid { grid-template-columns: repeat(12, minmax(0, 1fr)); }
+        }
+
     </style>
     <style>
         /* Force unified background */
@@ -6015,7 +6068,7 @@
 
     <script src="{{ url_for('static', filename='vendor/lucide-1.24.0.min.js') }}"></script>
     <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/students.js') }}?v=2026081306"></script>
+    <script src="{{ url_for('static', filename='js/students.js') }}?v=2026081307"></script>
     <script src="{{ url_for('static', filename='js/students_rewards.js') }}"></script>
     <script src="{{ url_for('static', filename='js/students_cards.js') }}"></script>
     <script src="{{ url_for('static', filename='js/students_params.js') }}"></script>
@@ -6583,7 +6636,8 @@
             return `
                 <div class="year-payments" id="yearPayments_${studentId}">
                     <div class="year-payments-head">
-                        <span class="year-payments-title">Оплаты за год</span>
+                        <span class="year-payments-title">Оплаты по месяцам</span>
+                        <span class="year-payments-total"></span>
                         <span class="year-payments-year"></span>
                     </div>
                     <div class="year-payments-grid"><span class="year-payments-loading">Загружаем...</span></div>
@@ -6606,49 +6660,45 @@
             no_tariff: 'Тариф не указан',
         };
 
-        function renderYearPayments(studentId, data) {
+        function renderYearPayments(studentId, data, access) {
             const holder = document.getElementById(`yearPayments_${studentId}`);
             if (!holder || !data) return;
+
             const yearLabel = holder.querySelector('.year-payments-year');
             if (yearLabel) yearLabel.textContent = data.year;
+
+            const totalLabel = holder.querySelector('.year-payments-total');
+            if (totalLabel) {
+                const debtMonths = (data.months || []).filter(month => month.state === 'debt' || month.state === 'partial');
+                const totalDebt = debtMonths.reduce((sum, month) => sum + Number(month.debt || 0), 0);
+                totalLabel.textContent = totalDebt > 0
+                    ? `долг ${formatMoney(totalDebt)} сум за ${debtMonths.length} мес.`
+                    : 'долгов нет';
+                totalLabel.classList.toggle('is-bad', totalDebt > 0);
+            }
 
             const grid = holder.querySelector('.year-payments-grid');
             if (!grid) return;
             grid.innerHTML = (data.months || []).map(month => {
-            const amount = month.state === 'paid' || month.state === 'partial'
-                ? `${formatMoney(month.paid)} сум`
-                : (month.state === 'debt' ? `долг ${formatMoney(month.debt)} сум` : '');
-                const paidAmount = ['paid', 'partial', 'debt'].includes(month.state)
-                    ? `${formatMoney(month.paid || 0)} сум`
-                    : '—';
-                const title = `${month.name}: ${YEAR_MONTH_TITLES[month.state] || ''}${amount ? ' · ' + amount : ''}`;
+                let amount = '—';
+                if (month.state === 'paid') {
+                    amount = formatMoney(month.paid);
+                } else if (month.state === 'partial') {
+                    amount = `${formatMoney(month.paid)} / ${formatMoney(month.due)}`;
+                } else if (month.state === 'debt') {
+                    amount = formatMoney(month.debt);
+                }
+                const title = `${month.name}: ${YEAR_MONTH_TITLES[month.state] || ''}`
+                    + (month.state === 'debt' ? ` · долг ${formatMoney(month.debt)} сум` : '')
+                    + (month.state === 'paid' ? ` · ${formatMoney(month.paid)} сум` : '')
+                    + (month.state === 'partial' ? ` · внесено ${formatMoney(month.paid)} из ${formatMoney(month.due)} сум` : '');
                 return `
                     <div class="year-month ${month.state}${month.is_current ? ' current' : ''}" title="${escapeHtml(title)}">
                         <span class="year-month-name">${escapeHtml(month.short)}</span>
-                        <span class="year-month-amount">${escapeHtml(paidAmount)}</span>
+                        <span class="year-month-amount">${escapeHtml(amount)}</span>
                     </div>
                 `;
             }).join('');
-        }
-
-        function buildDebtMonthsHtml(access) {
-            const months = access.debt_months || [];
-            if (!months.length) return '';
-            const rows = months.map(item => `
-                <div class="debt-month ${item.is_current ? 'current' : ''}">
-                    <span class="debt-month-label">${escapeHtml(item.month_name)} ${item.year}</span>
-                    <span class="debt-month-sum">${formatMoney(item.debt)} сум</span>
-                </div>
-            `).join('');
-            return `
-                <div class="debt-breakdown">
-                    <div class="debt-breakdown-head">
-                        <span>Долг по месяцам</span>
-                        <strong>${formatMoney(access.total_debt)} сум за ${months.length} мес.</strong>
-                    </div>
-                    <div class="debt-month-list">${rows}</div>
-                </div>
-            `;
         }
 
         async function loadStudentAccessDetails(studentId) {
@@ -6672,14 +6722,12 @@
 
                 const photoBadges = document.getElementById(`photoTerminals_${studentId}`);
                 if (photoBadges) photoBadges.innerHTML = buildTerminalBadgesHtml(data.terminals, { compact: true });
-                renderYearPayments(studentId, data.year_payments);
+                renderYearPayments(studentId, data.year_payments, access);
 
                 const explanation = (access.explanation || [])
                     .map(text => `<li>${escapeHtml(text)}</li>`).join('');
-                holder.innerHTML = `
-                    ${explanation ? `<ul class="turnstile-reasons">${explanation}</ul>` : ''}
-                    ${buildDebtMonthsHtml(access)}
-                `;
+                // Долг по месяцам показываем одним блоком ниже, здесь только причина.
+                holder.innerHTML = explanation ? `<ul class="turnstile-reasons">${explanation}</ul>` : '';
                 if (window.lucide) lucide.createIcons();
             } catch (error) {
                 holder.innerHTML = `<span class="turnstile-loading">Не удалось загрузить детали: ${escapeHtml(error.message)}</span>`;
