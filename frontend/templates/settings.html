@@ -2618,6 +2618,29 @@
             white-space: nowrap;
         }
 
+
+        /* Настройки карточки ученика */
+        .card-sections-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 8px;
+        }
+
+        .card-section-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            border: 1px solid var(--theme-border, #e2e8f0);
+            border-radius: 10px;
+            background: var(--theme-bg-secondary, #f8fafc);
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .card-section-item input { cursor: pointer; }
+        .card-section-item.is-off { opacity: .6; }
+
     </style>
     <script src="{{ url_for('static', filename='vendor/lucide-1.24.0.min.js') }}"></script>
 </head>
@@ -2640,6 +2663,7 @@
                     <button class="settings-tab" data-tab="camera"><i data-lucide="video"></i> Камера</button>
                     <button class="settings-tab" data-tab="hikvision"><i data-lucide="scan-face"></i> Hikvision</button>
                     <button class="settings-tab" data-tab="terminal-missing"><i data-lucide="user-x"></i> Не в терминале</button>
+                    <button class="settings-tab" data-tab="student-card"><i data-lucide="layout-panel-left"></i> Карточка ученика</button>
                 </div>
             </div>
 
@@ -3833,6 +3857,49 @@
                     </div>
                 </div>
 
+                <!-- Вкладка: Карточка ученика -->
+                <div id="student-card-tab" class="settings-tab-content">
+                    <div class="card settings-main-card">
+                        <div class="settings-card-header">
+                            <div class="settings-card-icon"><i data-lucide="layout-panel-left"></i></div>
+                            <div>
+                                <h2 class="settings-card-title">Что показывать в карточке ученика</h2>
+                                <p class="settings-card-subtitle">Снимите галочку с того, чем не пользуетесь — раздел просто исчезнет из карточки</p>
+                            </div>
+                        </div>
+
+                        <div class="settings-section">
+                            <div class="settings-section-header">
+                                <span class="settings-section-icon"><i data-lucide="folder"></i></span>
+                                <h3 class="settings-section-title">Вкладки</h3>
+                            </div>
+                            <div class="settings-section-content">
+                                <div id="cardTabsList" class="card-sections-list"></div>
+                                <small style="display:block; margin-top:8px; color: var(--theme-text-secondary);">
+                                    Вкладка «Информация» всегда на месте: без нее карточка пустая.
+                                </small>
+                            </div>
+                        </div>
+
+                        <div class="settings-section" style="margin-top:24px; border-top:1px solid var(--theme-border); padding-top:20px;">
+                            <div class="settings-section-header">
+                                <span class="settings-section-icon"><i data-lucide="layout-list"></i></span>
+                                <h3 class="settings-section-title">Блоки во вкладке «Информация»</h3>
+                            </div>
+                            <div class="settings-section-content">
+                                <div id="cardBlocksList" class="card-sections-list"></div>
+                            </div>
+                        </div>
+
+                        <div style="margin-top:22px; display:flex; gap:10px; flex-wrap:wrap;">
+                            <button type="button" id="cardSectionsSaveBtn" class="btn-primary">
+                                <i data-lucide="save"></i> Сохранить
+                            </button>
+                            <button type="button" id="cardSectionsAllBtn" class="btn-secondary">Включить всё</button>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Вкладка: Группы -->
                 <div id="groups-tab" class="settings-tab-content">
                     <table class="data-table" id="groupsTable" style="margin-top: 20px;">
@@ -4340,7 +4407,7 @@
                 </div>
             </div>
 
-            <script src="{{ url_for('static', filename='js/settings.js') }}?v=2026081315"></script>
+            <script src="{{ url_for('static', filename='js/settings.js') }}?v=2026081316"></script>
             <script src="{{ url_for('static', filename='js/groups.js') }}?v=2026071501"></script>
             <script src="{{ url_for('static', filename='js/tariffs.js') }}"></script>
             <script src="{{ url_for('static', filename='js/rewards.js') }}"></script>
@@ -4407,6 +4474,10 @@
                                     setTimeout(() => loadSyncHistory(), 100);
                                 }
                             
+                            } else if (tabName === 'student-card') {
+                                if (typeof loadStudentCardSections === 'function') {
+                                    setTimeout(() => loadStudentCardSections(), 50);
+                                }
                             } else if (tabName === 'terminal-missing') {
                                 if (typeof loadTerminalMissing === 'function') {
                                     setTimeout(() => loadTerminalMissing(), 50);

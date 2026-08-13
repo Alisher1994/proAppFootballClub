@@ -2077,6 +2077,75 @@ window.showHikvisionLog = showHikvisionLog;
 
 
 
+
+// ============================================================
+// Настройки карточки ученика: что показывать, а что скрыть
+// ============================================================
+let studentCardSectionsState = null;
+
+function renderCardSectionsList(containerId, items, sections) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    container.innerHTML = items.map(item => {
+        const enabled = sections[item.key] !== false;
+        return `
+            <label class="card-section-item${enabled ? '' : ' is-off'}" data-key="${escapeHtml(item.key)}">
+                <input type="checkbox" data-section-key="${escapeHtml(item.key)}"${enabled ? ' checked' : ''}>
+                <span>${escapeHtml(item.label)}</span>
+            </label>
+        `;
+    }).join('');
+
+    container.querySelectorAll('input[data-section-key]').forEach(input => {
+        input.addEventListener('change', () => {
+            const key = input.getAttribute('data-section-key');
+            studentCardSectionsState.sections[key] = input.checked;
+            input.closest('.card-section-item')?.classList.toggle('is-off', !input.checked);
+        });
+    });
+}
+
+async function loadStudentCardSections() {
+    try {
+        const response = await fetch('/api/settings/student-card');
+        const data = await response.json();
+        if (!data.success) throw new Error(data.message || 'Не удалось загрузить настройки');
+        studentCardSectionsState = data;
+        renderCardSectionsList('cardTabsList', data.tabs || [], data.sections || {});
+        renderCardSectionsList('cardBlocksList', data.blocks || [], data.sections || {});
+    } catch (error) {
+        console.error('Настройки карточки ученика:', error);
+        const container = document.getElementById('cardTabsList');
+        if (container) container.innerHTML = `<div class="sc-empty">Ошибка: ${escapeHtml(error.message)}</div>`;
+    }
+}
+
+async function saveStudentCardSections() {
+    if (!studentCardSectionsState) return;
+    try {
+        const response = await fetch('/api/settings/student-card', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sections: studentCardSectionsState.sections })
+        });
+        const data = await response.json();
+        if (!data.success) throw new Error(data.message || 'Не удалось сохранить');
+        studentCardSectionsState.sections = data.sections;
+        alert(data.message + '\n\nОткройте страницу учеников заново, чтобы увидеть изменения.');
+    } catch (error) {
+        alert('Ошибка: ' + error.message);
+    }
+}
+
+function enableAllCardSections() {
+    if (!studentCardSectionsState) return;
+    Object.keys(studentCardSectionsState.sections).forEach(key => {
+        studentCardSectionsState.sections[key] = true;
+    });
+    renderCardSectionsList('cardTabsList', studentCardSectionsState.tabs || [], studentCardSectionsState.sections);
+    renderCardSectionsList('cardBlocksList', studentCardSectionsState.blocks || [], studentCardSectionsState.sections);
+}
+
 // Режим "пропустить всех": включается на сегодня и гаснет сам
 async function loadOpenDayState() {
     const state = document.getElementById('openDayState');
@@ -2601,6 +2670,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const exportBtn = document.getElementById('missingExportBtn');
     if (exportBtn) exportBtn.addEventListener('click', exportTerminalMissingCsv);
+
+    const cardSaveBtn = document.getElementById('cardSectionsSaveBtn');
+    if (cardSaveBtn) cardSaveBtn.addEventListener('click', saveStudentCardSections);
+    const cardAllBtn = document.getElementById('cardSectionsAllBtn');
+    if (cardAllBtn) cardAllBtn.addEventListener('click', enableAllCardSections);
 
     const openDayOnBtn = document.getElementById('openDayOnBtn');
     if (openDayOnBtn) openDayOnBtn.addEventListener('click', () => setOpenDay(true));

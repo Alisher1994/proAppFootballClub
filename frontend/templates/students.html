@@ -6163,6 +6163,14 @@
         </div>
     </div>
 
+    <script>
+        // Какие вкладки и блоки карточки показывать. Настраивается в Настройках.
+        window.STUDENT_CARD_SECTIONS = {{ (student_card_sections or {}) | tojson }};
+        function cardSectionEnabled(key) {
+            const sections = window.STUDENT_CARD_SECTIONS || {};
+            return sections[key] !== false;
+        }
+    </script>
     <script src="{{ url_for('static', filename='vendor/lucide-1.24.0.min.js') }}"></script>
     <script>
         // Бесплатный тариф означает, что занятия оплачивает клуб,
@@ -6207,7 +6215,7 @@
         })();
     </script>
     <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/students.js') }}?v=2026081316"></script>
+    <script src="{{ url_for('static', filename='js/students.js') }}?v=2026081317"></script>
     <script src="{{ url_for('static', filename='js/students_rewards.js') }}"></script>
     <script src="{{ url_for('static', filename='js/students_cards.js') }}"></script>
     <script src="{{ url_for('static', filename='js/students_params.js') }}"></script>
@@ -7146,6 +7154,32 @@
             return '';
         }
 
+        // Блок с турникетом и календарем оплат. Любую половину можно
+        // скрыть в настройках, тогда рамка вокруг пустоты не рисуется.
+        function buildFinanceSummaryHtml(student, id, willPass) {
+            const parts = [];
+            if (cardSectionEnabled('turnstile')) {
+                parts.push(`<div class="turnstile-panel ${willPass ? 'pass' : 'block'}" id="turnstilePanel_${id}">
+                                <div class="turnstile-panel-head">
+                                    <span class="turnstile-panel-icon"><i data-lucide="${willPass ? 'door-open' : 'door-closed'}"></i></span>
+                                    <div class="turnstile-panel-title">
+                                        <span class="turnstile-panel-label">Турникет</span>
+                                        <strong class="turnstile-panel-value">${willPass ? 'Пройдет' : 'Не пройдет'}</strong>
+                                    </div>
+                                    <div class="turnstile-panel-terminals">${buildTerminalBadgesHtml(student.terminals)}</div>
+                                </div>
+                                <div class="turnstile-panel-body" id="turnstileDetails_${id}">
+                                    <span class="turnstile-loading">Считаем долг по месяцам...</span>
+                                </div>
+                            </div>`);
+            }
+            if (cardSectionEnabled('year_payments')) {
+                parts.push(buildYearPaymentsHtml(id));
+            }
+            if (!parts.length) return '';
+            return `<section class="student-finance-summary">${parts.join('')}</section>`;
+        }
+
         function buildStudentDetailsHtml(student) {
             const id = student.id;
             const access = student.turnstile_access || {};
@@ -7158,44 +7192,28 @@
 
                     <nav class="sc-tabs">
                         <button class="student-tab active" data-tab="info" data-student-id="${id}"><i data-lucide="info"></i><span>Информация</span></button>
-                        <button class="student-tab" data-tab="payments" data-student-id="${id}"><i data-lucide="credit-card"></i><span>Оплаты</span></button>
-                        <button class="student-tab" data-tab="finances" data-student-id="${id}"><i data-lucide="wallet"></i><span>Финансы</span></button>
-                        <button class="student-tab" data-tab="history" data-student-id="${id}"><i data-lucide="award"></i><span>Награды</span></button>
-                        <button class="student-tab" data-tab="attendance" data-student-id="${id}"><i data-lucide="clipboard-check"></i><span>Посещения</span></button>
+                        ${cardSectionEnabled('payments') ? `<button class="student-tab" data-tab="payments" data-student-id="${id}"><i data-lucide="credit-card"></i><span>Оплаты</span></button>` : ''}
+                        ${cardSectionEnabled('finances') ? `<button class="student-tab" data-tab="finances" data-student-id="${id}"><i data-lucide="wallet"></i><span>Финансы</span></button>` : ''}
+                        ${cardSectionEnabled('history') ? `<button class="student-tab" data-tab="history" data-student-id="${id}"><i data-lucide="award"></i><span>Награды</span></button>` : ''}
+                        ${cardSectionEnabled('attendance') ? `<button class="student-tab" data-tab="attendance" data-student-id="${id}"><i data-lucide="clipboard-check"></i><span>Посещения</span></button>` : ''}
                     </nav>
 
                     <div class="sc-body">
                         <div class="student-tab-content active" id="tab-info-${id}">
-                            <section class="student-finance-summary">
-                            <div class="turnstile-panel ${willPass ? 'pass' : 'block'}" id="turnstilePanel_${id}">
-                                <div class="turnstile-panel-head">
-                                    <span class="turnstile-panel-icon"><i data-lucide="${willPass ? 'door-open' : 'door-closed'}"></i></span>
-                                    <div class="turnstile-panel-title">
-                                        <span class="turnstile-panel-label">Турникет</span>
-                                        <strong class="turnstile-panel-value">${willPass ? 'Пройдет' : 'Не пройдет'}</strong>
-                                    </div>
-                                    <div class="turnstile-panel-terminals">${buildTerminalBadgesHtml(student.terminals)}</div>
-                                </div>
-                                <div class="turnstile-panel-body" id="turnstileDetails_${id}">
-                                    <span class="turnstile-loading">Считаем долг по месяцам...</span>
-                                </div>
-                            </div>
-
-                            ${buildYearPaymentsHtml(id)}
-                            </section>
-                            ${buildStudentFactsHtml(student)}
+                            ${buildFinanceSummaryHtml(student, id, willPass)}
+                            ${cardSectionEnabled('facts') ? buildStudentFactsHtml(student) : ''}
 
                             <div class="sc-sections">
-                                ${scSection('Контакты', 'phone', buildStudentContactsHtml(student), { open: true })}
-                                ${scSection('Карточки', 'square-stack', buildStudentCardsHtml(student))}
-                                ${scSection('Параметры', 'ruler', buildStudentParamsHtml(student))}
-                                ${scSection('Паспортные данные', 'id-card', buildStudentPassportHtml(student))}
-                                ${scSection('Адрес', 'map-pin', buildStudentAddressHtml(student))}
-                                ${scSection('Telegram', 'send', buildStudentTelegramHtml(student))}
+                                ${cardSectionEnabled('contacts') ? scSection('Контакты', 'phone', buildStudentContactsHtml(student), { open: true }) : ''}
+                                ${cardSectionEnabled('cards') ? scSection('Карточки', 'square-stack', buildStudentCardsHtml(student)) : ''}
+                                ${cardSectionEnabled('params') ? scSection('Параметры', 'ruler', buildStudentParamsHtml(student)) : ''}
+                                ${cardSectionEnabled('passport') ? scSection('Паспортные данные', 'id-card', buildStudentPassportHtml(student)) : ''}
+                                ${cardSectionEnabled('address') ? scSection('Адрес', 'map-pin', buildStudentAddressHtml(student)) : ''}
+                                ${cardSectionEnabled('telegram') ? scSection('Telegram', 'send', buildStudentTelegramHtml(student)) : ''}
                             </div>
                         </div>
 
-                        <div class="student-tab-content" id="tab-payments-${id}">
+                        <div class="student-tab-content" data-section="payments" id="tab-payments-${id}">
                             <div class="sc-section-toolbar">
                                 <h4>История оплат</h4>
                                 <button class="game-btn game-btn-primary add-payment-btn" data-student-id="${id}"><span class="btn-plus" aria-hidden="true">+</span><span>Добавить оплату</span></button>
@@ -7203,7 +7221,7 @@
                             <div id="payments-history-${id}" class="history-list"><p class="sc-empty">Загрузка...</p></div>
                         </div>
 
-                        <div class="student-tab-content" id="tab-finances-${id}">
+                        <div class="student-tab-content" data-section="finances" id="tab-finances-${id}">
                             <div class="sc-facts sc-facts-wide">
                                 <div class="sc-fact"><span class="sc-fact-label">Долг</span><span class="sc-fact-value is-bad" id="student-debt-${id}">Загрузка...</span></div>
                                 <div class="sc-fact"><span class="sc-fact-label">Тариф</span><span class="sc-fact-value" id="student-tariff-${id}">${escapeHtml(student.tariff_name || 'Не указан')}</span></div>
@@ -7211,7 +7229,7 @@
                             </div>
                         </div>
 
-                        <div class="student-tab-content" id="tab-history-${id}">
+                        <div class="student-tab-content" data-section="history" id="tab-history-${id}">
                             <div class="sc-section-toolbar">
                                 <h4>Вознаграждения</h4>
                                 <button class="game-btn game-btn-primary give-reward-btn" data-student-id="${id}"><span>⭐</span><span>Выдать</span></button>
@@ -7221,7 +7239,7 @@
                             <div id="cards-history-${id}" class="history-list"><p class="sc-empty">Загрузка...</p></div>
                         </div>
 
-                        <div class="student-tab-content" id="tab-attendance-${id}">
+                        <div class="student-tab-content" data-section="attendance" id="tab-attendance-${id}">
                             <div class="sc-year-nav">
                                 <button class="game-btn game-btn-secondary" id="prev-year-btn-${id}"><span>←</span><span id="prev-year-label-${id}"></span></button>
                                 <strong id="current-year-label-${id}"></strong>

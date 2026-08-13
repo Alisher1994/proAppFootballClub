@@ -1920,6 +1920,8 @@ def ensure_club_settings_columns():
             conn.execute(db.text("ALTER TABLE club_settings ADD COLUMN auto_archive_after_months INTEGER DEFAULT 0"))
         if 'access_open_until' not in columns:
             conn.execute(db.text("ALTER TABLE club_settings ADD COLUMN access_open_until DATE"))
+        if 'student_card_sections' not in columns:
+            conn.execute(db.text("ALTER TABLE club_settings ADD COLUMN student_card_sections TEXT"))
         if 'hikvision_device_key' not in columns:
             conn.execute(db.text("ALTER TABLE club_settings ADD COLUMN hikvision_device_key VARCHAR(120)"))
         if 'hikvision_devices' not in columns:
@@ -4183,6 +4185,7 @@ def dashboard():
 def students():
     all_students = []
     return render_template('students.html',
+                         student_card_sections=get_student_card_sections(),
                            students=all_students,
                            payment_info={},
                            balances={},
@@ -11838,6 +11841,85 @@ def auto_archive_job():
         except Exception as exc:
             db.session.rollback()
             print(f'Ошибка автоархива: {type(exc).__name__}: {exc}')
+
+
+# Что можно скрыть в карточке ученика. Ключ -> подпись в настройках.
+STUDENT_CARD_TABS = [
+    ('payments', 'Вкладка «Оплаты»'),
+    ('finances', 'Вкладка «Финансы»'),
+    ('history', 'Вкладка «Награды»'),
+    ('attendance', 'Вкладка «Посещения»'),
+]
+
+STUDENT_CARD_BLOCKS = [
+    ('turnstile', 'Блок «Турникет»'),
+    ('year_payments', 'Блок «Оплаты по месяцам»'),
+    ('facts', 'Плитки: тариф, баланс, баллы, в клубе с'),
+    ('contacts', 'Блок «Контакты»'),
+    ('cards', 'Блок «Карточки»'),
+    ('params', 'Блок «Параметры»'),
+    ('passport', 'Блок «Паспортные данные»'),
+    ('address', 'Блок «Адрес»'),
+    ('telegram', 'Блок «Telegram»'),
+]
+
+
+def get_student_card_sections(settings=None):
+    """Какие вкладки и блоки показывать в карточке. По умолчанию все."""
+    settings = settings or get_club_settings_instance()
+    defaults = {key: True for key, _ in STUDENT_CARD_TABS}
+    defaults.update({key: True for key, _ in STUDENT_CARD_BLOCKS})
+
+    raw = getattr(settings, 'student_card_sections', None)
+    if raw:
+        try:
+            saved = json.loads(raw)
+            if isinstance(saved, dict):
+                for key in defaults:
+                    if key in saved:
+                        defaults[key] = bool(saved[key])
+        except (ValueError, TypeError):
+            pass
+    return defaults
+
+
+def save_student_card_sections(settings, payload):
+    known = {key for key, _ in STUDENT_CARD_TABS} | {key for key, _ in STUDENT_CARD_BLOCKS}
+    clean = {key: bool(value) for key, value in (payload or {}).items() if key in known}
+    settings.student_card_sections = json.dumps(clean, ensure_ascii=False)
+    return clean
+
+
+@app.route('/api/settings/student-card', methods=['GET'])
+@login_required
+def get_student_card_settings():
+    settings = get_club_settings_instance()
+    return jsonify({
+        'success': True,
+        'sections': get_student_card_sections(settings),
+        'tabs': [{'key': key, 'label': label} for key, label in STUDENT_CARD_TABS],
+        'blocks': [{'key': key, 'label': label} for key, label in STUDENT_CARD_BLOCKS],
+    })
+
+
+@app.route('/api/settings/student-card', methods=['POST'])
+@login_required
+def update_student_card_settings():
+    if current_user.role not in ['admin', 'manager']:
+        return jsonify({'success': False, 'message': 'Доступ запрещен'}), 403
+
+    ensure_club_settings_columns()
+    data = request.get_json(silent=True) or {}
+    settings = get_club_settings_instance()
+    saved = save_student_card_sections(settings, data.get('sections'))
+    db.session.commit()
+    hidden = sum(1 for value in get_student_card_sections(settings).values() if not value)
+    return jsonify({
+        'success': True,
+        'sections': get_student_card_sections(settings),
+        'message': f'Настройки карточки сохранены. Скрыто разделов: {hidden}' if hidden
+                   else 'Настройки карточки сохранены. Показываются все разделы.'
+    })
 
 
 @app.route('/api/students/auto-archive/preview', methods=['GET'])
