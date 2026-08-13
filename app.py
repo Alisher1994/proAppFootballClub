@@ -10990,6 +10990,60 @@ def get_student_debt_months(student, settings=None, today=None):
     return months
 
 
+MONTH_SHORT_RU = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн',
+                  'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек']
+
+
+def get_student_year_months(student, settings=None, today=None, year=None):
+    """Календарь оплат за год: что оплачено, что нет, что еще не наступило."""
+    settings = settings or get_club_settings_instance()
+    today = today or get_local_date()
+    year = int(year or today.year)
+
+    rows = db.session.query(
+        Payment.payment_month,
+        func.coalesce(func.sum(Payment.amount_paid), 0)
+    ).filter(
+        Payment.student_id == student.id,
+        Payment.payment_year == year,
+        Payment.payment_month.isnot(None)
+    ).group_by(Payment.payment_month).all()
+    paid_by_month = {int(month): float(total or 0) for month, total in rows}
+
+    tariff_price = float(student.tariff.price or 0) if student.tariff else 0
+    start_year, start_month = get_student_debt_start_pair(student, settings, today)
+
+    months = []
+    for month in range(1, 13):
+        paid = paid_by_month.get(month, 0)
+        if (year, month) > (today.year, today.month):
+            state = 'future'
+        elif (year, month) < (start_year, start_month):
+            state = 'before_start'
+        elif student.club_funded:
+            state = 'paid'
+        elif tariff_price <= 0:
+            state = 'no_tariff'
+        elif paid >= tariff_price:
+            state = 'paid'
+        elif paid > 0:
+            state = 'partial'
+        else:
+            state = 'debt'
+
+        months.append({
+            'month': month,
+            'short': MONTH_SHORT_RU[month - 1],
+            'name': MONTH_NAMES_RU[month - 1],
+            'paid': paid,
+            'due': tariff_price,
+            'debt': max(0, tariff_price - paid) if state in {'debt', 'partial'} else 0,
+            'state': state,
+            'is_current': bool(year == today.year and month == today.month),
+        })
+    return {'year': year, 'months': months}
+
+
 def build_student_access_details(student, settings=None, today=None, paid_map=None, payment_date_paid_map=None):
     """Подробный разбор: пройдет ли ученик через турникет и почему."""
     settings = settings or get_club_settings_instance()
@@ -11067,6 +11121,7 @@ def student_access_details(student_id):
         'status_label': student_status_label(student.status),
         'access': build_student_access_details(student),
         'terminals': get_student_terminal_face_state(student.id),
+        'year_payments': get_student_year_months(student),
     })
 
 

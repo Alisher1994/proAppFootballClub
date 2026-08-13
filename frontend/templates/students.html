@@ -3165,6 +3165,181 @@
         .summary-chip .btn-copy-code svg { width: 13px; height: 13px; }
         .payment-method-buttons .payment-type-btn svg { width: 15px; height: 15px; flex: 0 0 auto; }
 
+
+        /* ===== Вкладка "Информация": две колонки ===== */
+        /* Правая панель с фото переехала внутрь вкладки, сама панель не нужна */
+        .student-photo-panel { display: none !important; }
+
+        .student-info-layout {
+            display: grid;
+            grid-template-columns: 260px minmax(0, 1fr);
+            gap: 20px;
+            align-items: start;
+        }
+
+        .student-info-side { min-width: 0; }
+        .student-info-main { min-width: 0; }
+
+        .student-info-side .student-photo-content.hidden { display: block !important; }
+
+        .student-info-side .student-photo-container-fixed {
+            position: static;
+            width: 100%;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .student-info-side .student-photo-wrapper {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 3 / 4;
+            border-radius: 14px;
+            overflow: hidden;
+            background: var(--theme-bg-secondary, #f1f5f9);
+        }
+
+        .student-info-side .student-photo-card,
+        .student-info-side .student-photo-front {
+            width: 100%;
+            height: 100%;
+        }
+
+        .student-info-side .student-large-photo {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        .student-info-side .student-cards-container,
+        .student-info-side .student-params-container {
+            width: 100%;
+            margin: 0;
+            padding: 12px;
+            border: 1px solid var(--theme-border, #e2e8f0);
+            border-radius: 12px;
+            background: var(--theme-bg-secondary, #f8fafc);
+        }
+
+        .student-info-side .student-cards-title,
+        .student-info-side .student-params-title {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: .03em;
+            color: var(--theme-text-secondary, #64748b);
+            margin-bottom: 10px;
+            text-align: left;
+        }
+
+        .student-info-side .student-cards-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 6px;
+        }
+
+        .student-info-side .student-card-slot {
+            position: static;
+            width: 100%;
+            aspect-ratio: 2 / 3;
+            margin: 0;
+            transform: none !important;
+        }
+
+        .student-info-side .student-param-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 5px 0;
+            font-size: 13px;
+        }
+
+        .student-info-side .param-name {
+            color: var(--theme-text-secondary, #64748b);
+            margin-right: auto;
+        }
+
+        .student-info-side .param-value { font-weight: 600; }
+
+        /* ===== Календарь оплат за год ===== */
+        .year-payments {
+            border: 1px solid var(--theme-border, #e2e8f0);
+            border-radius: 14px;
+            padding: 12px 14px;
+            margin: 0 0 16px;
+            background: var(--theme-bg, #fff);
+        }
+
+        .year-payments-head {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .year-payments-title {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: .03em;
+            color: var(--theme-text-secondary, #64748b);
+        }
+
+        .year-payments-year {
+            font-weight: 700;
+            color: var(--theme-text-primary, #0f172a);
+        }
+
+        .year-payments-grid {
+            display: grid;
+            grid-template-columns: repeat(12, minmax(0, 1fr));
+            gap: 5px;
+        }
+
+        .year-payments-loading {
+            grid-column: 1 / -1;
+            font-size: 13px;
+            color: var(--theme-text-secondary, #64748b);
+        }
+
+        .year-month {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            aspect-ratio: 1 / 1;
+            border-radius: 9px;
+            border: 1px solid transparent;
+            font-size: 11px;
+            font-weight: 700;
+            cursor: default;
+        }
+
+        .year-month.paid { background: #16a34a; color: #fff; }
+        .year-month.partial { background: #dcfce7; color: #15803d; border-color: #86efac; }
+        .year-month.debt { background: #fee2e2; color: #b91c1c; border-color: #fecaca; }
+        .year-month.future,
+        .year-month.before_start,
+        .year-month.no_tariff {
+            background: rgba(148, 163, 184, .12);
+            color: rgba(100, 116, 139, .65);
+        }
+
+        .year-month.current { box-shadow: 0 0 0 2px #ff8a00; }
+
+        @media (max-width: 1200px) {
+            .student-info-layout { grid-template-columns: 220px minmax(0, 1fr); }
+        }
+
+        @media (max-width: 900px) {
+            .student-info-layout { grid-template-columns: minmax(0, 1fr); }
+            .student-info-side .student-photo-wrapper {
+                max-width: 240px;
+                margin: 0 auto;
+            }
+            .year-payments-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+        }
+
     </style>
     <style>
         /* Force unified background */
@@ -4081,108 +4256,7 @@
                 <p>Выберите ученика</p>
             </div>
 
-            {% for student in students[:1] %}
-            <div class="student-photo-content hidden"
-                id="studentPhoto_{{ student.id }}">
-                <div class="student-photo-container-fixed">
-                    <!-- Фото сверху -->
-                    <div class="student-photo-wrapper">
-                        <div class="student-photo-card">
-                            <!-- Передняя сторона - фото -->
-                            <div class="student-photo-front">
-                                {% if student.photo_path %}
-                                <img src="{{ url_for('static', filename='uploads/' + student.photo_path.replace('\\', '/').split('/')[-1]) }}"
-                                    alt="{{ student.full_name }}" class="student-large-photo" loading="lazy" decoding="async">
-                                {% else %}
-                                <div class="student-photo-placeholder">
-                                    <div class="placeholder-large">👤</div>
-                                    <p>Фото отсутствует</p>
-                                </div>
-                                {% endif %}
-                            </div>
-
-                            <!-- Задняя сторона - номер игрока -->
-                            <div class="student-photo-back">
-                                <div class="student-photo-number">
-                                    {{ student.student_number.replace('ST', '') if student.student_number and
-                                    student.student_number.startswith('ST') else (student.student_number if
-                                    student.student_number else '?') }}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Карточки снизу -->
-                    <div class="student-cards-container" id="studentCards_{{ student.id }}">
-                        <div class="student-cards-title">Карточки</div>
-                        <div class="student-cards-grid">
-                            <!-- 6 слотов для карточек будут заполнены через JavaScript -->
-                            {% for i in range(6) %}
-                            <div class="student-card-slot empty" data-student-id="{{ student.id }}"
-                                data-slot-index="{{ i }}" onclick="handleCardClick({{ student.id }}, {{ i }})">
-                                <div class="card-plus-icon">+</div>
-                            </div>
-                            {% endfor %}
-                        </div>
-                    </div>
-
-                    <!-- Параметры ученика -->
-                    <div class="student-params-container" id="studentParams_{{ student.id }}">
-                        <div class="student-params-title">Параметры</div>
-                        <div class="student-params-list">
-                            <!-- Возраст -->
-                            <div class="student-param-item">
-                                <span class="param-icon">🎂</span>
-                                <span class="param-name">Возраст:</span>
-                                <span class="param-value">{{ 2024 - (student.birth_year or 2024) if
-                                    student.birth_year else '-' }} {% if student.birth_year %}лет{% endif
-                                    %}</span>
-                            </div>
-                            <!-- Вес -->
-                            <div class="student-param-item">
-                                <span class="param-icon">⚖️</span>
-                                <span class="param-name">Вес:</span>
-                                <span class="param-value">{% if student.weight %}{{ student.weight }} кг{% else
-                                    %}-{% endif %}</span>
-                            </div>
-                            <!-- Рост -->
-                            <div class="student-param-item">
-                                <span class="param-icon">📏</span>
-                                <span class="param-name">Рост:</span>
-                                <span class="param-value">{% if student.height %}{{ student.height }} см{% else
-                                    %}-{% endif %}</span>
-                            </div>
-                            <div class="student-param-item">
-                                <span class="param-icon">⚽</span>
-                                <span class="param-name">Нога:</span>
-                                <span class="param-value">{% if student.dominant_side == 'left' %}Левша{% elif student.dominant_side == 'right' %}Правша{% else %}-{% endif %}</span>
-                            </div>
-                            <!-- Размер футболки -->
-                            <div class="student-param-item">
-                                <span class="param-icon">👕</span>
-                                <span class="param-name">Размер футболки:</span>
-                                <span class="param-value">{{ student.jersey_size if student.jersey_size else '-'
-                                    }}</span>
-                            </div>
-                            <!-- Размер шорт -->
-                            <div class="student-param-item">
-                                <span class="param-icon">🩳</span>
-                                <span class="param-name">Размер шорт:</span>
-                                <span class="param-value">{{ student.shorts_size if student.shorts_size else '-'
-                                    }}</span>
-                            </div>
-                            <!-- Размер бутс -->
-                            <div class="student-param-item">
-                                <span class="param-icon">👟</span>
-                                <span class="param-name">Размер бутс:</span>
-                                <span class="param-value">{{ student.boots_size if student.boots_size else '-'
-                                    }}</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            {% endfor %}
+            {# Фото, карточки и параметры строятся в JS внутри вкладки "Информация" #}
         </div>
     </div>
     </div>
@@ -5301,7 +5375,7 @@
 
     <script src="{{ url_for('static', filename='vendor/lucide-1.24.0.min.js') }}"></script>
     <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/students.js') }}?v=2026081303"></script>
+    <script src="{{ url_for('static', filename='js/students.js') }}?v=2026081304"></script>
     <script src="{{ url_for('static', filename='js/students_rewards.js') }}"></script>
     <script src="{{ url_for('static', filename='js/students_cards.js') }}"></script>
     <script src="{{ url_for('static', filename='js/students_params.js') }}"></script>
@@ -5865,6 +5939,48 @@
             `;
         }
 
+        function buildYearPaymentsHtml(studentId) {
+            return `
+                <div class="year-payments" id="yearPayments_${studentId}">
+                    <div class="year-payments-head">
+                        <span class="year-payments-title">Оплаты за год</span>
+                        <span class="year-payments-year"></span>
+                    </div>
+                    <div class="year-payments-grid"><span class="year-payments-loading">Загружаем...</span></div>
+                </div>
+            `;
+        }
+
+        const YEAR_MONTH_TITLES = {
+            paid: 'Оплачено',
+            partial: 'Оплачено частично',
+            debt: 'Не оплачено',
+            future: 'Месяц еще не наступил',
+            before_start: 'До начала занятий',
+            no_tariff: 'Тариф не указан',
+        };
+
+        function renderYearPayments(studentId, data) {
+            const holder = document.getElementById(`yearPayments_${studentId}`);
+            if (!holder || !data) return;
+            const yearLabel = holder.querySelector('.year-payments-year');
+            if (yearLabel) yearLabel.textContent = data.year;
+
+            const grid = holder.querySelector('.year-payments-grid');
+            if (!grid) return;
+            grid.innerHTML = (data.months || []).map(month => {
+                const amount = month.state === 'paid' || month.state === 'partial'
+                    ? `${formatMoney(month.paid)} сум`
+                    : (month.state === 'debt' ? `долг ${formatMoney(month.debt)} сум` : '');
+                const title = `${month.name}: ${YEAR_MONTH_TITLES[month.state] || ''}${amount ? ' · ' + amount : ''}`;
+                return `
+                    <div class="year-month ${month.state}${month.is_current ? ' current' : ''}" title="${escapeHtml(title)}">
+                        <span class="year-month-name">${escapeHtml(month.short)}</span>
+                    </div>
+                `;
+            }).join('');
+        }
+
         function buildDebtMonthsHtml(access) {
             const months = access.debt_months || [];
             if (!months.length) return '';
@@ -5906,6 +6022,7 @@
 
                 const photoBadges = document.getElementById(`photoTerminals_${studentId}`);
                 if (photoBadges) photoBadges.innerHTML = buildTerminalBadgesHtml(data.terminals);
+                renderYearPayments(studentId, data.year_payments);
 
                 const explanation = (access.explanation || [])
                     .map(text => `<li>${escapeHtml(text)}</li>`).join('');
@@ -5998,7 +6115,11 @@
                                     <h2 class="student-full-name">■ ${escapeHtml(student.full_name)}</h2>
                                     ${buildStudentMenuHtml(student)}
                                 </div>
+                                <div class="student-info-layout">
+                                <aside class="student-info-side" id="studentSide_${id}"></aside>
+                                <div class="student-info-main">
                                 ${buildStudentSummaryHtml(student)}
+                                ${buildYearPaymentsHtml(id)}
                                 <div class="student-info-section">
                                     <div class="info-row">
                                         <div class="info-group">
@@ -6035,7 +6156,8 @@
                                             </div>
                                         </div>
                                     </div>
-                                </div>
+                                </div></div>
+                            </div>
                             </div>
                             <div class="student-tab-content" id="tab-payments-${id}">
                                 <div class="payments-content"><div class="history-section">
@@ -6143,16 +6265,17 @@
 
             const student = await lazyStudentCache.get(studentId);
             const detailsPanel = document.getElementById('studentDetailsPanel');
-            const photoPanel = document.querySelector('.student-photo-panel');
 
             if (!document.getElementById(`studentDetails_${studentId}`) && detailsPanel) {
                 detailsPanel.insertAdjacentHTML('beforeend', buildStudentDetailsHtml(student));
-                if (window.lucide) lucide.createIcons();
-                loadStudentAccessDetails(student.id);
             }
-            if (!document.getElementById(`studentPhoto_${studentId}`) && photoPanel) {
-                photoPanel.insertAdjacentHTML('beforeend', buildStudentPhotoHtml(student));
+            // Фото, карточки и параметры теперь живут внутри вкладки "Информация".
+            const side = document.getElementById(`studentSide_${studentId}`);
+            if (side && !document.getElementById(`studentPhoto_${studentId}`)) {
+                side.innerHTML = buildStudentPhotoHtml(student);
             }
+            if (window.lucide) lucide.createIcons();
+            loadStudentAccessDetails(student.id);
         }
 
         function ensureMobileStudentNavigation() {
