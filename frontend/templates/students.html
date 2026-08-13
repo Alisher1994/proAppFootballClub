@@ -4013,6 +4013,40 @@
             color: var(--theme-text-secondary, #94a3b8);
         }
 
+
+        /* Пункты меню карточки: только иконка и текст, без рамок и плашек.
+           Общие стили кнопок перебиваем через !important. */
+        .student-card-menu-list .student-card-menu-item,
+        .student-item-menu .student-card-menu-item {
+            border: 0 !important;
+            outline: 0 !important;
+            box-shadow: none !important;
+            background: none !important;
+            background-color: transparent !important;
+            background-image: none !important;
+            border-radius: 8px !important;
+            padding: 9px 12px !important;
+            font-weight: 500 !important;
+            white-space: nowrap;
+            color: var(--theme-text-primary, #0f172a) !important;
+        }
+
+        .student-card-menu-list .student-card-menu-item:hover,
+        .student-item-menu .student-card-menu-item:hover {
+            background: var(--theme-bg-secondary, #f5f2ef) !important;
+            color: #ff8a00 !important;
+        }
+
+        .student-card-menu-list .student-card-menu-item.danger,
+        .student-item-menu .student-card-menu-item.danger { color: #b45309 !important; }
+
+        .student-card-menu-list .student-card-menu-item svg,
+        .student-item-menu .student-card-menu-item svg { color: currentColor; }
+
+        /* Чтобы длинные пункты не переносились на две строки */
+        .student-card-menu-list { min-width: 234px; }
+        .student-item-menu { min-width: 234px; }
+
     </style>
     <style>
         /* Force unified background */
@@ -6274,7 +6308,7 @@
         })();
     </script>
     <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/students.js') }}?v=2026081319"></script>
+    <script src="{{ url_for('static', filename='js/students.js') }}?v=2026081320"></script>
     <script src="{{ url_for('static', filename='js/students_rewards.js') }}"></script>
     <script src="{{ url_for('static', filename='js/students_cards.js') }}"></script>
     <script src="{{ url_for('static', filename='js/students_params.js') }}"></script>
