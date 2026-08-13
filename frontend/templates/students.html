@@ -3061,6 +3061,105 @@
             letter-spacing: .02em;
         }
 
+
+        /* ===== Карточка ученика в списке: фото / данные / меню ===== */
+        .student-list-item .student-item-info {
+            flex: 1 1 auto;
+            min-width: 0;
+        }
+
+        .student-list-item .student-item-meta {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
+            margin: 3px 0;
+        }
+
+        .student-status-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 8px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 600;
+            background: #f1f5f9;
+            color: #475569;
+            white-space: nowrap;
+        }
+
+        .student-status-chip svg { width: 12px; height: 12px; }
+        .student-status-chip.status-ok { background: #dcfce7; color: #15803d; }
+        .student-status-chip.status-danger { background: #fee2e2; color: #b91c1c; }
+        .student-status-chip.status-archived { background: #ede9fe; color: #6d28d9; }
+        .student-status-chip.status-muted { background: #f1f5f9; color: #64748b; }
+
+        .pass-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            flex: 0 0 auto;
+        }
+
+        .pass-icon svg { width: 15px; height: 15px; }
+        .pass-icon.ok { background: #dcfce7; color: #15803d; }
+        .pass-icon.no { background: #fee2e2; color: #b91c1c; }
+
+        .student-item-actions {
+            position: relative;
+            flex: 0 0 auto;
+        }
+
+        .student-item-menu-btn {
+            width: 30px;
+            height: 30px;
+            border: 0;
+            border-radius: 8px;
+            background: transparent;
+            color: #94a3b8;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background .15s ease, color .15s ease;
+        }
+
+        .student-item-menu-btn svg { width: 18px; height: 18px; }
+
+        .student-item-menu-btn:hover {
+            background: #ff8a00;
+            color: #fff;
+        }
+
+        .student-item-menu {
+            display: none;
+            position: absolute;
+            right: 0;
+            top: calc(100% + 4px);
+            min-width: 200px;
+            padding: 6px;
+            border-radius: 12px;
+            border: 1px solid var(--theme-border, #e2e8f0);
+            background: var(--theme-bg, #fff);
+            box-shadow: 0 12px 32px rgba(15, 23, 42, .18);
+            z-index: 60;
+        }
+
+        .student-item-menu.open { display: block; }
+
+        /* Иконки в кнопках меню карточки */
+        .student-card-menu-item svg { width: 16px; height: 16px; flex: 0 0 auto; }
+        .student-card-menu-btn svg { width: 18px; height: 18px; }
+        .terminal-badge svg { width: 13px; height: 13px; }
+        .student-item-terminals .terminal-badge svg { width: 11px; height: 11px; }
+        .summary-chip-value svg { width: 15px; height: 15px; flex: 0 0 auto; }
+        .summary-chip .btn-copy-code svg { width: 13px; height: 13px; }
+        .payment-method-buttons .payment-type-btn svg { width: 15px; height: 15px; flex: 0 0 auto; }
+
     </style>
     <style>
         /* Force unified background */
@@ -5195,8 +5294,9 @@
         </div>
     </div>
 
+    <script src="{{ url_for('static', filename='vendor/lucide-1.24.0.min.js') }}"></script>
     <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/students.js') }}?v=2026081301"></script>
+    <script src="{{ url_for('static', filename='js/students.js') }}?v=2026081302"></script>
     <script src="{{ url_for('static', filename='js/students_rewards.js') }}"></script>
     <script src="{{ url_for('static', filename='js/students_cards.js') }}"></script>
     <script src="{{ url_for('static', filename='js/students_params.js') }}"></script>
@@ -5279,17 +5379,13 @@
         }
 
         function buildStudentListItemHtml(student) {
-            const currentYear = new Date().getFullYear();
-            const age = student.birth_year ? `${currentYear - Number(student.birth_year)} лет` : '-';
-            const lowBalance = !student.club_funded && Number(student.balance || 0) <= 2;
             const archived = student.status === 'archived';
             const willPass = Boolean(student.will_pass);
+            const statusMeta = getStudentStatusMeta(student.status);
             const classes = [
                 'student-list-item',
-                lowBalance ? 'low-balance' : '',
                 student.status === 'blacklist' ? 'blacklisted' : '',
-                archived ? 'archived' : '',
-                willPass ? 'will-pass' : 'will-block'
+                archived ? 'archived' : ''
             ].filter(Boolean).join(' ');
             const passTitle = archived
                 ? 'В архиве, в терминалы не выгружается'
@@ -5310,23 +5406,58 @@
                     <div class="student-item-info">
                         <div class="student-item-name">${escapeHtml(student.full_name)}</div>
                         <div class="student-item-meta">
-                            <span class="student-item-age">${escapeHtml(age)}</span>
-                            <span class="student-item-balance">
-                                ${student.club_funded
-                                    ? '<span class="badge-club">♾️</span>'
-                                    : `<span class="badge-balance ${lowBalance ? 'low' : ''}">${escapeHtml(student.balance ?? 0)}</span>`}
+                            <span class="student-status-chip status-${statusMeta.tone}">
+                                <i data-lucide="${statusMeta.icon}"></i>${escapeHtml(statusMeta.label)}
                             </span>
-                            ${archived
-                                ? '<span class="badge-archived" title="Ученик в архиве"><i data-lucide="archive"></i> Архив</span>'
-                                : `<span class="badge-pass ${willPass ? 'ok' : 'no'}" title="${escapeHtml(passTitle)}">
-                                       <i data-lucide="${willPass ? 'door-open' : 'door-closed'}"></i>${willPass ? 'Пройдет' : 'Не пройдет'}
-                                   </span>`}
+                            <span class="pass-icon ${willPass ? 'ok' : 'no'}" title="${escapeHtml(passTitle)}">
+                                <i data-lucide="${willPass ? 'door-open' : 'door-closed'}"></i>
+                            </span>
                         </div>
                         <div class="student-item-group">${escapeHtml(student.group_name || 'Без группы')}</div>
+                    </div>
+                    ${buildStudentListMenuHtml(student)}
+                </div>
+            `;
+        }
+
+        function buildStudentListMenuHtml(student) {
+            const id = student.id;
+            const archived = student.status === 'archived';
+            const safeName = escapeHtml(student.full_name).replace(/'/g, '&#39;');
+            return `
+                <div class="student-item-actions" onclick="event.stopPropagation();">
+                    <button type="button" class="student-item-menu-btn" aria-label="Действия"
+                        onclick="toggleStudentListMenu(event, ${id})">
+                        <i data-lucide="more-vertical"></i>
+                    </button>
+                    <div class="student-item-menu" id="studentListMenu_${id}">
+                        <button type="button" class="student-card-menu-item edit-student-btn" data-student-id="${id}">
+                            <i data-lucide="pencil"></i> Редактировать
+                        </button>
+                        ${archived
+                            ? `<button type="button" class="student-card-menu-item" onclick="restoreStudent(${id})">
+                                   <i data-lucide="rotate-ccw"></i> Вернуть из архива
+                               </button>`
+                            : `<button type="button" class="student-card-menu-item danger" onclick="archiveStudent(${id}, '${safeName}')">
+                                   <i data-lucide="archive"></i> В архив
+                               </button>`}
                     </div>
                 </div>
             `;
         }
+
+        function toggleStudentListMenu(event, studentId) {
+            event.stopPropagation();
+            const menu = document.getElementById(`studentListMenu_${studentId}`);
+            if (!menu) return;
+            const wasOpen = menu.classList.contains('open');
+            document.querySelectorAll('.student-item-menu.open').forEach(el => el.classList.remove('open'));
+            if (!wasOpen) menu.classList.add('open');
+        }
+
+        document.addEventListener('click', () => {
+            document.querySelectorAll('.student-item-menu.open').forEach(el => el.classList.remove('open'));
+        });
 
         function groupStudentsForList(students) {
             return students.reduce((groups, student) => {
