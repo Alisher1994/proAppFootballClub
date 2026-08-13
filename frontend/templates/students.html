@@ -4948,6 +4948,33 @@
             .mobile-search-bar { position: absolute !important; inset: 64px 12px auto !important; width: auto !important; z-index: 30 !important; background: #fff !important; }
             .game-layout-wrapper { min-height: 0 !important; height: calc(100% - 64px) !important; overflow: hidden !important; }
         }
+
+        /* Пункты меню — обычные строки, а не кнопки: так глобальные
+           стили кнопок не навязывают им рамку и фон. */
+        .student-card-menu-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            width: 100%;
+            padding: 9px 12px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            line-height: 1.25;
+            color: var(--theme-text-primary, #0f172a);
+            cursor: pointer;
+            white-space: nowrap;
+            user-select: none;
+        }
+
+        .student-card-menu-item:hover {
+            background: var(--theme-bg-secondary, #f5f2ef);
+            color: #ff8a00;
+        }
+
+        .student-card-menu-item.danger { color: #b45309; }
+        .student-card-menu-item svg { width: 16px; height: 16px; flex: 0 0 auto; }
+
     </style>
 </head>
 
@@ -6308,7 +6335,7 @@
         })();
     </script>
     <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/students.js') }}?v=2026081320"></script>
+    <script src="{{ url_for('static', filename='js/students.js') }}?v=2026081321"></script>
     <script src="{{ url_for('static', filename='js/students_rewards.js') }}"></script>
     <script src="{{ url_for('static', filename='js/students_cards.js') }}"></script>
     <script src="{{ url_for('static', filename='js/students_params.js') }}"></script>
@@ -6475,16 +6502,16 @@
                         <i data-lucide="more-vertical"></i>
                     </button>
                     <div class="student-item-menu" id="studentListMenu_${id}">
-                        <button type="button" class="student-card-menu-item edit-student-btn" data-student-id="${id}">
-                            <i data-lucide="pencil"></i> Редактировать
-                        </button>
+                        <div class="student-card-menu-item edit-student-btn" role="button" tabindex="0" data-student-id="${id}">
+                            <i data-lucide="pencil"></i><span>Редактировать</span>
+                        </div>
                         ${archived
-                            ? `<button type="button" class="student-card-menu-item" onclick="restoreStudent(${id})">
-                                   <i data-lucide="rotate-ccw"></i> Вернуть из архива
-                               </button>`
-                            : `<button type="button" class="student-card-menu-item danger" onclick="archiveStudent(${id}, '${safeName}')">
-                                   <i data-lucide="archive"></i> В архив
-                               </button>`}
+                            ? `<div class="student-card-menu-item" role="button" tabindex="0" onclick="restoreStudent(${id})">
+                                   <i data-lucide="rotate-ccw"></i><span>Вернуть из архива</span>
+                               </div>`
+                            : `<div class="student-card-menu-item danger" role="button" tabindex="0" onclick="archiveStudent(${id}, '${safeName}')">
+                                   <i data-lucide="archive"></i><span>В архив</span>
+                               </div>`}
                     </div>
                 </div>
             `;
@@ -6812,19 +6839,19 @@
                         <i data-lucide="more-vertical"></i>
                     </button>
                     <div class="student-card-menu-list" id="studentCardMenu_${id}">
-                        <button type="button" class="student-card-menu-item edit-student-btn" data-student-id="${id}">
-                            <i data-lucide="pencil"></i> Редактировать
-                        </button>
-                        <button type="button" class="student-card-menu-item" onclick="redistributeStudentPayments(${id})">
-                            <i data-lucide="arrow-left-right"></i> Перенести оплаты назад
-                        </button>
+                        <div class="student-card-menu-item edit-student-btn" role="button" tabindex="0" data-student-id="${id}">
+                            <i data-lucide="pencil"></i><span>Редактировать</span>
+                        </div>
+                        <div class="student-card-menu-item" role="button" tabindex="0" onclick="redistributeStudentPayments(${id})">
+                            <i data-lucide="arrow-left-right"></i><span>Перенести оплаты назад</span>
+                        </div>
                         ${archived
-                            ? `<button type="button" class="student-card-menu-item" onclick="restoreStudent(${id})">
-                                   <i data-lucide="rotate-ccw"></i> Вернуть из архива
-                               </button>`
-                            : `<button type="button" class="student-card-menu-item danger" onclick="archiveStudent(${id}, '${escapeHtml(student.full_name).replace(/'/g, "&#39;")}')">
-                                   <i data-lucide="archive"></i> В архив
-                               </button>`}
+                            ? `<div class="student-card-menu-item" role="button" tabindex="0" onclick="restoreStudent(${id})">
+                                   <i data-lucide="rotate-ccw"></i><span>Вернуть из архива</span>
+                               </div>`
+                            : `<div class="student-card-menu-item danger" role="button" tabindex="0" onclick="archiveStudent(${id}, '${escapeHtml(student.full_name).replace(/'/g, "&#39;")}')">
+                                   <i data-lucide="archive"></i><span>В архив</span>
+                               </div>`}
                     </div>
                 </div>
             `;
