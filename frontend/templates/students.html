@@ -5020,13 +5020,27 @@
             margin: 0 !important;
         }
 
-        .game-top-bar .students-header-filters .student-group-filter,
-        .game-top-bar .students-header-filters .student-list-search {
-            flex: 0 0 auto !important;
+        /* Ширину задаем контейнеру, а поле растягиваем внутри него.
+           Иначе input шире родителя и наезжает на соседнюю кнопку. */
+        .game-top-bar .students-header-filters .student-group-filter {
+            flex: 0 0 180px !important;
+            width: 180px !important;
+            min-width: 0 !important;
         }
 
+        .game-top-bar .students-header-filters .student-list-search {
+            flex: 0 0 220px !important;
+            width: 220px !important;
+            min-width: 0 !important;
+            position: relative;
+        }
+
+        .game-top-bar .students-header-filters .student-group-filter select,
         .game-top-bar .students-header-filters .student-list-search input {
-            width: 210px !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            min-width: 0 !important;
+            box-sizing: border-box !important;
         }
 
         /* Кнопка анкет: без рамки и заливки, только иконка и подпись */
@@ -6421,7 +6435,7 @@
         })();
     </script>
     <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/students.js') }}?v=2026081326"></script>
+    <script src="{{ url_for('static', filename='js/students.js') }}?v=2026081327"></script>
     <script src="{{ url_for('static', filename='js/students_rewards.js') }}"></script>
     <script src="{{ url_for('static', filename='js/students_cards.js') }}"></script>
     <script src="{{ url_for('static', filename='js/students_params.js') }}"></script>
