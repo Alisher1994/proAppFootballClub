@@ -6207,7 +6207,7 @@
         })();
     </script>
     <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/students.js') }}?v=2026081315"></script>
+    <script src="{{ url_for('static', filename='js/students.js') }}?v=2026081316"></script>
     <script src="{{ url_for('static', filename='js/students_rewards.js') }}"></script>
     <script src="{{ url_for('static', filename='js/students_cards.js') }}"></script>
     <script src="{{ url_for('static', filename='js/students_params.js') }}"></script>
@@ -6228,6 +6228,9 @@
             if (openGroup?.dataset.groupId) {
                 localStorage.setItem('students_page_open_group', openGroup.dataset.groupId);
             }
+            // Ученика могли открыть через поиск, тогда группа не поможет
+            const searchInput = document.getElementById('studentListSearch');
+            localStorage.setItem('students_page_search', searchInput?.value || '');
             localStorage.setItem('students_page_scroll_position', scrollPosition.toString());
         }
 
@@ -6235,11 +6238,23 @@
         async function restorePageState() {
             const savedStudentId = localStorage.getItem('students_page_selected_student');
             const savedGroupId = localStorage.getItem('students_page_open_group');
+            const savedSearch = localStorage.getItem('students_page_search') || '';
             const savedScrollPosition = localStorage.getItem('students_page_scroll_position');
             if (!savedStudentId) return;
 
-            // Сначала раскрываем группу, где ученик лежит, иначе его строки еще нет
-            if (savedGroupId) {
+            // Возвращаем контекст списка: либо тот же поиск, либо ту же группу
+            if (savedSearch.trim()) {
+                const searchInput = document.getElementById('studentListSearch');
+                if (searchInput) {
+                    searchInput.value = savedSearch;
+                    try {
+                        applyServerStudentFilters();
+                        await loadStudentsPage({ reset: true });
+                    } catch (error) {
+                        console.error('Не удалось восстановить поиск:', error);
+                    }
+                }
+            } else if (savedGroupId) {
                 const section = document.querySelector(`.student-group-section[data-group-id="${savedGroupId}"]`);
                 if (section) {
                     section.classList.remove('collapsed');
@@ -6251,10 +6266,14 @@
                 }
             }
 
-            const studentItem = document.querySelector(`.student-list-item[data-student-id="${savedStudentId}"]`);
-            if (!studentItem) return;
-
-            await selectStudent(parseInt(savedStudentId, 10));
+            // Карточку открываем в любом случае: она грузится по id,
+            // даже если строки в списке еще нет
+            try {
+                await selectStudent(parseInt(savedStudentId, 10));
+            } catch (error) {
+                console.error('Не удалось открыть карточку ученика:', error);
+                return;
+            }
 
             const listContent = document.querySelector('.student-list-content');
             if (listContent && savedScrollPosition) {
