@@ -7544,6 +7544,20 @@
                     }
                 }
 
+                // The information tab uses the authoritative access-details
+                // calculation. Reuse it here so Finance cannot double-count
+                // months that are already represented in payments_by_month.
+                try {
+                    const accessResponse = await fetch(`/api/students/${studentId}/access-details`);
+                    const accessData = await accessResponse.json();
+                    if (accessResponse.ok && accessData.success && accessData.access
+                        && Number.isFinite(Number(accessData.access.total_debt))) {
+                        totalDebt = Number(accessData.access.total_debt);
+                    }
+                } catch (accessError) {
+                    console.warn('Не удалось синхронизировать общий долг:', accessError);
+                }
+
                 // Обновить отображение долга
                 const debtElement = document.getElementById(`student-debt-${studentId}`);
                 if (debtElement) {
