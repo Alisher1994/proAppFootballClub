@@ -10719,7 +10719,7 @@ def hikvision_terminal_missing():
     counters = {'in_terminal': 0, 'total_people': 0}
 
     def push(person_type, person_id, employee_no, full_name, group, status_value,
-             reason, reason_label, category, has_photo, photo_path, detail=''):
+             reason, reason_label, category, has_photo, photo_path, detail='', debt_amount=0):
         payment = last_payments.get(person_id) if person_type == 'student' else None
         items.append({
             'last_payment_date': payment['date'].strftime('%d.%m.%Y') if payment and payment['date'] else '',
@@ -10742,6 +10742,7 @@ def hikvision_terminal_missing():
             'has_photo': bool(has_photo),
             'photo_url': build_photo_thumb_url(photo_path) if photo_path else None,
             'detail': detail or '',
+            'debt_amount': float(debt_amount or 0),
         })
 
     for student in students:
@@ -10771,7 +10772,7 @@ def hikvision_terminal_missing():
                 detail = 'долг: {:,} сум'.format(int(access['debt'])).replace(',', ' ')
             push('student', student.id, employee_no, student.full_name, group_name,
                  student.status, reason, reason_label, category,
-                 access['has_photo'], student.photo_path, detail)
+                 access['has_photo'], student.photo_path, detail, access['debt'])
             continue
 
         failure = sync_failures.get(employee_no)

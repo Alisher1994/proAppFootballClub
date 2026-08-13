@@ -2071,6 +2071,7 @@ window.showHikvisionLog = showHikvisionLog;
 
 let terminalMissingData = null;
 const terminalMissingSelection = new Set();
+const terminalMissingFilters = { id: '', name: '', group: '', reason: '', paid: '', debt: '' };
 let terminalMissingCategory = 'all';
 let terminalMissingQuery = '';
 let terminalMissingLoading = false;
@@ -2101,6 +2102,11 @@ async function loadTerminalMissing() {
         Array.from(terminalMissingSelection)
             .filter(id => !known.has(id))
             .forEach(id => terminalMissingSelection.delete(id));
+        ['fltGroup', 'fltReason', 'fltPaid'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.dataset.filled = 'false';
+        });
+        fillMissingFilterOptions();
         renderTerminalMissing();
     } catch (error) {
         body.innerHTML = `<tr><td colspan="9" style="text-align:center; color:#dc2626; padding:20px;">Ошибка: ${escapeHtml(error.message)}</td></tr>`;
@@ -2109,15 +2115,72 @@ async function loadTerminalMissing() {
     }
 }
 
+function matchesDebtRange(value, range) {
+    if (!range) return true;
+    const debt = Number(value || 0);
+    if (range === '0') return debt <= 0;
+    const [from, to] = range.split('-');
+    if (from && debt < Number(from)) return false;
+    if (to && debt > Number(to)) return false;
+    return true;
+}
+
 function terminalMissingFilteredItems() {
     const items = terminalMissingData?.items || [];
     const query = terminalMissingQuery.trim().toLowerCase();
+    const flt = terminalMissingFilters;
+
     return items.filter(item => {
         if (terminalMissingCategory !== 'all' && item.category !== terminalMissingCategory) return false;
+
+        if (flt.id && !String(item.employee_no || '').includes(flt.id.trim())) return false;
+        if (flt.name && !String(item.full_name || '').toLowerCase().includes(flt.name.trim().toLowerCase())) return false;
+        if (flt.group && item.group !== flt.group) return false;
+        if (flt.reason && item.reason !== flt.reason) return false;
+
+        if (flt.paid === '__none__' && item.last_payment_date) return false;
+        if (flt.paid && flt.paid !== '__none__' && item.last_payment_period !== flt.paid) return false;
+
+        if (!matchesDebtRange(item.debt_amount, flt.debt)) return false;
+
         if (!query) return true;
         return [item.full_name, item.employee_no, item.group, item.reason_label, item.detail]
             .some(value => String(value || '').toLowerCase().includes(query));
     });
+}
+
+function fillMissingFilterOptions() {
+    const items = terminalMissingData?.items || [];
+
+    const groupSelect = document.getElementById('fltGroup');
+    if (groupSelect && groupSelect.dataset.filled !== 'true') {
+        const groups = [...new Set(items.map(item => item.group).filter(Boolean))].sort();
+        groupSelect.innerHTML = '<option value="">Все группы</option>'
+            + groups.map(name => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join('');
+        groupSelect.dataset.filled = 'true';
+    }
+
+    const reasonSelect = document.getElementById('fltReason');
+    if (reasonSelect && reasonSelect.dataset.filled !== 'true') {
+        const seen = new Map();
+        items.forEach(item => { if (item.reason) seen.set(item.reason, item.reason_label); });
+        reasonSelect.innerHTML = '<option value="">Все причины</option>'
+            + [...seen.entries()].map(([value, label]) => `<option value="${escapeHtml(value)}">${escapeHtml(label)}</option>`).join('');
+        reasonSelect.dataset.filled = 'true';
+    }
+
+    const paidSelect = document.getElementById('fltPaid');
+    if (paidSelect && paidSelect.dataset.filled !== 'true') {
+        const periods = [...new Set(items.map(item => item.last_payment_period).filter(Boolean))]
+            .sort((a, b) => {
+                const [am, ay] = a.split('.');
+                const [bm, by] = b.split('.');
+                return (by - ay) || (bm - am);
+            });
+        paidSelect.innerHTML = '<option value="">Любая оплата</option><option value="__none__">Не платили</option>'
+            + periods.map(period => `<option value="${escapeHtml(period)}">за ${escapeHtml(period)}</option>`).join('');
+        paidSelect.dataset.filled = 'true';
+    }
 }
 
 function renderTerminalMissing() {
@@ -2200,9 +2263,28 @@ function renderTerminalMissing() {
                 <td>${escapeHtml(item.full_name)}${staffMark}</td>
                 <td>${escapeHtml(item.group || '—')}</td>
                 <td><span style="color:${color}; font-weight:600;">${escapeHtml(item.reason_label)}</span></td>
-                <td style="white-space:nowrap;">${escapeHtml(item.last_payment_date || '—')}${period}</td>
-                <td style="white-space:nowrap; font-weight:600;">${formatTerminalMissingSum(item.last_payment_amount)}</td>
-                <td style="color:var(--theme-text-secondary); font-size:13px;">${escapeHtml(item.detail || '—')}</td>
+                <td class="missing-paid-cell">
+                    ${item.last_payment_date
+                        ? `<span class="missing-paid-sum">${formatTerminalMissingSum(item.last_payment_amount)}</span>
+                           <span class="missing-paid-date">${escapeHtml(item.last_payment_date)}${period}</span>`
+                        : '—'}
+                </td>
+                <td style="white-space:nowrap; font-weight:600; color:#dc2626;">${Number(item.debt_amount || 0) > 0 ? formatTerminalMissingSum(item.debt_amount) : '—'}</td>
+                <td class="missing-row-actions">
+                    ${selectable ? `
+                        <button type="button" class="missing-row-menu-btn" title="Действия"
+                            onclick="toggleMissingRowMenu(event, ${item.person_id})">
+                            <i data-lucide="more-vertical"></i>
+                        </button>
+                        <div class="missing-row-menu" id="missingRowMenu_${item.person_id}">
+                            <button type="button" onclick="openBulkTariffModal([${item.person_id}])">
+                                <i data-lucide="credit-card"></i> Изменить тариф
+                            </button>
+                            <button type="button" onclick="redistributePayments([${item.person_id}])">
+                                <i data-lucide="arrow-left-right"></i> Перенести оплаты назад
+                            </button>
+                        </div>` : ''}
+                </td>
             </tr>`;
     }).join('');
 
@@ -2251,10 +2333,34 @@ async function loadBulkTariffOptions() {
     }
 }
 
+let bulkTariffTargetIds = [];
+
+function toggleMissingRowMenu(event, studentId) {
+    event.stopPropagation();
+    const menu = document.getElementById(`missingRowMenu_${studentId}`);
+    if (!menu) return;
+    const wasOpen = menu.classList.contains('open');
+    document.querySelectorAll('.missing-row-menu.open').forEach(el => el.classList.remove('open'));
+    if (!wasOpen) menu.classList.add('open');
+}
+
+document.addEventListener('click', () => {
+    document.querySelectorAll('.missing-row-menu.open').forEach(el => el.classList.remove('open'));
+});
+
+async function openBulkTariffModal(ids) {
+    bulkTariffTargetIds = Array.isArray(ids) && ids.length ? ids : Array.from(terminalMissingSelection);
+    if (!bulkTariffTargetIds.length) return;
+    await loadBulkTariffOptions();
+    const counter = document.getElementById('bulkTariffCount');
+    if (counter) counter.textContent = String(bulkTariffTargetIds.length);
+    document.getElementById('bulkTariffModal').style.display = 'block';
+}
+
 async function applyBulkTariff() {
     const select = document.getElementById('bulkTariffSelect');
     const clubFunded = document.getElementById('bulkTariffClubFunded');
-    const ids = Array.from(terminalMissingSelection);
+    const ids = bulkTariffTargetIds.length ? bulkTariffTargetIds : Array.from(terminalMissingSelection);
     if (!ids.length) return;
 
     const payload = { student_ids: ids, tariff_id: select.value || null };
@@ -2277,8 +2383,8 @@ async function applyBulkTariff() {
     }
 }
 
-async function redistributeSelectedPayments() {
-    const ids = Array.from(terminalMissingSelection);
+async function redistributePayments(ids) {
+    ids = Array.isArray(ids) && ids.length ? ids : Array.from(terminalMissingSelection);
     if (!ids.length) return;
     if (!confirm(
         `Перенести оплаты на более ранние месяцы у ${ids.length} учеников?\n\n` +
@@ -2316,7 +2422,7 @@ function exportTerminalMissingCsv() {
         return;
     }
     const header = ['ID', 'ФИО', 'Группа', 'Тип', 'Причина',
-        'Дата последней оплаты', 'За период', 'Сумма оплаты', 'Подробности'];
+        'Дата последней оплаты', 'За период', 'Сумма оплаты', 'Долг', 'Подробности'];
     const rows = items.map(item => [
         item.employee_no,
         item.full_name,
@@ -2326,6 +2432,7 @@ function exportTerminalMissingCsv() {
         item.last_payment_date || '',
         item.last_payment_period || '',
         item.last_payment_amount == null ? '' : Math.round(Number(item.last_payment_amount)),
+        Math.round(Number(item.debt_amount || 0)),
         item.detail || '',
     ]);
     const csv = [header].concat(rows)
@@ -2374,20 +2481,47 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const tariffBtn = document.getElementById('missingBulkTariffBtn');
-    if (tariffBtn) {
-        tariffBtn.addEventListener('click', async () => {
-            await loadBulkTariffOptions();
-            const counter = document.getElementById('bulkTariffCount');
-            if (counter) counter.textContent = String(terminalMissingSelection.size);
-            document.getElementById('bulkTariffModal').style.display = 'block';
-        });
-    }
+    if (tariffBtn) tariffBtn.addEventListener('click', () => openBulkTariffModal(Array.from(terminalMissingSelection)));
 
     const applyTariffBtn = document.getElementById('bulkTariffApplyBtn');
     if (applyTariffBtn) applyTariffBtn.addEventListener('click', applyBulkTariff);
 
     const redistributeBtn = document.getElementById('missingBulkRedistributeBtn');
-    if (redistributeBtn) redistributeBtn.addEventListener('click', redistributeSelectedPayments);
+    if (redistributeBtn) redistributeBtn.addEventListener('click', () => redistributePayments(Array.from(terminalMissingSelection)));
+
+    const filterMap = {
+        fltId: 'id',
+        fltName: 'name',
+        fltGroup: 'group',
+        fltReason: 'reason',
+        fltPaid: 'paid',
+        fltDebt: 'debt',
+    };
+    Object.entries(filterMap).forEach(([elementId, key]) => {
+        const el = document.getElementById(elementId);
+        if (!el) return;
+        const eventName = el.tagName === 'SELECT' ? 'change' : 'input';
+        el.addEventListener(eventName, () => {
+            terminalMissingFilters[key] = el.value || '';
+            renderTerminalMissing();
+        });
+    });
+
+    const resetBtn = document.getElementById('fltReset');
+    if (resetBtn) {
+        resetBtn.addEventListener('click', () => {
+            Object.keys(terminalMissingFilters).forEach(key => { terminalMissingFilters[key] = ''; });
+            Object.keys(filterMap).forEach(elementId => {
+                const el = document.getElementById(elementId);
+                if (el) el.value = '';
+            });
+            terminalMissingQuery = '';
+            const search = document.getElementById('missingSearchInput');
+            if (search) search.value = '';
+            terminalMissingCategory = 'all';
+            renderTerminalMissing();
+        });
+    }
 });
 
 window.loadTerminalMissing = loadTerminalMissing;

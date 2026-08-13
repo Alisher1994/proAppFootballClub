@@ -2496,6 +2496,90 @@
         .settings-page #missingTable .col-check { width: 38px; }
         .settings-page #missingTable input[type="checkbox"] { cursor: pointer; }
 
+
+        /* Фильтры по столбцам */
+        .settings-page #missingTable .missing-filter-row th {
+            padding: 6px 8px;
+            background: var(--theme-bg, #fff);
+            border-bottom: 1px solid var(--theme-border, #e2e8f0);
+        }
+
+        .settings-page #missingTable .missing-filter-row input,
+        .settings-page #missingTable .missing-filter-row select {
+            width: 100%;
+            min-width: 0;
+            padding: 6px 8px;
+            font-size: 12.5px;
+            border: 1px solid var(--theme-border, #e2e8f0);
+            border-radius: 8px;
+            background: var(--theme-input-bg, #fff);
+            color: var(--theme-text-primary, #0f172a);
+        }
+
+        .settings-page #missingTable .missing-filter-row button {
+            width: 100%;
+            padding: 6px 8px;
+            font-size: 12px;
+        }
+
+        .settings-page #missingTable .col-actions { width: 46px; }
+
+        .missing-row-menu-btn {
+            width: 28px;
+            height: 28px;
+            border: 0;
+            background: none;
+            color: #94a3b8;
+            border-radius: 50%;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .missing-row-menu-btn:hover { color: #ff8a00; }
+        .missing-row-menu-btn svg { width: 17px; height: 17px; }
+
+        .missing-row-actions { position: relative; }
+
+        .missing-row-menu {
+            display: none;
+            position: absolute;
+            right: 0;
+            top: calc(100% + 4px);
+            min-width: 230px;
+            padding: 6px;
+            border-radius: 12px;
+            border: 1px solid var(--theme-border, #e2e8f0);
+            background: var(--theme-bg, #fff);
+            box-shadow: 0 12px 32px rgba(15, 23, 42, .18);
+            z-index: 50;
+            text-align: left;
+        }
+
+        .missing-row-menu.open { display: block; }
+
+        .missing-row-menu button {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            width: 100%;
+            padding: 8px 10px;
+            border: 0;
+            border-radius: 8px;
+            background: transparent;
+            font-size: 13px;
+            cursor: pointer;
+            color: var(--theme-text-primary, #0f172a);
+        }
+
+        .missing-row-menu button:hover { background: var(--theme-bg-secondary, #f1f5f9); }
+        .missing-row-menu button svg { width: 15px; height: 15px; }
+
+        .missing-paid-cell { line-height: 1.35; }
+        .missing-paid-sum { display: block; font-weight: 600; }
+        .missing-paid-date { display: block; font-size: 12px; color: var(--theme-text-secondary, #64748b); }
+
     </style>
     <script src="{{ url_for('static', filename='vendor/lucide-1.24.0.min.js') }}"></script>
 </head>
@@ -3630,8 +3714,28 @@
                                         <th class="col-group">Группа</th>
                                         <th class="col-reason">Причина</th>
                                         <th class="col-paid">Последняя оплата</th>
-                                        <th class="col-sum">Сумма</th>
-                                        <th class="col-detail">Подробности</th>
+                                        <th class="col-sum">Долг</th>
+                                        <th class="col-actions"></th>
+                                    </tr>
+                                    <tr class="missing-filter-row">
+                                        <th></th>
+                                        <th></th>
+                                        <th><input type="search" id="fltId" placeholder="ID"></th>
+                                        <th><input type="search" id="fltName" placeholder="ФИО"></th>
+                                        <th><select id="fltGroup"><option value="">Все группы</option></select></th>
+                                        <th><select id="fltReason"><option value="">Все причины</option></select></th>
+                                        <th><select id="fltPaid"><option value="">Любая оплата</option><option value="__none__">Не платили</option></select></th>
+                                        <th>
+                                            <select id="fltDebt">
+                                                <option value="">Любой долг</option>
+                                                <option value="0">Без долга</option>
+                                                <option value="1-400000">до 400 000</option>
+                                                <option value="400001-800000">400 001 – 800 000</option>
+                                                <option value="800001-1600000">800 001 – 1 600 000</option>
+                                                <option value="1600001-">больше 1 600 000</option>
+                                            </select>
+                                        </th>
+                                        <th><button type="button" id="fltReset" class="btn-secondary" title="Сбросить фильтры">Сброс</button></th>
                                     </tr>
                                 </thead>
                                 <tbody id="missingTableBody">
@@ -4152,7 +4256,7 @@
                 </div>
             </div>
 
-            <script src="{{ url_for('static', filename='js/settings.js') }}?v=2026081307"></script>
+            <script src="{{ url_for('static', filename='js/settings.js') }}?v=2026081308"></script>
             <script src="{{ url_for('static', filename='js/groups.js') }}?v=2026071501"></script>
             <script src="{{ url_for('static', filename='js/tariffs.js') }}"></script>
             <script src="{{ url_for('static', filename='js/rewards.js') }}"></script>
