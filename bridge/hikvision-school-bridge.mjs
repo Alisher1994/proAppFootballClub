@@ -44,6 +44,10 @@ const deviceOfflineUntil = new Map();
 const FACE_STATE_FILE = process.env.HIK_FACE_STATE_FILE
   || `${os.homedir()}/.karasu-bridge-faces.json`;
 let faceState = null;
+let faceStateDirty = false;
+
+// Версию поднимаем, когда прежним записям больше нельзя доверять.
+const FACE_STATE_VERSION = 2;
 
 function loadFaceState() {
   if (faceState) return faceState;
@@ -52,10 +56,13 @@ function loadFaceState() {
   } catch {
     faceState = {};
   }
+  if (faceState.__v !== FACE_STATE_VERSION) {
+    // Старый файл писался и тогда, когда терминал фото на самом деле не принял.
+    faceState = { __v: FACE_STATE_VERSION };
+    faceStateDirty = true;
+  }
   return faceState;
 }
-
-let faceStateDirty = false;
 
 function flushFaceState() {
   if (!faceStateDirty) return;
@@ -1576,7 +1583,8 @@ async function syncDevice(device, students, reports) {
       await sleep(500);
       const faceOutdated = !isFaceUpToDate(device, student);
       const face = await uploadFace(device, student, { replace: faceOutdated });
-      if (face !== 'no-photo') rememberFace(device, student);
+      // 'already-exists' означает, что терминал ничего не переписал.
+      if (face === 'uploaded' || face === 'replaced') rememberFace(device, student);
       changed += 1;
       stats.upserted += 1;
       const faceText = face === 'already-exists'
@@ -1685,7 +1693,7 @@ async function syncPersonDevice(device, person, reports, action = 'upsert') {
       await sleep(300);
       // Точечная команда приходит после правки карточки, фото могло смениться.
       const face = await uploadFace(device, person, { replace: true });
-      if (face !== 'no-photo') rememberFace(device, person);
+      if (face === 'uploaded' || face === 'replaced') rememberFace(device, person);
       stats.success = 1;
       const faceText = face === 'replaced' ? 'фото обновлено' : 'фото записано';
       stats.results.success.push({ employeeNo: person.employeeNo, fullName: person.fullName || '', detail: faceText });
