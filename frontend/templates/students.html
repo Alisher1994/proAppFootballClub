@@ -5059,6 +5059,32 @@
             color: #ff8a00 !important;
         }
 
+
+        /* Иконка печати в шапке группы: без рамки и заливки */
+        .student-group-header .group-print-btn,
+        .group-print-btn {
+            border: 0 !important;
+            outline: 0 !important;
+            background: none !important;
+            background-color: transparent !important;
+            box-shadow: none !important;
+            min-height: 0 !important;
+            width: 26px;
+            height: 26px;
+            padding: 0 !important;
+            margin-right: 4px;
+            border-radius: 50% !important;
+            color: #94a3b8 !important;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex: 0 0 auto;
+            cursor: pointer;
+        }
+
+        .group-print-btn:hover { color: #ff8a00 !important; background: none !important; }
+        .group-print-btn svg { width: 15px; height: 15px; }
+
     </style>
 </head>
 
@@ -6435,7 +6461,7 @@
         })();
     </script>
     <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/students.js') }}?v=2026081327"></script>
+    <script src="{{ url_for('static', filename='js/students.js') }}?v=2026081328"></script>
     <script src="{{ url_for('static', filename='js/students_rewards.js') }}"></script>
     <script src="{{ url_for('static', filename='js/students_cards.js') }}"></script>
     <script src="{{ url_for('static', filename='js/students_params.js') }}"></script>
@@ -6689,10 +6715,10 @@
                         </span>
                     </div>
                 </div>
-                <button type="button" class="group-print-btn" title="Анкеты всей группы одним файлом"
+                <span class="group-print-btn" role="button" tabindex="0" title="Анкеты всей группы одним файлом"
                     onclick="event.stopPropagation(); openGroupFormsPdf(${group.id});">
                     <i data-lucide="printer"></i>
-                </button>
+                </span>
                 <span class="group-chevron">▼</span>
             `;
         }
