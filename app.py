@@ -11474,6 +11474,13 @@ def build_student_access_details(student, settings=None, today=None, paid_map=No
     current = [item for item in debt_months if item['is_current']]
     previous = [item for item in debt_months if not item['is_current']]
 
+    min_lessons = get_min_lessons_for_debt(settings)
+    visits_now = 0
+    if min_lessons:
+        visits_now = get_attendance_counts_by_month([student.id], today.year).get(
+            (student.id, today.year, today.month), 0
+        )
+
     explanation = []
     if access['allowed']:
         if access['reason'] == 'club_funded':
@@ -11482,8 +11489,22 @@ def build_student_access_details(student, settings=None, today=None, paid_map=No
             explanation.append('Тариф не указан, блокировка по оплате не применяется.')
         elif access['reason'] == 'grace_period':
             explanation.append(f"Идет льготный период, блокировка начинается с {access['block_day']} числа.")
+        elif access['reason'] == 'no_lessons_this_month':
+            # Самый частый повод удивиться "почему он проходит"
+            explanation.append(
+                f'За {today.month:02d}.{today.year} посещений {visits_now}, '
+                f'а месяц считается долговым с {min_lessons}. Поэтому оплату за него пока не ждем.'
+            )
+        elif access['reason'] == 'month_discounted':
+            explanation.append('Текущий месяц закрыт скидкой: остаток долгом не считается.')
         else:
             explanation.append('Оплата в порядке.')
+
+        if previous:
+            explanation.append(
+                'Прошлые месяцы без оплаты, но и без занятий, поэтому долгом не считаются: '
+                + ', '.join(item['label'] for item in previous) + '.'
+            )
         if not access['has_photo']:
             explanation.append('Но фото для Face ID нет, поэтому в терминал ученик не попадет.')
     elif access['reason'] == 'inactive':
