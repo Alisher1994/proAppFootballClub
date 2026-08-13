@@ -4680,6 +4680,15 @@
         .student-details-content.sc .student-tab-content[id^="tab-history-"]::-webkit-scrollbar,
         .student-details-content.sc .student-tab-content[id^="tab-attendance-"]::-webkit-scrollbar { display: none !important; width: 0 !important; }
         @media (max-width: 900px) { .student-details-content.sc .sc-sections { grid-template-columns: 1fr !important; } }
+        /* One financial summary: access decision, debt breakdown and yearly
+           payment calendar belong to the same visual group. */
+        .student-finance-summary { width: 100%; border: 1px solid #f2b8b8; border-radius: 16px; overflow: hidden; background: #fff; }
+        .student-finance-summary .turnstile-panel { border: 0 !important; border-radius: 0 !important; margin: 0 !important; }
+        .student-finance-summary .year-payments { border: 0 !important; border-top: 1px solid var(--students-line) !important; border-radius: 0 !important; margin: 0 !important; }
+        .student-finance-summary .debt-month { background: #fef2f2 !important; border-color: #fecaca !important; }
+        .student-finance-summary .debt-month-sum { color: #b91c1c !important; }
+        .student-finance-summary .debt-month.current { box-shadow: inset 0 0 0 1px var(--students-accent) !important; }
+        .student-finance-summary .year-month.current { box-shadow: 0 0 0 2px var(--students-accent) !important; }
         /* Layout guardrails: prevent legacy flex rules from collapsing controls
            or making the two workspace columns paint over each other. */
         .game-main-content *, .game-main-content *::before, .game-main-content *::after { box-sizing: border-box; }
@@ -6847,6 +6856,7 @@
 
                     <div class="sc-body">
                         <div class="student-tab-content active" id="tab-info-${id}">
+                            <section class="student-finance-summary">
                             <div class="turnstile-panel ${willPass ? 'pass' : 'block'}" id="turnstilePanel_${id}">
                                 <div class="turnstile-panel-head">
                                     <span class="turnstile-panel-icon"><i data-lucide="${willPass ? 'door-open' : 'door-closed'}"></i></span>
@@ -6862,6 +6872,7 @@
                             </div>
 
                             ${buildYearPaymentsHtml(id)}
+                            </section>
                             ${buildStudentFactsHtml(student)}
 
                             <div class="sc-sections">
