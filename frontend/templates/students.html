@@ -4680,6 +4680,17 @@
         .student-details-content.sc .student-tab-content[id^="tab-history-"]::-webkit-scrollbar,
         .student-details-content.sc .student-tab-content[id^="tab-attendance-"]::-webkit-scrollbar { display: none !important; width: 0 !important; }
         @media (max-width: 900px) { .student-details-content.sc .sc-sections { grid-template-columns: 1fr !important; } }
+        /* Layout guardrails: prevent legacy flex rules from collapsing controls
+           or making the two workspace columns paint over each other. */
+        .game-main-content *, .game-main-content *::before, .game-main-content *::after { box-sizing: border-box; }
+        .game-top-bar { display: flex !important; align-items: center !important; flex-wrap: nowrap !important; gap: 16px !important; width: 100% !important; }
+        .students-header-filters { display: flex !important; align-items: center !important; justify-content: flex-end !important; flex: 1 1 auto !important; min-width: 0 !important; gap: 10px !important; }
+        .student-group-filter, .student-list-search { flex: 0 1 auto !important; min-width: 0 !important; }
+        .student-list-search input { display: block !important; width: 220px !important; max-width: 100% !important; }
+        .game-top-buttons { display: flex !important; align-items: center !important; flex: 0 0 auto !important; min-width: 0 !important; }
+        .game-layout-wrapper { display: grid !important; grid-template-columns: minmax(280px, 360px) minmax(0, 1fr) !important; align-items: stretch !important; }
+        .student-list-panel, .student-details-panel { min-width: 0 !important; min-height: 0 !important; }
+        @media (max-width: 900px) { .game-top-bar { gap: 8px !important; padding-left: 12px !important; padding-right: 12px !important; } .students-header-filters { gap: 6px !important; } .student-list-search input { width: 160px !important; } }
     </style>
 </head>
 
