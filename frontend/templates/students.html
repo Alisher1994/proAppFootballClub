@@ -4700,6 +4700,21 @@
         .game-layout-wrapper { display: grid !important; grid-template-columns: minmax(280px, 360px) minmax(0, 1fr) !important; align-items: stretch !important; }
         .student-list-panel, .student-details-panel { min-width: 0 !important; min-height: 0 !important; }
         @media (max-width: 900px) { .game-top-bar { gap: 8px !important; padding-left: 12px !important; padding-right: 12px !important; } .students-header-filters { gap: 6px !important; } .student-list-search input { width: 160px !important; } }
+        /* PWA/mobile header: use one compact row of actions. The desktop
+           filter controls stay hidden so group/search/add never overlap. */
+        #studentsTable { display: none !important; }
+        @media (max-width: 768px) and (pointer: coarse) {
+            .game-main-content { height: 100dvh !important; overflow: hidden !important; }
+            .game-layout { height: 100% !important; min-height: 0 !important; overflow: hidden !important; }
+            .game-top-bar { display: flex !important; flex-direction: row !important; align-items: center !important; justify-content: flex-end !important; flex-wrap: nowrap !important; min-height: 64px !important; height: 64px !important; padding: 10px 12px !important; gap: 8px !important; position: relative !important; z-index: 20 !important; }
+            .students-header-filters { display: none !important; }
+            .game-top-buttons { display: flex !important; flex: 0 0 auto !important; width: auto !important; align-items: center !important; justify-content: flex-end !important; gap: 8px !important; }
+            .game-top-buttons .game-btn { flex: 0 0 42px !important; width: 42px !important; min-width: 42px !important; height: 42px !important; margin: 0 !important; }
+            #mobileAddStudentBtn { display: flex !important; flex: 0 0 42px !important; width: 42px !important; min-width: 42px !important; padding: 0 !important; justify-content: center !important; }
+            #mobileAddStudentBtn span:last-child { display: none !important; }
+            .mobile-search-bar { position: absolute !important; inset: 64px 12px auto !important; width: auto !important; z-index: 30 !important; background: #fff !important; }
+            .game-layout-wrapper { min-height: 0 !important; height: calc(100% - 64px) !important; overflow: hidden !important; }
+        }
     </style>
 </head>
 
