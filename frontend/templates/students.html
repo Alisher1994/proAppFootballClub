@@ -3326,6 +3326,12 @@
         }
 
         .year-month.current { box-shadow: 0 0 0 2px #ff8a00; }
+        .year-month { aspect-ratio: auto !important; height: 58px !important; flex-direction: column !important; gap: 3px !important; line-height: 1.05; }
+        .year-month-name { font-size: 11px; }
+        .year-month-amount { font-size: 10px; font-weight: 600; opacity: .88; white-space: nowrap; }
+        .year-month.future .year-month-amount,
+        .year-month.before_start .year-month-amount,
+        .year-month.no_tariff .year-month-amount { opacity: .65; }
 
         @media (max-width: 1200px) {
             .student-info-layout { grid-template-columns: 220px minmax(0, 1fr); }
@@ -6609,13 +6615,17 @@
             const grid = holder.querySelector('.year-payments-grid');
             if (!grid) return;
             grid.innerHTML = (data.months || []).map(month => {
-                const amount = month.state === 'paid' || month.state === 'partial'
-                    ? `${formatMoney(month.paid)} сум`
-                    : (month.state === 'debt' ? `долг ${formatMoney(month.debt)} сум` : '');
+            const amount = month.state === 'paid' || month.state === 'partial'
+                ? `${formatMoney(month.paid)} сум`
+                : (month.state === 'debt' ? `долг ${formatMoney(month.debt)} сум` : '');
+                const paidAmount = ['paid', 'partial', 'debt'].includes(month.state)
+                    ? `${formatMoney(month.paid || 0)} сум`
+                    : '—';
                 const title = `${month.name}: ${YEAR_MONTH_TITLES[month.state] || ''}${amount ? ' · ' + amount : ''}`;
                 return `
                     <div class="year-month ${month.state}${month.is_current ? ' current' : ''}" title="${escapeHtml(title)}">
                         <span class="year-month-name">${escapeHtml(month.short)}</span>
+                        <span class="year-month-amount">${escapeHtml(paidAmount)}</span>
                     </div>
                 `;
             }).join('');
