@@ -258,10 +258,6 @@ async function initSettings() {
     if (bridgePauseBtn) bridgePauseBtn.addEventListener('click', () => requestBridgeControl(bridgePauseBtn.dataset.action || 'pause'));
     const bridgeStopBtn = document.getElementById('bridgeStopBtn');
     if (bridgeStopBtn) bridgeStopBtn.addEventListener('click', () => requestBridgeControl('stop'));
-    const bridgeRestartBtn = document.getElementById('bridgeRestartBtn');
-    if (bridgeRestartBtn) bridgeRestartBtn.addEventListener('click', () => requestBridgeControl('restart'));
-    const bridgeUpdateBtn = document.getElementById('bridgeUpdateBtn');
-    if (bridgeUpdateBtn) bridgeUpdateBtn.addEventListener('click', () => requestBridgeControl('update'));
 
     const bridgeResultsBtn = document.getElementById('bridgeResultsBtn');
     if (bridgeResultsBtn) bridgeResultsBtn.addEventListener('click', openBridgeResultsModal);
@@ -1568,6 +1564,12 @@ function bridgeStatusActionsHtml() {
             <button type="button" id="hikvisionManualSyncBtn" class="bridge-status-icon-btn" title="Синхронизировать сейчас" aria-label="Синхронизировать сейчас">
                 <i data-lucide="database-backup"></i>
             </button>
+            <button type="button" id="bridgeUpdateBtn" class="bridge-status-icon-btn" title="Обновить код bridge и перезапустить" aria-label="Обновить код bridge и перезапустить">
+                <i data-lucide="cloud-download"></i>
+            </button>
+            <button type="button" id="bridgeRestartBtn" class="bridge-status-icon-btn" title="Перезапустить bridge" aria-label="Перезапустить bridge">
+                <i data-lucide="power"></i>
+            </button>
             <button type="button" id="bridgeStatusRefreshBtn" class="bridge-status-icon-btn" title="Обновить статус" aria-label="Обновить статус">
                 <i data-lucide="refresh-cw"></i>
             </button>
@@ -1585,6 +1587,18 @@ function attachBridgeStatusButtons() {
     if (refreshBtn && !refreshBtn.dataset.bound) {
         refreshBtn.dataset.bound = 'true';
         refreshBtn.addEventListener('click', loadBridgeStatus);
+    }
+    // Баннер перерисовывается при каждом обновлении статуса,
+    // поэтому обработчики вешаем здесь, а не только при загрузке страницы.
+    const updateBtn = document.getElementById('bridgeUpdateBtn');
+    if (updateBtn && !updateBtn.dataset.bound) {
+        updateBtn.dataset.bound = 'true';
+        updateBtn.addEventListener('click', () => requestBridgeControl('update'));
+    }
+    const restartBtn = document.getElementById('bridgeRestartBtn');
+    if (restartBtn && !restartBtn.dataset.bound) {
+        restartBtn.dataset.bound = 'true';
+        restartBtn.addEventListener('click', () => requestBridgeControl('restart'));
     }
     if (window.lucide) window.lucide.createIcons();
 }
