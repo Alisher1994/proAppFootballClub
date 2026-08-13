@@ -11454,7 +11454,7 @@ def bulk_change_tariff():
             return jsonify({'success': False, 'message': 'Тариф не найден'}), 404
 
     club_funded = data.get('club_funded')
-    students = Student.query.filter(Student.id.in_(student_ids)).all()
+    students = Student.query.options(joinedload(Student.tariff)).filter(Student.id.in_(student_ids)).all()
     for student in students:
         student.tariff_id = tariff.id if tariff else None
         if tariff:
@@ -11466,15 +11466,47 @@ def bulk_change_tariff():
             student.club_funded = True
 
     db.session.commit()
-    for student in students:
+
+    # Пересчитываем допуск по новому тарифу: часть учеников уже не должники
+    db.session.expire_all()
+    settings = get_club_settings_instance()
+    today = get_local_date()
+    paid_map = get_month_paid_map(today.year, today.month)
+    payment_date_paid_map = get_payment_date_paid_map(today.year, today.month)
+    fresh = Student.query.options(joinedload(Student.tariff)).filter(Student.id.in_(student_ids)).all()
+    debt_counts = get_debt_month_counts(fresh, settings, today, include_current=False)
+
+    will_pass = []
+    still_blocked = []
+    for student in fresh:
+        access = build_student_access_payload(
+            student, settings, paid_map, payment_date_paid_map, today,
+            debt_month_count=debt_counts.get(student.id)
+        )
+        target = will_pass if access['can_sync_to_turnstile'] else still_blocked
+        target.append({
+            'student_id': student.id,
+            'full_name': student.full_name,
+            'reason_label': access['reason_label'],
+            'debt': access['debt'],
+        })
         queue_hikvision_person('student', student.id, 'tariff_changed')
     db.session.commit()
+
+    tariff_label = tariff.name if tariff else 'Без тарифа'
+    message = f'Тариф «{tariff_label}» применен к {len(students)} ученикам'
+    if will_pass:
+        message += f'. Пройдут через турникет: {len(will_pass)}'
+    if still_blocked:
+        message += f', остаются закрытыми: {len(still_blocked)}'
 
     return jsonify({
         'success': True,
         'updated': len(students),
-        'tariff': tariff.name if tariff else 'Без тарифа',
-        'message': f'Тариф «{tariff.name if tariff else "Без тарифа"}» применен к {len(students)} ученикам'
+        'tariff': tariff_label,
+        'will_pass': will_pass,
+        'still_blocked': still_blocked,
+        'message': message
     })
 
 

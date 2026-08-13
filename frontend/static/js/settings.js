@@ -2393,7 +2393,21 @@ async function applyBulkTariff() {
         });
         const result = await response.json();
         if (!result.success) throw new Error(result.message || 'Не удалось сменить тариф');
-        alert(result.message);
+
+        // Показываем, кого новый тариф уже пропускает, а кто остался должником
+        let report = result.message;
+        const blocked = result.still_blocked || [];
+        if (blocked.length) {
+            const lines = blocked.slice(0, 12).map(item => {
+                const debt = item.debt
+                    ? ` (долг ${Math.round(item.debt).toLocaleString('ru-RU')} сум)`
+                    : '';
+                return `\u2022 ${item.full_name} \u2014 ${item.reason_label}${debt}`;
+            });
+            if (blocked.length > 12) lines.push(`\u2026 и еще ${blocked.length - 12}`);
+            report += '\n\nОстаются закрытыми:\n' + lines.join('\n');
+        }
+        alert(report);
         document.getElementById('bulkTariffModal').style.display = 'none';
         terminalMissingSelection.clear();
         loadTerminalMissing();
