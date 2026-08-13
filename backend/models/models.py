@@ -267,6 +267,8 @@ class Student(db.Model):
     
     # Финансирование
     club_funded = db.Column(db.Boolean, default=False)  # Финансирование за счёт клуба
+    # Сумма за первый (неполный) месяц по договоренности. Пусто - платит по тарифу.
+    first_month_fee = db.Column(db.Float)
     
     # Физические параметры
     height = db.Column(db.Integer)  # Рост в см

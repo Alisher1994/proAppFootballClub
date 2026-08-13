@@ -892,6 +892,26 @@ def iter_month_pairs(start_year, start_month, end_year, end_month):
             year += 1
 
 
+def get_student_month_due(student, year, month, tariff_price=None):
+    """Сколько ученик должен за конкретный месяц.
+
+    Если это месяц поступления и с учеником договорились о другой сумме
+    (пришел в середине месяца), берем ее, а не полный тариф.
+    """
+    if tariff_price is None:
+        tariff_price = float(student.tariff.price or 0) if student.tariff else 0
+    admission = getattr(student, 'admission_date', None)
+    first_month_fee = getattr(student, 'first_month_fee', None)
+    if (
+        admission
+        and first_month_fee is not None
+        and admission.year == year
+        and admission.month == month
+    ):
+        return max(0, float(first_month_fee))
+    return float(tariff_price)
+
+
 def get_student_debt_start_pair(student, settings, today=None):
     today = today or get_local_date()
     candidates = []
@@ -967,7 +987,8 @@ def get_debt_month_counts(students, settings=None, today=None, include_current=T
 
         for year, month in iter_month_pairs(start_year, start_month, end_year, end_month):
             paid = paid_by_month.get((student.id, year, month), 0)
-            if max(0, tariff_price - paid) > 0:
+            due = get_student_month_due(student, year, month, tariff_price)
+            if max(0, due - paid) > 0:
                 count += 1
         counts[student.id] = count
 
@@ -989,7 +1010,8 @@ def student_access_state(student, settings=None, paid_map=None, payment_date_pai
     if not should_check_access_debt(settings, today):
         return True, 'grace_period', 0
 
-    tariff_price = float(student.tariff.price or 0)
+    # За месяц поступления берем согласованную сумму, а не полный тариф
+    tariff_price = get_student_month_due(student, today.year, today.month)
     paid = float(paid_map.get(student.id, 0) or 0)
     paid_by_date = float(payment_date_paid_map.get(student.id, 0) or 0)
     debt = max(0, tariff_price - paid)
@@ -2050,6 +2072,13 @@ def ensure_students_columns():
                     print("✓ Добавлена колонка telegram_notifications_enabled")
                 except Exception: pass
             
+            # Оплата за первый неполный месяц
+            if 'first_month_fee' not in student_columns:
+                try:
+                    conn.execute(db.text("ALTER TABLE students ADD COLUMN first_month_fee FLOAT"))
+                    print("✓ Добавлена колонка first_month_fee")
+                except Exception: pass
+
             # Архив
             if 'previous_status' not in student_columns:
                 try:
@@ -4228,6 +4257,8 @@ def add_student():
         admission_date_raw = request.form.get('admission_date')
         
         club_funded = request.form.get('club_funded') == 'true'
+        first_month_fee_raw = (request.form.get('first_month_fee') or '').replace(' ', '').strip()
+        first_month_fee = safe_float(first_month_fee_raw) if first_month_fee_raw else None
         status = request.form.get('status', 'active')
         blacklist_reason = request.form.get('blacklist_reason')
         student_number = (request.form.get('student_number') or '').strip()
@@ -4306,6 +4337,7 @@ def add_student():
             passport_expiry_date=datetime.strptime(passport_expiry_date, '%Y-%m-%d').date() if (passport_expiry_date and passport_expiry_date.strip()) else None,
             admission_date=admission_date,
             club_funded=club_funded,
+            first_month_fee=first_month_fee,
             height=safe_int(height),
             weight=safe_float(weight),
             dominant_side=dominant_side,
@@ -4436,6 +4468,7 @@ def get_student(student_id):
         'group_schedule_days': group_schedule_days,  # Дни недели занятий (1=Пн, 7=Вс)
         'group_schedule_time': group_schedule_time,  # Время начала занятия (HH:MM)
         'turnstile_access': access_payload,
+        'first_month_fee': student.first_month_fee,
         'status_label': student_status_label(student.status),
         'terminals': get_student_terminal_face_state(student.id)
     })
@@ -4551,6 +4584,10 @@ def update_student(student_id):
         
         # Обработать чекбокс club_funded
         student.club_funded = 'club_funded' in request.form and request.form['club_funded'] == 'true'
+
+        if 'first_month_fee' in request.form:
+            raw = (request.form.get('first_month_fee') or '').replace(' ', '').strip()
+            student.first_month_fee = safe_float(raw) if raw else None
         
         # Параметры ученика
         if 'height' in request.form:
@@ -11011,7 +11048,8 @@ def get_student_debt_months(student, settings=None, today=None):
     months = []
     for year, month in iter_month_pairs(start_year, start_month, today.year, today.month):
         paid = paid_by_month.get((year, month), 0)
-        debt = max(0, tariff_price - paid)
+        due = get_student_month_due(student, year, month, tariff_price)
+        debt = max(0, due - paid)
         if debt <= 0:
             continue
         months.append({
@@ -11019,7 +11057,7 @@ def get_student_debt_months(student, settings=None, today=None):
             'month': month,
             'label': f'{month:02d}.{year}',
             'month_name': MONTH_NAMES_RU[month - 1] if 1 <= month <= 12 else str(month),
-            'tariff_price': tariff_price,
+            'tariff_price': due,
             'paid': paid,
             'debt': debt,
             'is_current': bool(year == today.year and month == today.month),
@@ -11053,15 +11091,16 @@ def get_student_year_months(student, settings=None, today=None, year=None):
     months = []
     for month in range(1, 13):
         paid = paid_by_month.get(month, 0)
+        due = get_student_month_due(student, year, month, tariff_price)
         if (year, month) > (today.year, today.month):
             state = 'future'
         elif (year, month) < (start_year, start_month):
             state = 'before_start'
         elif student.club_funded:
             state = 'paid'
-        elif tariff_price <= 0:
-            state = 'no_tariff'
-        elif paid >= tariff_price:
+        elif due <= 0:
+            state = 'no_tariff' if tariff_price <= 0 else 'paid'
+        elif paid >= due:
             state = 'paid'
         elif paid > 0:
             state = 'partial'
@@ -11073,8 +11112,9 @@ def get_student_year_months(student, settings=None, today=None, year=None):
             'short': MONTH_SHORT_RU[month - 1],
             'name': MONTH_NAMES_RU[month - 1],
             'paid': paid,
-            'due': tariff_price,
-            'debt': max(0, tariff_price - paid) if state in {'debt', 'partial'} else 0,
+            'due': due,
+            'is_first_month': bool(due != tariff_price),
+            'debt': max(0, due - paid) if state in {'debt', 'partial'} else 0,
             'state': state,
             'is_current': bool(year == today.year and month == today.month),
         })

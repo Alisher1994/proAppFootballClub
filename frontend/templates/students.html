@@ -5258,8 +5258,17 @@
                                     </select>
                                 </div>
                                 <div class="form-group">
+                                    <label>Оплата за первый месяц</label>
+                                    <input type="text" name="first_month_fee" id="firstMonthFee"
+                                        inputmode="numeric" autocomplete="off" placeholder="По тарифу">
+                                    <small style="display: block; margin-top: 5px; color: #7f8c8d;">
+                                        Если ученик пришел в середине месяца и по договоренности платит меньше,
+                                        укажите сумму. Остаток за этот месяц долгом считаться не будет.
+                                    </small>
+                                </div>
+                                <div class="form-group">
                                     <label class="checkbox-label">
-                                        <input type="checkbox" name="club_funded" value="true">
+                                        <input type="checkbox" name="club_funded" id="clubFundedCheckbox" value="true">
                                         <span>Финансирование за счёт клуба</span>
                                     </label>
                                     <small style="display: block; margin-top: 5px; color: #7f8c8d;">
@@ -5592,6 +5601,14 @@
                                     <select id="edit_tariffSelect" name="tariff_id" required>
                                         <option value="">Без тарифа</option>
                                     </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Оплата за первый месяц</label>
+                                    <input type="text" name="first_month_fee" id="edit_first_month_fee"
+                                        inputmode="numeric" autocomplete="off" placeholder="По тарифу">
+                                    <small style="display: block; margin-top: 5px; color: #7f8c8d;">
+                                        Сумма за месяц поступления по договоренности. Пусто - платит по тарифу.
+                                    </small>
                                 </div>
                                 <div class="form-group">
                                     <label class="checkbox-label">
@@ -6099,8 +6116,50 @@
     </div>
 
     <script src="{{ url_for('static', filename='vendor/lucide-1.24.0.min.js') }}"></script>
+    <script>
+        // Бесплатный тариф означает, что занятия оплачивает клуб,
+        // поэтому чекбокс отмечаем сами. Снять его можно вручную.
+        (function initTariffAndFirstMonth() {
+            function tariffIsFree(select) {
+                if (!select) return false;
+                const option = select.options[select.selectedIndex];
+                if (!option || !option.value) return false;
+                const price = Number(option.dataset.price);
+                if (Number.isFinite(price)) return price === 0;
+                return /(^|[^\d])0\s*сум/i.test(option.textContent || '');
+            }
+
+            function bindTariff(selectId, checkboxId) {
+                const select = document.getElementById(selectId);
+                const checkbox = document.getElementById(checkboxId);
+                if (!select || !checkbox) return;
+                select.addEventListener('change', () => {
+                    if (tariffIsFree(select)) {
+                        checkbox.checked = true;
+                        checkbox.dispatchEvent(new Event('change', { bubbles: true }));
+                    }
+                });
+            }
+
+            function bindMoney(inputId) {
+                const input = document.getElementById(inputId);
+                if (!input) return;
+                input.addEventListener('input', () => {
+                    const digits = String(input.value || '').replace(/[^\d]/g, '');
+                    input.value = digits ? Number(digits).toLocaleString('ru-RU').replace(/\u00a0/g, ' ') : '';
+                });
+            }
+
+            document.addEventListener('DOMContentLoaded', () => {
+                bindTariff('tariffSelect', 'clubFundedCheckbox');
+                bindTariff('edit_tariffSelect', 'edit_club_funded');
+                bindMoney('firstMonthFee');
+                bindMoney('edit_first_month_fee');
+            });
+        })();
+    </script>
     <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/students.js') }}?v=2026081309"></script>
+    <script src="{{ url_for('static', filename='js/students.js') }}?v=2026081310"></script>
     <script src="{{ url_for('static', filename='js/students_rewards.js') }}"></script>
     <script src="{{ url_for('static', filename='js/students_cards.js') }}"></script>
     <script src="{{ url_for('static', filename='js/students_params.js') }}"></script>
@@ -6721,7 +6780,10 @@
                 } else if (month.state === 'debt') {
                     amount = formatMoney(month.debt);
                 }
-                const title = `${month.name}: ${YEAR_MONTH_TITLES[month.state] || ''}`
+                const agreed = month.is_first_month
+                    ? ` · сумма за первый месяц по договоренности: ${formatMoney(month.due)} сум`
+                    : '';
+                const title = `${month.name}: ${YEAR_MONTH_TITLES[month.state] || ''}${agreed}`
                     + (month.state === 'debt' ? ` · долг ${formatMoney(month.debt)} сум` : '')
                     + (month.state === 'paid' ? ` · ${formatMoney(month.paid)} сум` : '')
                     + (month.state === 'partial' ? ` · внесено ${formatMoney(month.paid)} из ${formatMoney(month.due)} сум` : '');

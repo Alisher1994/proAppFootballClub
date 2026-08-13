@@ -349,7 +349,7 @@ async function loadFormData() {
 
         const tariffSelect = document.getElementById('tariffSelect');
         tariffSelect.innerHTML = '<option value="">Без тарифа</option>' +
-            tariffs.map(t => `<option value="${t.id}">${t.name} - ${parseInt(t.price).toLocaleString('ru-RU')} сум (${t.lessons_count} занятий)</option>`).join('');
+            tariffs.map(t => `<option value="${t.id}" data-price="${Number(t.price) || 0}">${t.name} - ${parseInt(t.price).toLocaleString('ru-RU')} сум (${t.lessons_count} занятий)</option>`).join('');
     } catch (error) {
         console.error('Ошибка загрузки тарифов:', error);
     }
@@ -449,7 +449,7 @@ async function loadEditFormData() {
 
         const tariffSelect = document.getElementById('edit_tariffSelect');
         tariffSelect.innerHTML = '<option value="">Без тарифа</option>' +
-            tariffs.map(t => `<option value="${t.id}">${t.name} - ${parseInt(t.price).toLocaleString('ru-RU')} сум (${t.lessons_count} занятий)</option>`).join('');
+            tariffs.map(t => `<option value="${t.id}" data-price="${Number(t.price) || 0}">${t.name} - ${parseInt(t.price).toLocaleString('ru-RU')} сум (${t.lessons_count} занятий)</option>`).join('');
     } catch (error) {
         console.error('Ошибка загрузки тарифов:', error);
     }
@@ -1345,6 +1345,12 @@ document.addEventListener('click', async (e) => {
         document.getElementById('edit_passport_expiry_date').value = student.passport_expiry_date || '';
         document.getElementById('edit_admission_date').value = student.admission_date || '';
         document.getElementById('edit_club_funded').checked = student.club_funded || false;
+        const editFirstMonth = document.getElementById('edit_first_month_fee');
+        if (editFirstMonth) {
+            editFirstMonth.value = student.first_month_fee
+                ? Number(student.first_month_fee).toLocaleString('ru-RU').replace(/ /g, ' ')
+                : '';
+        }
         document.getElementById('edit_statusSelect').value = student.status || 'active';
         document.getElementById('edit_blacklist_reason').value = student.blacklist_reason || '';
         document.getElementById('edit_height').value = student.height || '';
