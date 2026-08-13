@@ -11202,6 +11202,259 @@ def student_access_details(student_id):
     })
 
 
+def collect_student_month_plan(student, settings=None, today=None):
+    """Сколько ученик должен и сколько внес по каждому месяцу от начала долга."""
+    settings = settings or get_club_settings_instance()
+    today = today or get_local_date()
+    start_year, start_month = get_student_debt_start_pair(student, settings, today)
+    if (start_year, start_month) > (today.year, today.month):
+        return []
+
+    tariff_price = float(student.tariff.price or 0) if student.tariff else 0
+    rows = db.session.query(
+        Payment.payment_year,
+        Payment.payment_month,
+        func.coalesce(func.sum(Payment.amount_paid), 0)
+    ).filter(
+        Payment.student_id == student.id,
+        Payment.payment_year.isnot(None),
+        Payment.payment_month.isnot(None)
+    ).group_by(Payment.payment_year, Payment.payment_month).all()
+    paid_by_month = {(year, month): float(total or 0) for year, month, total in rows}
+
+    plan = []
+    for year, month in iter_month_pairs(start_year, start_month, today.year, today.month):
+        plan.append({
+            'year': year,
+            'month': month,
+            'due': get_student_month_due(student, year, month, tariff_price),
+            'paid': paid_by_month.get((year, month), 0),
+        })
+    return plan
+
+
+def redistribute_student_payments(student, settings=None, today=None, actor_id=None):
+    """Закрыть старые месяцы свежими деньгами.
+
+    Общая сумма оплат и даты платежей не меняются: деньги просто
+    переносятся на более ранние месяцы, чтобы долг не размазывался
+    по нескольким месяцам, а собрался в самых свежих.
+    """
+    settings = settings or get_club_settings_instance()
+    today = today or get_local_date()
+    result = {
+        'student_id': student.id,
+        'full_name': student.full_name,
+        'moved': 0.0,
+        'moves': [],
+        'debt_months_before': 0,
+        'debt_months_after': 0,
+        'changed': False,
+    }
+
+    if student.club_funded or not student.tariff:
+        return result
+
+    plan = collect_student_month_plan(student, settings, today)
+    if not plan:
+        return result
+
+    result['debt_months_before'] = sum(1 for item in plan if item['paid'] < item['due'])
+
+    # Раскладываем всю внесенную сумму по месяцам от старых к новым
+    available = sum(item['paid'] for item in plan)
+    target = {}
+    for item in plan:
+        share = min(item['due'], available)
+        target[(item['year'], item['month'])] = share
+        available -= share
+    if available > 0:
+        # Переплата остается в самом свежем месяце
+        last = plan[-1]
+        target[(last['year'], last['month'])] += available
+
+    result['debt_months_after'] = sum(
+        1 for item in plan if target[(item['year'], item['month'])] < item['due']
+    )
+
+    # Что нужно снять с месяца, а что доложить
+    surplus = []
+    deficit = []
+    for item in plan:
+        key = (item['year'], item['month'])
+        diff = round(target[key] - item['paid'], 2)
+        if diff < -0.009:
+            surplus.append([item['year'], item['month'], -diff])
+        elif diff > 0.009:
+            deficit.append([item['year'], item['month'], diff])
+
+    if not surplus or not deficit:
+        return result
+
+    payments = Payment.query.filter(
+        Payment.student_id == student.id,
+        Payment.payment_year.isnot(None),
+        Payment.payment_month.isnot(None)
+    ).order_by(Payment.payment_date.desc(), Payment.id.desc()).all()
+
+    def payments_of(year, month):
+        return [p for p in payments if p.payment_year == year and p.payment_month == month]
+
+    for src_year, src_month, amount_to_move in surplus:
+        remaining = amount_to_move
+        for payment in payments_of(src_year, src_month):
+            if remaining <= 0.009:
+                break
+            if not deficit:
+                break
+            take = min(float(payment.amount_paid or 0), remaining)
+            if take <= 0.009:
+                continue
+
+            while take > 0.009 and deficit:
+                dst_year, dst_month, need = deficit[0]
+                chunk = min(take, need)
+
+                if chunk >= float(payment.amount_paid or 0) - 0.009:
+                    # Платеж целиком переезжает в другой месяц
+                    payment.payment_year = dst_year
+                    payment.payment_month = dst_month
+                    moved_payment = payment
+                else:
+                    payment.amount_paid = float(payment.amount_paid) - chunk
+                    moved_payment = Payment(
+                        student_id=student.id,
+                        tariff_id=payment.tariff_id,
+                        amount_paid=chunk,
+                        amount_due=0,
+                        lessons_added=0,
+                        is_full_payment=False,
+                        payment_date=payment.payment_date,
+                        tariff_name=payment.tariff_name,
+                        payment_month=dst_month,
+                        payment_year=dst_year,
+                        payment_type=payment.payment_type,
+                        created_by=actor_id,
+                    )
+                    db.session.add(moved_payment)
+
+                note = f'Перенос {int(chunk)} сум с {src_month:02d}.{src_year} на {dst_month:02d}.{dst_year}'
+                moved_payment.notes = f'{(moved_payment.notes or "").strip()} {note}'.strip()
+
+                result['moves'].append({
+                    'from': f'{src_month:02d}.{src_year}',
+                    'to': f'{dst_month:02d}.{dst_year}',
+                    'amount': chunk,
+                })
+                result['moved'] += chunk
+
+                need -= chunk
+                take -= chunk
+                remaining -= chunk
+                if need <= 0.009:
+                    deficit.pop(0)
+                else:
+                    deficit[0][2] = need
+
+    result['changed'] = bool(result['moves'])
+    return result
+
+
+@app.route('/api/students/bulk/redistribute-payments', methods=['POST'])
+@login_required
+def bulk_redistribute_payments():
+    """Закрыть старые долги уже внесенными деньгами у выбранных учеников."""
+    if current_user.role not in ['admin', 'manager']:
+        return jsonify({'success': False, 'message': 'Доступ запрещен'}), 403
+
+    data = request.get_json(silent=True) or {}
+    student_ids = [int(value) for value in (data.get('student_ids') or []) if str(value).isdigit()]
+    if not student_ids:
+        return jsonify({'success': False, 'message': 'Не выбрано ни одного ученика'}), 400
+
+    settings = get_club_settings_instance()
+    today = get_local_date()
+    students = Student.query.options(joinedload(Student.tariff)).filter(Student.id.in_(student_ids)).all()
+
+    results = []
+    changed_students = []
+    for student in students:
+        outcome = redistribute_student_payments(student, settings, today, actor_id=current_user.id)
+        results.append(outcome)
+        if outcome['changed']:
+            changed_students.append(student)
+
+    if changed_students:
+        db.session.commit()
+        for student in changed_students:
+            queue_hikvision_person('student', student.id, 'payments_redistributed')
+        db.session.commit()
+    else:
+        db.session.rollback()
+
+    total_moved = sum(item['moved'] for item in results)
+    freed = sum(
+        max(0, item['debt_months_before'] - item['debt_months_after'])
+        for item in results
+    )
+    return jsonify({
+        'success': True,
+        'processed': len(results),
+        'changed': len(changed_students),
+        'total_moved': total_moved,
+        'freed_months': freed,
+        'results': [item for item in results if item['changed']],
+        'message': (
+            f'Перераспределено {int(total_moved):,} сум у {len(changed_students)} из {len(results)} учеников, '
+            f'закрыто месяцев долга: {freed}'
+        ).replace(',', ' ') if changed_students else 'Переносить нечего: оплаты уже разложены по месяцам'
+    })
+
+
+@app.route('/api/students/bulk/tariff', methods=['POST'])
+@login_required
+def bulk_change_tariff():
+    """Сменить тариф сразу нескольким ученикам."""
+    if current_user.role not in ['admin', 'manager']:
+        return jsonify({'success': False, 'message': 'Доступ запрещен'}), 403
+
+    data = request.get_json(silent=True) or {}
+    student_ids = [int(value) for value in (data.get('student_ids') or []) if str(value).isdigit()]
+    if not student_ids:
+        return jsonify({'success': False, 'message': 'Не выбрано ни одного ученика'}), 400
+
+    tariff_id = data.get('tariff_id')
+    tariff = None
+    if tariff_id not in (None, '', 'null'):
+        tariff = db.session.get(Tariff, int(tariff_id))
+        if not tariff:
+            return jsonify({'success': False, 'message': 'Тариф не найден'}), 404
+
+    club_funded = data.get('club_funded')
+    students = Student.query.filter(Student.id.in_(student_ids)).all()
+    for student in students:
+        student.tariff_id = tariff.id if tariff else None
+        if tariff:
+            student.tariff_type = tariff.name
+        if club_funded is not None:
+            student.club_funded = bool(club_funded)
+        elif tariff and float(tariff.price or 0) == 0:
+            # Бесплатный тариф означает, что занятия оплачивает клуб
+            student.club_funded = True
+
+    db.session.commit()
+    for student in students:
+        queue_hikvision_person('student', student.id, 'tariff_changed')
+    db.session.commit()
+
+    return jsonify({
+        'success': True,
+        'updated': len(students),
+        'tariff': tariff.name if tariff else 'Без тарифа',
+        'message': f'Тариф «{tariff.name if tariff else "Без тарифа"}» применен к {len(students)} ученикам'
+    })
+
+
 @app.route('/api/students/<int:student_id>/archive', methods=['POST'])
 @login_required
 def archive_student(student_id):

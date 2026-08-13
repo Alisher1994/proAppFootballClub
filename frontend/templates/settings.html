@@ -2465,6 +2465,37 @@
             }
         }
 
+
+        /* Массовые действия во вкладке "Не в терминале" */
+        .missing-bulk-bar {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            padding: 10px 14px;
+            margin-bottom: 14px;
+            border: 1px solid #ffd8a8;
+            background: #fff7ed;
+            border-radius: 12px;
+        }
+
+        .missing-bulk-bar[hidden] { display: none; }
+
+        .missing-bulk-count {
+            margin-right: auto;
+            font-size: 13.5px;
+            color: #92400e;
+        }
+
+        .missing-bulk-bar .btn-primary,
+        .missing-bulk-bar .btn-secondary {
+            padding: 7px 12px;
+            font-size: 13px;
+        }
+
+        .settings-page #missingTable .col-check { width: 38px; }
+        .settings-page #missingTable input[type="checkbox"] { cursor: pointer; }
+
     </style>
     <script src="{{ url_for('static', filename='vendor/lucide-1.24.0.min.js') }}"></script>
 </head>
@@ -3577,10 +3608,22 @@
 
                         <div id="missingCategoryFilters" style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px;"></div>
 
+                        <div id="missingBulkBar" class="missing-bulk-bar" hidden>
+                            <span class="missing-bulk-count"><strong id="missingSelectedCount">0</strong> выбрано</span>
+                            <button type="button" id="missingBulkTariffBtn" class="btn-primary">
+                                <i data-lucide="credit-card"></i> Изменить тариф
+                            </button>
+                            <button type="button" id="missingBulkRedistributeBtn" class="btn-secondary">
+                                <i data-lucide="arrow-left-right"></i> Перенести оплаты на старые месяцы
+                            </button>
+                            <button type="button" id="missingBulkClearBtn" class="btn-secondary">Снять выделение</button>
+                        </div>
+
                         <div style="overflow-x:auto; border:1px solid var(--theme-border); border-radius:8px;">
                             <table class="data-table" id="missingTable" style="width:100%;">
                                 <thead>
                                     <tr>
+                                        <th class="col-check"><input type="checkbox" id="missingSelectAll" title="Выбрать всех в списке"></th>
                                         <th class="col-photo">Фото</th>
                                         <th class="col-id">ID</th>
                                         <th class="col-name">ФИО</th>
@@ -3593,7 +3636,7 @@
                                 </thead>
                                 <tbody id="missingTableBody">
                                     <tr>
-                                        <td colspan="8" style="text-align:center; color:var(--theme-text-secondary); padding:20px;">
+                                        <td colspan="9" style="text-align:center; color:var(--theme-text-secondary); padding:20px;">
                                             Откройте вкладку, чтобы загрузить список.
                                         </td>
                                     </tr>
@@ -3620,7 +3663,7 @@
                         </thead>
                         <tbody id="groupsTableBody">
                             <tr>
-                                <td colspan="8">Загрузка...</td>
+                                <td colspan="9">Загрузка...</td>
                             </tr>
                         </tbody>
                     </table>
@@ -4027,6 +4070,38 @@
                 </div>
             </div>
 
+            <!-- Модалка массовой смены тарифа -->
+            <div id="bulkTariffModal" class="modal">
+                <div class="modal-content" style="max-width: 460px;">
+                    <div class="modal-header">
+                        <h2>Изменить тариф</h2>
+                        <button type="button" class="btn-secondary"
+                            onclick="document.getElementById('bulkTariffModal').style.display='none'">Отмена</button>
+                    </div>
+                    <div style="padding: 20px;">
+                        <p style="margin: 0 0 14px; color: var(--theme-text-secondary); font-size: 14px;">
+                            Тариф будет применен к <strong id="bulkTariffCount">0</strong> выбранным ученикам.
+                        </p>
+                        <div class="form-group">
+                            <label>Тариф</label>
+                            <select id="bulkTariffSelect" class="form-input-modern">
+                                <option value="">Без тарифа</option>
+                            </select>
+                        </div>
+                        <label class="checkbox-label" style="display:flex; align-items:center; gap:8px; margin-top:12px;">
+                            <input type="checkbox" id="bulkTariffClubFunded">
+                            <span>Отметить финансирование за счёт клуба</span>
+                        </label>
+                        <small style="display:block; margin-top:6px; color: var(--theme-text-secondary);">
+                            Для бесплатного тарифа отмечается автоматически.
+                        </small>
+                        <button type="button" id="bulkTariffApplyBtn" class="btn-primary" style="margin-top:18px; width:100%;">
+                            Применить
+                        </button>
+                    </div>
+                </div>
+            </div>
+
             <!-- Модальное окно просмотра логов Hikvision -->
             <div id="hikvisionLogModal" class="modal">
                 <div class="modal-content" style="max-width: 800px; display: flex; flex-direction: column; height: 80vh;">
@@ -4077,7 +4152,7 @@
                 </div>
             </div>
 
-            <script src="{{ url_for('static', filename='js/settings.js') }}?v=2026081306"></script>
+            <script src="{{ url_for('static', filename='js/settings.js') }}?v=2026081307"></script>
             <script src="{{ url_for('static', filename='js/groups.js') }}?v=2026071501"></script>
             <script src="{{ url_for('static', filename='js/tariffs.js') }}"></script>
             <script src="{{ url_for('static', filename='js/rewards.js') }}"></script>

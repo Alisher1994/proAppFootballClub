@@ -2070,6 +2070,7 @@ window.showHikvisionLog = showHikvisionLog;
 // ============================================================
 
 let terminalMissingData = null;
+const terminalMissingSelection = new Set();
 let terminalMissingCategory = 'all';
 let terminalMissingQuery = '';
 let terminalMissingLoading = false;
@@ -2087,16 +2088,22 @@ async function loadTerminalMissing() {
     const body = document.getElementById('missingTableBody');
     if (!body) return;
     terminalMissingLoading = true;
-    body.innerHTML = '<tr><td colspan="8" style="text-align:center; color:var(--theme-text-secondary); padding:20px;">Считаем список...</td></tr>';
+    body.innerHTML = '<tr><td colspan="9" style="text-align:center; color:var(--theme-text-secondary); padding:20px;">Считаем список...</td></tr>';
 
     try {
         const response = await fetch('/api/hikvision/terminal-missing');
         const result = await response.json();
         if (!result.success) throw new Error(result.message || 'Не удалось получить список');
         terminalMissingData = result;
+        const known = new Set((result.items || [])
+            .filter(item => item.person_type === 'student')
+            .map(item => item.person_id));
+        Array.from(terminalMissingSelection)
+            .filter(id => !known.has(id))
+            .forEach(id => terminalMissingSelection.delete(id));
         renderTerminalMissing();
     } catch (error) {
-        body.innerHTML = `<tr><td colspan="8" style="text-align:center; color:#dc2626; padding:20px;">Ошибка: ${escapeHtml(error.message)}</td></tr>`;
+        body.innerHTML = `<tr><td colspan="9" style="text-align:center; color:#dc2626; padding:20px;">Ошибка: ${escapeHtml(error.message)}</td></tr>`;
     } finally {
         terminalMissingLoading = false;
     }
@@ -2166,7 +2173,7 @@ function renderTerminalMissing() {
     if (!body) return;
     const items = terminalMissingFilteredItems();
     if (!items.length) {
-        body.innerHTML = '<tr><td colspan="8" style="text-align:center; color:var(--theme-text-secondary); padding:20px;">Никого нет — все записаны в терминал.</td></tr>';
+        body.innerHTML = '<tr><td colspan="9" style="text-align:center; color:var(--theme-text-secondary); padding:20px;">Никого нет — все записаны в терминал.</td></tr>';
         return;
     }
 
@@ -2181,8 +2188,13 @@ function renderTerminalMissing() {
         const period = item.last_payment_period
             ? ` <span style="font-size:11px; color:var(--theme-text-secondary);">за ${escapeHtml(item.last_payment_period)}</span>`
             : '';
+        const selectable = item.person_type === 'student';
+        const checked = terminalMissingSelection.has(item.person_id) ? ' checked' : '';
         return `
-            <tr>
+            <tr class="${selectable ? 'is-selectable' : ''}">
+                <td>${selectable
+                    ? `<input type="checkbox" class="missing-row-check" data-student-id="${item.person_id}"${checked}>`
+                    : ''}</td>
                 <td>${photo}</td>
                 <td>${escapeHtml(item.employee_no)}</td>
                 <td>${escapeHtml(item.full_name)}${staffMark}</td>
@@ -2193,6 +2205,101 @@ function renderTerminalMissing() {
                 <td style="color:var(--theme-text-secondary); font-size:13px;">${escapeHtml(item.detail || '—')}</td>
             </tr>`;
     }).join('');
+
+    body.querySelectorAll('.missing-row-check').forEach(checkbox => {
+        checkbox.addEventListener('change', () => {
+            const id = Number(checkbox.getAttribute('data-student-id'));
+            if (checkbox.checked) terminalMissingSelection.add(id);
+            else terminalMissingSelection.delete(id);
+            updateMissingBulkBar();
+        });
+    });
+    updateMissingBulkBar();
+}
+
+function missingSelectableItems() {
+    return terminalMissingFilteredItems().filter(item => item.person_type === 'student');
+}
+
+function updateMissingBulkBar() {
+    const bar = document.getElementById('missingBulkBar');
+    const counter = document.getElementById('missingSelectedCount');
+    if (counter) counter.textContent = String(terminalMissingSelection.size);
+    if (bar) bar.hidden = terminalMissingSelection.size === 0;
+
+    const selectAll = document.getElementById('missingSelectAll');
+    if (selectAll) {
+        const visible = missingSelectableItems();
+        const selectedVisible = visible.filter(item => terminalMissingSelection.has(item.person_id));
+        selectAll.checked = visible.length > 0 && selectedVisible.length === visible.length;
+        selectAll.indeterminate = selectedVisible.length > 0 && selectedVisible.length < visible.length;
+    }
+}
+
+async function loadBulkTariffOptions() {
+    const select = document.getElementById('bulkTariffSelect');
+    if (!select || select.dataset.loaded === 'true') return;
+    try {
+        const response = await fetch('/api/tariffs');
+        const tariffs = await response.json();
+        select.innerHTML = '<option value="">Без тарифа</option>' + (tariffs || [])
+            .map(tariff => `<option value="${tariff.id}" data-price="${Number(tariff.price) || 0}">${escapeHtml(tariff.name)} — ${Number(tariff.price || 0).toLocaleString('ru-RU')} сум</option>`)
+            .join('');
+        select.dataset.loaded = 'true';
+    } catch (error) {
+        console.error('Не удалось загрузить тарифы:', error);
+    }
+}
+
+async function applyBulkTariff() {
+    const select = document.getElementById('bulkTariffSelect');
+    const clubFunded = document.getElementById('bulkTariffClubFunded');
+    const ids = Array.from(terminalMissingSelection);
+    if (!ids.length) return;
+
+    const payload = { student_ids: ids, tariff_id: select.value || null };
+    if (clubFunded && clubFunded.checked) payload.club_funded = true;
+
+    try {
+        const response = await fetch('/api/students/bulk/tariff', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const result = await response.json();
+        if (!result.success) throw new Error(result.message || 'Не удалось сменить тариф');
+        alert(result.message);
+        document.getElementById('bulkTariffModal').style.display = 'none';
+        terminalMissingSelection.clear();
+        loadTerminalMissing();
+    } catch (error) {
+        alert('Ошибка: ' + error.message);
+    }
+}
+
+async function redistributeSelectedPayments() {
+    const ids = Array.from(terminalMissingSelection);
+    if (!ids.length) return;
+    if (!confirm(
+        `Перенести оплаты на более ранние месяцы у ${ids.length} учеников?\n\n` +
+        'Общая сумма оплат не изменится: деньги закроют старые месяцы, ' +
+        'а долг соберется в самых свежих. Это уменьшает число месяцев долга.'
+    )) return;
+
+    try {
+        const response = await fetch('/api/students/bulk/redistribute-payments', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ student_ids: ids })
+        });
+        const result = await response.json();
+        if (!result.success) throw new Error(result.message || 'Не удалось перераспределить оплаты');
+        alert(result.message);
+        terminalMissingSelection.clear();
+        loadTerminalMissing();
+    } catch (error) {
+        alert('Ошибка: ' + error.message);
+    }
 }
 
 function formatTerminalMissingSum(value) {
@@ -2247,6 +2354,40 @@ document.addEventListener('DOMContentLoaded', () => {
             renderTerminalMissing();
         });
     }
+
+    const selectAll = document.getElementById('missingSelectAll');
+    if (selectAll) {
+        selectAll.addEventListener('change', () => {
+            const visible = missingSelectableItems();
+            if (selectAll.checked) visible.forEach(item => terminalMissingSelection.add(item.person_id));
+            else visible.forEach(item => terminalMissingSelection.delete(item.person_id));
+            renderTerminalMissing();
+        });
+    }
+
+    const clearBtn = document.getElementById('missingBulkClearBtn');
+    if (clearBtn) {
+        clearBtn.addEventListener('click', () => {
+            terminalMissingSelection.clear();
+            renderTerminalMissing();
+        });
+    }
+
+    const tariffBtn = document.getElementById('missingBulkTariffBtn');
+    if (tariffBtn) {
+        tariffBtn.addEventListener('click', async () => {
+            await loadBulkTariffOptions();
+            const counter = document.getElementById('bulkTariffCount');
+            if (counter) counter.textContent = String(terminalMissingSelection.size);
+            document.getElementById('bulkTariffModal').style.display = 'block';
+        });
+    }
+
+    const applyTariffBtn = document.getElementById('bulkTariffApplyBtn');
+    if (applyTariffBtn) applyTariffBtn.addEventListener('click', applyBulkTariff);
+
+    const redistributeBtn = document.getElementById('missingBulkRedistributeBtn');
+    if (redistributeBtn) redistributeBtn.addEventListener('click', redistributeSelectedPayments);
 });
 
 window.loadTerminalMissing = loadTerminalMissing;
