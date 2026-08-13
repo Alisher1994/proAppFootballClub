@@ -2352,8 +2352,27 @@ async function openBulkTariffModal(ids) {
     bulkTariffTargetIds = Array.isArray(ids) && ids.length ? ids : Array.from(terminalMissingSelection);
     if (!bulkTariffTargetIds.length) return;
     await loadBulkTariffOptions();
+
     const counter = document.getElementById('bulkTariffCount');
     if (counter) counter.textContent = String(bulkTariffTargetIds.length);
+
+    // Подставляем текущий тариф. Если у выбранных он разный - оставляем пустым.
+    const items = (terminalMissingData?.items || [])
+        .filter(item => bulkTariffTargetIds.includes(item.person_id));
+    const tariffIds = [...new Set(items.map(item => item.tariff_id ?? ''))];
+    const select = document.getElementById('bulkTariffSelect');
+    const hint = document.getElementById('bulkTariffCurrent');
+
+    if (select) select.value = tariffIds.length === 1 ? String(tariffIds[0] ?? '') : '';
+    if (hint) {
+        if (tariffIds.length === 1) {
+            const name = items[0]?.tariff_name || 'Без тарифа';
+            hint.textContent = `Сейчас: ${name}`;
+        } else {
+            hint.textContent = `У выбранных учеников тарифы разные (${tariffIds.length})`;
+        }
+    }
+
     document.getElementById('bulkTariffModal').style.display = 'block';
 }
 

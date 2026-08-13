@@ -10719,7 +10719,8 @@ def hikvision_terminal_missing():
     counters = {'in_terminal': 0, 'total_people': 0}
 
     def push(person_type, person_id, employee_no, full_name, group, status_value,
-             reason, reason_label, category, has_photo, photo_path, detail='', debt_amount=0):
+             reason, reason_label, category, has_photo, photo_path, detail='', debt_amount=0,
+             tariff_id=None, tariff_name=''):
         payment = last_payments.get(person_id) if person_type == 'student' else None
         items.append({
             'last_payment_date': payment['date'].strftime('%d.%m.%Y') if payment and payment['date'] else '',
@@ -10743,6 +10744,8 @@ def hikvision_terminal_missing():
             'photo_url': build_photo_thumb_url(photo_path) if photo_path else None,
             'detail': detail or '',
             'debt_amount': float(debt_amount or 0),
+            'tariff_id': tariff_id,
+            'tariff_name': tariff_name or '',
         })
 
     for student in students:
@@ -10772,14 +10775,16 @@ def hikvision_terminal_missing():
                 detail = 'долг: {:,} сум'.format(int(access['debt'])).replace(',', ' ')
             push('student', student.id, employee_no, student.full_name, group_name,
                  student.status, reason, reason_label, category,
-                 access['has_photo'], student.photo_path, detail, access['debt'])
+                 access['has_photo'], student.photo_path, detail, access['debt'],
+                 student.tariff_id, student.tariff.name if student.tariff else '')
             continue
 
         failure = sync_failures.get(employee_no)
         if failure:
             push('student', student.id, employee_no, student.full_name, group_name,
                  student.status, 'sync_error', 'Ошибка записи в терминал', 'sync_error',
-                 True, student.photo_path, failure)
+                 True, student.photo_path, failure, 0,
+                 student.tariff_id, student.tariff.name if student.tariff else '')
             continue
 
         if check_photos:
@@ -10787,7 +10792,8 @@ def hikvision_terminal_missing():
             if not readable:
                 push('student', student.id, employee_no, student.full_name, group_name,
                      student.status, 'photo_broken', 'Фото есть, но терминал его не примет',
-                     'photo_broken', True, student.photo_path, photo_problem or '')
+                     'photo_broken', True, student.photo_path, photo_problem or '', 0,
+                     student.tariff_id, student.tariff.name if student.tariff else '')
                 continue
 
         counters['in_terminal'] += 1
