@@ -3340,6 +3340,15 @@
             .year-payments-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
         }
 
+
+        /* Мобильные шторки стилизованы только внутри @media, поэтому на
+           десктопе они выпадали в поток и снизу торчал текст "Выберите группу". */
+        .mobile-bottom-sheet-overlay {
+            display: none;
+        }
+
+        body { overflow-x: hidden; }
+
     </style>
     <style>
         /* Force unified background */
