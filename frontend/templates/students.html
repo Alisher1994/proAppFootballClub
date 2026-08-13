@@ -2807,8 +2807,9 @@
             background: var(--theme-bg, #fff);
         }
 
-        .turnstile-panel.pass { border-color: #bbf7d0; }
-        .turnstile-panel.block { border-color: #fecaca; }
+        /* Цвет состояния показываем фоном шапки, рамку держим нейтральной */
+        .turnstile-panel.pass,
+        .turnstile-panel.block { border-color: var(--theme-border, #e8e2dc); }
 
         .turnstile-panel-head {
             display: flex;
@@ -4782,7 +4783,7 @@
         @media (max-width: 900px) { .student-details-content.sc .sc-sections { grid-template-columns: 1fr !important; } }
         /* One financial summary: access decision, debt breakdown and yearly
            payment calendar belong to the same visual group. */
-        .student-finance-summary { width: 100%; border: 1px solid #f2b8b8; border-radius: 16px; overflow: hidden; background: #fff; }
+        .student-finance-summary { width: 100%; border: 1px solid var(--theme-border, #e8e2dc); border-radius: 16px; overflow: hidden; background: #fff; }
         .student-finance-summary .turnstile-panel { border: 0 !important; border-radius: 0 !important; margin: 0 !important; }
         .student-finance-summary .year-payments { border: 0 !important; border-top: 1px solid var(--students-line) !important; border-radius: 0 !important; margin: 0 !important; }
         .student-finance-summary .debt-month { background: #fef2f2 !important; border-color: #fecaca !important; }
@@ -6099,7 +6100,7 @@
 
     <script src="{{ url_for('static', filename='vendor/lucide-1.24.0.min.js') }}"></script>
     <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/students.js') }}?v=2026081308"></script>
+    <script src="{{ url_for('static', filename='js/students.js') }}?v=2026081309"></script>
     <script src="{{ url_for('static', filename='js/students_rewards.js') }}"></script>
     <script src="{{ url_for('static', filename='js/students_cards.js') }}"></script>
     <script src="{{ url_for('static', filename='js/students_params.js') }}"></script>
@@ -6713,9 +6714,10 @@
             grid.innerHTML = (data.months || []).map(month => {
                 let amount = '—';
                 if (month.state === 'paid') {
-                    amount = formatMoney(month.paid);
+                    // Клубное финансирование: денег не вносили, но месяц закрыт
+                    amount = Number(month.paid) > 0 ? `+${formatMoney(month.paid)}` : 'клуб';
                 } else if (month.state === 'partial') {
-                    amount = `${formatMoney(month.paid)} / ${formatMoney(month.due)}`;
+                    amount = `+${formatMoney(month.paid)}`;
                 } else if (month.state === 'debt') {
                     amount = formatMoney(month.debt);
                 }
