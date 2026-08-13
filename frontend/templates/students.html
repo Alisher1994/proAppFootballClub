@@ -2649,23 +2649,25 @@
         }
 
         .student-card-menu-btn {
-            width: 34px;
-            height: 34px;
-            border: 1px solid var(--theme-border, #e2e8f0);
-            border-radius: 9px;
-            background: var(--theme-bg-secondary, #f8fafc);
+            width: 32px;
+            height: 32px;
+            padding: 0;
+            border: 0 !important;
+            border-radius: 50%;
+            background: none !important;
+            box-shadow: none !important;
             color: var(--theme-text-secondary, #64748b);
             display: inline-flex;
             align-items: center;
             justify-content: center;
             cursor: pointer;
-            transition: background .15s ease, color .15s ease;
+            transition: color .15s ease;
         }
 
-        .student-card-menu-btn:hover {
-            background: #ff8a00;
-            border-color: #ff8a00;
-            color: #fff;
+        .student-card-menu-btn:hover,
+        .student-card-menu-btn:focus-visible {
+            color: #ff8a00;
+            background: none !important;
         }
 
         .student-card-menu-btn i {
@@ -3115,24 +3117,27 @@
         }
 
         .student-item-menu-btn {
-            width: 30px;
-            height: 30px;
-            border: 0;
-            border-radius: 8px;
-            background: transparent;
+            width: 28px;
+            height: 28px;
+            padding: 0;
+            border: 0 !important;
+            border-radius: 50%;
+            background: none !important;
+            box-shadow: none !important;
             color: #94a3b8;
             display: inline-flex;
             align-items: center;
             justify-content: center;
             cursor: pointer;
-            transition: background .15s ease, color .15s ease;
+            transition: color .15s ease;
         }
 
         .student-item-menu-btn svg { width: 18px; height: 18px; }
 
-        .student-item-menu-btn:hover {
-            background: #ff8a00;
-            color: #fff;
+        .student-item-menu-btn:hover,
+        .student-item-menu-btn:focus-visible {
+            color: #ff8a00;
+            background: none !important;
         }
 
         .student-item-menu {
@@ -5296,7 +5301,7 @@
 
     <script src="{{ url_for('static', filename='vendor/lucide-1.24.0.min.js') }}"></script>
     <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/students.js') }}?v=2026081302"></script>
+    <script src="{{ url_for('static', filename='js/students.js') }}?v=2026081303"></script>
     <script src="{{ url_for('static', filename='js/students_rewards.js') }}"></script>
     <script src="{{ url_for('static', filename='js/students_cards.js') }}"></script>
     <script src="{{ url_for('static', filename='js/students_params.js') }}"></script>
