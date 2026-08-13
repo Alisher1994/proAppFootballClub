@@ -6207,7 +6207,7 @@
         })();
     </script>
     <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/students.js') }}?v=2026081314"></script>
+    <script src="{{ url_for('static', filename='js/students.js') }}?v=2026081315"></script>
     <script src="{{ url_for('static', filename='js/students_rewards.js') }}"></script>
     <script src="{{ url_for('static', filename='js/students_cards.js') }}"></script>
     <script src="{{ url_for('static', filename='js/students_params.js') }}"></script>
@@ -6215,37 +6215,50 @@
     <script>
         // Сохранение состояния в localStorage
         function savePageState() {
-            const selectedStudentId = document.querySelector('.student-list-item.selected')?.getAttribute('data-student-id');
+            const selectedStudentId = document.querySelector('.student-list-item.selected')?.getAttribute('data-student-id')
+                || document.querySelector('.student-details-content:not(.hidden)')?.id?.replace('studentDetails_', '');
             const studentListContent = document.querySelector('.student-list-content');
             const scrollPosition = studentListContent ? studentListContent.scrollTop : 0;
 
             if (selectedStudentId) {
                 localStorage.setItem('students_page_selected_student', selectedStudentId);
             }
+            // Без группы ученика не найти: список подгружается по раскрытию группы
+            const openGroup = document.querySelector('.student-group-section:not(.collapsed)');
+            if (openGroup?.dataset.groupId) {
+                localStorage.setItem('students_page_open_group', openGroup.dataset.groupId);
+            }
             localStorage.setItem('students_page_scroll_position', scrollPosition.toString());
         }
 
         // Восстановление состояния из localStorage
-        function restorePageState() {
+        async function restorePageState() {
             const savedStudentId = localStorage.getItem('students_page_selected_student');
+            const savedGroupId = localStorage.getItem('students_page_open_group');
             const savedScrollPosition = localStorage.getItem('students_page_scroll_position');
+            if (!savedStudentId) return;
 
-            if (savedStudentId) {
-                // Небольшая задержка, чтобы DOM успел загрузиться
-                setTimeout(() => {
-                    const studentItem = document.querySelector(`.student-list-item[data-student-id="${savedStudentId}"]`);
-                    if (studentItem) {
-                        selectStudent(parseInt(savedStudentId));
-
-                        // Восстановить позицию прокрутки
-                        if (savedScrollPosition) {
-                            const studentListContent = document.querySelector('.student-list-content');
-                            if (studentListContent) {
-                                studentListContent.scrollTop = parseInt(savedScrollPosition);
-                            }
-                        }
+            // Сначала раскрываем группу, где ученик лежит, иначе его строки еще нет
+            if (savedGroupId) {
+                const section = document.querySelector(`.student-group-section[data-group-id="${savedGroupId}"]`);
+                if (section) {
+                    section.classList.remove('collapsed');
+                    try {
+                        await loadGroupStudentsIntoSection(section);
+                    } catch (error) {
+                        console.error('Не удалось загрузить группу при восстановлении:', error);
                     }
-                }, 100);
+                }
+            }
+
+            const studentItem = document.querySelector(`.student-list-item[data-student-id="${savedStudentId}"]`);
+            if (!studentItem) return;
+
+            await selectStudent(parseInt(savedStudentId, 10));
+
+            const listContent = document.querySelector('.student-list-content');
+            if (listContent && savedScrollPosition) {
+                listContent.scrollTop = parseInt(savedScrollPosition, 10);
             }
         }
 
@@ -6463,6 +6476,8 @@
                 if (!response.ok) throw new Error('Не удалось загрузить группы');
                 const groups = await response.json();
                 renderStudentGroups(groups);
+                // Возвращаем пользователя туда, где он был до перезагрузки
+                restorePageState();
             } catch (error) {
                 console.error(error);
                 if (listContent) {
@@ -7359,9 +7374,14 @@
                 section.classList.toggle('collapsed');
                 if (!section.classList.contains('collapsed')) {
                     loadGroupStudentsIntoSection(section);
+                    if (section.dataset.groupId) {
+                        localStorage.setItem('students_page_open_group', section.dataset.groupId);
+                    }
                 }
             }
         }
+
+        window.addEventListener('beforeunload', savePageState);
 
         // Функция фильтрации учеников
         function filterStudentsByGroup(groupId) {
