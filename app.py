@@ -11471,6 +11471,249 @@ def format_money_ru(value):
         return str(value)
 
 
+STUDENT_FORM_FONT = 'StudentForm'
+STUDENT_FORM_FONT_BOLD = 'StudentFormBold'
+_student_form_fonts_ready = False
+
+
+def ensure_student_form_fonts():
+    """Регистрируем шрифт с кириллицей: стандартные шрифты PDF ее не умеют."""
+    global _student_form_fonts_ready
+    if _student_form_fonts_ready:
+        return True
+    try:
+        from reportlab.pdfbase import pdfmetrics
+        from reportlab.pdfbase.ttfonts import TTFont
+
+        vendor = os.path.join(app.static_folder, 'vendor', 'onest-ttf')
+        regular = os.path.join(vendor, 'Onest-VariableFont_wght.ttf')
+        bold = os.path.join(vendor, 'Manrope.ttf')
+        if not os.path.isfile(regular):
+            return False
+        pdfmetrics.registerFont(TTFont(STUDENT_FORM_FONT, regular))
+        pdfmetrics.registerFont(TTFont(STUDENT_FORM_FONT_BOLD, bold if os.path.isfile(bold) else regular))
+        _student_form_fonts_ready = True
+        return True
+    except Exception as exc:
+        print(f'ensure_student_form_fonts failed: {type(exc).__name__}: {exc}')
+        return False
+
+
+def draw_student_form_page(canvas, student, settings=None):
+    """Одна страница анкеты: что знаем — печатаем, остальное — линейки для ручки."""
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.units import mm
+
+    settings = settings or get_club_settings_instance()
+    width, height = A4
+    left = 15 * mm
+    right = width - 15 * mm
+    y = height - 16 * mm
+
+    club_name = getattr(settings, 'club_name', None) or 'Футбольная школа'
+
+    canvas.setFont(STUDENT_FORM_FONT_BOLD, 16)
+    canvas.drawString(left, y, club_name)
+    canvas.setFont(STUDENT_FORM_FONT, 10.5)
+    canvas.setFillColorRGB(0.42, 0.45, 0.5)
+    canvas.drawRightString(right, y, 'Анкета ученика')
+    canvas.setFillColorRGB(0, 0, 0)
+
+    y -= 6 * mm
+    canvas.setLineWidth(0.8)
+    canvas.setStrokeColorRGB(1, 0.54, 0)
+    canvas.line(left, y, right, y)
+    canvas.setStrokeColorRGB(0.8, 0.82, 0.85)
+
+    # --- Фото и уже известные данные ---
+    y -= 8 * mm
+    photo_w, photo_h = 32 * mm, 42 * mm
+    photo_x, photo_top = left, y
+    photo_path = resolve_static_photo_file(student.photo_path)
+    drawn = False
+    if photo_path:
+        try:
+            from reportlab.lib.utils import ImageReader
+            canvas.drawImage(ImageReader(photo_path), photo_x, photo_top - photo_h,
+                             width=photo_w, height=photo_h, preserveAspectRatio=True,
+                             anchor='c', mask='auto')
+            drawn = True
+        except Exception as exc:
+            print(f'student form photo failed: {type(exc).__name__}: {exc}')
+    canvas.rect(photo_x, photo_top - photo_h, photo_w, photo_h, stroke=1, fill=0)
+    if not drawn:
+        canvas.setFont(STUDENT_FORM_FONT, 9)
+        canvas.setFillColorRGB(0.6, 0.63, 0.67)
+        canvas.drawCentredString(photo_x + photo_w / 2, photo_top - photo_h / 2, 'Фото')
+        canvas.setFillColorRGB(0, 0, 0)
+
+    info_x = left + photo_w + 8 * mm
+    info_y = photo_top - 4 * mm
+    canvas.setFont(STUDENT_FORM_FONT_BOLD, 15)
+    canvas.drawString(info_x, info_y, student.full_name or '')
+
+    canvas.setFont(STUDENT_FORM_FONT, 10)
+    info_y -= 7 * mm
+    known = [
+        ('Группа', student.group.name if student.group else 'Без группы'),
+        ('Номер ученика', student.student_number or '—'),
+        ('Тариф', student.tariff.name if student.tariff else 'Не указан'),
+        ('Дата поступления', student.admission_date.strftime('%d.%m.%Y') if student.admission_date else '—'),
+    ]
+    for label, value in known:
+        canvas.setFillColorRGB(0.42, 0.45, 0.5)
+        canvas.drawString(info_x, info_y, f'{label}:')
+        canvas.setFillColorRGB(0, 0, 0)
+        canvas.drawString(info_x + 38 * mm, info_y, str(value))
+        info_y -= 6 * mm
+
+    y = min(photo_top - photo_h, info_y) - 8 * mm
+
+    def section(title, current_y):
+        canvas.setFont(STUDENT_FORM_FONT_BOLD, 11)
+        canvas.setFillColorRGB(1, 0.54, 0)
+        canvas.drawString(left, current_y, title.upper())
+        canvas.setFillColorRGB(0, 0, 0)
+        return current_y - 6 * mm
+
+    def field(label, value, current_y, col=0, width_mm=88):
+        """Заполненное печатаем, пустое оставляем линейкой для ручки."""
+        x = left if col == 0 else left + 92 * mm
+        canvas.setFont(STUDENT_FORM_FONT, 8.5)
+        canvas.setFillColorRGB(0.42, 0.45, 0.5)
+        canvas.drawString(x, current_y, label)
+        canvas.setFillColorRGB(0, 0, 0)
+        line_y = current_y - 5.5 * mm
+        canvas.setStrokeColorRGB(0.78, 0.8, 0.83)
+        canvas.setLineWidth(0.6)
+        canvas.line(x, line_y, x + width_mm * mm, line_y)
+        text = '' if value in (None, '', '-') else str(value)
+        if text:
+            canvas.setFont(STUDENT_FORM_FONT, 10.5)
+            canvas.drawString(x + 1.5 * mm, line_y + 1.6 * mm, text)
+        return current_y
+
+    def two_fields(left_pair, right_pair, current_y):
+        field(left_pair[0], left_pair[1], current_y, col=0)
+        if right_pair:
+            field(right_pair[0], right_pair[1], current_y, col=1)
+        return current_y - 12 * mm
+
+    y = section('Данные ученика', y)
+    y = two_fields(('Фамилия, имя, отчество', student.full_name),
+                   ('Дата рождения', student.birth_year or ''), y)
+    y = two_fields(('Телефон ученика', student.phone),
+                   ('Телефон родителя', student.parent_phone), y)
+
+    y = section('Родители', y - 2 * mm)
+    y = two_fields(('ФИО матери', ''), ('Телефон матери', ''), y)
+    y = two_fields(('ФИО отца', ''), ('Телефон отца', ''), y)
+    y = two_fields(('Кем приходится плательщик', ''), ('Дополнительный телефон', ''), y)
+
+    y = section('Адрес', y - 2 * mm)
+    y = two_fields(('Город', student.city), ('Район', student.district), y)
+    y = two_fields(('Улица', student.street), ('Дом, квартира', student.house_number), y)
+
+    y = section('Паспорт или свидетельство о рождении', y - 2 * mm)
+    y = two_fields(('Серия и номер', ' '.join(filter(None, [student.passport_series, student.passport_number]))),
+                   ('Кем выдан', student.passport_issued_by), y)
+    y = two_fields(('Дата выдачи', student.passport_issue_date.strftime('%d.%m.%Y') if student.passport_issue_date else ''),
+                   ('Срок действия', student.passport_expiry_date.strftime('%d.%m.%Y') if student.passport_expiry_date else ''), y)
+
+    y = section('Параметры и экипировка', y - 2 * mm)
+    y = two_fields(('Рост, см', student.height), ('Вес, кг', student.weight), y)
+    side = 'Левша' if student.dominant_side == 'left' else 'Правша' if student.dominant_side == 'right' else ''
+    y = two_fields(('Ведущая нога', side), ('Размер футболки', student.jersey_size), y)
+    y = two_fields(('Размер шорт', student.shorts_size), ('Размер бутс', student.boots_size), y)
+
+    y = section('Здоровье', y - 2 * mm)
+    y = two_fields(('Хронические заболевания, аллергии', ''), ('Группа крови', ''), y)
+    y = two_fields(('Кому звонить в экстренном случае', ''), ('Телефон', ''), y)
+
+    # --- Подписи ---
+    y -= 4 * mm
+    canvas.setFont(STUDENT_FORM_FONT, 8.5)
+    canvas.setFillColorRGB(0.42, 0.45, 0.5)
+    canvas.drawString(left, y, 'Данные заполняет родитель или законный представитель.')
+    canvas.setFillColorRGB(0, 0, 0)
+
+    y -= 12 * mm
+    canvas.setStrokeColorRGB(0.78, 0.8, 0.83)
+    canvas.line(left, y, left + 70 * mm, y)
+    canvas.line(right - 60 * mm, y, right, y)
+    canvas.setFont(STUDENT_FORM_FONT, 8.5)
+    canvas.setFillColorRGB(0.42, 0.45, 0.5)
+    canvas.drawString(left, y - 4.5 * mm, 'Подпись родителя')
+    canvas.drawString(right - 60 * mm, y - 4.5 * mm, 'Дата заполнения')
+    canvas.setFillColorRGB(0, 0, 0)
+
+    canvas.setFont(STUDENT_FORM_FONT, 7.5)
+    canvas.setFillColorRGB(0.62, 0.65, 0.69)
+    canvas.drawString(left, 10 * mm, f'ID ученика: {student.id}')
+    canvas.drawRightString(right, 10 * mm,
+                           f'Сформировано {get_local_datetime().strftime("%d.%m.%Y")}')
+    canvas.setFillColorRGB(0, 0, 0)
+
+
+def build_students_form_pdf(students, settings=None):
+    from reportlab.lib.pagesizes import A4
+    from reportlab.pdfgen import canvas as pdf_canvas
+
+    settings = settings or get_club_settings_instance()
+    buffer = io.BytesIO()
+    pdf = pdf_canvas.Canvas(buffer, pagesize=A4)
+    pdf.setTitle('Анкеты учеников')
+    for index, student in enumerate(students):
+        if index:
+            pdf.showPage()
+        draw_student_form_page(pdf, student, settings)
+    pdf.save()
+    buffer.seek(0)
+    return buffer
+
+
+@app.route('/api/students/<int:student_id>/form.pdf', methods=['GET'])
+@login_required
+def student_form_pdf(student_id):
+    """Анкета одного ученика для печати и заполнения от руки."""
+    if not ensure_student_form_fonts():
+        return jsonify({'success': False, 'message': 'Не удалось подготовить шрифты для PDF'}), 500
+
+    student = Student.query.options(
+        joinedload(Student.group), joinedload(Student.tariff)
+    ).filter(Student.id == student_id).first()
+    if not student:
+        return jsonify({'success': False, 'message': 'Ученик не найден'}), 404
+
+    buffer = build_students_form_pdf([student])
+    filename = f'anketa_{student.id}.pdf'
+    return send_file(buffer, mimetype='application/pdf',
+                     as_attachment=False, download_name=filename)
+
+
+@app.route('/api/groups/<int:group_id>/forms.pdf', methods=['GET'])
+@login_required
+def group_forms_pdf(group_id):
+    """Анкеты всей группы одним файлом: по странице на ученика."""
+    if not ensure_student_form_fonts():
+        return jsonify({'success': False, 'message': 'Не удалось подготовить шрифты для PDF'}), 500
+
+    group = db.session.get(Group, group_id)
+    students = Student.query.options(
+        joinedload(Student.group), joinedload(Student.tariff)
+    ).filter(
+        Student.group_id == group_id,
+        Student.status == 'active'
+    ).order_by(Student.full_name.asc()).all()
+    if not students:
+        return jsonify({'success': False, 'message': 'В группе нет активных учеников'}), 404
+
+    buffer = build_students_form_pdf(students)
+    safe_name = re.sub(r'[^\w\-]+', '_', (group.name if group else f'group_{group_id}'))
+    return send_file(buffer, mimetype='application/pdf',
+                     as_attachment=False, download_name=f'ankety_{safe_name}.pdf')
+
+
 @app.route('/api/students/<int:student_id>/logs', methods=['GET'])
 @login_required
 def get_student_logs(student_id):

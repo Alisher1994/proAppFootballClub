@@ -4975,6 +4975,27 @@
         .student-card-menu-item.danger { color: #b45309; }
         .student-card-menu-item svg { width: 16px; height: 16px; flex: 0 0 auto; }
 
+
+        /* Кнопка печати анкет в шапке группы */
+        .group-print-btn {
+            width: 26px;
+            height: 26px;
+            margin-right: 4px;
+            padding: 0;
+            border: 0;
+            background: none;
+            color: #94a3b8;
+            border-radius: 50%;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex: 0 0 auto;
+        }
+
+        .group-print-btn:hover { color: #ff8a00; }
+        .group-print-btn svg { width: 15px; height: 15px; }
+
     </style>
 </head>
 
@@ -6335,7 +6356,7 @@
         })();
     </script>
     <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/students.js') }}?v=2026081321"></script>
+    <script src="{{ url_for('static', filename='js/students.js') }}?v=2026081322"></script>
     <script src="{{ url_for('static', filename='js/students_rewards.js') }}"></script>
     <script src="{{ url_for('static', filename='js/students_cards.js') }}"></script>
     <script src="{{ url_for('static', filename='js/students_params.js') }}"></script>
@@ -6505,6 +6526,9 @@
                         <div class="student-card-menu-item edit-student-btn" role="button" tabindex="0" data-student-id="${id}">
                             <i data-lucide="pencil"></i><span>Редактировать</span>
                         </div>
+                        <div class="student-card-menu-item" role="button" tabindex="0" onclick="openStudentFormPdf(${id})">
+                            <i data-lucide="printer"></i><span>Анкета для печати</span>
+                        </div>
                         ${archived
                             ? `<div class="student-card-menu-item" role="button" tabindex="0" onclick="restoreStudent(${id})">
                                    <i data-lucide="rotate-ccw"></i><span>Вернуть из архива</span>
@@ -6586,6 +6610,10 @@
                         </span>
                     </div>
                 </div>
+                <button type="button" class="group-print-btn" title="Анкеты всей группы одним файлом"
+                    onclick="event.stopPropagation(); openGroupFormsPdf(${group.id});">
+                    <i data-lucide="printer"></i>
+                </button>
                 <span class="group-chevron">▼</span>
             `;
         }
@@ -6845,6 +6873,9 @@
                         <div class="student-card-menu-item" role="button" tabindex="0" onclick="redistributeStudentPayments(${id})">
                             <i data-lucide="arrow-left-right"></i><span>Перенести оплаты назад</span>
                         </div>
+                        <div class="student-card-menu-item" role="button" tabindex="0" onclick="openStudentFormPdf(${id})">
+                            <i data-lucide="printer"></i><span>Анкета для печати</span>
+                        </div>
                         ${archived
                             ? `<div class="student-card-menu-item" role="button" tabindex="0" onclick="restoreStudent(${id})">
                                    <i data-lucide="rotate-ccw"></i><span>Вернуть из архива</span>
@@ -7102,6 +7133,17 @@
 
         // Закрыть старые месяцы уже внесенными деньгами. Сумма оплат
         // не меняется, долг просто перестает размазываться по месяцам.
+
+        // Анкета для печати: открываем PDF в новой вкладке,
+        // оттуда его можно распечатать или сохранить
+        function openStudentFormPdf(studentId) {
+            window.open(`/api/students/${studentId}/form.pdf`, '_blank');
+        }
+
+        function openGroupFormsPdf(groupId) {
+            window.open(`/api/groups/${groupId}/forms.pdf`, '_blank');
+        }
+
         async function redistributeStudentPayments(studentId) {
             if (!confirm(
                 'Перенести оплаты на более ранние месяцы?\n\n'
