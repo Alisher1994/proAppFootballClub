@@ -4589,7 +4589,7 @@
     <style>
         /* Students v2: a single calm workspace.  This block intentionally wins over
            the legacy "game" variants above while keeping their JS hooks intact. */
-        :root { --students-accent: #4f46e5; --students-ink: #172033; --students-muted: #64748b; --students-line: #e6eaf0; --students-surface: #fff; --students-canvas: #f6f8fc; }
+        :root { --students-accent: #ff8a00; --students-accent-strong: #d96f00; --students-ink: #26364d; --students-muted: #718096; --students-line: #e6e0da; --students-surface: #fff; --students-canvas: #f8f7f6; }
         body.theme-light { background: var(--students-canvas) !important; color: var(--students-ink); }
         .game-main-content { margin-left: 80px !important; width: calc(100% - 80px) !important; background: var(--students-canvas) !important; }
         .game-layout { height: 100dvh; background: var(--students-canvas) !important; }
@@ -4599,37 +4599,45 @@
         .student-list-search input { min-width: 220px; padding: 0 14px; }
         .game-btn { height: 42px; border-radius: 10px; font-weight: 700; box-shadow: none !important; }
         .game-btn-primary { background: var(--students-accent) !important; color: #fff; }
-        .game-btn-primary:hover { background: #4338ca !important; transform: translateY(-1px); }
+        .game-btn-primary:hover { background: var(--students-accent-strong) !important; transform: translateY(-1px); }
         .game-layout-wrapper { display: grid !important; grid-template-columns: 360px minmax(0,1fr) !important; min-height: 0; flex: 1; background: var(--students-canvas) !important; }
         .student-list-panel { min-width: 0; background: #fff !important; border-right: 1px solid var(--students-line) !important; overflow: hidden; }
         .student-list-content { padding: 16px 14px 28px !important; }
         .student-group-section { margin: 0 0 18px; }
         .student-group-header { margin: 0 2px 8px; padding: 0 !important; background: transparent !important; color: var(--students-muted); font-size: 12px; font-weight: 800; letter-spacing: .03em; }
         .student-list-item { min-height: 72px; margin: 0 0 8px !important; padding: 10px !important; border: 1px solid transparent !important; border-radius: 12px !important; background: #fff !important; box-shadow: none !important; }
-        .student-list-item:hover { background: #f7f8ff !important; border-color: #e0e4ff !important; }
-        .student-list-item.selected { background: #eef2ff !important; border-color: #c7d2fe !important; box-shadow: inset 3px 0 0 var(--students-accent) !important; }
+        .student-list-item:hover { background: #fff8ef !important; border-color: #f4d6b3 !important; }
+        .student-list-item.selected { background: #fff4e5 !important; border-color: #f1c895 !important; box-shadow: inset 3px 0 0 var(--students-accent) !important; }
         .student-item-photo { width: 44px !important; height: 44px !important; border-radius: 12px !important; }
         .student-item-name { color: var(--students-ink); font-size: 13px !important; font-weight: 750; }
         .student-item-group, .student-item-age { color: var(--students-muted) !important; }
         .student-details-panel { min-width: 0; padding: 28px clamp(22px,4vw,64px) 44px !important; overflow-y: auto; background: var(--students-canvas) !important; }
         .student-details-placeholder { min-height: 360px; display: grid; place-content: center; gap: 12px; color: var(--students-muted); background: #fff; border: 1px dashed #d8deea; border-radius: 20px; }
         .student-details-placeholder .placeholder-icon { width: 52px; height: 52px; display:grid; place-items:center; margin:auto; border-radius: 50%; background:#eef2ff; color:var(--students-accent); font-size:28px; }
-        .student-details-content.sc { max-width: 1120px; margin: 0 auto; overflow: hidden; border: 1px solid var(--students-line); border-radius: 20px; background: #fff; box-shadow: 0 14px 34px rgba(15,23,42,.06); }
+        .student-details-content.sc { width: 100%; max-width: none; margin: 0; overflow: visible; border: 1px solid var(--students-line); border-radius: 18px; background: #fff; box-shadow: 0 10px 28px rgba(38,54,77,.05); }
         .sc-head { padding: 24px 28px; background: linear-gradient(135deg,#fff 0%,#f7f8ff 100%) !important; border-bottom: 1px solid var(--students-line); }
-        .sc-avatar { width: 76px; height: 76px; border-radius: 18px; box-shadow: 0 6px 16px rgba(15,23,42,.10); }
-        .sc-name { color: var(--students-ink); font-size: clamp(20px,2vw,26px); }
+        .sc-avatar { width: 96px; height: 96px; border-radius: 18px; box-shadow: 0 6px 16px rgba(15,23,42,.10); }
+        .sc-name { color: var(--students-ink); font-size: clamp(20px,2vw,26px); font-weight: 600; }
         .sc-group { color: var(--students-muted); }
-        .sc-tabs { padding: 10px 22px; gap: 6px; overflow-x: auto; background: #fff !important; border-bottom: 1px solid var(--students-line); }
-        .sc-tabs .student-tab { border: 0 !important; border-radius: 9px; color: var(--students-muted) !important; white-space: nowrap; }
-        .sc-tabs .student-tab.active { color: var(--students-accent) !important; background: #eef2ff !important; font-weight: 750 !important; }
-        .sc-body { padding: 24px 28px 32px !important; background: #fff !important; }
+        .sc-tabs { padding: 14px 28px; gap: 20px; overflow-x: auto; background: #fff !important; border-bottom: 1px solid var(--students-line); }
+        .sc-tabs .student-tab { border: 0 !important; border-radius: 0; color: var(--students-muted) !important; white-space: nowrap; padding: 8px 0; font-weight: 500; }
+        .sc-tabs .student-tab.active { color: var(--students-accent-strong) !important; background: transparent !important; font-weight: 600 !important; box-shadow: inset 0 -2px 0 var(--students-accent) !important; }
+        .sc-body { overflow: visible !important; padding: 26px 30px 34px !important; background: #fff !important; }
         .sc-fact, .sc-section, .year-payments { border-color: var(--students-line) !important; background: #fff !important; }
-        .sc-fact { background: #f8faff !important; }
-        .sc-section-head { color: var(--students-ink); }
+        .sc-fact { background: #fbfaf8 !important; }
+        .sc-fact-value { font-weight: 600; }
+        .sc-section-head { color: var(--students-ink); font-weight: 600; cursor: default; }
+        .sc-section-chevron { display: none !important; }
+        .sc-section-body { display: block !important; }
+        .sc-row-value { font-weight: 500; }
+        .sc-sections { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 14px !important; }
+        .sc-section { margin: 0 !important; min-width: 0; }
+        .student-tab-content { width: 100% !important; min-height: 0 !important; max-height: none !important; overflow: visible !important; }
+        .student-tab-content::-webkit-scrollbar, .sc-body::-webkit-scrollbar { width: 0 !important; height: 0 !important; display: none !important; }
         .turnstile-panel { border-radius: 16px !important; }
         .student-photo-panel { display: none !important; }
         .game-filter-panel { left: 80px; background: rgba(15,23,42,.48); }
-        @media (max-width: 900px) { .game-main-content { margin-left: 0 !important; width:100% !important; } .game-layout-wrapper { grid-template-columns: 310px minmax(0,1fr) !important; } .game-top-bar { padding: 12px 16px; } .student-list-search input { min-width: 150px; } .student-details-panel { padding: 18px; } .sc-head,.sc-body { padding-left:18px !important; padding-right:18px !important; } }
+        @media (max-width: 900px) { .game-main-content { margin-left: 0 !important; width:100% !important; } .game-layout-wrapper { grid-template-columns: 310px minmax(0,1fr) !important; } .game-top-bar { padding: 12px 16px; } .student-list-search input { min-width: 150px; } .student-details-panel { padding: 18px; } .sc-head,.sc-body { padding-left:18px !important; padding-right:18px !important; } .sc-sections { grid-template-columns:1fr !important; } }
         /* Desktop browsers can have a narrow CSS viewport because of zoom.  Do not
            turn the application into the mobile single-column view in that case. */
         @media (max-width: 768px) and (pointer: coarse) { .game-layout { height: calc(100dvh - 70px) !important; } .game-layout-wrapper { display:block !important; overflow-y:auto; } .student-list-panel { min-height: 100%; } .student-details-panel { display:none; } body.students-mobile-detail-open .student-list-panel { display:none; } body.students-mobile-detail-open .student-details-panel { display:block; min-height:100%; padding:12px !important; } .students-header-filters { width:100%; } .student-group-filter { flex:1; } .student-group-filter select, .student-list-search input { min-width:0; width:100%; } .student-list-search { flex:1; } .sc-head { padding-top:18px !important; } .sc-avatar { width:58px; height:58px; border-radius:14px; } .sc-tabs { padding:8px 12px; } .sc-tabs .student-tab { padding:8px 10px; } .sc-tabs .student-tab span { font-size:12px; } .sc-body { padding:16px 12px 24px !important; } .sc-facts { grid-template-columns:repeat(2,minmax(0,1fr)) !important; } }
@@ -6635,14 +6643,13 @@
                 : (emptyText ? `<div class="sc-empty">${escapeHtml(emptyText)}</div>` : '');
             if (!body) return '';
             return `
-                <details class="sc-section"${open ? ' open' : ''}>
-                    <summary class="sc-section-head">
+                <section class="sc-section">
+                    <div class="sc-section-head">
                         <i data-lucide="${icon}"></i>
                         <span>${escapeHtml(title)}</span>
-                        <i data-lucide="chevron-down" class="sc-section-chevron"></i>
-                    </summary>
+                    </div>
                     <div class="sc-section-body">${body}</div>
-                </details>
+                </section>
             `;
         }
 
