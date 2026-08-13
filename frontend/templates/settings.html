@@ -2413,10 +2413,12 @@
         }
 
         /* Вкладка "Не в терминале": таблица во всю ширину, без скролла вбок */
-        .settings-page .missing-card {
-            max-width: none;
-            width: 100%;
-            margin: 0;
+        /* Базовое правило карточки идет с !important и шириной 880px,
+           поэтому перебиваем его более точным селектором. */
+        .settings-page .card.settings-main-card.missing-card {
+            max-width: none !important;
+            width: 100% !important;
+            margin: 0 !important;
         }
 
         .settings-page #missingTable {
@@ -2439,7 +2441,13 @@
         .settings-page #missingTable .col-reason { width: 16%; }
         .settings-page #missingTable .col-paid { width: 15%; }
         .settings-page #missingTable .col-sum { width: 12%; }
-        .settings-page #missingTable .col-detail { width: auto; }
+        .settings-page #missingTable .col-detail { width: auto; min-width: 160px; }
+
+        /* Суммы и даты не переносим по слогам */
+        .settings-page #missingTable td:nth-child(6),
+        .settings-page #missingTable td:nth-child(7) {
+            white-space: nowrap;
+        }
 
         @media (max-width: 1200px) {
             .settings-page #missingTable .col-group,
@@ -4069,7 +4077,7 @@
                 </div>
             </div>
 
-            <script src="{{ url_for('static', filename='js/settings.js') }}?v=2026081305"></script>
+            <script src="{{ url_for('static', filename='js/settings.js') }}?v=2026081306"></script>
             <script src="{{ url_for('static', filename='js/groups.js') }}?v=2026071501"></script>
             <script src="{{ url_for('static', filename='js/tariffs.js') }}"></script>
             <script src="{{ url_for('static', filename='js/rewards.js') }}"></script>
