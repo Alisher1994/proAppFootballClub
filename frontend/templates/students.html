@@ -6207,7 +6207,7 @@
         })();
     </script>
     <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/students.js') }}?v=2026081312"></script>
+    <script src="{{ url_for('static', filename='js/students.js') }}?v=2026081313"></script>
     <script src="{{ url_for('static', filename='js/students_rewards.js') }}"></script>
     <script src="{{ url_for('static', filename='js/students_cards.js') }}"></script>
     <script src="{{ url_for('static', filename='js/students_params.js') }}"></script>
@@ -6908,11 +6908,34 @@
             document.querySelectorAll('.student-card-menu-list.open').forEach(el => el.classList.remove('open'));
         });
 
+
+        // Сервер иногда отвечает страницей, а не JSON: чаще всего это редирект
+        // на вход после истечения сессии. Без этой проверки пользователь видел
+        // "Unexpected token '<'" и не понимал, что делать.
+        async function readJsonResponse(response) {
+            const contentType = response.headers.get('content-type') || '';
+            if (contentType.includes('application/json')) {
+                return response.json();
+            }
+            const text = await response.text();
+            console.error('Ожидался JSON, получено:', text.slice(0, 300));
+            if (response.redirected && /\/login/.test(response.url)) {
+                throw new Error('Сессия истекла. Войдите в систему заново и повторите действие.');
+            }
+            if (/<!doctype|<html/i.test(text)) {
+                if (response.status >= 500) {
+                    throw new Error(`Сервер вернул ошибку ${response.status}. Повторите попытку через минуту.`);
+                }
+                throw new Error('Сессия истекла или сервер перезапускается. Обновите страницу и повторите.');
+            }
+            throw new Error(text.slice(0, 200) || `Ошибка ${response.status}`);
+        }
+
         async function archiveStudent(studentId, fullName) {
             if (!confirm(`Переместить ${fullName} в архив?\n\nЗапись будет удалена из терминалов, но оплаты и посещения сохранятся. Ученика всегда можно вернуть.`)) return;
             try {
                 const response = await fetch(`/api/students/${studentId}/archive`, { method: 'POST' });
-                const data = await response.json();
+                const data = await readJsonResponse(response);
                 if (!data.success) throw new Error(data.message || 'Не удалось архивировать');
                 alert(data.message);
                 window.location.reload();
@@ -6924,7 +6947,7 @@
         async function restoreStudent(studentId) {
             try {
                 const response = await fetch(`/api/students/${studentId}/restore`, { method: 'POST' });
-                const data = await response.json();
+                const data = await readJsonResponse(response);
                 if (!data.success) throw new Error(data.message || 'Не удалось восстановить');
                 alert(data.message);
                 window.location.reload();
@@ -8733,16 +8756,7 @@
                         })
                     });
 
-                    // Проверить, что ответ является JSON
-                    const contentType = response.headers.get('content-type');
-                    if (!contentType || !contentType.includes('application/json')) {
-                        const text = await response.text();
-                        console.error('Ожидался JSON, получен:', text.substring(0, 200));
-                        alert('Ошибка: Сервер вернул неверный формат ответа');
-                        return;
-                    }
-
-                    const data = await response.json();
+                    const data = await readJsonResponse(response);
 
                     if (!response.ok) {
                         alert('Ошибка: ' + (data.message || `HTTP ${response.status}`));

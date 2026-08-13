@@ -14935,6 +14935,7 @@ def update_payment(payment_id):
         payment = db.session.get(Payment, payment_id)
         if not payment:
             return jsonify({'success': False, 'message': 'Оплата не найдена'}), 404
+        month_labels_to_fix = None
 
         # За какой месяц засчитана оплата (тренер мог выбрать не тот)
         if data.get('payment_month') and data.get('payment_year'):
@@ -14947,13 +14948,12 @@ def update_payment(payment_id):
                 return jsonify({'success': False, 'message': 'Месяц должен быть от 1 до 12'}), 400
             if not 2000 <= new_year <= 2100:
                 return jsonify({'success': False, 'message': 'Неверный год'}), 400
-            old_label = f'{payment.payment_month}/{payment.payment_year}'
+            month_labels_to_fix = (
+                f'{payment.payment_month}/{payment.payment_year}',
+                f'{new_month}/{new_year}',
+            )
             payment.payment_month = new_month
             payment.payment_year = new_year
-            new_label = f'{new_month}/{new_year}'
-            # Подпись вида "Оплата за 7/2026" иначе останется от старого месяца
-            if payment.notes and f'Оплата за {old_label}' in payment.notes:
-                payment.notes = payment.notes.replace(f'Оплата за {old_label}', f'Оплата за {new_label}')
 
         # Валидация суммы
         if 'amount_paid' in data:
@@ -14992,6 +14992,14 @@ def update_payment(payment_id):
 
         if 'notes' in data:
             payment.notes = data.get('notes')
+
+        # Подпись "Оплата за 7/2026" правим последней, уже поверх присланного текста
+        if month_labels_to_fix and payment.notes:
+            old_label, new_label = month_labels_to_fix
+            if old_label != new_label:
+                payment.notes = payment.notes.replace(
+                    f'Оплата за {old_label}', f'Оплата за {new_label}'
+                )
 
         queue_hikvision_person('student', payment.student_id, 'payment_updated')
         db.session.commit()
