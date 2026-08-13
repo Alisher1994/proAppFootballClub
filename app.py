@@ -11077,13 +11077,20 @@ def get_student_year_months(student, settings=None, today=None, year=None):
 
     rows = db.session.query(
         Payment.payment_month,
-        func.coalesce(func.sum(Payment.amount_paid), 0)
+        func.coalesce(func.sum(Payment.amount_paid), 0),
+        func.max(Payment.payment_date),
+        func.count(Payment.id)
     ).filter(
         Payment.student_id == student.id,
         Payment.payment_year == year,
         Payment.payment_month.isnot(None)
     ).group_by(Payment.payment_month).all()
-    paid_by_month = {int(month): float(total or 0) for month, total in rows}
+    paid_by_month = {int(month): float(total or 0) for month, total, _, _ in rows}
+    # Когда именно платили за этот месяц: показываем в плитке
+    paid_at_by_month = {
+        int(month): {'date': last_date, 'count': int(count or 0)}
+        for month, _, last_date, count in rows
+    }
 
     tariff_price = float(student.tariff.price or 0) if student.tariff else 0
     start_year, start_month = get_student_debt_start_pair(student, settings, today)
@@ -11114,6 +11121,15 @@ def get_student_year_months(student, settings=None, today=None, year=None):
             'paid': paid,
             'due': due,
             'is_first_month': bool(due != tariff_price),
+            'paid_at': (
+                paid_at_by_month[month]['date'].strftime('%d.%m.%Y')
+                if paid_at_by_month.get(month) and paid_at_by_month[month]['date'] else ''
+            ),
+            'paid_day': (
+                paid_at_by_month[month]['date'].day
+                if paid_at_by_month.get(month) and paid_at_by_month[month]['date'] else None
+            ),
+            'payments_count': paid_at_by_month.get(month, {}).get('count', 0),
             'debt': max(0, due - paid) if state in {'debt', 'partial'} else 0,
             'state': state,
             'is_current': bool(year == today.year and month == today.month),
