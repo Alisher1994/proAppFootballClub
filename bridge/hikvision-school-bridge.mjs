@@ -696,6 +696,24 @@ function requestDigest(device, method, uri, body = null, headers = {}, timeoutMs
   });
 }
 
+const FACE_WRITE_RETRIES = Number(process.env.HIK_WRITE_RETRIES || 2);
+
+/** Повторяет запись в терминал, если оборвалась связь. */
+async function withNetworkRetry(run, onRetry) {
+  let lastError = null;
+  for (let attempt = 0; attempt <= FACE_WRITE_RETRIES; attempt += 1) {
+    try {
+      return await run();
+    } catch (error) {
+      lastError = error;
+      if (!isNetworkError(error) || attempt === FACE_WRITE_RETRIES) throw error;
+      if (onRetry) onRetry(error, attempt + 1);
+      await sleep(1500 * (attempt + 1));
+    }
+  }
+  throw lastError;
+}
+
 function isNetworkError(error) {
   const message = String(error?.message || '');
   return (
@@ -1579,10 +1597,19 @@ async function syncDevice(device, students, reports) {
         }
         await sleep(500);
       }
-      await upsertUser(device, student);
-      await sleep(500);
-      const faceOutdated = !isFaceUpToDate(device, student);
-      const face = await uploadFace(device, student, { replace: faceOutdated });
+      // Терминал изредка рвет соединение, когда занят проходом или распознаванием.
+      // Одна запись из сотен - это не сбой сети, а занятость, поэтому повторяем.
+      const face = await withNetworkRetry(
+        async () => {
+          await upsertUser(device, student);
+          await sleep(500);
+          const faceOutdated = !isFaceUpToDate(device, student);
+          return uploadFace(device, student, { replace: faceOutdated });
+        },
+        (error, attempt) => console.warn(
+          `${logPrefix} ${studentTitle}: ${humanError(error)}. Повтор ${attempt} из ${FACE_WRITE_RETRIES}.`
+        )
+      );
       // 'already-exists' означает, что терминал ничего не переписал.
       if (face === 'uploaded' || face === 'replaced') rememberFace(device, student);
       changed += 1;
