@@ -2559,21 +2559,28 @@
 
         .missing-row-menu.open { display: block; }
 
+        /* Общие стили кнопок дают рамку и фон, внутри меню это лишнее */
         .missing-row-menu button {
             display: flex;
             align-items: center;
             gap: 8px;
             width: 100%;
             padding: 8px 10px;
-            border: 0;
-            border-radius: 8px;
-            background: transparent;
+            border: 0 !important;
+            border-radius: 8px !important;
+            background: none !important;
+            box-shadow: none !important;
             font-size: 13px;
+            font-weight: 500;
             cursor: pointer;
-            color: var(--theme-text-primary, #0f172a);
+            color: var(--theme-text-primary, #0f172a) !important;
+            text-align: left;
         }
 
-        .missing-row-menu button:hover { background: var(--theme-bg-secondary, #f1f5f9); }
+        .missing-row-menu button:hover {
+            background: var(--theme-bg-secondary, #f1f5f9) !important;
+            color: #ff8a00 !important;
+        }
         .missing-row-menu button svg { width: 15px; height: 15px; }
 
         .missing-paid-cell { line-height: 1.35; }
@@ -4256,7 +4263,7 @@
                 </div>
             </div>
 
-            <script src="{{ url_for('static', filename='js/settings.js') }}?v=2026081308"></script>
+            <script src="{{ url_for('static', filename='js/settings.js') }}?v=2026081309"></script>
             <script src="{{ url_for('static', filename='js/groups.js') }}?v=2026071501"></script>
             <script src="{{ url_for('static', filename='js/tariffs.js') }}"></script>
             <script src="{{ url_for('static', filename='js/rewards.js') }}"></script>
