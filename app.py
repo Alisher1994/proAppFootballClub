@@ -4435,7 +4435,9 @@ def get_student(student_id):
         'equipment_notes': student.equipment_notes,
         'group_schedule_days': group_schedule_days,  # Дни недели занятий (1=Пн, 7=Вс)
         'group_schedule_time': group_schedule_time,  # Время начала занятия (HH:MM)
-        'turnstile_access': access_payload
+        'turnstile_access': access_payload,
+        'status_label': student_status_label(student.status),
+        'terminals': get_student_terminal_face_state(student.id)
     })
 
 

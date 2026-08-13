@@ -54,9 +54,15 @@ document.addEventListener('DOMContentLoaded', () => {
     // только на десктопных ширинах.
     const desktopLayout = window.matchMedia('(min-width: 769px)');
 
+    // На странице учеников списку нужна ширина, поэтому меню сворачиваем само.
+    // Если пользователь развернул его руками, в этой вкладке больше не трогаем.
+    const isStudentsPage = /^\/students(\/|$)/.test(window.location.pathname);
+    const STUDENTS_CHOICE_KEY = 'studentsSidebarUserChoice';
+
     function applyCollapsedState() {
         const isCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
-        const collapsed = desktopLayout.matches && isCollapsed;
+        const autoCollapse = isStudentsPage && sessionStorage.getItem(STUDENTS_CHOICE_KEY) !== 'true';
+        const collapsed = desktopLayout.matches && (isCollapsed || autoCollapse);
         sidebar.classList.toggle('collapsed', collapsed);
         document.body.classList.toggle('sidebar-collapsed', collapsed);
         updateToggleIcon();
@@ -84,6 +90,9 @@ document.addEventListener('DOMContentLoaded', () => {
             
             // Сохранить состояние в localStorage
             localStorage.setItem('sidebarCollapsed', sidebar.classList.contains('collapsed'));
+            if (isStudentsPage) {
+                sessionStorage.setItem(STUDENTS_CHOICE_KEY, 'true');
+            }
         });
     }
 });

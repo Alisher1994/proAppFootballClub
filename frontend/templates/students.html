@@ -2634,6 +2634,433 @@
             justify-content: center !important;
             min-height: 200px !important;
         }
+
+        /* ===== Карточка ученика: сводка, турникет, архив ===== */
+        .student-name-section {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .student-card-menu {
+            position: relative;
+            flex: 0 0 auto;
+        }
+
+        .student-card-menu-btn {
+            width: 34px;
+            height: 34px;
+            border: 1px solid var(--theme-border, #e2e8f0);
+            border-radius: 9px;
+            background: var(--theme-bg-secondary, #f8fafc);
+            color: var(--theme-text-secondary, #64748b);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background .15s ease, color .15s ease;
+        }
+
+        .student-card-menu-btn:hover {
+            background: #ff8a00;
+            border-color: #ff8a00;
+            color: #fff;
+        }
+
+        .student-card-menu-btn i {
+            width: 18px;
+            height: 18px;
+        }
+
+        .student-card-menu-list {
+            display: none;
+            position: absolute;
+            right: 0;
+            top: calc(100% + 6px);
+            min-width: 210px;
+            padding: 6px;
+            border-radius: 12px;
+            border: 1px solid var(--theme-border, #e2e8f0);
+            background: var(--theme-bg, #fff);
+            box-shadow: 0 12px 32px rgba(15, 23, 42, .16);
+            z-index: 40;
+        }
+
+        .student-card-menu-list.open {
+            display: block;
+        }
+
+        .student-card-menu-item {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 9px 10px;
+            border: 0;
+            border-radius: 8px;
+            background: transparent;
+            color: var(--theme-text-primary, #0f172a);
+            font-size: 14px;
+            text-align: left;
+            cursor: pointer;
+        }
+
+        .student-card-menu-item:hover {
+            background: var(--theme-bg-secondary, #f1f5f9);
+        }
+
+        .student-card-menu-item.danger {
+            color: #b45309;
+        }
+
+        .student-card-menu-item i {
+            width: 16px;
+            height: 16px;
+        }
+
+        .student-summary {
+            margin: 6px 0 18px;
+        }
+
+        .student-summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            margin-bottom: 14px;
+        }
+
+        .summary-chip {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            padding: 10px 12px;
+            border: 1px solid var(--theme-border, #e2e8f0);
+            border-radius: 12px;
+            background: var(--theme-bg-secondary, #f8fafc);
+            min-width: 0;
+        }
+
+        .summary-chip-label {
+            font-size: 11px;
+            letter-spacing: .02em;
+            text-transform: uppercase;
+            color: var(--theme-text-secondary, #64748b);
+        }
+
+        .summary-chip-value {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--theme-text-primary, #0f172a);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .summary-chip-value i {
+            width: 15px;
+            height: 15px;
+            flex: 0 0 auto;
+        }
+
+        .summary-chip-value.status-ok { color: #16a34a; }
+        .summary-chip-value.status-danger { color: #dc2626; }
+        .summary-chip-value.status-archived { color: #7c3aed; }
+        .summary-chip-value.status-muted { color: #64748b; }
+        .summary-chip-value.balance-positive { color: #16a34a; }
+        .summary-chip-value.balance-negative { color: #dc2626; }
+
+        .summary-chip .btn-copy-code {
+            width: 22px;
+            height: 22px;
+            padding: 0;
+            border: 0;
+            border-radius: 6px;
+            background: var(--theme-bg, #eef2f7);
+            color: #64748b;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            flex: 0 0 auto;
+        }
+
+        .summary-chip .btn-copy-code i {
+            width: 13px;
+            height: 13px;
+        }
+
+        .telegram-code {
+            font-family: Consolas, monospace;
+            font-size: 12px;
+        }
+
+        .turnstile-panel {
+            border: 1px solid #e2e8f0;
+            border-radius: 14px;
+            overflow: hidden;
+            background: var(--theme-bg, #fff);
+        }
+
+        .turnstile-panel.pass { border-color: #bbf7d0; }
+        .turnstile-panel.block { border-color: #fecaca; }
+
+        .turnstile-panel-head {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 14px;
+            flex-wrap: wrap;
+        }
+
+        .turnstile-panel.pass .turnstile-panel-head { background: #f0fdf4; }
+        .turnstile-panel.block .turnstile-panel-head { background: #fef2f2; }
+
+        .turnstile-panel-icon {
+            width: 38px;
+            height: 38px;
+            border-radius: 11px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex: 0 0 auto;
+        }
+
+        .turnstile-panel.pass .turnstile-panel-icon { background: #dcfce7; color: #15803d; }
+        .turnstile-panel.block .turnstile-panel-icon { background: #fee2e2; color: #b91c1c; }
+
+        .turnstile-panel-title {
+            display: flex;
+            flex-direction: column;
+            line-height: 1.25;
+            margin-right: auto;
+        }
+
+        .turnstile-panel-label {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: .02em;
+            color: var(--theme-text-secondary, #64748b);
+        }
+
+        .turnstile-panel-value { font-size: 17px; }
+        .turnstile-panel.pass .turnstile-panel-value { color: #15803d; }
+        .turnstile-panel.block .turnstile-panel-value { color: #b91c1c; }
+
+        .turnstile-panel-terminals {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .turnstile-panel-body { padding: 12px 14px; }
+
+        .turnstile-loading {
+            font-size: 13px;
+            color: var(--theme-text-secondary, #64748b);
+        }
+
+        .turnstile-reasons {
+            margin: 0 0 10px;
+            padding-left: 18px;
+            font-size: 13.5px;
+            color: var(--theme-text-primary, #0f172a);
+        }
+
+        .turnstile-reasons li { margin-bottom: 4px; }
+
+        .debt-breakdown {
+            border-top: 1px dashed var(--theme-border, #e2e8f0);
+            padding-top: 10px;
+        }
+
+        .debt-breakdown-head {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            flex-wrap: wrap;
+            font-size: 13px;
+            color: var(--theme-text-secondary, #64748b);
+            margin-bottom: 8px;
+        }
+
+        .debt-breakdown-head strong { color: #dc2626; }
+
+        .debt-month-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            gap: 6px;
+        }
+
+        .debt-month {
+            display: flex;
+            justify-content: space-between;
+            gap: 8px;
+            padding: 7px 10px;
+            border-radius: 9px;
+            background: #fff7ed;
+            border: 1px solid #fed7aa;
+            font-size: 12.5px;
+        }
+
+        .debt-month.current {
+            background: #fef2f2;
+            border-color: #fecaca;
+        }
+
+        .debt-month-sum {
+            font-weight: 700;
+            color: #b45309;
+        }
+
+        .debt-month.current .debt-month-sum { color: #b91c1c; }
+
+        /* Иконки терминалов */
+        .terminal-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 3px 7px;
+            border-radius: 999px;
+            font-size: 11.5px;
+            font-weight: 600;
+            border: 1px solid transparent;
+            white-space: nowrap;
+        }
+
+        .terminal-badge i { width: 13px; height: 13px; }
+        .terminal-badge.ok { background: #dcfce7; color: #15803d; border-color: #bbf7d0; }
+        .terminal-badge.missing { background: #fee2e2; color: #b91c1c; border-color: #fecaca; }
+        .terminal-badge.unknown { background: #f1f5f9; color: #64748b; border-color: #e2e8f0; }
+
+        .student-photo-wrapper { position: relative; }
+
+        .photo-terminal-badges {
+            position: absolute;
+            left: 8px;
+            bottom: 8px;
+            display: flex;
+            gap: 5px;
+            flex-wrap: wrap;
+            z-index: 3;
+        }
+
+        .photo-terminal-badges .terminal-badge {
+            backdrop-filter: blur(4px);
+            box-shadow: 0 2px 8px rgba(15, 23, 42, .18);
+        }
+
+        /* Список учеников */
+        .student-item-photo { position: relative; }
+
+        .student-item-terminals {
+            position: absolute;
+            right: -4px;
+            bottom: -4px;
+            display: flex;
+            gap: 2px;
+        }
+
+        .student-item-terminals .terminal-badge {
+            padding: 2px;
+            border-radius: 50%;
+            box-shadow: 0 1px 4px rgba(15, 23, 42, .2);
+        }
+
+        .student-item-terminals .terminal-badge i { width: 11px; height: 11px; }
+
+        .badge-pass,
+        .badge-archived {
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+            padding: 1px 7px;
+            border-radius: 999px;
+            font-size: 10.5px;
+            font-weight: 700;
+        }
+
+        .badge-pass i,
+        .badge-archived i { width: 11px; height: 11px; }
+        .badge-pass.ok { background: #dcfce7; color: #15803d; }
+        .badge-pass.no { background: #fee2e2; color: #b91c1c; }
+        .badge-archived { background: #ede9fe; color: #6d28d9; }
+
+        .student-list-item.archived {
+            background: repeating-linear-gradient(
+                135deg,
+                rgba(124, 58, 237, .05),
+                rgba(124, 58, 237, .05) 8px,
+                transparent 8px,
+                transparent 16px
+            );
+            border-left: 3px solid #a78bfa;
+            opacity: .82;
+        }
+
+        .student-list-item.archived .student-item-name { color: #6d28d9; }
+
+        .student-details-content.is-archived .student-name-section {
+            border-left: 4px solid #a78bfa;
+            padding-left: 10px;
+        }
+
+        @media (max-width: 768px) {
+            .student-summary-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            .turnstile-panel-head { gap: 8px; }
+            .turnstile-panel-terminals { width: 100%; }
+            .debt-month-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        }
+
+
+        /* ===== Способ оплаты: выбор кнопками ===== */
+        .payment-method-buttons {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .payment-method-buttons .payment-type-btn {
+            flex: 1 1 90px;
+            min-width: 0;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 10px 12px;
+            border: 2px solid var(--theme-input-border, #e4ddd6);
+            background: var(--theme-input-bg, #fff);
+            color: var(--theme-text-primary, #4a5568);
+            border-radius: 8px;
+            font-size: 12.5px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: border-color .2s ease, background .2s ease, color .2s ease;
+        }
+
+        .payment-method-buttons .payment-type-btn i {
+            width: 15px;
+            height: 15px;
+            flex: 0 0 auto;
+        }
+
+        .payment-method-buttons .payment-type-btn.active {
+            border-color: #ff8a00;
+            background: linear-gradient(135deg, rgba(255, 138, 0, .12) 0%, rgba(217, 111, 0, .12) 100%);
+            color: #ff8a00;
+        }
+
+        #payment_amount {
+            font-variant-numeric: tabular-nums;
+            letter-spacing: .02em;
+        }
+
     </style>
     <style>
         /* Force unified background */
@@ -3540,432 +3967,7 @@
                 <p>Выберите ученика из списка</p>
             </div>
 
-            {% for student in students[:1] %}
-            {% set balance_value = balances.get(student.id) if balances else 0 %}
-            {% set payment = payment_info.get(student.id) if payment_info else None %}
-            {% set points = student_points.get(student.id) if student_points else 0 %}
-            {% set turnstile = access_info.get(student.id) if access_info else None %}
-            <div class="student-details-content hidden"
-                id="studentDetails_{{ student.id }}">
-                <div class="student-details-header">
-                    <div class="student-details-header-top">
-                        <div class="student-main-info">
-                            <!-- Группа -->
-                            <div class="student-info-item">
-                                <div class="info-item-label">Группа</div>
-                                <div class="info-item-value">{{ student.group.name if student.group else 'Без
-                                    группы' }}</div>
-                            </div>
-                            <!-- Тариф -->
-                            <div class="student-info-item">
-                                <div class="info-item-label">Тариф</div>
-                                <div class="info-item-value">{{ student.tariff.name if student.tariff else 'Не
-                                    указан' }}</div>
-                            </div>
-                            <!-- Баланс -->
-                            <div class="student-info-item">
-                                <div class="info-item-label">Баланс</div>
-                                <div
-                                    class="info-item-value {% if not student.club_funded %}{% if balance_value > 0 %}balance-positive{% elif balance_value <= 0 %}balance-negative{% endif %}{% endif %}">
-                                    {% if student.club_funded %}♾️{% else %}{{ balance_value }}{% endif %}</div>
-                            </div>
-                            <!-- Статус -->
-                            <div class="student-info-item">
-                                <div class="info-item-label">Статус</div>
-                                <div class="info-item-value">
-                                    {% if student.status == 'active' %}✓ Активен
-                                    {% elif student.status == 'inactive' %}○ Неактивен
-                                    {% elif student.status == 'blacklist' %}⚠️ ЧС
-                                    {% else %}-{% endif %}
-                                </div>
-                            </div>
-                            <!-- Баллы -->
-                            <div class="student-info-item">
-                                <div class="info-item-label">Баллы</div>
-                                <div class="info-item-value">
-                                    <span class="points-icon">⭐</span>{{ points }}
-                                </div>
-                            </div>
-                            <div class="turnstile-status-card {{ 'pass' if turnstile and turnstile.will_pass else 'block' }}">
-                                <div class="turnstile-status-title">Турникет</div>
-                                <div class="turnstile-status-value">
-                                    {% if turnstile and turnstile.will_pass %}Пройдет{% else %}Не пройдет{% endif %}
-                                </div>
-                                <div class="turnstile-status-reason"
-                                    title="{{ turnstile.reason_label if turnstile else 'Нет данных' }}{% if turnstile and turnstile.debt %} · долг {{ '{:,.0f}'.format(turnstile.debt).replace(',', ' ') }} сум{% endif %}">
-                                    {{ turnstile.reason_label if turnstile else 'Нет данных' }}
-                                    {% if turnstile and turnstile.debt %}
-                                    · долг {{ "{:,.0f}".format(turnstile.debt).replace(",", " ") }} сум
-                                    {% endif %}
-                                </div>
-                            </div>
-                            <!-- Telegram код -->
-                            <div class="student-info-item">
-                                <div class="info-item-label">Telegram</div>
-                                <div class="info-item-value"
-                                    style="display: flex; align-items: center; justify-content: center; gap: 4px; flex-wrap: wrap;">
-                                    <button type="button" class="btn-copy-code"
-                                        data-code="{{ student.telegram_link_code or '' }}"
-                                        data-student-id="{{ student.id }}"
-                                        style="width: 20px; height: 20px; padding: 0; background: #f3f4f6; border: none; border-radius: 3px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
-                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
-                                            xmlns="http://www.w3.org/2000/svg">
-                                            <path
-                                                d="M16 1H4C2.9 1 2 1.9 2 3V17H4V3H16V1ZM19 5H8C6.9 5 6 5.9 6 7V21C6 22.1 6.9 23 8 23H19C20.1 23 21 22.1 21 21V7C21 5.9 20.1 5 19 5ZM19 21H8V7H19V21Z"
-                                                fill="#9ca3af" />
-                                        </svg>
-                                    </button>
-                                    <span id="telegram_code_main_{{ student.id }}"
-                                        style="font-family: monospace; font-size: 10px; font-weight: 700; color: var(--theme-text-primary);">
-                                        {{ student.telegram_link_code or 'Генерируется...' }}
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="student-actions-top">
-                            <button class="action-btn btn-info edit-student-btn" data-student-id="{{ student.id }}">
-                                <svg class="action-icon" viewBox="0 0 24 24" fill="none"
-                                    xmlns="http://www.w3.org/2000/svg">
-                                    <path
-                                        d="M11 4H4C3.46957 4 2.96086 4.21071 2.58579 4.58579C2.21071 4.96086 2 5.46957 2 6V20C2 20.5304 2.21071 21.0391 2.58579 21.4142C2.96086 21.7893 3.46957 22 4 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V13"
-                                        stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                        stroke-linejoin="round" />
-                                    <path
-                                        d="M18.5 2.50023C18.8978 2.10243 19.4374 1.87891 20 1.87891C20.5626 1.87891 21.1022 2.10243 21.5 2.50023C21.8978 2.89804 22.1213 3.43762 22.1213 4.00023C22.1213 4.56284 21.8978 5.10243 21.5 5.50023L12 15.0002L8 16.0002L9 12.0002L18.5 2.50023Z"
-                                        stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                        stroke-linejoin="round" />
-                                </svg>
-                            </button>
-                            <button class="action-btn btn-danger delete-student-btn" data-student-id="{{ student.id }}"
-                                data-student-name="{{ student.full_name }}">
-                                <svg class="action-icon" viewBox="0 0 24 24" fill="none"
-                                    xmlns="http://www.w3.org/2000/svg">
-                                    <path d="M3 6H5H21" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                        stroke-linejoin="round" />
-                                    <path
-                                        d="M8 6V4C8 3.46957 8.21071 2.96086 8.58579 2.58579C8.96086 2.21071 9.46957 2 10 2H14C14.5304 2 15.0391 2.21071 15.4142 2.58579C15.7893 2.96086 16 3.46957 16 4V6M19 6V20C19 20.5304 18.7893 21.0391 18.4142 21.4142C18.0391 21.7893 17.5304 22 17 22H7C6.46957 22 5.96086 21.7893 5.58579 21.4142C5.21071 21.0391 5 20.5304 5 20V6H19Z"
-                                        stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                        stroke-linejoin="round" />
-                                </svg>
-                            </button>
-                        </div>
-                    </div>
-                    <!-- Вкладки: Информация, Оплаты, Финансы, Вознаграждения и Посещения -->
-                    <div class="student-tabs">
-                        <button class="student-tab active" data-tab="info"
-                            data-student-id="{{ student.id }}">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
-                                fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"
-                                stroke-linejoin="round" class="lucide lucide-info-icon lucide-info">
-                                <circle cx="12" cy="12" r="10" />
-                                <path d="M12 16v-4" />
-                                <path d="M12 8h.01" />
-                            </svg>
-                            Информация
-                        </button>
-                        <button class="student-tab" data-tab="payments"
-                            data-student-id="{{ student.id }}">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
-                                fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"
-                                stroke-linejoin="round" class="lucide lucide-credit-card-icon lucide-credit-card">
-                                <rect width="20" height="14" x="2" y="5" rx="2" />
-                                <line x1="2" x2="22" y1="10" y2="10" />
-                            </svg>
-                            Оплаты
-                        </button>
-                        <button class="student-tab" data-tab="finances"
-                            data-student-id="{{ student.id }}">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
-                                fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"
-                                stroke-linejoin="round" class="lucide lucide-wallet-icon lucide-wallet">
-                                <path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3v4a1 1 0 0 1-1 1H5a2 2 0 0 1-2-2V5" />
-                                <path d="M18 12h.01" />
-                            </svg>
-                            Финансы
-                        </button>
-                        <button class="student-tab" data-tab="history"
-                            data-student-id="{{ student.id }}">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
-                                fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"
-                                stroke-linejoin="round" class="lucide lucide-award-icon lucide-award">
-                                <circle cx="12" cy="8" r="6" />
-                                <path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11" />
-                            </svg>
-                            Вознаграждения
-                        </button>
-                        <button class="student-tab" data-tab="attendance"
-                            data-student-id="{{ student.id }}">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
-                                fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"
-                                stroke-linejoin="round" class="lucide lucide-clipboard-check-icon lucide-clipboard-check">
-                                <rect width="8" height="4" x="8" y="2" rx="1" />
-                                <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
-                                <path d="m9 14 2 2 4-4" />
-                            </svg>
-                            Посещения
-                        </button>
-                    </div>
-                </div>
-
-                <div class="student-details-body">
-                    <!-- Вкладки: Информация, Оплаты, Финансы, Вознаграждения и Посещения -->
-                    <div class="student-tabs-section">
-                        <!-- Вкладка: Информация -->
-                        <div class="student-tab-content active" id="tab-info-{{ student.id }}">
-                            <div class="student-name-section">
-                                <h2 class="student-full-name">■ {{ student.full_name }}</h2>
-                            </div>
-
-                            <!-- Паспортные данные, телефоны и адрес -->
-                            <div class="student-info-section">
-                                <!-- Первая строка: Паспортные данные | Телефоны -->
-                                <div class="info-row">
-                                    <div class="info-group">
-                                        <h4 class="info-group-title">Паспортные данные</h4>
-                                        <div class="info-group-content">
-                                            <div class="info-item">
-                                                <span class="info-item-label">Серия и номер:</span>
-                                                <span class="info-item-text">{{ (student.passport_series or '')
-                                                    + ' ' + (student.passport_number or '') if
-                                                    student.passport_series or student.passport_number else '-'
-                                                    }}</span>
-                                            </div>
-                                            <div class="info-item">
-                                                <span class="info-item-label">Кем выдан:</span>
-                                                <span class="info-item-text">{{ student.passport_issued_by or
-                                                    '-' }}</span>
-                                            </div>
-                                            <div class="info-item">
-                                                <span class="info-item-label">Дата выдачи:</span>
-                                                <span class="info-item-text">{{
-                                                    student.passport_issue_date|format_date if
-                                                    student.passport_issue_date else '-' }}</span>
-                                            </div>
-                                            <div class="info-item">
-                                                <span class="info-item-label">Срок действия:</span>
-                                                <span class="info-item-text">{{
-                                                    student.passport_expiry_date|format_date if
-                                                    student.passport_expiry_date else '-' }}</span>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div class="info-group">
-                                        <h4 class="info-group-title">Телефоны</h4>
-                                        <div class="info-group-content">
-                                            <div class="info-item">
-                                                <span class="info-item-label">Телефон ученика:</span>
-                                                <div style="display: flex; align-items: center; gap: 8px;">
-                                                    <span class="info-item-text">{{ student.phone or '-'
-                                                        }}</span>
-                                                    {% if student.phone and student.phone != '-' %}
-                                                    <button type="button" class="btn-copy-text"
-                                                        data-text="{{ student.phone }}"
-                                                        style="width: 24px; height: 24px; padding: 0; background: #f3f4f6; border: none; border-radius: 3px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
-                                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-                                                            xmlns="http://www.w3.org/2000/svg">
-                                                            <path
-                                                                d="M16 1H4C2.9 1 2 1.9 2 3V17H4V3H16V1ZM19 5H8C6.9 5 6 5.9 6 7V21C6 22.1 6.9 23 8 23H19C20.1 23 21 22.1 21 21V7C21 5.9 20.1 5 19 5ZM19 21H8V7H19V21Z"
-                                                                fill="#9ca3af" />
-                                                        </svg>
-                                                    </button>
-                                                    {% endif %}
-                                                </div>
-                                            </div>
-                                            <div class="info-item">
-                                                <span class="info-item-label">Телефон родителя:</span>
-                                                <div style="display: flex; align-items: center; gap: 8px;">
-                                                    <span class="info-item-text">{{ student.parent_phone or '-'
-                                                        }}</span>
-                                                    {% if student.parent_phone and student.parent_phone != '-'
-                                                    %}
-                                                    <button type="button" class="btn-copy-text"
-                                                        data-text="{{ student.parent_phone }}"
-                                                        style="width: 24px; height: 24px; padding: 0; background: #f3f4f6; border: none; border-radius: 3px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
-                                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-                                                            xmlns="http://www.w3.org/2000/svg">
-                                                            <path
-                                                                d="M16 1H4C2.9 1 2 1.9 2 3V17H4V3H16V1ZM19 5H8C6.9 5 6 5.9 6 7V21C6 22.1 6.9 23 8 23H19C20.1 23 21 22.1 21 21V7C21 5.9 20.1 5 19 5ZM19 21H8V7H19V21Z"
-                                                                fill="#9ca3af" />
-                                                        </svg>
-                                                    </button>
-                                                    {% endif %}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- Вторая строка: Адресные данные | 📱 Telegram -->
-                                <div class="info-row">
-                                    <div class="info-group">
-                                        <h4 class="info-group-title">Адресные данные</h4>
-                                        <div class="info-group-content">
-                                            <div class="info-item">
-                                                <span class="info-item-label">Город:</span>
-                                                <span class="info-item-text">{{ student.city or '-' }}</span>
-                                            </div>
-                                            <div class="info-item">
-                                                <span class="info-item-label">Район:</span>
-                                                <span class="info-item-text">{{ student.district or '-'
-                                                    }}</span>
-                                            </div>
-                                            <div class="info-item">
-                                                <span class="info-item-label">Улица:</span>
-                                                <span class="info-item-text">{{ student.street or '-' }}</span>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div class="info-group">
-                                        <h4 class="info-group-title">Telegram</h4>
-                                        <div class="info-group-content">
-                                            <div class="info-item">
-                                                <span class="info-item-label">Telegram:</span>
-                                                <div style="display: flex; align-items: center; gap: 8px;">
-                                                    <span class="info-item-text" id="telegram_code_{{ student.id }}"
-                                                        style="font-family: monospace; font-size: 16px; font-weight: 600; color: #ff8a00;">
-                                                        {{ student.telegram_link_code or 'Генерируется...' }}
-                                                    </span>
-                                                    <button type="button" class="btn-copy-code"
-                                                        data-code="{{ student.telegram_link_code or '' }}"
-                                                        data-student-id="{{ student.id }}"
-                                                        style="width: 28px; height: 28px; padding: 0; background: #f3f4f6; border: none; border-radius: 3px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
-                                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-                                                            xmlns="http://www.w3.org/2000/svg">
-                                                            <path
-                                                                d="M16 1H4C2.9 1 2 1.9 2 3V17H4V3H16V1ZM19 5H8C6.9 5 6 5.9 6 7V21C6 22.1 6.9 23 8 23H19C20.1 23 21 22.1 21 21V7C21 5.9 20.1 5 19 5ZM19 21H8V7H19V21Z"
-                                                                fill="#9ca3af" />
-                                                        </svg>
-                                                    </button>
-                                                </div>
-                                            </div>
-                                            <div class="info-item">
-                                                <span class="info-item-label">Код для привязки:</span>
-                                                <span class="info-item-text" style="color: #94a3b8;">Отправьте
-                                                    этот код ученику</span>
-                                            </div>
-                                            <div class="info-item">
-                                                <span class="info-item-label">Статус:</span>
-                                                <span class="info-item-text" id="telegram_status_{{ student.id }}">
-                                                    {% if student.telegram_chat_id %}
-                                                    <span style="color: #10b981;">✅ Привязан</span>
-                                                    {% else %}
-                                                    <span style="color: #94a3b8;">⏳ Не привязан</span>
-                                                    {% endif %}
-                                                </span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Вкладка: Оплаты -->
-                        <div class="student-tab-content" id="tab-payments-{{ student.id }}">
-                            <div class="payments-content">
-                                <div class="history-section">
-                                    <div
-                                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-                                        <h4 class="history-section-title" style="margin: 0;">💳 История оплат
-                                        </h4>
-                                        <button class="game-btn game-btn-primary add-payment-btn"
-                                            data-student-id="{{ student.id }}">
-                                            <span class="btn-plus" aria-hidden="true">+</span>
-                                            <span>Добавить оплату</span>
-                                        </button>
-                                    </div>
-                                    <div id="payments-history-{{ student.id }}" class="history-list">
-                                        <p style="color: #94a3b8; text-align: center; padding: 20px;">
-                                            Загрузка...</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="student-tab-content" id="tab-finances-{{ student.id }}">
-                            <div class="financial-info">
-                                <div class="financial-row">
-                                    <span class="financial-label">Долг:</span>
-                                    <span class="financial-value" id="student-debt-{{ student.id }}">
-                                        <span style="color: #94a3b8;">Загрузка...</span>
-                                    </span>
-                                </div>
-                                <div class="financial-row">
-                                    <span class="financial-label">Тариф:</span>
-                                    <span class="financial-value" id="student-tariff-{{ student.id }}">
-                                        {{ student.tariff.name if student.tariff else 'Не указан' }}
-                                    </span>
-                                </div>
-                                <div class="financial-row">
-                                    <span class="financial-label">Дата принятия:</span>
-                                    <span class="financial-value">{{ student.admission_date|format_date if
-                                        student.admission_date else '-' }}</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="student-tab-content" id="tab-history-{{ student.id }}">
-                            <div class="history-content">
-                                <!-- История вознаграждений -->
-                                <div class="history-section">
-                                    <div
-                                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-                                        <h4 class="history-section-title" style="margin: 0;">⭐ История
-                                            вознаграждений</h4>
-                                        <button class="game-btn game-btn-primary give-reward-btn"
-                                            data-student-id="{{ student.id }}"
-                                            style="padding: 8px 16px; font-size: 14px;">
-                                            <span>⭐</span>
-                                            <span>Выдать вознаграждение</span>
-                                        </button>
-                                    </div>
-                                    <div id="rewards-history-{{ student.id }}" class="history-list">
-                                        <p style="color: #94a3b8; text-align: center; padding: 20px;">
-                                            Загрузка...</p>
-                                    </div>
-                                </div>
-
-                                <!-- История карточек -->
-                                <div class="history-section">
-                                    <h4 class="history-section-title">🟨 История карточек</h4>
-                                    <div id="cards-history-{{ student.id }}" class="history-list">
-                                        <p style="color: #94a3b8; text-align: center; padding: 20px;">
-                                            Загрузка...</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="student-tab-content" id="tab-attendance-{{ student.id }}">
-                            <div class="attendance-content">
-                                <div class="attendance-calendar-container">
-                                    <div class="attendance-year-controls"
-                                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; padding: 16px; background: var(--theme-bg-secondary); border-radius: 12px;">
-                                        <button class="game-btn game-btn-secondary" id="prev-year-btn-{{ student.id }}"
-                                            style="padding: 8px 16px;">
-                                            <span>←</span>
-                                            <span id="prev-year-label-{{ student.id }}"></span>
-                                        </button>
-                                        <h3 style="margin: 0; font-size: 20px; font-weight: 700; color: var(--theme-text-primary);"
-                                            id="current-year-label-{{ student.id }}"></h3>
-                                        <button class="game-btn game-btn-secondary" id="next-year-btn-{{ student.id }}"
-                                            style="padding: 8px 16px;">
-                                            <span id="next-year-label-{{ student.id }}"></span>
-                                            <span>→</span>
-                                        </button>
-                                    </div>
-                                    <div id="attendance-calendar-{{ student.id }}" class="attendance-calendar-grid">
-                                        <p style="color: #94a3b8; text-align: center; padding: 20px;">
-                                            Загрузка...</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            {% endfor %}
+            {# Карточка ученика целиком строится в JS: buildStudentDetailsHtml #}
         </div>
 
         <!-- Секция 3: Фото ученика (фиксированное) -->
@@ -4157,9 +4159,9 @@
                     <button class="btn-small btn-info edit-student-btn" data-student-id="{{ student.id }}" title="Изменить">
                         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
                     </button>
-                    <button class="btn-small btn-danger delete-student-btn" data-student-id="{{ student.id }}"
-                        data-student-name="{{ student.full_name }}" title="Удалить">
-                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v5"/><path d="M14 11v5"/></svg>
+                    <button class="btn-small btn-warning archive-student-btn" data-student-id="{{ student.id }}"
+                        data-student-name="{{ student.full_name }}" title="В архив">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="4" width="20" height="5" rx="1"/><path d="M4 9v10a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V9"/><path d="M10 13h4"/></svg>
                     </button>
                 </td>
             </tr>
@@ -5021,17 +5023,22 @@
 
                     <div class="form-group">
                         <label>Способ оплаты *</label>
-                        <div class="payment-method-buttons" style="display: flex; gap: 8px; flex-wrap: wrap;">
-                            <button type="button" class="payment-type-btn active" data-payment-type="cash"
-                                style="flex: 1; min-width: 0; padding: 8px 12px; border: 2px solid #ff8a00; background: linear-gradient(135deg, rgba(255, 138, 0, 0.1) 0%, rgba(217, 111, 0, 0.1) 100%); border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600; color: #ff8a00; transition: all 0.3s;">Наличные</button>
-                            <button type="button" class="payment-type-btn" data-payment-type="card"
-                                style="flex: 1; min-width: 0; padding: 8px 12px; border: 2px solid #e4ddd6; background: white; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600; color: #4a5568; transition: all 0.3s;">Карта</button>
-                            <button type="button" class="payment-type-btn" data-payment-type="click"
-                                style="flex: 1; min-width: 0; padding: 8px 12px; border: 2px solid #e4ddd6; background: white; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600; color: #4a5568; transition: all 0.3s;">Click</button>
-                            <button type="button" class="payment-type-btn" data-payment-type="payme"
-                                style="flex: 1; min-width: 0; padding: 8px 12px; border: 2px solid #e4ddd6; background: white; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600; color: #4a5568; transition: all 0.3s;">Payme</button>
-                            <button type="button" class="payment-type-btn" data-payment-type="uzum"
-                                style="flex: 1; min-width: 0; padding: 8px 12px; border: 2px solid #e4ddd6; background: white; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600; color: #4a5568; transition: all 0.3s;">Uzum</button>
+                        <div class="payment-method-buttons pay-method-group">
+                            <button type="button" class="payment-type-btn active" data-payment-type="cash">
+                                <i data-lucide="banknote"></i><span>Наличные</span>
+                            </button>
+                            <button type="button" class="payment-type-btn" data-payment-type="card">
+                                <i data-lucide="credit-card"></i><span>Карта</span>
+                            </button>
+                            <button type="button" class="payment-type-btn" data-payment-type="click">
+                                <i data-lucide="circle-dot"></i><span>Click</span>
+                            </button>
+                            <button type="button" class="payment-type-btn" data-payment-type="payme">
+                                <i data-lucide="wallet"></i><span>Payme</span>
+                            </button>
+                            <button type="button" class="payment-type-btn" data-payment-type="uzum">
+                                <i data-lucide="shopping-bag"></i><span>Uzum</span>
+                            </button>
                         </div>
                         <input type="hidden" id="selected_payment_type" name="payment_type" value="cash">
                     </div>
@@ -5039,8 +5046,8 @@
                     <!-- Поле для суммы оплаты -->
                     <div class="form-group">
                         <label>Сумма оплаты (сум) *</label>
-                        <input type="number" id="payment_amount" name="payment_amount" min="0" step="1000"
-                            placeholder="Введите сумму" required>
+                        <input type="text" id="payment_amount" name="payment_amount" inputmode="numeric"
+                            autocomplete="off" placeholder="Введите сумму" required>
                         <small id="payment-max-amount" style="color: #7f8c8d; display: none; margin-top: 5px;"></small>
                     </div>
 
@@ -5189,11 +5196,11 @@
     </div>
 
     <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/students.js') }}?v=2026071501"></script>
+    <script src="{{ url_for('static', filename='js/students.js') }}?v=2026081301"></script>
     <script src="{{ url_for('static', filename='js/students_rewards.js') }}"></script>
     <script src="{{ url_for('static', filename='js/students_cards.js') }}"></script>
     <script src="{{ url_for('static', filename='js/students_params.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/sidebar.js') }}?v=2026080801"></script>
+    <script src="{{ url_for('static', filename='js/sidebar.js') }}?v=2026081301"></script>
     <script>
         // Сохранение состояния в localStorage
         function savePageState() {
@@ -5275,11 +5282,18 @@
             const currentYear = new Date().getFullYear();
             const age = student.birth_year ? `${currentYear - Number(student.birth_year)} лет` : '-';
             const lowBalance = !student.club_funded && Number(student.balance || 0) <= 2;
+            const archived = student.status === 'archived';
+            const willPass = Boolean(student.will_pass);
             const classes = [
                 'student-list-item',
                 lowBalance ? 'low-balance' : '',
-                student.status === 'blacklist' ? 'blacklisted' : ''
+                student.status === 'blacklist' ? 'blacklisted' : '',
+                archived ? 'archived' : '',
+                willPass ? 'will-pass' : 'will-block'
             ].filter(Boolean).join(' ');
+            const passTitle = archived
+                ? 'В архиве, в терминалы не выгружается'
+                : `${willPass ? 'Пройдет' : 'Не пройдет'}: ${student.access_reason_label || ''}`;
 
             return `
                 <div class="${classes}"
@@ -5289,7 +5303,10 @@
                     data-search="${escapeHtml(student.search || '')}"
                     onclick="selectStudent(${Number(student.id)})">
                     <div class="student-item-status"></div>
-                    <div class="student-item-photo">${getStudentPhotoListHtml(student)}</div>
+                    <div class="student-item-photo">
+                        ${getStudentPhotoListHtml(student)}
+                        <span class="student-item-terminals">${buildTerminalBadgesHtml(student.terminals, { compact: true })}</span>
+                    </div>
                     <div class="student-item-info">
                         <div class="student-item-name">${escapeHtml(student.full_name)}</div>
                         <div class="student-item-meta">
@@ -5299,6 +5316,11 @@
                                     ? '<span class="badge-club">♾️</span>'
                                     : `<span class="badge-balance ${lowBalance ? 'low' : ''}">${escapeHtml(student.balance ?? 0)}</span>`}
                             </span>
+                            ${archived
+                                ? '<span class="badge-archived" title="Ученик в архиве"><i data-lucide="archive"></i> Архив</span>'
+                                : `<span class="badge-pass ${willPass ? 'ok' : 'no'}" title="${escapeHtml(passTitle)}">
+                                       <i data-lucide="${willPass ? 'door-open' : 'door-closed'}"></i>${willPass ? 'Пройдет' : 'Не пройдет'}
+                                   </span>`}
                         </div>
                         <div class="student-item-group">${escapeHtml(student.group_name || 'Без группы')}</div>
                     </div>
@@ -5429,6 +5451,7 @@
                 container.innerHTML = students.length
                     ? students.map(buildStudentListItemHtml).join('')
                     : '<div class="students-list-state" style="padding:16px;text-align:center;color:#64748b;">В группе нет учеников</div>';
+                if (window.lucide) lucide.createIcons();
             } catch (error) {
                 console.error(error);
                 container.innerHTML = '<div class="students-list-state" style="padding:16px;text-align:center;color:#ef4444;">Не удалось загрузить учеников</div>';
@@ -5473,6 +5496,7 @@
                 const container = section.querySelector('.student-group-items');
                 container.insertAdjacentHTML('beforeend', items.map(buildStudentListItemHtml).join(''));
             });
+            if (window.lucide) lucide.createIcons();
         }
 
         async function loadStudentsPage({ reset = false } = {}) {
@@ -5591,6 +5615,212 @@
             `;
         }
 
+        const STUDENT_STATUS_META = {
+            active: { label: 'Активен', icon: 'circle-check', tone: 'ok' },
+            inactive: { label: 'Неактивен', icon: 'circle-pause', tone: 'muted' },
+            archived: { label: 'В архиве', icon: 'archive', tone: 'archived' },
+            blacklist: { label: 'Черный список', icon: 'ban', tone: 'danger' },
+        };
+
+        function getStudentStatusMeta(status) {
+            return STUDENT_STATUS_META[status] || { label: status || '-', icon: 'circle', tone: 'muted' };
+        }
+
+        function buildStudentMenuHtml(student) {
+            const id = student.id;
+            const archived = student.status === 'archived';
+            return `
+                <div class="student-card-menu" data-student-menu="${id}">
+                    <button type="button" class="student-card-menu-btn" aria-label="Действия" onclick="toggleStudentCardMenu(event, ${id})">
+                        <i data-lucide="more-vertical"></i>
+                    </button>
+                    <div class="student-card-menu-list" id="studentCardMenu_${id}">
+                        <button type="button" class="student-card-menu-item edit-student-btn" data-student-id="${id}">
+                            <i data-lucide="pencil"></i> Редактировать
+                        </button>
+                        ${archived
+                            ? `<button type="button" class="student-card-menu-item" onclick="restoreStudent(${id})">
+                                   <i data-lucide="rotate-ccw"></i> Вернуть из архива
+                               </button>`
+                            : `<button type="button" class="student-card-menu-item danger" onclick="archiveStudent(${id}, '${escapeHtml(student.full_name).replace(/'/g, "&#39;")}')">
+                                   <i data-lucide="archive"></i> В архив
+                               </button>`}
+                    </div>
+                </div>
+            `;
+        }
+
+        function buildTerminalBadgesHtml(terminals, { compact = false } = {}) {
+            const list = Array.isArray(terminals) ? terminals : [];
+            if (!list.length) {
+                return compact
+                    ? '<span class="terminal-badge unknown" title="Bridge еще не сообщал о состоянии терминалов"><i data-lucide="help-circle"></i></span>'
+                    : '<span class="terminal-badge unknown"><i data-lucide="help-circle"></i> нет данных от bridge</span>';
+            }
+            return list.map(item => {
+                const ok = Boolean(item.has_face);
+                const label = escapeHtml(item.device_label || item.device_name || 'Терминал');
+                const title = `${label}: ${ok ? 'фото записано' : 'фото нет'}`;
+                return `<span class="terminal-badge ${ok ? 'ok' : 'missing'}" title="${title}">
+                    <i data-lucide="${ok ? 'user-round-check' : 'user-round-x'}"></i>${compact ? '' : ' ' + label}
+                </span>`;
+            }).join('');
+        }
+
+        function buildStudentSummaryHtml(student) {
+            const id = student.id;
+            const access = student.turnstile_access || {};
+            const willPass = Boolean(access.will_pass);
+            const statusMeta = getStudentStatusMeta(student.status);
+            const balanceClass = !student.club_funded
+                ? (Number(student.balance || 0) > 0 ? 'balance-positive' : 'balance-negative')
+                : '';
+
+            return `
+                <div class="student-summary">
+                    <div class="student-summary-grid">
+                        <div class="summary-chip">
+                            <span class="summary-chip-label">Группа</span>
+                            <span class="summary-chip-value">${escapeHtml(student.group_name || 'Без группы')}</span>
+                        </div>
+                        <div class="summary-chip">
+                            <span class="summary-chip-label">Тариф</span>
+                            <span class="summary-chip-value">${escapeHtml(student.tariff_name || 'Не указан')}</span>
+                        </div>
+                        <div class="summary-chip">
+                            <span class="summary-chip-label">Баланс</span>
+                            <span class="summary-chip-value ${balanceClass}">${student.club_funded ? '♾️' : escapeHtml(student.balance ?? 0)}</span>
+                        </div>
+                        <div class="summary-chip">
+                            <span class="summary-chip-label">Статус</span>
+                            <span class="summary-chip-value status-${statusMeta.tone}">
+                                <i data-lucide="${statusMeta.icon}"></i> ${escapeHtml(statusMeta.label)}
+                            </span>
+                        </div>
+                        <div class="summary-chip">
+                            <span class="summary-chip-label">Баллы</span>
+                            <span class="summary-chip-value">⭐ ${escapeHtml(student.points || 0)}</span>
+                        </div>
+                        <div class="summary-chip">
+                            <span class="summary-chip-label">Telegram</span>
+                            <span class="summary-chip-value">
+                                <button type="button" class="btn-copy-code" data-code="${escapeHtml(student.telegram_link_code || '')}" data-student-id="${id}" title="Скопировать код">
+                                    <i data-lucide="copy"></i>
+                                </button>
+                                <span id="telegram_code_main_${id}" class="telegram-code">${escapeHtml(student.telegram_link_code || '...')}</span>
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="turnstile-panel ${willPass ? 'pass' : 'block'}" id="turnstilePanel_${id}">
+                        <div class="turnstile-panel-head">
+                            <span class="turnstile-panel-icon"><i data-lucide="${willPass ? 'door-open' : 'door-closed'}"></i></span>
+                            <div class="turnstile-panel-title">
+                                <span class="turnstile-panel-label">Турникет</span>
+                                <strong class="turnstile-panel-value">${willPass ? 'Пройдет' : 'Не пройдет'}</strong>
+                            </div>
+                            <div class="turnstile-panel-terminals">${buildTerminalBadgesHtml(student.terminals)}</div>
+                        </div>
+                        <div class="turnstile-panel-body" id="turnstileDetails_${id}">
+                            <span class="turnstile-loading">Считаем долг по месяцам...</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function buildDebtMonthsHtml(access) {
+            const months = access.debt_months || [];
+            if (!months.length) return '';
+            const rows = months.map(item => `
+                <div class="debt-month ${item.is_current ? 'current' : ''}">
+                    <span class="debt-month-label">${escapeHtml(item.month_name)} ${item.year}</span>
+                    <span class="debt-month-sum">${formatMoney(item.debt)} сум</span>
+                </div>
+            `).join('');
+            return `
+                <div class="debt-breakdown">
+                    <div class="debt-breakdown-head">
+                        <span>Долг по месяцам</span>
+                        <strong>${formatMoney(access.total_debt)} сум за ${months.length} мес.</strong>
+                    </div>
+                    <div class="debt-month-list">${rows}</div>
+                </div>
+            `;
+        }
+
+        async function loadStudentAccessDetails(studentId) {
+            const holder = document.getElementById(`turnstileDetails_${studentId}`);
+            if (!holder) return;
+            try {
+                const response = await fetch(`/api/students/${studentId}/access-details`);
+                const data = await response.json();
+                if (!data.success) throw new Error(data.message || 'Не удалось получить данные');
+
+                const access = data.access;
+                const panel = document.getElementById(`turnstilePanel_${studentId}`);
+                if (panel) {
+                    panel.classList.toggle('pass', access.will_pass);
+                    panel.classList.toggle('block', !access.will_pass);
+                    const value = panel.querySelector('.turnstile-panel-value');
+                    if (value) value.textContent = access.will_pass ? 'Пройдет' : 'Не пройдет';
+                    const terminals = panel.querySelector('.turnstile-panel-terminals');
+                    if (terminals) terminals.innerHTML = buildTerminalBadgesHtml(data.terminals);
+                }
+
+                const photoBadges = document.getElementById(`photoTerminals_${studentId}`);
+                if (photoBadges) photoBadges.innerHTML = buildTerminalBadgesHtml(data.terminals);
+
+                const explanation = (access.explanation || [])
+                    .map(text => `<li>${escapeHtml(text)}</li>`).join('');
+                holder.innerHTML = `
+                    ${explanation ? `<ul class="turnstile-reasons">${explanation}</ul>` : ''}
+                    ${buildDebtMonthsHtml(access)}
+                `;
+                if (window.lucide) lucide.createIcons();
+            } catch (error) {
+                holder.innerHTML = `<span class="turnstile-loading">Не удалось загрузить детали: ${escapeHtml(error.message)}</span>`;
+            }
+        }
+
+        function toggleStudentCardMenu(event, studentId) {
+            event.stopPropagation();
+            const menu = document.getElementById(`studentCardMenu_${studentId}`);
+            if (!menu) return;
+            const wasOpen = menu.classList.contains('open');
+            document.querySelectorAll('.student-card-menu-list.open').forEach(el => el.classList.remove('open'));
+            if (!wasOpen) menu.classList.add('open');
+        }
+
+        document.addEventListener('click', () => {
+            document.querySelectorAll('.student-card-menu-list.open').forEach(el => el.classList.remove('open'));
+        });
+
+        async function archiveStudent(studentId, fullName) {
+            if (!confirm(`Переместить ${fullName} в архив?\n\nЗапись будет удалена из терминалов, но оплаты и посещения сохранятся. Ученика всегда можно вернуть.`)) return;
+            try {
+                const response = await fetch(`/api/students/${studentId}/archive`, { method: 'POST' });
+                const data = await response.json();
+                if (!data.success) throw new Error(data.message || 'Не удалось архивировать');
+                alert(data.message);
+                window.location.reload();
+            } catch (error) {
+                alert('Ошибка: ' + error.message);
+            }
+        }
+
+        async function restoreStudent(studentId) {
+            try {
+                const response = await fetch(`/api/students/${studentId}/restore`, { method: 'POST' });
+                const data = await response.json();
+                if (!data.success) throw new Error(data.message || 'Не удалось восстановить');
+                alert(data.message);
+                window.location.reload();
+            } catch (error) {
+                alert('Ошибка: ' + error.message);
+            }
+        }
+
         function buildStudentDetailsHtml(student) {
             const id = student.id;
             const access = student.turnstile_access || {};
@@ -5600,50 +5830,8 @@
                 : '';
 
             return `
-                <div class="student-details-content hidden" id="studentDetails_${id}">
+                <div class="student-details-content hidden${student.status === 'archived' ? ' is-archived' : ''}" id="studentDetails_${id}" data-status="${escapeHtml(student.status || '')}">
                     <div class="student-details-header">
-                        <div class="student-details-header-top">
-                            <div class="student-main-info">
-                                <div class="student-info-item">
-                                    <div class="info-item-label">Группа</div>
-                                    <div class="info-item-value">${escapeHtml(student.group_name || 'Без группы')}</div>
-                                </div>
-                                <div class="student-info-item">
-                                    <div class="info-item-label">Тариф</div>
-                                    <div class="info-item-value">${escapeHtml(student.tariff_name || 'Не указан')}</div>
-                                </div>
-                                <div class="student-info-item">
-                                    <div class="info-item-label">Баланс</div>
-                                    <div class="info-item-value ${balanceClass}">${student.club_funded ? '♾️' : escapeHtml(student.balance ?? 0)}</div>
-                                </div>
-                                <div class="student-info-item">
-                                    <div class="info-item-label">Статус</div>
-                                    <div class="info-item-value">${getStudentStatusText(student.status)}</div>
-                                </div>
-                                <div class="student-info-item">
-                                    <div class="info-item-label">Баллы</div>
-                                    <div class="info-item-value"><span class="points-icon">⭐</span>${escapeHtml(student.points || 0)}</div>
-                                </div>
-                                ${buildTurnstileHtml(access)}
-                                <div class="student-info-item">
-                                    <div class="info-item-label">Telegram</div>
-                                    <div class="info-item-value" style="display:flex;align-items:center;justify-content:center;gap:4px;flex-wrap:wrap;">
-                                        <button type="button" class="btn-copy-code" data-code="${escapeHtml(student.telegram_link_code || '')}" data-student-id="${id}" style="width:20px;height:20px;padding:0;background:#f3f4f6;border:none;border-radius:3px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M16 1H4C2.9 1 2 1.9 2 3V17H4V3H16V1ZM19 5H8C6.9 5 6 5.9 6 7V21C6 22.1 6.9 23 8 23H19C20.1 23 21 22.1 21 21V7C21 5.9 20.1 5 19 5ZM19 21H8V7H19V21Z" fill="#9ca3af"/></svg>
-                                        </button>
-                                        <span id="telegram_code_main_${id}" style="font-family:monospace;font-size:10px;font-weight:700;color:var(--theme-text-primary);">${escapeHtml(student.telegram_link_code || 'Генерируется...')}</span>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="student-actions-top">
-                                <button class="action-btn btn-info edit-student-btn" data-student-id="${id}">
-                                    <svg class="action-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M11 4H4C3.46957 4 2.96086 4.21071 2.58579 4.58579C2.21071 4.96086 2 5.46957 2 6V20C2 20.5304 2.21071 21.0391 2.58579 21.4142C2.96086 21.7893 3.46957 22 4 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20V13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M18.5 2.50023C18.8978 2.10243 19.4374 1.87891 20 1.87891C20.5626 1.87891 21.1022 2.10243 21.5 2.50023C21.8978 2.89804 22.1213 3.43762 22.1213 4.00023C22.1213 4.56284 21.8978 5.10243 21.5 5.50023L12 15.0002L8 16.0002L9 12.0002L18.5 2.50023Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                                </button>
-                                <button class="action-btn btn-danger delete-student-btn" data-student-id="${id}" data-student-name="${escapeHtml(student.full_name)}">
-                                    <svg class="action-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 6H5H21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 6V4C8 3.46957 8.21071 2.96086 8.58579 2.58579C8.96086 2.21071 9.46957 2 10 2H14C14.5304 2 15.0391 2.21071 15.4142 2.58579C15.7893 2.96086 16 3.46957 16 4V6M19 6V20C19 20.5304 18.7893 21.0391 18.4142 21.4142C18.0391 21.7893 17.5304 22 17 22H7C6.46957 22 5.96086 21.7893 5.58579 21.4142C5.21071 21.0391 5 20.5304 5 20V6H19Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                                </button>
-                            </div>
-                        </div>
                         <div class="student-tabs">
                             <button class="student-tab active" data-tab="info" data-student-id="${id}">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-info-icon lucide-info"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
@@ -5670,7 +5858,11 @@
                     <div class="student-details-body">
                         <div class="student-tabs-section">
                             <div class="student-tab-content active" id="tab-info-${id}">
-                                <div class="student-name-section"><h2 class="student-full-name">■ ${escapeHtml(student.full_name)}</h2></div>
+                                <div class="student-name-section">
+                                    <h2 class="student-full-name">■ ${escapeHtml(student.full_name)}</h2>
+                                    ${buildStudentMenuHtml(student)}
+                                </div>
+                                ${buildStudentSummaryHtml(student)}
                                 <div class="student-info-section">
                                     <div class="info-row">
                                         <div class="info-group">
@@ -5770,6 +5962,9 @@
                                 <div class="student-photo-front">${photoHtml}</div>
                                 <div class="student-photo-back"><div class="student-photo-number">${escapeHtml(number)}</div></div>
                             </div>
+                            <div class="photo-terminal-badges" id="photoTerminals_${id}">
+                                ${buildTerminalBadgesHtml(student.terminals, { compact: false })}
+                            </div>
                         </div>
                         <div class="student-cards-container" id="studentCards_${id}">
                             <div class="student-cards-title">Карточки</div>
@@ -5816,6 +6011,8 @@
 
             if (!document.getElementById(`studentDetails_${studentId}`) && detailsPanel) {
                 detailsPanel.insertAdjacentHTML('beforeend', buildStudentDetailsHtml(student));
+                if (window.lucide) lucide.createIcons();
+                loadStudentAccessDetails(student.id);
             }
             if (!document.getElementById(`studentPhoto_${studentId}`) && photoPanel) {
                 photoPanel.insertAdjacentHTML('beforeend', buildStudentPhotoHtml(student));

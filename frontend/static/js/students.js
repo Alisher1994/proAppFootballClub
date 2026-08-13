@@ -704,20 +704,7 @@ document.addEventListener('click', async function (e) {
     document.getElementById('payment_notes').value = '';
 
     // Сбросить кнопки типов оплаты на "Наличные"
-    document.querySelectorAll('.payment-type-btn').forEach(btn => {
-        btn.classList.remove('active');
-        btn.style.border = '2px solid #e4ddd6';
-        btn.style.background = 'white';
-        btn.style.color = '#4a5568';
-    });
-    const cashBtn = document.querySelector('.payment-type-btn[data-payment-type="cash"]');
-    if (cashBtn) {
-        cashBtn.classList.add('active');
-        cashBtn.style.border = '2px solid #ff8a00';
-        cashBtn.style.background = 'linear-gradient(135deg, rgba(255, 138, 0, 0.1) 0%, rgba(217, 111, 0, 0.1) 100%)';
-        cashBtn.style.color = '#ff8a00';
-    }
-    document.getElementById('selected_payment_type').value = 'cash';
+    setPaymentType('cash');
 
     const debtInfoBlock = document.getElementById('month-debt-info-block');
     if (debtInfoBlock) debtInfoBlock.style.display = 'none';
@@ -1019,21 +1006,7 @@ function showPaymentInput(monthName, monthData, tariffPrice) {
     if (paymentNotesInput) paymentNotesInput.value = '';
 
     // Сбросить кнопки типов оплаты на "Наличные"
-    document.querySelectorAll('.payment-type-btn').forEach(btn => {
-        btn.classList.remove('active');
-        btn.style.border = '2px solid #e4ddd6';
-        btn.style.background = 'white';
-        btn.style.color = '#4a5568';
-    });
-    const cashBtn = document.querySelector('.payment-type-btn[data-payment-type="cash"]');
-    if (cashBtn) {
-        cashBtn.classList.add('active');
-        cashBtn.style.border = '2px solid #ff8a00';
-        cashBtn.style.background = 'linear-gradient(135deg, rgba(255, 138, 0, 0.1) 0%, rgba(217, 111, 0, 0.1) 100%)';
-        cashBtn.style.color = '#ff8a00';
-    }
-    const selectedPaymentType = document.getElementById('selected_payment_type');
-    if (selectedPaymentType) selectedPaymentType.value = 'cash';
+    setPaymentType('cash');
 
     // Отобразить историю частичных платежей
     const historyDiv = document.getElementById('partialPaymentsHistory');
@@ -1143,7 +1116,7 @@ document.getElementById('paymentForm').addEventListener('submit', async (e) => {
 
     // Получить выбранный тип оплаты и сумму
     const paymentType = document.getElementById('selected_payment_type').value;
-    const amount = parseFloat(document.getElementById('payment_amount').value);
+    const amount = parseAmountInput(document.getElementById('payment_amount').value);
 
     if (!amount || amount <= 0) {
         alert('Введите корректную сумму оплаты');
@@ -1186,31 +1159,45 @@ document.getElementById('paymentForm').addEventListener('submit', async (e) => {
     }
 });
 
-// Обработчик переключения способа оплаты (новые кнопки)
+// Выбор способа оплаты. Активное состояние держим на классе, а не на
+// инлайн-стилях: иначе тема с !important перебивает подсветку и кажется,
+// что кнопка не нажимается.
+function setPaymentType(paymentType) {
+    const group = document.querySelector('.payment-method-buttons');
+    if (group) {
+        group.querySelectorAll('.payment-type-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.getAttribute('data-payment-type') === paymentType);
+            btn.removeAttribute('style');
+        });
+    }
+    const hidden = document.getElementById('selected_payment_type');
+    if (hidden) hidden.value = paymentType;
+}
+
 document.addEventListener('click', function (e) {
-    const btn = e.target.closest('.payment-type-btn');
+    const btn = e.target.closest('.payment-method-buttons .payment-type-btn');
     if (!btn) return;
 
     e.preventDefault();
+    setPaymentType(btn.getAttribute('data-payment-type'));
+});
 
-    const paymentType = btn.getAttribute('data-payment-type');
+// Сумма с разделителем тысяч: показываем "400 000", отправляем 400000.
+function parseAmountInput(value) {
+    const digits = String(value || '').replace(/[^\d]/g, '');
+    return digits ? Number(digits) : NaN;
+}
 
-    // Убрать активный класс со всех кнопок
-    document.querySelectorAll('.payment-type-btn').forEach(b => {
-        b.classList.remove('active');
-        b.style.border = '2px solid #e4ddd6';
-        b.style.background = 'white';
-        b.style.color = '#4a5568';
-    });
+function formatAmountInput(input) {
+    const amount = parseAmountInput(input.value);
+    input.value = Number.isFinite(amount) ? amount.toLocaleString('ru-RU').replace(/\u00a0/g, ' ') : '';
+}
 
-    // Добавить активный класс к выбранной кнопке
-    btn.classList.add('active');
-    btn.style.border = '2px solid #ff8a00';
-    btn.style.background = 'linear-gradient(135deg, rgba(255, 138, 0, 0.1) 0%, rgba(217, 111, 0, 0.1) 100%)';
-    btn.style.color = '#ff8a00';
-
-    // Установить значение в скрытое поле
-    document.getElementById('selected_payment_type').value = paymentType;
+document.addEventListener('input', function (e) {
+    const input = e.target;
+    if (!input || (input.id !== 'payment_amount' && input.id !== 'edit_payment_amount')) return;
+    if (input.type === 'number') return;
+    formatAmountInput(input);
 });
 
 // Редактирование оплаты: открытие модалки по кнопке в истории (через делегирование событий)
@@ -1407,34 +1394,29 @@ document.addEventListener('click', async (e) => {
     }
 });
 
-// Удалить ученика (делегирование событий для работы с динамическими элементами)
+// Убрать ученика в архив. Учеников не удаляем: карточку всегда можно вернуть.
 document.addEventListener('click', async (e) => {
-    // Проверяем, кликнули ли на кнопку или на элемент внутри кнопки (SVG, path и т.д.)
-    const btn = e.target.closest('.delete-student-btn');
+    const btn = e.target.closest('.archive-student-btn');
     if (!btn) return;
 
-    // Предотвращаем всплытие и действие по умолчанию
     e.preventDefault();
     e.stopPropagation();
     e.stopImmediatePropagation();
 
     const studentId = btn.getAttribute('data-student-id');
-    const studentName = btn.getAttribute('data-student-name');
+    const studentName = btn.getAttribute('data-student-name') || 'ученика';
 
     if (!studentId) {
-        console.error('Не найден data-student-id у кнопки удаления');
+        console.error('Не найден data-student-id у кнопки архивации');
         return;
     }
 
-    if (!confirm(`Вы уверены, что хотите удалить ученика "${studentName}"?\n\nЭто действие необратимо и удалит все связанные данные (платежи, посещения).`)) {
+    if (!confirm(`Переместить "${studentName}" в архив?\n\nЗапись удалится из терминалов, но оплаты и посещения сохранятся. Ученика всегда можно вернуть из архива.`)) {
         return;
     }
 
     try {
-        const response = await fetch(`/api/students/${studentId}`, {
-            method: 'DELETE'
-        });
-
+        const response = await fetch(`/api/students/${studentId}/archive`, { method: 'POST' });
         const data = await response.json();
 
         if (data.success) {
@@ -1444,8 +1426,8 @@ document.addEventListener('click', async (e) => {
             alert('Ошибка: ' + data.message);
         }
     } catch (error) {
-        console.error('Ошибка удаления:', error);
-        alert('Ошибка при удалении ученика');
+        console.error('Ошибка архивации:', error);
+        alert('Ошибка при переносе ученика в архив');
     }
 });
 
