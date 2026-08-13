@@ -108,6 +108,26 @@ async function reportFaceState(device, { fullSnapshot = true } = {}) {
   }
 }
 
+/** Сообщает сайту, что лица этого человека в терминале больше нет. */
+async function reportFaceRemoved(device, employeeNo) {
+  try {
+    const res = await fetch(`${CONFIG.serverUrl}/api/hikvision/face-state`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-device-key': CONFIG.deviceKey },
+      body: JSON.stringify({
+        device_name: device.name || device.ip,
+        device_label: deviceShortLabel(device.name),
+        full_snapshot: false,
+        entries: [{ employeeNo: String(employeeNo), hasFace: false, photoHash: '' }],
+      }),
+      signal: AbortSignal.timeout(15000),
+    });
+    if (!res.ok) throw new Error(`face-state ${res.status}`);
+  } catch (error) {
+    console.warn(`[face] Не удалось сообщить об удалении ${employeeNo}: ${humanError(error)}`);
+  }
+}
+
 function faceStateKey(device, employeeNo) {
   return `${device.name || device.ip}:${employeeNo}`;
 }
@@ -1745,6 +1765,9 @@ async function syncPersonDevice(device, person, reports, action = 'upsert') {
 
     if (action === 'delete' || !person.enabled) {
       await deletePersonFromDevice(device, person.employeeNo);
+      flushFaceState();
+      // Иначе на сайте у архивных учеников остаются зеленые галочки
+      await reportFaceRemoved(device, person.employeeNo);
       stats.rejected = 1;
       const reason = action === 'delete' ? 'удален из системы' : accessReasonLabel(person.access_reason, person.access_reason_label);
       stats.results.rejected.push({ employeeNo: person.employeeNo, fullName: person.fullName || '', reason });
