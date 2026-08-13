@@ -237,7 +237,9 @@ class Student(db.Model):
     balance = db.Column(db.Integer, default=0)  # Оставшиеся занятия
     tariff_type = db.Column(db.String(50))  # Например: "8 занятий"
     tariff_id = db.Column(db.Integer, db.ForeignKey('tariffs.id'), nullable=True)  # Связь с тарифом
-    status = db.Column(db.String(20), default='active')  # active, inactive, blacklist
+    status = db.Column(db.String(20), default='active')  # active, inactive, archived, blacklist
+    previous_status = db.Column(db.String(20))  # Статус до архивации, чтобы корректно восстановить
+    archived_at = db.Column(db.DateTime)  # Когда ученика убрали в архив
     blacklist_reason = db.Column(db.Text)  # Причина добавления в чёрный список
     admission_date = db.Column(db.Date)  # Дата принятия в клуб
     
@@ -325,6 +327,26 @@ class Payment(db.Model):
     
     def __repr__(self):
         return f'<Payment {self.amount_paid} for Student {self.student_id}>'
+
+
+class TerminalFaceState(db.Model):
+    """Что реально записано в терминал по данным локального bridge."""
+    __tablename__ = 'terminal_face_state'
+
+    id = db.Column(db.Integer, primary_key=True)
+    employee_no = db.Column(db.String(32), nullable=False, index=True)
+    device_name = db.Column(db.String(64), nullable=False)
+    device_label = db.Column(db.String(120))
+    has_face = db.Column(db.Boolean, default=False)
+    photo_hash = db.Column(db.String(64))
+    updated_at = db.Column(db.DateTime, default=get_local_datetime)
+
+    __table_args__ = (
+        db.UniqueConstraint('employee_no', 'device_name', name='uq_terminal_face_state'),
+    )
+
+    def __repr__(self):
+        return f'<TerminalFaceState {self.employee_no} @ {self.device_name}>'
 
 
 class Attendance(db.Model):

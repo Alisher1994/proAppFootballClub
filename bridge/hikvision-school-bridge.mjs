@@ -74,6 +74,40 @@ function flushFaceState() {
   }
 }
 
+/**
+ * Рассказывает серверу, чьи лица реально лежат в этом терминале.
+ * Сайт показывает это в карточке ученика зеленой или красной иконкой.
+ */
+async function reportFaceState(device, { fullSnapshot = true } = {}) {
+  const state = loadFaceState();
+  const prefix = `${device.name || device.ip}:`;
+  const entries = Object.keys(state)
+    .filter((key) => key.startsWith(prefix))
+    .map((key) => ({
+      employeeNo: key.slice(prefix.length),
+      hasFace: true,
+      photoHash: state[key],
+    }));
+
+  try {
+    const res = await fetch(`${CONFIG.serverUrl}/api/hikvision/face-state`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-device-key': CONFIG.deviceKey },
+      body: JSON.stringify({
+        device_name: device.name || device.ip,
+        device_label: deviceShortLabel(device.name),
+        full_snapshot: fullSnapshot,
+        entries,
+      }),
+      signal: AbortSignal.timeout(30000),
+    });
+    if (!res.ok) throw new Error(`face-state ${res.status}`);
+    console.log(`[face] Отправлено на сайт: ${entries.length} лиц в терминале ${deviceShortLabel(device.name)}`);
+  } catch (error) {
+    console.warn(`[face] Не удалось отправить состояние фото на сайт: ${humanError(error)}`);
+  }
+}
+
 function faceStateKey(device, employeeNo) {
   return `${device.name || device.ip}:${employeeNo}`;
 }
@@ -1655,6 +1689,8 @@ async function syncDevice(device, students, reports) {
   });
   setAction(`Терминал ${deviceName}: готово`);
   reports.unshift(`[${deviceShortLabel(device.name)}] Итог: успешно ${stats.upserted || stats.success || 0}, отклонено ${stats.rejected || 0}, ошибок ${stats.errors || 0}`);
+  flushFaceState();
+  await reportFaceState(device, { fullSnapshot: true });
   return changed;
 }
 
@@ -1720,7 +1756,11 @@ async function syncPersonDevice(device, person, reports, action = 'upsert') {
       await sleep(300);
       // Точечная команда приходит после правки карточки, фото могло смениться.
       const face = await uploadFace(device, person, { replace: true });
-      if (face === 'uploaded' || face === 'replaced') rememberFace(device, person);
+      if (face === 'uploaded' || face === 'replaced') {
+        rememberFace(device, person);
+        flushFaceState();
+        await reportFaceState(device, { fullSnapshot: false });
+      }
       stats.success = 1;
       const faceText = face === 'replaced' ? 'фото обновлено' : 'фото записано';
       stats.results.success.push({ employeeNo: person.employeeNo, fullName: person.fullName || '', detail: faceText });

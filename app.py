@@ -73,7 +73,7 @@ os.environ['FFMPEG_LOG_LEVEL'] = 'quiet'
 # Форсируем использование CUDA/TensorRT в ONNX
 os.environ['ORT_TENSORRT_FP16_ENABLE'] = '1'
 
-from backend.models.models import db, User, Student, Payment, Attendance, AccessLog, Expense, Group, GroupTrainer, Tariff, ClubSettings, RewardType, StudentReward, CashTransfer, Role, RolePermission, CardType, StudentCard, Tournament, TournamentTeamCatalog, TournamentTeamMember, TournamentStadium, TournamentTeamShareLink, TournamentEntry, TournamentGroup, TournamentMatch, TournamentMatchAppearance, TournamentMatchEvent, TournamentAward, DeviceCommand, BridgeStatus
+from backend.models.models import db, User, Student, Payment, Attendance, AccessLog, Expense, Group, GroupTrainer, Tariff, ClubSettings, RewardType, StudentReward, CashTransfer, Role, RolePermission, CardType, StudentCard, Tournament, TournamentTeamCatalog, TournamentTeamMember, TournamentStadium, TournamentTeamShareLink, TournamentEntry, TournamentGroup, TournamentMatch, TournamentMatchAppearance, TournamentMatchEvent, TournamentAward, DeviceCommand, BridgeStatus, TerminalFaceState
 # Live camera recognition stays disabled; access-log verification is separate.
 USE_FACE = False
 from backend.services.face_stub import DummyFaceService as FaceService
@@ -2050,6 +2050,18 @@ def ensure_students_columns():
                     print("✓ Добавлена колонка telegram_notifications_enabled")
                 except Exception: pass
             
+            # Архив
+            if 'previous_status' not in student_columns:
+                try:
+                    conn.execute(db.text("ALTER TABLE students ADD COLUMN previous_status VARCHAR(20)"))
+                    print("✓ Добавлена колонка previous_status")
+                except Exception: pass
+            if 'archived_at' not in student_columns:
+                try:
+                    conn.execute(db.text("ALTER TABLE students ADD COLUMN archived_at TIMESTAMP"))
+                    print("✓ Добавлена колонка archived_at")
+                except Exception: pass
+
             # Адрес
             if 'city' not in student_columns:
                 try:
@@ -4068,9 +4080,28 @@ def get_students_list():
         today = get_local_date()
         points = get_student_points_bulk([student.id for student in students], today.month, today.year)
 
+        settings = get_club_settings_instance()
+        paid_map = get_month_paid_map(today.year, today.month)
+        payment_date_paid_map = get_payment_date_paid_map(today.year, today.month)
+        access_policy = get_access_payment_policy(settings)
+        debt_month_counts = (
+            get_debt_month_counts(students, settings, today, include_current=False)
+            if access_policy in {'partial_current_month', 'any_payment_this_month'}
+            else {}
+        )
+        face_states = get_terminal_face_state_bulk([str(student.id) for student in students])
+
         items = []
         for student in students:
             balance = balances.get(student.id, 0)
+            access = build_student_access_payload(
+                student,
+                settings,
+                paid_map,
+                payment_date_paid_map,
+                today,
+                debt_month_count=debt_month_counts.get(student.id)
+            )
             group_name = student.group.name if student.group else 'Без группы'
             photo_url = build_photo_thumb_url(student.photo_path)
             search_text = ' '.join(filter(None, [
@@ -4093,6 +4124,13 @@ def get_students_list():
                 'points': points.get(student.id, 0),
                 'photo_url': photo_url,
                 'search': search_text,
+                'status_label': student_status_label(student.status),
+                'is_archived': student.status == 'archived',
+                'will_pass': bool(access['can_sync_to_turnstile']),
+                'access_reason': access['reason'],
+                'access_reason_label': access['reason_label'],
+                'has_photo': bool(access['has_photo']),
+                'terminals': face_states.get(str(student.id), []),
             })
 
         return jsonify({
@@ -10775,6 +10813,318 @@ def hikvision_terminal_missing():
             ],
         },
         'items': items,
+    })
+
+
+MONTH_NAMES_RU = [
+    'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
+    'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'
+]
+
+STUDENT_STATUS_LABELS = {
+    'active': 'Активен',
+    'inactive': 'Неактивен',
+    'archived': 'В архиве',
+    'blacklist': 'Черный список',
+}
+
+
+def student_status_label(status):
+    return STUDENT_STATUS_LABELS.get(status, status or '-')
+
+
+def ensure_terminal_face_state_table():
+    try:
+        inspector = db.inspect(db.engine)
+        if 'terminal_face_state' not in inspector.get_table_names():
+            TerminalFaceState.__table__.create(db.engine)
+            print('✓ Создана таблица terminal_face_state')
+    except Exception as exc:
+        print(f'ensure_terminal_face_state_table failed: {type(exc).__name__}: {exc}')
+
+
+def get_student_terminal_face_state(student_id, employee_no=None):
+    """Что реально лежит в терминалах по данным bridge."""
+    employee_no = str(employee_no or student_id)
+    try:
+        ensure_terminal_face_state_table()
+        rows = TerminalFaceState.query.filter_by(employee_no=employee_no).all()
+    except Exception as exc:
+        print(f'get_student_terminal_face_state failed: {type(exc).__name__}: {exc}')
+        return []
+    return [
+        {
+            'device_name': row.device_name,
+            'device_label': row.device_label or deviceless_label(row.device_name),
+            'has_face': bool(row.has_face),
+            'updated_at': row.updated_at.isoformat() if row.updated_at else None,
+        }
+        for row in sorted(rows, key=lambda item: item.device_name or '')
+    ]
+
+
+def deviceless_label(device_name):
+    if device_name == 'entry':
+        return 'Вход'
+    if device_name == 'exit':
+        return 'Выход'
+    return device_name or 'Терминал'
+
+
+def get_terminal_face_state_bulk(employee_numbers):
+    """employee_no -> список терминалов с признаком наличия лица."""
+    result = {}
+    numbers = [str(value) for value in employee_numbers if value is not None]
+    if not numbers:
+        return result
+    try:
+        ensure_terminal_face_state_table()
+        rows = TerminalFaceState.query.filter(TerminalFaceState.employee_no.in_(numbers)).all()
+    except Exception as exc:
+        print(f'get_terminal_face_state_bulk failed: {type(exc).__name__}: {exc}')
+        return result
+    for row in rows:
+        result.setdefault(row.employee_no, []).append({
+            'device_name': row.device_name,
+            'device_label': row.device_label or deviceless_label(row.device_name),
+            'has_face': bool(row.has_face),
+        })
+    for items in result.values():
+        items.sort(key=lambda item: item['device_name'] or '')
+    return result
+
+
+@app.route('/api/hikvision/face-state', methods=['POST'])
+def hikvision_face_state():
+    """Bridge сообщает, чьи лица реально записаны в каждый терминал."""
+    if not check_bridge_auth():
+        return jsonify({'success': False, 'message': 'Unauthorized'}), 401
+
+    ensure_terminal_face_state_table()
+    data = request.get_json(silent=True) or {}
+    device_name = str(data.get('device_name') or '').strip()[:64]
+    device_label = str(data.get('device_label') or '').strip()[:120]
+    entries = data.get('entries')
+    if not device_name or not isinstance(entries, list):
+        return jsonify({'success': False, 'message': 'device_name и entries обязательны'}), 400
+
+    now = get_local_datetime()
+    incoming = {}
+    for entry in entries[:5000]:
+        if not isinstance(entry, dict):
+            continue
+        employee_no = str(entry.get('employeeNo') or entry.get('employee_no') or '').strip()[:32]
+        if not employee_no:
+            continue
+        incoming[employee_no] = {
+            'has_face': bool(entry.get('hasFace', entry.get('has_face', True))),
+            'photo_hash': str(entry.get('photoHash') or entry.get('photo_hash') or '')[:64],
+        }
+
+    existing = {
+        row.employee_no: row
+        for row in TerminalFaceState.query.filter_by(device_name=device_name).all()
+    }
+
+    for employee_no, values in incoming.items():
+        row = existing.get(employee_no)
+        if not row:
+            row = TerminalFaceState(employee_no=employee_no, device_name=device_name)
+            db.session.add(row)
+        row.device_label = device_label or deviceless_label(device_name)
+        row.has_face = values['has_face']
+        row.photo_hash = values['photo_hash']
+        row.updated_at = now
+
+    if data.get('full_snapshot'):
+        # Полная синхронизация: кого bridge не прислал, того в терминале нет.
+        for employee_no, row in existing.items():
+            if employee_no not in incoming:
+                db.session.delete(row)
+
+    db.session.commit()
+    return jsonify({'success': True, 'saved': len(incoming), 'device_name': device_name})
+
+
+def get_student_debt_months(student, settings=None, today=None):
+    """Разбор долга по месяцам: за какие месяцы и сколько не хватает."""
+    settings = settings or get_club_settings_instance()
+    today = today or get_local_date()
+    if not student or not student.tariff or student.club_funded:
+        return []
+
+    start_year, start_month = get_student_debt_start_pair(student, settings, today)
+    if (start_year, start_month) > (today.year, today.month):
+        return []
+
+    rows = db.session.query(
+        Payment.payment_year,
+        Payment.payment_month,
+        func.coalesce(func.sum(Payment.amount_paid), 0)
+    ).filter(
+        Payment.student_id == student.id,
+        Payment.payment_year.isnot(None),
+        Payment.payment_month.isnot(None)
+    ).group_by(Payment.payment_year, Payment.payment_month).all()
+    paid_by_month = {(year, month): float(total or 0) for year, month, total in rows}
+
+    tariff_price = float(student.tariff.price or 0)
+    months = []
+    for year, month in iter_month_pairs(start_year, start_month, today.year, today.month):
+        paid = paid_by_month.get((year, month), 0)
+        debt = max(0, tariff_price - paid)
+        if debt <= 0:
+            continue
+        months.append({
+            'year': year,
+            'month': month,
+            'label': f'{month:02d}.{year}',
+            'month_name': MONTH_NAMES_RU[month - 1] if 1 <= month <= 12 else str(month),
+            'tariff_price': tariff_price,
+            'paid': paid,
+            'debt': debt,
+            'is_current': bool(year == today.year and month == today.month),
+        })
+    return months
+
+
+def build_student_access_details(student, settings=None, today=None, paid_map=None, payment_date_paid_map=None):
+    """Подробный разбор: пройдет ли ученик через турникет и почему."""
+    settings = settings or get_club_settings_instance()
+    today = today or get_local_date()
+    if paid_map is None:
+        paid_map = get_month_paid_map(today.year, today.month)
+    if payment_date_paid_map is None:
+        payment_date_paid_map = get_payment_date_paid_map(today.year, today.month)
+
+    access = build_student_access_payload(student, settings, paid_map, payment_date_paid_map, today)
+    debt_months = get_student_debt_months(student, settings, today)
+    current = [item for item in debt_months if item['is_current']]
+    previous = [item for item in debt_months if not item['is_current']]
+
+    explanation = []
+    if access['allowed']:
+        if access['reason'] == 'club_funded':
+            explanation.append('Клубное финансирование, оплата не проверяется.')
+        elif access['reason'] == 'no_tariff':
+            explanation.append('Тариф не указан, блокировка по оплате не применяется.')
+        elif access['reason'] == 'grace_period':
+            explanation.append(f"Идет льготный период, блокировка начинается с {access['block_day']} числа.")
+        else:
+            explanation.append('Оплата в порядке.')
+        if not access['has_photo']:
+            explanation.append('Но фото для Face ID нет, поэтому в терминал ученик не попадет.')
+    elif access['reason'] == 'inactive':
+        explanation.append(
+            f'Ученик со статусом «{student_status_label(student.status)}» в терминалы не выгружается.'
+        )
+    elif access['reason'] == 'no_photo':
+        explanation.append('Нет фото для Face ID: записывать в терминал нечего.')
+    else:
+        if previous:
+            explanation.append(
+                'Долг за прошлые месяцы: ' + ', '.join(item['label'] for item in previous) + '.'
+            )
+        if current:
+            explanation.append(f"Текущий месяц {current[0]['label']} оплачен не полностью.")
+        if not previous and not current:
+            explanation.append(access['reason_label'])
+        if previous and access['max_debt_months'] is not None:
+            explanation.append(f"Разрешено не более {access['max_debt_months']} месяцев долга подряд.")
+
+    return {
+        'will_pass': access['can_sync_to_turnstile'],
+        'allowed': access['allowed'],
+        'reason': access['reason'],
+        'reason_label': access['reason_label'],
+        'has_photo': access['has_photo'],
+        'debt': access['debt'],
+        'total_debt': sum(item['debt'] for item in debt_months),
+        'debt_months': debt_months,
+        'debt_months_count': len(debt_months),
+        'previous_debt_months': previous,
+        'current_month_debt': current[0]['debt'] if current else 0,
+        'max_debt_months': access['max_debt_months'],
+        'block_day': access['block_day'],
+        'payment_policy': access['payment_policy'],
+        'tariff_price': access['tariff_price'],
+        'explanation': explanation,
+    }
+
+
+@app.route('/api/students/<int:student_id>/access-details', methods=['GET'])
+@login_required
+def student_access_details(student_id):
+    student = Student.query.options(joinedload(Student.tariff)).filter(Student.id == student_id).first()
+    if not student:
+        return jsonify({'success': False, 'message': 'Ученик не найден'}), 404
+    return jsonify({
+        'success': True,
+        'student_id': student.id,
+        'status': student.status,
+        'status_label': student_status_label(student.status),
+        'access': build_student_access_details(student),
+        'terminals': get_student_terminal_face_state(student.id),
+    })
+
+
+@app.route('/api/students/<int:student_id>/archive', methods=['POST'])
+@login_required
+def archive_student(student_id):
+    """Ученик уходит в архив: из терминалов удаляется, данные остаются."""
+    if current_user.role not in ['admin', 'manager']:
+        return jsonify({'success': False, 'message': 'Доступ запрещен'}), 403
+
+    ensure_students_columns()
+    student = db.session.get(Student, student_id)
+    if not student:
+        return jsonify({'success': False, 'message': 'Ученик не найден'}), 404
+    if student.status == 'archived':
+        return jsonify({'success': True, 'message': 'Ученик уже в архиве'})
+
+    student.previous_status = student.status
+    student.status = 'archived'
+    student.archived_at = get_local_datetime()
+    db.session.commit()
+    queue_hikvision_person('student', student.id, 'student_archived', action='delete',
+                           employee_no=str(student.id))
+    db.session.commit()
+    return jsonify({
+        'success': True,
+        'message': f'{student.full_name} перемещен в архив',
+        'status': student.status,
+        'status_label': student_status_label(student.status),
+    })
+
+
+@app.route('/api/students/<int:student_id>/restore', methods=['POST'])
+@login_required
+def restore_student(student_id):
+    """Вернуть ученика из архива."""
+    if current_user.role not in ['admin', 'manager']:
+        return jsonify({'success': False, 'message': 'Доступ запрещен'}), 403
+
+    ensure_students_columns()
+    student = db.session.get(Student, student_id)
+    if not student:
+        return jsonify({'success': False, 'message': 'Ученик не найден'}), 404
+    if student.status != 'archived':
+        return jsonify({'success': False, 'message': 'Ученик не в архиве'}), 400
+
+    restored = getattr(student, 'previous_status', None) or 'active'
+    if restored == 'archived':
+        restored = 'active'
+    student.status = restored
+    student.archived_at = None
+    student.previous_status = None
+    db.session.commit()
+    queue_hikvision_person('student', student.id, 'student_restored')
+    db.session.commit()
+    return jsonify({
+        'success': True,
+        'message': f'{student.full_name} возвращен из архива',
+        'status': student.status,
+        'status_label': student_status_label(student.status),
     })
 
 
