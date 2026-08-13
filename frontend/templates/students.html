@@ -6274,7 +6274,7 @@
         })();
     </script>
     <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/students.js') }}?v=2026081318"></script>
+    <script src="{{ url_for('static', filename='js/students.js') }}?v=2026081319"></script>
     <script src="{{ url_for('static', filename='js/students_rewards.js') }}"></script>
     <script src="{{ url_for('static', filename='js/students_cards.js') }}"></script>
     <script src="{{ url_for('static', filename='js/students_params.js') }}"></script>
@@ -6781,6 +6781,9 @@
                         <button type="button" class="student-card-menu-item edit-student-btn" data-student-id="${id}">
                             <i data-lucide="pencil"></i> Редактировать
                         </button>
+                        <button type="button" class="student-card-menu-item" onclick="redistributeStudentPayments(${id})">
+                            <i data-lucide="arrow-left-right"></i> Перенести оплаты назад
+                        </button>
                         ${archived
                             ? `<button type="button" class="student-card-menu-item" onclick="restoreStudent(${id})">
                                    <i data-lucide="rotate-ccw"></i> Вернуть из архива
@@ -7034,6 +7037,33 @@
                 throw new Error('Сессия истекла или сервер перезапускается. Обновите страницу и повторите.');
             }
             throw new Error(text.slice(0, 200) || `Ошибка ${response.status}`);
+        }
+
+        // Закрыть старые месяцы уже внесенными деньгами. Сумма оплат
+        // не меняется, долг просто перестает размазываться по месяцам.
+        async function redistributeStudentPayments(studentId) {
+            if (!confirm(
+                'Перенести оплаты на более ранние месяцы?\n\n'
+                + 'Общая сумма оплат не изменится: деньги закроют старые месяцы, '
+                + 'а недостача соберется в самых свежих. Это уменьшает число месяцев долга '
+                + 'и может открыть турникет.'
+            )) return;
+
+            try {
+                const response = await fetch('/api/students/bulk/redistribute-payments', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ student_ids: [studentId] })
+                });
+                const data = await readJsonResponse(response);
+                if (!data.success) throw new Error(data.message || 'Не удалось перенести оплаты');
+                alert(data.message);
+                if (data.changed) {
+                    window.location.reload();
+                }
+            } catch (error) {
+                alert('Ошибка: ' + error.message);
+            }
         }
 
         async function archiveStudent(studentId, fullName) {
