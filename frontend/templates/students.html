@@ -6207,7 +6207,7 @@
         })();
     </script>
     <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/students.js') }}?v=2026081313"></script>
+    <script src="{{ url_for('static', filename='js/students.js') }}?v=2026081314"></script>
     <script src="{{ url_for('static', filename='js/students_rewards.js') }}"></script>
     <script src="{{ url_for('static', filename='js/students_cards.js') }}"></script>
     <script src="{{ url_for('static', filename='js/students_params.js') }}"></script>
@@ -6822,7 +6822,9 @@
             if (!grid) return;
             grid.innerHTML = (data.months || []).map(month => {
                 let amount = '—';
-                if (month.state === 'no_lessons') {
+                if (Number(month.paid) > 0 && ['no_lessons', 'before_start', 'no_tariff'].includes(month.state)) {
+                    amount = `+${formatMoney(month.paid)}`;
+                } else if (month.state === 'no_lessons') {
                     amount = month.visits ? `${month.visits} зан.` : 'не ходил';
                 } else if (month.state === 'paid') {
                     // Клубное финансирование: денег не вносили, но месяц закрыт
@@ -6839,10 +6841,12 @@
                     + (month.state === 'debt' ? ` · долг ${formatMoney(month.debt)} сум` : '')
                     + (month.state === 'paid' ? ` · ${formatMoney(month.paid)} сум` : '')
                     + (month.state === 'partial' ? ` · внесено ${formatMoney(month.paid)} из ${formatMoney(month.due)} сум` : '');
-                const payable = month.state === 'debt' || month.state === 'partial';
-                const clickable = payable || month.state === 'paid';
-                const prefill = payable ? Math.round(Number(month.debt || 0)) : 0;
-                const hint = payable ? ' · нажмите, чтобы внести оплату' : '';
+                // Оплату можно внести за любой наступивший месяц, в том числе
+                // за тот, куда ученик не ходил или который уже закрыт
+                const clickable = month.state !== 'future';
+                const owed = Math.max(0, Number(month.due || 0) - Number(month.paid || 0));
+                const prefill = Math.round(owed);
+                const hint = clickable ? ' · нажмите, чтобы внести оплату' : '';
                 // Когда платили: дата последнего платежа за этот месяц
                 const paidAt = month.paid_at
                     ? `${month.paid_at.slice(0, 5)}${month.payments_count > 1 ? ` · ${month.payments_count} платежа` : ''}`
