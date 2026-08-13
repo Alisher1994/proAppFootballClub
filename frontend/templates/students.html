@@ -3669,6 +3669,166 @@
             }
         }
 
+
+        /* ============ Карточка ученика: композиция и ритм ============ */
+        .student-details-content.sc {
+            --sc-gap: 14px;
+            --sc-radius: 14px;
+        }
+
+        .sc-head {
+            gap: 14px;
+            padding: 16px 20px;
+            background: var(--theme-bg-secondary, #faf8f6);
+        }
+
+        /* Бейджи терминалов не должны вылезать за фото */
+        .sc-avatar-terminals {
+            right: -4px;
+            bottom: -4px;
+            max-width: calc(100% + 8px);
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
+
+        .sc-avatar-terminals .terminal-badge {
+            max-width: 22px;
+            overflow: hidden;
+        }
+
+        .sc-body {
+            padding: var(--sc-gap) 20px 28px;
+            background: var(--theme-bg, #fff);
+        }
+
+        /* Контент не расползается на всю ширину монитора */
+        .sc-body > .student-tab-content.active {
+            width: 100%;
+            max-width: 1180px;
+            margin: 0 auto;
+        }
+
+        /* Общая сетка вкладки "Информация" */
+        .sc-body > .student-tab-content[id^="tab-info-"].active {
+            display: flex;
+            flex-direction: column;
+            gap: var(--sc-gap);
+        }
+
+        .sc .turnstile-panel,
+        .sc .year-payments,
+        .sc .sc-facts { margin: 0; }
+
+        .sc .turnstile-panel { border-radius: var(--sc-radius); }
+
+        /* Долг по месяцам — плотнее и ровнее */
+        .sc .debt-month-list {
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+        }
+
+        .sc .debt-month {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 2px;
+        }
+
+        /* Календарь оплат */
+        .sc .year-payments { border-radius: var(--sc-radius); }
+
+        .year-payments-legend {
+            display: flex;
+            gap: 14px;
+            flex-wrap: wrap;
+            margin-top: 10px;
+            font-size: 11.5px;
+            color: var(--theme-text-secondary, #64748b);
+        }
+
+        .year-payments-legend span {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .year-payments-legend .dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 3px;
+            display: inline-block;
+        }
+
+        .year-payments-legend .dot.paid { background: #16a34a; }
+        .year-payments-legend .dot.partial { background: #dcfce7; border: 1px solid #86efac; }
+        .year-payments-legend .dot.debt { background: #fee2e2; border: 1px solid #fecaca; }
+        .year-payments-legend .dot.future { background: rgba(148, 163, 184, .25); }
+
+        .year-month {
+            aspect-ratio: auto;
+            height: 46px;
+            border-radius: 10px;
+            flex-direction: column;
+            gap: 1px;
+        }
+
+        /* Факты */
+        .sc-facts { gap: 10px; }
+
+        .sc-fact {
+            border-radius: var(--sc-radius);
+            padding: 12px 14px;
+        }
+
+        /* Сворачиваемые блоки в аккуратную сетку */
+        .sc-sections {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 10px;
+            align-content: start;
+        }
+
+        .sc-section {
+            margin: 0;
+            border-radius: var(--sc-radius);
+        }
+
+        .sc-section-head { padding: 13px 16px; }
+        .sc-section-body { padding: 10px 16px 14px; }
+
+        /* Вкладки */
+        .sc-tabs {
+            padding: 10px 20px;
+            gap: 6px;
+            background: var(--theme-bg, #fff);
+        }
+
+        .sc-tabs .student-tab { padding: 8px 14px; }
+
+        .sc-tabs .student-tab.active {
+            box-shadow: 0 4px 12px rgba(255, 138, 0, .28);
+        }
+
+        @media (min-width: 900px) {
+            .sc-sections { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        }
+
+        @media (min-width: 1200px) {
+            /* Отменяем прежнее раскидывание блоков по колонкам */
+            .sc-body > .student-tab-content.active[id^="tab-info-"] {
+                display: flex;
+                flex-direction: column;
+                grid-template-columns: none;
+            }
+
+            .sc-body > .student-tab-content.active[id^="tab-info-"] > .turnstile-panel,
+            .sc-body > .student-tab-content.active[id^="tab-info-"] > .year-payments,
+            .sc-body > .student-tab-content.active[id^="tab-info-"] > .sc-facts,
+            .sc-body > .student-tab-content.active[id^="tab-info-"] > .sc-sections {
+                grid-column: auto;
+            }
+
+            .sc-sections { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+        }
+
     </style>
     <style>
         /* Force unified background */
@@ -5704,7 +5864,7 @@
 
     <script src="{{ url_for('static', filename='vendor/lucide-1.24.0.min.js') }}"></script>
     <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/students.js') }}?v=2026081305"></script>
+    <script src="{{ url_for('static', filename='js/students.js') }}?v=2026081306"></script>
     <script src="{{ url_for('static', filename='js/students_rewards.js') }}"></script>
     <script src="{{ url_for('static', filename='js/students_cards.js') }}"></script>
     <script src="{{ url_for('static', filename='js/students_params.js') }}"></script>
@@ -6276,6 +6436,12 @@
                         <span class="year-payments-year"></span>
                     </div>
                     <div class="year-payments-grid"><span class="year-payments-loading">Загружаем...</span></div>
+                    <div class="year-payments-legend">
+                        <span><i class="dot paid"></i>оплачено</span>
+                        <span><i class="dot partial"></i>частично</span>
+                        <span><i class="dot debt"></i>долг</span>
+                        <span><i class="dot future"></i>еще не наступил</span>
+                    </div>
                 </div>
             `;
         }
@@ -6350,7 +6516,7 @@
                 }
 
                 const photoBadges = document.getElementById(`photoTerminals_${studentId}`);
-                if (photoBadges) photoBadges.innerHTML = buildTerminalBadgesHtml(data.terminals);
+                if (photoBadges) photoBadges.innerHTML = buildTerminalBadgesHtml(data.terminals, { compact: true });
                 renderYearPayments(studentId, data.year_payments);
 
                 const explanation = (access.explanation || [])
@@ -6593,12 +6759,14 @@
                             ${buildYearPaymentsHtml(id)}
                             ${buildStudentFactsHtml(student)}
 
-                            ${scSection('Контакты', 'phone', buildStudentContactsHtml(student), { open: true })}
-                            ${scSection('Карточки', 'square-stack', buildStudentCardsHtml(student))}
-                            ${scSection('Параметры', 'ruler', buildStudentParamsHtml(student))}
-                            ${scSection('Паспортные данные', 'id-card', buildStudentPassportHtml(student))}
-                            ${scSection('Адрес', 'map-pin', buildStudentAddressHtml(student))}
-                            ${scSection('Telegram', 'send', buildStudentTelegramHtml(student))}
+                            <div class="sc-sections">
+                                ${scSection('Контакты', 'phone', buildStudentContactsHtml(student), { open: true })}
+                                ${scSection('Карточки', 'square-stack', buildStudentCardsHtml(student))}
+                                ${scSection('Параметры', 'ruler', buildStudentParamsHtml(student))}
+                                ${scSection('Паспортные данные', 'id-card', buildStudentPassportHtml(student))}
+                                ${scSection('Адрес', 'map-pin', buildStudentAddressHtml(student))}
+                                ${scSection('Telegram', 'send', buildStudentTelegramHtml(student))}
+                            </div>
                         </div>
 
                         <div class="student-tab-content" id="tab-payments-${id}">
