@@ -892,6 +892,52 @@ def iter_month_pairs(start_year, start_month, end_year, end_month):
             year += 1
 
 
+MIN_LESSONS_FOR_DEBT_DEFAULT = 4
+
+
+def get_min_lessons_for_debt(settings=None):
+    """Со скольких посещений месяц вообще считается долговым."""
+    settings = settings or get_club_settings_instance()
+    value = getattr(settings, 'min_lessons_for_debt', None)
+    try:
+        value = int(value)
+    except (TypeError, ValueError):
+        value = MIN_LESSONS_FOR_DEBT_DEFAULT
+    return max(0, value)
+
+
+def get_attendance_counts_by_month(student_ids, year_from=None):
+    """(student_id, year, month) -> сколько занятий посетил."""
+    ids = [int(value) for value in student_ids if value is not None]
+    if not ids:
+        return {}
+    query = db.session.query(
+        Attendance.student_id,
+        func.extract('year', Attendance.date),
+        func.extract('month', Attendance.date),
+        func.count(func.distinct(Attendance.date))
+    ).filter(Attendance.student_id.in_(ids), Attendance.date.isnot(None))
+    if year_from:
+        query = query.filter(func.extract('year', Attendance.date) >= int(year_from))
+    rows = query.group_by(
+        Attendance.student_id,
+        func.extract('year', Attendance.date),
+        func.extract('month', Attendance.date)
+    ).all()
+    return {
+        (int(student_id), int(year), int(month)): int(count or 0)
+        for student_id, year, month, count in rows
+    }
+
+
+def month_is_chargeable(student_id, year, month, attendance_counts, min_lessons):
+    """Месяц без занятий долгом не считаем: ученик просто не ходил."""
+    if min_lessons <= 0:
+        return True
+    visits = attendance_counts.get((int(student_id), int(year), int(month)), 0)
+    return visits >= min_lessons
+
+
 def get_student_month_due(student, year, month, tariff_price=None):
     """Сколько ученик должен за конкретный месяц.
 
@@ -944,6 +990,8 @@ def get_debt_month_counts(students, settings=None, today=None, include_current=T
     }
     min_start_year = min(pair[0] for pair in start_pairs.values())
     student_ids = [student.id for student in students]
+    min_lessons = get_min_lessons_for_debt(settings)
+    attendance_counts = get_attendance_counts_by_month(student_ids, min_start_year) if min_lessons else {}
 
     paid_rows = db.session.query(
         Payment.student_id,
@@ -988,6 +1036,8 @@ def get_debt_month_counts(students, settings=None, today=None, include_current=T
         for year, month in iter_month_pairs(start_year, start_month, end_year, end_month):
             paid = paid_by_month.get((student.id, year, month), 0)
             due = get_student_month_due(student, year, month, tariff_price)
+            if not month_is_chargeable(student.id, year, month, attendance_counts, min_lessons):
+                continue
             if max(0, due - paid) > 0:
                 count += 1
         counts[student.id] = count
@@ -1009,6 +1059,20 @@ def student_access_state(student, settings=None, paid_map=None, payment_date_pai
         return True, 'no_tariff', 0
     if not should_check_access_debt(settings, today):
         return True, 'grace_period', 0
+
+    # Месяц без занятий долгом не считаем: ученик просто не приходил
+    min_lessons = get_min_lessons_for_debt(settings)
+    if min_lessons:
+        visits = get_attendance_counts_by_month([student.id], today.year).get(
+            (student.id, today.year, today.month), 0
+        )
+        if visits < min_lessons and not float(paid_map.get(student.id, 0) or 0):
+            if debt_month_count is None:
+                debt_month_count = get_debt_month_counts(
+                    [student], settings, today, include_current=False
+                ).get(student.id, 0)
+            if debt_month_count <= get_access_max_debt_months(settings):
+                return True, 'no_lessons_this_month', 0
 
     # За месяц поступления берем согласованную сумму, а не полный тариф
     tariff_price = get_student_month_due(student, today.year, today.month)
@@ -1057,6 +1121,7 @@ ACCESS_REASON_LABELS = {
     'no_payment_this_month': 'Нет оплаты в этом месяце',
     'partial_current_month': 'Есть оплата за этот месяц',
     'no_current_month_payment': 'Нет оплаты за текущий месяц',
+    'no_lessons_this_month': 'В этом месяце занятий не было',
     'too_many_debt_months': 'Долг больше разрешенного срока',
     'no_photo': 'Нет фото для Face ID',
     'staff_active': 'Сотрудник активен',
@@ -1796,6 +1861,8 @@ def ensure_club_settings_columns():
             conn.execute(db.text("ALTER TABLE club_settings ADD COLUMN access_debt_start_month INTEGER"))
         if 'access_max_debt_months' not in columns:
             conn.execute(db.text("ALTER TABLE club_settings ADD COLUMN access_max_debt_months INTEGER DEFAULT 0"))
+        if 'min_lessons_for_debt' not in columns:
+            conn.execute(db.text("ALTER TABLE club_settings ADD COLUMN min_lessons_for_debt INTEGER DEFAULT 4"))
         if 'hikvision_device_key' not in columns:
             conn.execute(db.text("ALTER TABLE club_settings ADD COLUMN hikvision_device_key VARCHAR(120)"))
         if 'hikvision_devices' not in columns:
@@ -11052,12 +11119,16 @@ def get_student_debt_months(student, settings=None, today=None):
     paid_by_month = {(year, month): float(total or 0) for year, month, total in rows}
 
     tariff_price = float(student.tariff.price or 0)
+    min_lessons = get_min_lessons_for_debt(settings)
+    attendance_counts = get_attendance_counts_by_month([student.id], start_year) if min_lessons else {}
     months = []
     for year, month in iter_month_pairs(start_year, start_month, today.year, today.month):
         paid = paid_by_month.get((year, month), 0)
         due = get_student_month_due(student, year, month, tariff_price)
         debt = max(0, due - paid)
         if debt <= 0:
+            continue
+        if not month_is_chargeable(student.id, year, month, attendance_counts, min_lessons):
             continue
         months.append({
             'year': year,
@@ -11102,16 +11173,22 @@ def get_student_year_months(student, settings=None, today=None, year=None):
     tariff_price = float(student.tariff.price or 0) if student.tariff else 0
     start_year, start_month = get_student_debt_start_pair(student, settings, today)
 
+    min_lessons = get_min_lessons_for_debt(settings)
+    attendance_counts = get_attendance_counts_by_month([student.id], year) if min_lessons else {}
+
     months = []
     for month in range(1, 13):
         paid = paid_by_month.get(month, 0)
         due = get_student_month_due(student, year, month, tariff_price)
+        visits = attendance_counts.get((student.id, year, month), 0)
         if (year, month) > (today.year, today.month):
             state = 'future'
         elif (year, month) < (start_year, start_month):
             state = 'before_start'
         elif student.club_funded:
             state = 'paid'
+        elif paid <= 0 and not month_is_chargeable(student.id, year, month, attendance_counts, min_lessons):
+            state = 'no_lessons'
         elif due <= 0:
             state = 'no_tariff' if tariff_price <= 0 else 'paid'
         elif paid >= due:
@@ -11128,6 +11205,7 @@ def get_student_year_months(student, settings=None, today=None, year=None):
             'paid': paid,
             'due': due,
             'is_first_month': bool(due != tariff_price),
+            'visits': visits,
             'paid_at': (
                 paid_at_by_month[month]['date'].strftime('%d.%m.%Y')
                 if paid_at_by_month.get(month) and paid_at_by_month[month]['date'] else ''
@@ -11138,6 +11216,7 @@ def get_student_year_months(student, settings=None, today=None, year=None):
             ),
             'payments_count': paid_at_by_month.get(month, {}).get('count', 0),
             'debt': max(0, due - paid) if state in {'debt', 'partial'} else 0,
+            'min_lessons': min_lessons,
             'state': state,
             'is_current': bool(year == today.year and month == today.month),
         })
@@ -12194,6 +12273,7 @@ def get_club_settings():
         'access_debt_start_year': getattr(settings, 'access_debt_start_year', None),
         'access_debt_start_month': getattr(settings, 'access_debt_start_month', None),
         'access_max_debt_months': get_access_max_debt_months(settings),
+        'min_lessons_for_debt': get_min_lessons_for_debt(settings),
         'hikvision_device_key': get_bridge_key(settings),
         'hikvision_devices': settings.get_hikvision_devices() or default_hikvision_devices(),
         'hikvision_parallel_devices': bool(getattr(settings, 'hikvision_parallel_devices', False)),
@@ -12384,6 +12464,7 @@ def update_club_settings():
         access_debt_start_year = data.get('access_debt_start_year', getattr(settings, 'access_debt_start_year', None))
         access_debt_start_month = data.get('access_debt_start_month', getattr(settings, 'access_debt_start_month', None))
         access_max_debt_months = data.get('access_max_debt_months', getattr(settings, 'access_max_debt_months', 0) or 0)
+        min_lessons_for_debt = data.get('min_lessons_for_debt', getattr(settings, 'min_lessons_for_debt', 4))
         hikvision_device_key = get_str_setting('hikvision_device_key', getattr(settings, 'hikvision_device_key', '') or '')
         hikvision_devices = data.get('hikvision_devices') if isinstance(data.get('hikvision_devices'), list) else None
         hikvision_parallel_devices = get_bool_setting('hikvision_parallel_devices', getattr(settings, 'hikvision_parallel_devices', False))
@@ -12481,6 +12562,10 @@ def update_club_settings():
         settings.access_debt_start_year = access_debt_start_year
         settings.access_debt_start_month = access_debt_start_month
         settings.access_max_debt_months = access_max_debt_months
+        try:
+            settings.min_lessons_for_debt = max(0, int(min_lessons_for_debt))
+        except (TypeError, ValueError):
+            settings.min_lessons_for_debt = MIN_LESSONS_FOR_DEBT_DEFAULT
         settings.hikvision_device_key = hikvision_device_key if hikvision_device_key else None
         settings.hikvision_parallel_devices = hikvision_parallel_devices
         settings.hikvision_cleanup_stale_users = hikvision_cleanup_stale_users
@@ -14850,6 +14935,25 @@ def update_payment(payment_id):
         payment = db.session.get(Payment, payment_id)
         if not payment:
             return jsonify({'success': False, 'message': 'Оплата не найдена'}), 404
+
+        # За какой месяц засчитана оплата (тренер мог выбрать не тот)
+        if data.get('payment_month') and data.get('payment_year'):
+            try:
+                new_month = int(data['payment_month'])
+                new_year = int(data['payment_year'])
+            except (TypeError, ValueError):
+                return jsonify({'success': False, 'message': 'Неверный месяц или год'}), 400
+            if not 1 <= new_month <= 12:
+                return jsonify({'success': False, 'message': 'Месяц должен быть от 1 до 12'}), 400
+            if not 2000 <= new_year <= 2100:
+                return jsonify({'success': False, 'message': 'Неверный год'}), 400
+            old_label = f'{payment.payment_month}/{payment.payment_year}'
+            payment.payment_month = new_month
+            payment.payment_year = new_year
+            new_label = f'{new_month}/{new_year}'
+            # Подпись вида "Оплата за 7/2026" иначе останется от старого месяца
+            if payment.notes and f'Оплата за {old_label}' in payment.notes:
+                payment.notes = payment.notes.replace(f'Оплата за {old_label}', f'Оплата за {new_label}')
 
         # Валидация суммы
         if 'amount_paid' in data:

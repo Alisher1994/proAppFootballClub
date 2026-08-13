@@ -553,6 +553,8 @@ async function loadSettings() {
         const hikvisionCleanupStaleUsersEl = document.getElementById('hikvision_cleanup_stale_users');
         const accessDebtStartMonthEl = document.getElementById('access_debt_start_month');
         const accessDebtStartYearEl = document.getElementById('access_debt_start_year');
+        const minLessonsEl = document.getElementById('min_lessons_for_debt');
+        if (minLessonsEl) minLessonsEl.value = data.min_lessons_for_debt ?? 4;
         const accessMaxDebtMonthsEl = document.getElementById('access_max_debt_months');
         const hikvisionDeviceKeyEl = document.getElementById('hikvision_device_key');
         if (accessBlockDayEl) {
@@ -1032,6 +1034,7 @@ function gatherAllSettings() {
         access_debt_start_month: document.getElementById('access_debt_start_month')?.value || null,
         access_debt_start_year: document.getElementById('access_debt_start_year')?.value || null,
         access_max_debt_months: accessMaxDebtMonths,
+        min_lessons_for_debt: parseInt(document.getElementById('min_lessons_for_debt')?.value ?? '4', 10) || 0,
         hikvision_device_key: (document.getElementById('hikvision_device_key')?.value || '').trim(),
         hikvision_devices: collectHikvisionDevices(),
         rewards_reset_period_months: parseInt(document.getElementById('rewards_reset_period_months').value, 10),

@@ -3484,6 +3484,15 @@
                                                 Выберите правило допуска для терминала.
                                             </small>
                                         </div>
+                                        <div class="form-group">
+                                            <label>Со скольких занятий месяц считается долговым</label>
+                                            <input type="number" id="min_lessons_for_debt" min="0" max="31"
+                                                class="form-input-modern" placeholder="4">
+                                            <small>
+                                                Если ученик посетил меньше занятий, месяц не считается долгом:
+                                                он просто не ходил. 0 — считать долг всегда.
+                                            </small>
+                                        </div>
                                         <div class="form-group is-hidden" id="accessDebtMonthsGroup">
                                             <label>Сколько месяцев старого долга разрешено</label>
                                             <input type="number" id="access_max_debt_months" min="1" max="36"
@@ -4269,7 +4278,7 @@
                 </div>
             </div>
 
-            <script src="{{ url_for('static', filename='js/settings.js') }}?v=2026081312"></script>
+            <script src="{{ url_for('static', filename='js/settings.js') }}?v=2026081313"></script>
             <script src="{{ url_for('static', filename='js/groups.js') }}?v=2026071501"></script>
             <script src="{{ url_for('static', filename='js/tariffs.js') }}"></script>
             <script src="{{ url_for('static', filename='js/rewards.js') }}"></script>
