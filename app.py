@@ -955,23 +955,45 @@ def month_is_chargeable(student_id, year, month, attendance_counts, min_lessons)
     return visits >= min_lessons
 
 
-def get_student_month_due(student, year, month, tariff_price=None):
-    """Сколько ученик должен за конкретный месяц.
+def get_discount_months(student_ids, year_from=None):
+    """Месяцы, закрытые скидкой: {(student_id, year, month)}.
 
-    Если это месяц поступления и с учеником договорились о другой сумме
-    (пришел в середине месяца), берем ее, а не полный тариф.
+    Если за месяц есть хотя бы одна оплата с отметкой скидки, остаток
+    по этому месяцу долгом не считается — так закрываются приход в
+    середине месяца, разовые договоренности и прощенные хвосты.
+    """
+    ids = [int(value) for value in student_ids if value is not None]
+    if not ids:
+        return set()
+    try:
+        ensure_payment_columns()
+        query = db.session.query(
+            Payment.student_id, Payment.payment_year, Payment.payment_month
+        ).filter(
+            Payment.student_id.in_(ids),
+            Payment.is_discount.is_(True),
+            Payment.payment_year.isnot(None),
+            Payment.payment_month.isnot(None),
+        )
+        if year_from:
+            query = query.filter(Payment.payment_year >= int(year_from))
+        return {
+            (int(student_id), int(year), int(month))
+            for student_id, year, month in query.all()
+        }
+    except Exception as exc:
+        print(f'get_discount_months failed: {type(exc).__name__}: {exc}')
+        return set()
+
+
+def get_student_month_due(student, year, month, tariff_price=None):
+    """Сколько ученик должен за конкретный месяц по тарифу.
+
+    Скидки сюда не входят: они привязаны к оплате и применяются там,
+    где считается долг, — см. get_discount_months.
     """
     if tariff_price is None:
         tariff_price = float(student.tariff.price or 0) if student.tariff else 0
-    admission = getattr(student, 'admission_date', None)
-    first_month_fee = getattr(student, 'first_month_fee', None)
-    if (
-        admission
-        and first_month_fee is not None
-        and admission.year == year
-        and admission.month == month
-    ):
-        return max(0, float(first_month_fee))
     return float(tariff_price)
 
 
@@ -989,11 +1011,20 @@ def get_students_month_dues(students, year, month, settings=None, apply_attendan
     if not students:
         return {}
 
+    student_ids = [student.id for student in students]
     min_lessons = get_min_lessons_for_debt(settings) if apply_attendance_rule else 0
     attendance_counts = (
-        get_attendance_counts_by_month([student.id for student in students], year)
-        if min_lessons else {}
+        get_attendance_counts_by_month(student_ids, year) if min_lessons else {}
     )
+    discount_months = get_discount_months(student_ids, year)
+    paid_rows = db.session.query(
+        Payment.student_id, func.coalesce(func.sum(Payment.amount_paid), 0)
+    ).filter(
+        Payment.student_id.in_(student_ids),
+        Payment.payment_year == year,
+        Payment.payment_month == month,
+    ).group_by(Payment.student_id).all() if student_ids else []
+    paid_by_student = {int(sid): float(total or 0) for sid, total in paid_rows}
 
     dues = {}
     for student in students:
@@ -1002,6 +1033,10 @@ def get_students_month_dues(students, year, month, settings=None, apply_attendan
             continue
         if min_lessons and not month_is_chargeable(student.id, year, month, attendance_counts, min_lessons):
             dues[student.id] = 0.0
+            continue
+        if (student.id, year, month) in discount_months:
+            # Со скидкой ждем ровно столько, сколько уже внесли
+            dues[student.id] = paid_by_student.get(student.id, 0.0)
             continue
         dues[student.id] = float(get_student_month_due(student, year, month))
     return dues
@@ -1041,6 +1076,7 @@ def get_debt_month_counts(students, settings=None, today=None, include_current=T
     student_ids = [student.id for student in students]
     min_lessons = get_min_lessons_for_debt(settings)
     attendance_counts = get_attendance_counts_by_month(student_ids, min_start_year) if min_lessons else {}
+    discount_months = get_discount_months(student_ids, min_start_year)
 
     paid_rows = db.session.query(
         Payment.student_id,
@@ -1087,6 +1123,8 @@ def get_debt_month_counts(students, settings=None, today=None, include_current=T
             due = get_student_month_due(student, year, month, tariff_price)
             if not month_is_chargeable(student.id, year, month, attendance_counts, min_lessons):
                 continue
+            if (student.id, year, month) in discount_months:
+                continue
             if max(0, due - paid) > 0:
                 count += 1
         counts[student.id] = count
@@ -1126,7 +1164,15 @@ def student_access_state(student, settings=None, paid_map=None, payment_date_pai
             if debt_month_count <= get_access_max_debt_months(settings):
                 return True, 'no_lessons_this_month', 0
 
-    # За месяц поступления берем согласованную сумму, а не полный тариф
+    # Месяц, закрытый скидкой, долгом не считаем
+    if (student.id, today.year, today.month) in get_discount_months([student.id], today.year):
+        if debt_month_count is None:
+            debt_month_count = get_debt_month_counts(
+                [student], settings, today, include_current=False
+            ).get(student.id, 0)
+        if debt_month_count <= get_access_max_debt_months(settings):
+            return True, 'month_discounted', 0
+
     tariff_price = get_student_month_due(student, today.year, today.month)
     paid = float(paid_map.get(student.id, 0) or 0)
     paid_by_date = float(payment_date_paid_map.get(student.id, 0) or 0)
@@ -1174,6 +1220,7 @@ ACCESS_REASON_LABELS = {
     'partial_current_month': 'Есть оплата за этот месяц',
     'no_current_month_payment': 'Нет оплаты за текущий месяц',
     'no_lessons_this_month': 'В этом месяце занятий не было',
+    'month_discounted': 'Месяц закрыт скидкой',
     'open_day': 'Открытый день: пускаем всех',
     'too_many_debt_months': 'Долг больше разрешенного срока',
     'no_photo': 'Нет фото для Face ID',
@@ -2051,6 +2098,21 @@ def upsert_bridge_status(
     status.last_seen_at = now
     status.updated_at = now
     return status
+
+
+def ensure_payment_columns():
+    """Колонка скидки в payments."""
+    try:
+        inspector = db.inspect(db.engine)
+        if 'payments' not in inspector.get_table_names():
+            return
+        columns = {col['name'] for col in inspector.get_columns('payments')}
+        if 'is_discount' not in columns:
+            with db.engine.begin() as conn:
+                conn.execute(db.text("ALTER TABLE payments ADD COLUMN is_discount BOOLEAN DEFAULT 0"))
+            print('✓ Добавлена колонка payments.is_discount')
+    except Exception as exc:
+        print(f'ensure_payment_columns failed: {type(exc).__name__}: {exc}')
 
 
 def ensure_payment_indexes():
@@ -3172,10 +3234,13 @@ def build_public_unpaid_periods(student, settings=None, today=None):
     tariff_price = float(student.tariff.price or 0)
     min_lessons = get_min_lessons_for_debt(settings)
     attendance_counts = get_attendance_counts_by_month([student.id], start_year) if min_lessons else {}
+    discount_months = get_discount_months([student.id], start_year)
     periods = []
     for year, month in iter_month_pairs(start_year, start_month, today.year, today.month):
         paid = paid_by_month.get((year, month), 0)
         if min_lessons and not month_is_chargeable(student.id, year, month, attendance_counts, min_lessons):
+            continue
+        if (student.id, year, month) in discount_months:
             continue
         amount_due = max(0, get_student_month_due(student, year, month, tariff_price) - paid)
         if amount_due > 0:
@@ -11254,6 +11319,7 @@ def get_student_debt_months(student, settings=None, today=None):
     tariff_price = float(student.tariff.price or 0)
     min_lessons = get_min_lessons_for_debt(settings)
     attendance_counts = get_attendance_counts_by_month([student.id], start_year) if min_lessons else {}
+    discount_months = get_discount_months([student.id], start_year)
     months = []
     for year, month in iter_month_pairs(start_year, start_month, today.year, today.month):
         paid = paid_by_month.get((year, month), 0)
@@ -11262,6 +11328,8 @@ def get_student_debt_months(student, settings=None, today=None):
         if debt <= 0:
             continue
         if not month_is_chargeable(student.id, year, month, attendance_counts, min_lessons):
+            continue
+        if (student.id, year, month) in discount_months:
             continue
         months.append({
             'year': year,
@@ -11308,6 +11376,7 @@ def get_student_year_months(student, settings=None, today=None, year=None):
 
     min_lessons = get_min_lessons_for_debt(settings)
     attendance_counts = get_attendance_counts_by_month([student.id], year) if min_lessons else {}
+    discount_months = get_discount_months([student.id], year)
 
     months = []
     for month in range(1, 13):
@@ -11320,6 +11389,8 @@ def get_student_year_months(student, settings=None, today=None, year=None):
             state = 'before_start'
         elif student.club_funded:
             state = 'paid'
+        elif (student.id, year, month) in discount_months:
+            state = 'discount'
         elif paid <= 0 and not month_is_chargeable(student.id, year, month, attendance_counts, min_lessons):
             state = 'no_lessons'
         elif due <= 0:
@@ -11337,7 +11408,7 @@ def get_student_year_months(student, settings=None, today=None, year=None):
             'name': MONTH_NAMES_RU[month - 1],
             'paid': paid,
             'due': due,
-            'is_first_month': bool(due != tariff_price),
+            'is_discount': bool((student.id, year, month) in discount_months),
             'visits': visits,
             'paid_at': (
                 paid_at_by_month[month]['date'].strftime('%d.%m.%Y')
@@ -11499,6 +11570,25 @@ def ensure_student_form_fonts():
         return False
 
 
+def get_form_photo_reader(photo_path):
+    """Уменьшенное фото для анкеты. На 400 учеников иначе выходит файл в десятки МБ."""
+    source_path = resolve_static_photo_file(photo_path)
+    if not source_path:
+        return None
+    try:
+        from reportlab.lib.utils import ImageReader
+        with Image.open(source_path) as raw:
+            image = ImageOps.exif_transpose(raw).convert('RGB')
+            image.thumbnail((320, 420), Image.Resampling.LANCZOS)
+            buffer = io.BytesIO()
+            image.save(buffer, 'JPEG', quality=72, optimize=True)
+        buffer.seek(0)
+        return ImageReader(buffer)
+    except Exception as exc:
+        print(f'form photo failed: {type(exc).__name__}: {exc}')
+        return None
+
+
 def draw_student_form_page(canvas, student, settings=None):
     """Одна страница анкеты: что знаем — печатаем, остальное — линейки для ручки."""
     from reportlab.lib.pagesizes import A4
@@ -11529,12 +11619,11 @@ def draw_student_form_page(canvas, student, settings=None):
     y -= 8 * mm
     photo_w, photo_h = 32 * mm, 42 * mm
     photo_x, photo_top = left, y
-    photo_path = resolve_static_photo_file(student.photo_path)
+    photo_reader = get_form_photo_reader(student.photo_path)
     drawn = False
-    if photo_path:
+    if photo_reader:
         try:
-            from reportlab.lib.utils import ImageReader
-            canvas.drawImage(ImageReader(photo_path), photo_x, photo_top - photo_h,
+            canvas.drawImage(photo_reader, photo_x, photo_top - photo_h,
                              width=photo_w, height=photo_h, preserveAspectRatio=True,
                              anchor='c', mask='auto')
             drawn = True
@@ -11689,6 +11778,43 @@ def student_form_pdf(student_id):
     filename = f'anketa_{student.id}.pdf'
     return send_file(buffer, mimetype='application/pdf',
                      as_attachment=False, download_name=filename)
+
+
+@app.route('/api/students/forms.pdf', methods=['GET'])
+@login_required
+def students_forms_pdf():
+    """Анкеты пачкой: вся школа, отдельная группа или результат поиска."""
+    if not ensure_student_form_fonts():
+        return jsonify({'success': False, 'message': 'Не удалось подготовить шрифты для PDF'}), 500
+
+    group_id = request.args.get('group_id', type=int)
+    search = (request.args.get('q') or '').strip().lower()
+    include_archived = request.args.get('include_archived') in {'1', 'true', 'yes'}
+
+    query = Student.query.options(joinedload(Student.group), joinedload(Student.tariff))
+    if not include_archived:
+        query = query.filter(Student.status == 'active')
+    if group_id:
+        query = query.filter(Student.group_id == group_id)
+    if search:
+        like = f'%{search}%'
+        query = query.filter(or_(
+            func.lower(Student.full_name).like(like),
+            func.lower(func.coalesce(Student.student_number, '')).like(like),
+        ))
+
+    students = query.outerjoin(Group).order_by(Group.name.asc(), Student.full_name.asc()).all()
+    if not students:
+        return jsonify({'success': False, 'message': 'Учеников не найдено'}), 404
+    if len(students) > 600:
+        return jsonify({
+            'success': False,
+            'message': f'Слишком много учеников за раз ({len(students)}). Выгружайте по группам.'
+        }), 400
+
+    buffer = build_students_form_pdf(students)
+    name = 'ankety_vse.pdf' if not group_id else f'ankety_group_{group_id}.pdf'
+    return send_file(buffer, mimetype='application/pdf', as_attachment=False, download_name=name)
 
 
 @app.route('/api/groups/<int:group_id>/forms.pdf', methods=['GET'])
@@ -15456,6 +15582,7 @@ def init_db():
         ensure_bridge_status_table()
         ensure_access_logs_table()
         ensure_tournament_tables()
+        ensure_payment_columns()
         ensure_payment_indexes()
         ensure_payment_type_column()
         
@@ -15611,7 +15738,8 @@ def add_monthly_payment():
             lessons_added=0,
             # Сохранить месяц в отдельном поле для корректной группировки
             payment_month=month,
-            payment_year=year
+            payment_year=year,
+            is_discount=bool(data.get('is_discount'))
         )
         
         db.session.add(payment)
@@ -15620,6 +15748,8 @@ def add_monthly_payment():
             f'Добавлена оплата {format_money_ru(amount)} сум за {month:02d}.{year}',
             [f'Способ: {payment_type}',
              f'Дата оплаты: {datetime.fromisoformat(payment_date).strftime("%d.%m.%Y")}']
+            + (['Отмечено скидкой: остаток за месяц долгом не считается']
+               if data.get('is_discount') else [])
         )
         queue_hikvision_person('student', student_id, 'monthly_payment_added')
         db.session.commit()
@@ -15750,6 +15880,12 @@ def update_payment(payment_id):
                     changes.append(f"Дата оплаты: {before['date']} → {payment.payment_date.strftime('%d.%m.%Y')}")
             except ValueError as e:
                 return jsonify({'success': False, 'message': f'Неверный формат даты: {str(e)}'}), 400
+
+        if 'is_discount' in data:
+            new_discount = bool(data.get('is_discount'))
+            if bool(payment.is_discount) != new_discount:
+                changes.append('Скидка: ' + ('включена' if new_discount else 'снята'))
+            payment.is_discount = new_discount
 
         if 'payment_type' in data:
             if (data.get('payment_type') or '') != before['type']:
@@ -16365,6 +16501,7 @@ with app.app_context():
         ensure_bridge_status_table()
         ensure_access_logs_table()
         ensure_tournament_tables()
+        ensure_payment_columns()
         ensure_payment_indexes()
         
         # Создание администратора

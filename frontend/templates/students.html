@@ -4996,6 +4996,16 @@
         .group-print-btn:hover { color: #ff8a00; }
         .group-print-btn svg { width: 15px; height: 15px; }
 
+
+        /* Месяц, закрытый скидкой */
+        .year-month.discount {
+            background: #eef2ff;
+            color: #4338ca;
+            border-color: #c7d2fe;
+        }
+
+        .year-payments-legend .dot.discount { background: #c7d2fe; }
+
     </style>
 </head>
 
@@ -5081,6 +5091,19 @@
                     <div class="student-list-search">
                         <input type="text" id="studentListSearch" placeholder="🔍 Поиск...">
                     </div>
+
+                    <button type="button" id="printAllFormsBtn" class="game-btn game-btn-secondary"
+                        title="Анкеты всех учеников одним файлом">
+                        <span>
+                            <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2"
+                                fill="none" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="6 9 6 2 18 2 18 9"></polyline>
+                                <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+                                <rect x="6" y="14" width="12" height="8"></rect>
+                            </svg>
+                        </span>
+                        <span>Анкеты</span>
+                    </button>
 
                     <button id="addStudentBtn" class="game-btn game-btn-primary">
                         <span>
@@ -5423,15 +5446,6 @@
                                     </select>
                                 </div>
                                 <div class="form-group">
-                                    <label>Оплата за первый месяц</label>
-                                    <input type="text" name="first_month_fee" id="firstMonthFee"
-                                        inputmode="numeric" autocomplete="off" placeholder="По тарифу">
-                                    <small style="display: block; margin-top: 5px; color: #7f8c8d;">
-                                        Если ученик пришел в середине месяца и по договоренности платит меньше,
-                                        укажите сумму. Остаток за этот месяц долгом считаться не будет.
-                                    </small>
-                                </div>
-                                <div class="form-group">
                                     <label class="checkbox-label">
                                         <input type="checkbox" name="club_funded" id="clubFundedCheckbox" value="true">
                                         <span>Финансирование за счёт клуба</span>
@@ -5766,14 +5780,6 @@
                                     <select id="edit_tariffSelect" name="tariff_id" required>
                                         <option value="">Без тарифа</option>
                                     </select>
-                                </div>
-                                <div class="form-group">
-                                    <label>Оплата за первый месяц</label>
-                                    <input type="text" name="first_month_fee" id="edit_first_month_fee"
-                                        inputmode="numeric" autocomplete="off" placeholder="По тарифу">
-                                    <small style="display: block; margin-top: 5px; color: #7f8c8d;">
-                                        Сумма за месяц поступления по договоренности. Пусто - платит по тарифу.
-                                    </small>
                                 </div>
                                 <div class="form-group">
                                     <label class="checkbox-label">
@@ -6137,6 +6143,17 @@
                     </div>
 
                     <div class="form-group">
+                        <label class="checkbox-label" style="display:flex; align-items:center; gap:8px;">
+                            <input type="checkbox" id="payment_is_discount">
+                            <span>Остаток за этот месяц считать скидкой</span>
+                        </label>
+                        <small style="display:block; margin-top:5px; color:#7f8c8d;">
+                            Месяц закроется на внесенную сумму: долг не появится и турникет не заблокирует.
+                            Подходит, когда ученик пришел в середине месяца или сумму согласовали отдельно.
+                        </small>
+                    </div>
+
+                    <div class="form-group">
                         <label>Примечание</label>
                         <textarea id="payment_notes" name="notes" rows="3"
                             placeholder="Комментарий к оплате"></textarea>
@@ -6215,6 +6232,16 @@
                         </div>
                         <input type="hidden" id="edit_payment_type" name="payment_type" value="cash" required>
                     </div>
+                    <div class="form-group">
+                        <label class="checkbox-label" style="display:flex; align-items:center; gap:8px;">
+                            <input type="checkbox" id="edit_payment_is_discount">
+                            <span>Остаток за этот месяц считать скидкой</span>
+                        </label>
+                        <small style="display:block; margin-top:5px; color:#7f8c8d;">
+                            Можно поставить и задним числом: месяц перестанет быть долговым.
+                        </small>
+                    </div>
+
                     <div class="form-group">
                         <label>Примечание</label>
                         <textarea id="edit_payment_notes" rows="2"></textarea>
@@ -6350,13 +6377,12 @@
             document.addEventListener('DOMContentLoaded', () => {
                 bindTariff('tariffSelect', 'clubFundedCheckbox');
                 bindTariff('edit_tariffSelect', 'edit_club_funded');
-                bindMoney('firstMonthFee');
-                bindMoney('edit_first_month_fee');
+
             });
         })();
     </script>
     <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/students.js') }}?v=2026081322"></script>
+    <script src="{{ url_for('static', filename='js/students.js') }}?v=2026081325"></script>
     <script src="{{ url_for('static', filename='js/students_rewards.js') }}"></script>
     <script src="{{ url_for('static', filename='js/students_cards.js') }}"></script>
     <script src="{{ url_for('static', filename='js/students_params.js') }}"></script>
@@ -6980,6 +7006,7 @@
                         <span><i class="dot paid"></i>оплачено</span>
                         <span><i class="dot partial"></i>частично</span>
                         <span><i class="dot debt"></i>долг</span>
+                        <span><i class="dot discount"></i>скидка</span>
                         <span><i class="dot no-lessons"></i>не ходил</span>
                         <span><i class="dot future"></i>еще не наступил</span>
                     </div>
@@ -6993,6 +7020,7 @@
             debt: 'Не оплачено',
             future: 'Месяц еще не наступил',
             no_lessons: 'Занятий не было, долгом не считается',
+            discount: 'Месяц закрыт скидкой',
             before_start: 'До начала занятий',
             no_tariff: 'Тариф не указан',
         };
@@ -7018,7 +7046,9 @@
             if (!grid) return;
             grid.innerHTML = (data.months || []).map(month => {
                 let amount = '—';
-                if (Number(month.paid) > 0 && ['no_lessons', 'before_start', 'no_tariff'].includes(month.state)) {
+                if (month.state === 'discount') {
+                    amount = Number(month.paid) > 0 ? `+${formatMoney(month.paid)}` : 'скидка';
+                } else if (Number(month.paid) > 0 && ['no_lessons', 'before_start', 'no_tariff'].includes(month.state)) {
                     amount = `+${formatMoney(month.paid)}`;
                 } else if (month.state === 'no_lessons') {
                     amount = month.visits ? `${month.visits} зан.` : 'не ходил';
@@ -7143,6 +7173,26 @@
         function openGroupFormsPdf(groupId) {
             window.open(`/api/groups/${groupId}/forms.pdf`, '_blank');
         }
+
+        // Анкеты пачкой: учитываем выбранную группу и строку поиска
+        function openAllFormsPdf() {
+            const params = new URLSearchParams();
+            const groupId = studentListState?.groupId || '';
+            const query = (document.getElementById('studentListSearch')?.value || '').trim();
+            if (groupId) params.set('group_id', groupId);
+            if (query) params.set('q', query);
+
+            const scope = groupId || query ? 'по текущему фильтру' : 'на всех активных учеников';
+            if (!confirm(`Сформировать анкеты ${scope}?
+
+Файл откроется в новой вкладке, на больших списках это займет до минуты.`)) return;
+            window.open(`/api/students/forms.pdf?${params.toString()}`, '_blank');
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const btn = document.getElementById('printAllFormsBtn');
+            if (btn) btn.addEventListener('click', openAllFormsPdf);
+        });
 
         async function redistributeStudentPayments(studentId) {
             if (!confirm(
@@ -8991,6 +9041,8 @@
                                     const [year, month] = monthKey.split('-');
                                     document.getElementById('edit_payment_payment_year').value = year;
                                     document.getElementById('edit_payment_payment_month').value = parseInt(month);
+                                    const discountBox = document.getElementById('edit_payment_is_discount');
+                                    if (discountBox) discountBox.checked = Boolean(payment.is_discount);
                                     break;
                                 }
                             }
@@ -9080,6 +9132,7 @@
                             payment_date: paymentDate,
                             payment_month: document.getElementById('edit_payment_payment_month').value,
                             payment_year: document.getElementById('edit_payment_payment_year').value,
+                            is_discount: document.getElementById('edit_payment_is_discount')?.checked || false,
                             payment_type: document.getElementById('edit_payment_type').value,
                             notes: notes
                         })

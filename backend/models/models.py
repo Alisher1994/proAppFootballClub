@@ -323,6 +323,8 @@ class Payment(db.Model):
     payment_month = db.Column(db.Integer)  # Месяц оплаты (1-12)
     payment_year = db.Column(db.Integer)  # Год оплаты
     payment_type = db.Column(db.String(20), default='cash')  # Тип оплаты: cash, card, click, payme, uzum
+    # Скидка: остаток за этот месяц долгом не считается
+    is_discount = db.Column(db.Boolean, default=False)
     
     # Связь с тарифом
     tariff = db.relationship('Tariff', foreign_keys=[tariff_id])

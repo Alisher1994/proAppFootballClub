@@ -707,6 +707,8 @@ async function openPaymentModal(studentId, prefill = {}) {
 
     // Сбросить кнопки типов оплаты на "Наличные"
     setPaymentType('cash');
+    const discountBox = document.getElementById('payment_is_discount');
+    if (discountBox) discountBox.checked = false;
 
     const debtInfoBlock = document.getElementById('month-debt-info-block');
     if (debtInfoBlock) debtInfoBlock.style.display = 'none';
@@ -1029,6 +1031,8 @@ function showPaymentInput(monthName, monthData, tariffPrice) {
 
     // Сбросить кнопки типов оплаты на "Наличные"
     setPaymentType('cash');
+    const discountBox = document.getElementById('payment_is_discount');
+    if (discountBox) discountBox.checked = false;
 
     // Отобразить историю частичных платежей
     const historyDiv = document.getElementById('partialPaymentsHistory');
@@ -1161,6 +1165,7 @@ document.getElementById('paymentForm').addEventListener('submit', async (e) => {
                 payment_date: paymentDate,
                 amount: amount,
                 payment_type: paymentType,
+                is_discount: document.getElementById('payment_is_discount')?.checked || false,
                 notes: notes
             })
         });
@@ -1345,12 +1350,6 @@ document.addEventListener('click', async (e) => {
         document.getElementById('edit_passport_expiry_date').value = student.passport_expiry_date || '';
         document.getElementById('edit_admission_date').value = student.admission_date || '';
         document.getElementById('edit_club_funded').checked = student.club_funded || false;
-        const editFirstMonth = document.getElementById('edit_first_month_fee');
-        if (editFirstMonth) {
-            editFirstMonth.value = student.first_month_fee
-                ? Number(student.first_month_fee).toLocaleString('ru-RU').replace(/ /g, ' ')
-                : '';
-        }
         document.getElementById('edit_statusSelect').value = student.status || 'active';
         document.getElementById('edit_blacklist_reason').value = student.blacklist_reason || '';
         document.getElementById('edit_height').value = student.height || '';
