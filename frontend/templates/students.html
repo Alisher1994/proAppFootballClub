@@ -3888,6 +3888,47 @@
             .year-payments-grid { grid-template-columns: repeat(12, minmax(0, 1fr)); }
         }
 
+
+        /* Выбранный способ оплаты. Перебиваем общие стили кнопок,
+           из-за которых активное состояние не было видно. */
+        .payment-method-buttons .payment-type-btn.active,
+        .payment-method-buttons .payment-type-btn[aria-pressed="true"] {
+            border-color: #ff8a00 !important;
+            background: linear-gradient(135deg, rgba(255, 138, 0, .14) 0%, rgba(217, 111, 0, .14) 100%) !important;
+            color: #ff8a00 !important;
+            box-shadow: 0 0 0 3px rgba(255, 138, 0, .12) !important;
+        }
+
+        .payment-method-buttons .payment-type-btn {
+            justify-content: center;
+        }
+
+        /* Месяц, по которому можно внести оплату */
+        .year-month.is-clickable { cursor: pointer; }
+
+        .year-month.is-clickable:hover {
+            filter: brightness(.97);
+            box-shadow: 0 2px 10px rgba(15, 23, 42, .14);
+        }
+
+        /* Верхняя панель: поля и кнопка не должны слипаться */
+        .game-top-bar { gap: 14px; }
+
+        .students-header-filters {
+            gap: 12px !important;
+            flex-wrap: wrap;
+        }
+
+        .students-header-filters .student-group-filter,
+        .students-header-filters .student-list-search {
+            width: 180px;
+        }
+
+        .students-header-filters #addStudentBtn {
+            margin-left: 4px;
+            white-space: nowrap;
+        }
+
     </style>
     <style>
         /* Force unified background */
@@ -5895,21 +5936,11 @@
                     <div class="form-group">
                         <label>Способ оплаты *</label>
                         <div class="payment-method-buttons pay-method-group">
-                            <button type="button" class="payment-type-btn active" data-payment-type="cash">
-                                <i data-lucide="banknote"></i><span>Наличные</span>
-                            </button>
-                            <button type="button" class="payment-type-btn" data-payment-type="card">
-                                <i data-lucide="credit-card"></i><span>Карта</span>
-                            </button>
-                            <button type="button" class="payment-type-btn" data-payment-type="click">
-                                <i data-lucide="circle-dot"></i><span>Click</span>
-                            </button>
-                            <button type="button" class="payment-type-btn" data-payment-type="payme">
-                                <i data-lucide="wallet"></i><span>Payme</span>
-                            </button>
-                            <button type="button" class="payment-type-btn" data-payment-type="uzum">
-                                <i data-lucide="shopping-bag"></i><span>Uzum</span>
-                            </button>
+                            <button type="button" class="payment-type-btn active" data-payment-type="cash" aria-pressed="true" onclick="setPaymentType('cash')">Наличные</button>
+                            <button type="button" class="payment-type-btn" data-payment-type="card" aria-pressed="false" onclick="setPaymentType('card')">Карта</button>
+                            <button type="button" class="payment-type-btn" data-payment-type="click" aria-pressed="false" onclick="setPaymentType('click')">Click</button>
+                            <button type="button" class="payment-type-btn" data-payment-type="payme" aria-pressed="false" onclick="setPaymentType('payme')">Payme</button>
+                            <button type="button" class="payment-type-btn" data-payment-type="uzum" aria-pressed="false" onclick="setPaymentType('uzum')">Uzum</button>
                         </div>
                         <input type="hidden" id="selected_payment_type" name="payment_type" value="cash">
                     </div>
@@ -6068,7 +6099,7 @@
 
     <script src="{{ url_for('static', filename='vendor/lucide-1.24.0.min.js') }}"></script>
     <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/students.js') }}?v=2026081307"></script>
+    <script src="{{ url_for('static', filename='js/students.js') }}?v=2026081308"></script>
     <script src="{{ url_for('static', filename='js/students_rewards.js') }}"></script>
     <script src="{{ url_for('static', filename='js/students_cards.js') }}"></script>
     <script src="{{ url_for('static', filename='js/students_params.js') }}"></script>
@@ -6692,8 +6723,14 @@
                     + (month.state === 'debt' ? ` · долг ${formatMoney(month.debt)} сум` : '')
                     + (month.state === 'paid' ? ` · ${formatMoney(month.paid)} сум` : '')
                     + (month.state === 'partial' ? ` · внесено ${formatMoney(month.paid)} из ${formatMoney(month.due)} сум` : '');
+                const payable = month.state === 'debt' || month.state === 'partial';
+                const clickable = payable || month.state === 'paid';
+                const prefill = payable ? Math.round(Number(month.debt || 0)) : 0;
+                const hint = payable ? ' · нажмите, чтобы внести оплату' : '';
                 return `
-                    <div class="year-month ${month.state}${month.is_current ? ' current' : ''}" title="${escapeHtml(title)}">
+                    <div class="year-month ${month.state}${month.is_current ? ' current' : ''}${clickable ? ' is-clickable' : ''}"
+                        title="${escapeHtml(title + hint)}"
+                        ${clickable ? `onclick="openPaymentModal(${studentId}, { year: ${data.year}, month: ${month.month}, amount: ${prefill} })"` : ''}>
                         <span class="year-month-name">${escapeHtml(month.short)}</span>
                         <span class="year-month-amount">${escapeHtml(amount)}</span>
                     </div>

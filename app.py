@@ -10845,24 +10845,53 @@ def ensure_terminal_face_state_table():
         print(f'ensure_terminal_face_state_table failed: {type(exc).__name__}: {exc}')
 
 
-def get_student_terminal_face_state(student_id, employee_no=None):
-    """Что реально лежит в терминалах по данным bridge."""
-    employee_no = str(employee_no or student_id)
+def get_reported_terminal_devices():
+    """Терминалы, о которых bridge уже присылал состояние лиц."""
     try:
         ensure_terminal_face_state_table()
-        rows = TerminalFaceState.query.filter_by(employee_no=employee_no).all()
+        rows = db.session.query(
+            TerminalFaceState.device_name,
+            func.max(TerminalFaceState.device_label)
+        ).group_by(TerminalFaceState.device_name).all()
+    except Exception as exc:
+        print(f'get_reported_terminal_devices failed: {type(exc).__name__}: {exc}')
+        return []
+    return [
+        {'device_name': name, 'device_label': label or deviceless_label(name)}
+        for name, label in sorted(rows, key=lambda row: row[0] or '')
+    ]
+
+
+def get_student_terminal_face_state(student_id, employee_no=None, devices=None):
+    """Что реально лежит в терминалах по данным bridge.
+
+    Возвращаем строку по каждому известному терминалу: если ученика там нет,
+    это осознанное "нет фото", а не отсутствие данных. Пустой список означает,
+    что bridge еще ни разу не отчитывался.
+    """
+    employee_no = str(employee_no or student_id)
+    devices = get_reported_terminal_devices() if devices is None else devices
+    if not devices:
+        return []
+    try:
+        ensure_terminal_face_state_table()
+        rows = {
+            row.device_name: row
+            for row in TerminalFaceState.query.filter_by(employee_no=employee_no).all()
+        }
     except Exception as exc:
         print(f'get_student_terminal_face_state failed: {type(exc).__name__}: {exc}')
         return []
-    return [
-        {
-            'device_name': row.device_name,
-            'device_label': row.device_label or deviceless_label(row.device_name),
-            'has_face': bool(row.has_face),
-            'updated_at': row.updated_at.isoformat() if row.updated_at else None,
-        }
-        for row in sorted(rows, key=lambda item: item.device_name or '')
-    ]
+    result = []
+    for device in devices:
+        row = rows.get(device['device_name'])
+        result.append({
+            'device_name': device['device_name'],
+            'device_label': device['device_label'],
+            'has_face': bool(row and row.has_face),
+            'updated_at': row.updated_at.isoformat() if row and row.updated_at else None,
+        })
+    return result
 
 
 def deviceless_label(device_name):
@@ -10874,10 +10903,11 @@ def deviceless_label(device_name):
 
 
 def get_terminal_face_state_bulk(employee_numbers):
-    """employee_no -> список терминалов с признаком наличия лица."""
+    """employee_no -> состояние по каждому известному терминалу."""
     result = {}
     numbers = [str(value) for value in employee_numbers if value is not None]
-    if not numbers:
+    devices = get_reported_terminal_devices()
+    if not numbers or not devices:
         return result
     try:
         ensure_terminal_face_state_table()
@@ -10885,14 +10915,21 @@ def get_terminal_face_state_bulk(employee_numbers):
     except Exception as exc:
         print(f'get_terminal_face_state_bulk failed: {type(exc).__name__}: {exc}')
         return result
+
+    by_person = {}
     for row in rows:
-        result.setdefault(row.employee_no, []).append({
-            'device_name': row.device_name,
-            'device_label': row.device_label or deviceless_label(row.device_name),
-            'has_face': bool(row.has_face),
-        })
-    for items in result.values():
-        items.sort(key=lambda item: item['device_name'] or '')
+        by_person.setdefault(row.employee_no, {})[row.device_name] = row
+
+    for employee_no in numbers:
+        person_rows = by_person.get(employee_no, {})
+        result[employee_no] = [
+            {
+                'device_name': device['device_name'],
+                'device_label': device['device_label'],
+                'has_face': bool(person_rows.get(device['device_name']) and person_rows[device['device_name']].has_face),
+            }
+            for device in devices
+        ]
     return result
 
 

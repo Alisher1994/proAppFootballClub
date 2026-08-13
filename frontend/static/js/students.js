@@ -621,16 +621,18 @@ document.getElementById('editStudentForm').addEventListener('submit', async (e) 
     }
 });
 
-// Открыть модалку оплаты
-// Обработчик кнопок добавления оплаты (новая версия)
+// Открыть модалку оплаты.
+// prefill: { year, month, amount } - быстрый переход из карточки месяца.
 document.addEventListener('click', async function (e) {
     const btn = e.target.closest('.add-payment-btn');
     if (!btn) return;
 
-    const studentId = btn.getAttribute('data-student-id');
-    if (!studentId) return;
-
     e.preventDefault();
+    await openPaymentModal(btn.getAttribute('data-student-id'));
+});
+
+async function openPaymentModal(studentId, prefill = {}) {
+    if (!studentId) return;
 
     // Установить ID ученика
     document.getElementById('payment_student_id').value = studentId;
@@ -709,9 +711,29 @@ document.addEventListener('click', async function (e) {
     const debtInfoBlock = document.getElementById('month-debt-info-block');
     if (debtInfoBlock) debtInfoBlock.style.display = 'none';
 
+    // Быстрый переход из карточки месяца: год, месяц и сумма уже проставлены
+    if (prefill.year) {
+        yearSelect.value = String(prefill.year);
+        updateMonthsList(Number(prefill.year));
+    }
+    if (prefill.month) {
+        const monthSelect = document.getElementById('payment_month');
+        if (monthSelect) {
+            monthSelect.value = String(prefill.month);
+            monthSelect.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+    }
+    if (prefill.amount) {
+        const amountInput = document.getElementById('payment_amount');
+        if (amountInput) {
+            amountInput.value = String(prefill.amount);
+            formatAmountInput(amountInput);
+        }
+    }
+
     // Показать модалку
     paymentModal.style.display = 'block';
-});
+}
 
 // Функция обновления списка месяцев с учетом ограничений
 function updateMonthsList(selectedYear) {
@@ -1166,13 +1188,18 @@ function setPaymentType(paymentType) {
     const group = document.querySelector('.payment-method-buttons');
     if (group) {
         group.querySelectorAll('.payment-type-btn').forEach(btn => {
-            btn.classList.toggle('active', btn.getAttribute('data-payment-type') === paymentType);
+            const isActive = btn.getAttribute('data-payment-type') === paymentType;
+            btn.classList.toggle('active', isActive);
+            btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
             btn.removeAttribute('style');
         });
     }
     const hidden = document.getElementById('selected_payment_type');
     if (hidden) hidden.value = paymentType;
 }
+
+window.setPaymentType = setPaymentType;
+window.openPaymentModal = openPaymentModal;
 
 document.addEventListener('click', function (e) {
     const btn = e.target.closest('.payment-method-buttons .payment-type-btn');
