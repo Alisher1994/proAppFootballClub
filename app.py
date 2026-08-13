@@ -963,10 +963,9 @@ def get_discount_months(student_ids, year_from=None):
     середине месяца, разовые договоренности и прощенные хвосты.
     """
     ids = [int(value) for value in student_ids if value is not None]
-    if not ids:
+    if not ids or not ensure_payment_columns():
         return set()
     try:
-        ensure_payment_columns()
         query = db.session.query(
             Payment.student_id, Payment.payment_year, Payment.payment_month
         ).filter(
@@ -1132,7 +1131,8 @@ def get_debt_month_counts(students, settings=None, today=None, include_current=T
     return counts
 
 
-def student_access_state(student, settings=None, paid_map=None, payment_date_paid_map=None, today=None, debt_month_count=None):
+def student_access_state(student, settings=None, paid_map=None, payment_date_paid_map=None, today=None,
+                         debt_month_count=None, discount_months=None, attendance_counts=None):
     settings = settings or get_club_settings_instance()
     today = today or get_local_date()
     paid_map = paid_map or {}
@@ -1153,9 +1153,9 @@ def student_access_state(student, settings=None, paid_map=None, payment_date_pai
     # Месяц без занятий долгом не считаем: ученик просто не приходил
     min_lessons = get_min_lessons_for_debt(settings)
     if min_lessons:
-        visits = get_attendance_counts_by_month([student.id], today.year).get(
-            (student.id, today.year, today.month), 0
-        )
+        if attendance_counts is None:
+            attendance_counts = get_attendance_counts_by_month([student.id], today.year)
+        visits = attendance_counts.get((student.id, today.year, today.month), 0)
         if visits < min_lessons and not float(paid_map.get(student.id, 0) or 0):
             if debt_month_count is None:
                 debt_month_count = get_debt_month_counts(
@@ -1165,7 +1165,9 @@ def student_access_state(student, settings=None, paid_map=None, payment_date_pai
                 return True, 'no_lessons_this_month', 0
 
     # Месяц, закрытый скидкой, долгом не считаем
-    if (student.id, today.year, today.month) in get_discount_months([student.id], today.year):
+    if discount_months is None:
+        discount_months = get_discount_months([student.id], today.year)
+    if (student.id, today.year, today.month) in discount_months:
         if debt_month_count is None:
             debt_month_count = get_debt_month_counts(
                 [student], settings, today, include_current=False
@@ -1229,7 +1231,8 @@ ACCESS_REASON_LABELS = {
 }
 
 
-def build_student_access_payload(student, settings=None, paid_map=None, payment_date_paid_map=None, today=None, debt_month_count=None):
+def build_student_access_payload(student, settings=None, paid_map=None, payment_date_paid_map=None, today=None,
+                                 debt_month_count=None, discount_months=None, attendance_counts=None):
     settings = settings or get_club_settings_instance()
     today = today or get_local_date()
     paid_map = paid_map or {}
@@ -1243,7 +1246,9 @@ def build_student_access_payload(student, settings=None, paid_map=None, payment_
         paid_map,
         payment_date_paid_map,
         today,
-        debt_month_count=debt_month_count
+        debt_month_count=debt_month_count,
+        discount_months=discount_months,
+        attendance_counts=attendance_counts
     )
     photo_url = build_photo_url(student.photo_path)
     can_sync_to_turnstile = bool(allowed and photo_url)
@@ -2100,19 +2105,30 @@ def upsert_bridge_status(
     return status
 
 
-def ensure_payment_columns():
-    """Колонка скидки в payments."""
+_payments_discount_column = None
+
+
+def ensure_payment_columns(force=False):
+    """Колонка скидки в payments. Результат кешируем: db.inspect дорогой,
+    а функция дергалась на каждого ученика в списке."""
+    global _payments_discount_column
+    if _payments_discount_column is not None and not force:
+        return _payments_discount_column
     try:
         inspector = db.inspect(db.engine)
         if 'payments' not in inspector.get_table_names():
-            return
+            _payments_discount_column = False
+            return False
         columns = {col['name'] for col in inspector.get_columns('payments')}
         if 'is_discount' not in columns:
             with db.engine.begin() as conn:
-                conn.execute(db.text("ALTER TABLE payments ADD COLUMN is_discount BOOLEAN DEFAULT 0"))
+                conn.execute(db.text("ALTER TABLE payments ADD COLUMN is_discount BOOLEAN DEFAULT FALSE"))
             print('✓ Добавлена колонка payments.is_discount')
+        _payments_discount_column = True
     except Exception as exc:
         print(f'ensure_payment_columns failed: {type(exc).__name__}: {exc}')
+        _payments_discount_column = False
+    return _payments_discount_column
 
 
 def ensure_payment_indexes():
@@ -4315,6 +4331,13 @@ def get_students_list():
             else {}
         )
         face_states = get_terminal_face_state_bulk([str(student.id) for student in students])
+        # Один запрос на всю страницу вместо запроса на каждого ученика
+        student_ids_page = [student.id for student in students]
+        discount_months = get_discount_months(student_ids_page, today.year)
+        attendance_counts = (
+            get_attendance_counts_by_month(student_ids_page, today.year)
+            if get_min_lessons_for_debt(settings) else {}
+        )
 
         items = []
         for student in students:
@@ -4325,7 +4348,9 @@ def get_students_list():
                 paid_map,
                 payment_date_paid_map,
                 today,
-                debt_month_count=debt_month_counts.get(student.id)
+                debt_month_count=debt_month_counts.get(student.id),
+                discount_months=discount_months,
+                attendance_counts=attendance_counts
             )
             group_name = student.group.name if student.group else 'Без группы'
             photo_url = build_photo_thumb_url(student.photo_path)
@@ -10978,6 +11003,12 @@ def hikvision_terminal_missing():
     )
     sync_failures = collect_last_sync_failures()
     last_payments = get_last_payment_map()
+    student_ids_all = [student.id for student in students]
+    discount_months = get_discount_months(student_ids_all, today.year)
+    attendance_counts = (
+        get_attendance_counts_by_month(student_ids_all, today.year)
+        if get_min_lessons_for_debt(settings) else {}
+    )
     check_photos = request.args.get('check_photos', '1') not in {'0', 'false', 'no'}
 
     items = []
@@ -11021,7 +11052,9 @@ def hikvision_terminal_missing():
             paid_map,
             payment_date_paid_map,
             today,
-            debt_month_count=debt_month_counts.get(student.id)
+            debt_month_count=debt_month_counts.get(student.id),
+            discount_months=discount_months,
+            attendance_counts=attendance_counts
         )
         employee_no = str(student.id)
         group_name = student.group.name if student.group else ''

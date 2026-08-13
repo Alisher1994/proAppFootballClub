@@ -5006,6 +5006,45 @@
 
         .year-payments-legend .dot.discount { background: #c7d2fe; }
 
+
+        /* Шапка страницы: одинаковые промежутки между группой, поиском
+           и кнопками. Правила поздние, чтобы ничего их не перебивало. */
+        .game-top-bar .students-header-filters {
+            display: flex !important;
+            align-items: center !important;
+            gap: 14px !important;
+            column-gap: 14px !important;
+        }
+
+        .game-top-bar .students-header-filters > * {
+            margin: 0 !important;
+        }
+
+        .game-top-bar .students-header-filters .student-group-filter,
+        .game-top-bar .students-header-filters .student-list-search {
+            flex: 0 0 auto !important;
+        }
+
+        .game-top-bar .students-header-filters .student-list-search input {
+            width: 210px !important;
+        }
+
+        /* Кнопка анкет: без рамки и заливки, только иконка и подпись */
+        #printAllFormsBtn {
+            border: 0 !important;
+            background: none !important;
+            box-shadow: none !important;
+            color: var(--theme-text-secondary, #64748b) !important;
+            padding: 8px 10px !important;
+            gap: 6px !important;
+            font-weight: 500 !important;
+        }
+
+        #printAllFormsBtn:hover {
+            background: none !important;
+            color: #ff8a00 !important;
+        }
+
     </style>
 </head>
 
@@ -6382,7 +6421,7 @@
         })();
     </script>
     <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/students.js') }}?v=2026081325"></script>
+    <script src="{{ url_for('static', filename='js/students.js') }}?v=2026081326"></script>
     <script src="{{ url_for('static', filename='js/students_rewards.js') }}"></script>
     <script src="{{ url_for('static', filename='js/students_cards.js') }}"></script>
     <script src="{{ url_for('static', filename='js/students_params.js') }}"></script>
@@ -7637,6 +7676,16 @@
                 selectedItem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
             }
 
+            // Запоминаем сразу: savePageState в начале функции видел еще
+            // прошлый выбор, и после перезагрузки возвращало не туда
+            localStorage.setItem('students_page_selected_student', String(studentId));
+            localStorage.setItem('students_page_search',
+                document.getElementById('studentListSearch')?.value || '');
+            const openGroupNow = document.querySelector('.student-group-section:not(.collapsed)');
+            if (openGroupNow?.dataset.groupId) {
+                localStorage.setItem('students_page_open_group', openGroupNow.dataset.groupId);
+            }
+
             const isMobileStudentView = window.matchMedia('(max-width: 768px)').matches;
             if (isMobileStudentView) {
                 ensureMobileStudentNavigation();
@@ -7735,6 +7784,17 @@
         }
 
         window.addEventListener('beforeunload', savePageState);
+
+        // Если основной путь восстановления не сработал (список успел
+        // перерисоваться, запрос не успел), пробуем еще раз после загрузки
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                const opened = document.querySelector('.student-details-content:not(.hidden)');
+                if (!opened && localStorage.getItem('students_page_selected_student')) {
+                    restorePageState();
+                }
+            }, 900);
+        });
 
         // Функция фильтрации учеников
         function filterStudentsByGroup(groupId) {
