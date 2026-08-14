@@ -38,29 +38,34 @@ def generate_telegram_link_code():
     return f"{random.choice(letters)}{random.randint(1, 999):03d}"
 
 
-def get_next_available_student_number(group_id):
+def get_next_available_student_number(group_id, exclude_student_id=None):
     """
-    Получить следующий доступный номер ученика для группы (0-99)
-    Номера должны быть уникальными только в рамках группы
+    Получить следующий свободный номер ученика (1-99, затем 0)
+    Номер уникален только в рамках группы.
+    Учитываются ВСЕ ученики группы, независимо от статуса — иначе номер
+    неактивного ученика был бы выдан повторно и не прошёл бы валидацию.
+    Для учеников без группы номера считаются среди таких же (group_id IS NULL).
+    Возвращает None, если все номера 0-99 в группе заняты.
     """
-    if not group_id:
-        return "1"
-    
-    # Получить все занятые номера в этой группе
-    used_numbers = db.session.query(Student.student_number).filter(
-        Student.group_id == group_id,
-        Student.status == 'active'
-    ).all()
-    
-    used_numbers = {int(num[0]) for num in used_numbers if num[0] and num[0].isdigit()}
-    
-    # Найти первый свободный номер от 1 до 99
-    for num in range(1, 100):
+    query = db.session.query(Student.student_number)
+    if group_id:
+        query = query.filter(Student.group_id == group_id)
+    else:
+        query = query.filter(Student.group_id.is_(None))
+    if exclude_student_id:
+        query = query.filter(Student.id != exclude_student_id)
+
+    used_numbers = {
+        int(num[0]) for num in query.all()
+        if num[0] and str(num[0]).strip().isdigit()
+    }
+
+    # Первый свободный номер: сначала 1-99, затем 0
+    for num in list(range(1, 100)) + [0]:
         if num not in used_numbers:
             return str(num)
-    
-    # Если все номера заняты, возвращаем 99 (максимум)
-    return "99"
+
+    return None
 
 
 def validate_student_number(student_number, group_id, exclude_student_id=None):

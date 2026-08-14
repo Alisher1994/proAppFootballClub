@@ -4485,12 +4485,15 @@ def add_student():
         student_number = (request.form.get('student_number') or '').strip()
         group_id_int = int(group_id) if group_id else None
         
-        # Если номер не указан, автогенерируем
-        if not student_number and group_id_int:
-            student_number = get_next_available_student_number(group_id_int)
-        
+        # Если номер не указан, автогенерируем последовательно (1, 2, 3...)
         if not student_number:
-            return jsonify({'success': False, 'message': 'Номер ученика обязателен'}), 400
+            student_number = get_next_available_student_number(group_id_int)
+
+        if not student_number:
+            return jsonify({
+                'success': False,
+                'message': 'Свободные номера в группе закончились (0-99)'
+            }), 400
         
         # Валидация номера
         is_valid, error_msg = validate_student_number(student_number, group_id_int)
@@ -4755,7 +4758,12 @@ def update_student(student_id):
                 is_valid, error_msg = validate_student_number(student.student_number, new_group_id, exclude_student_id=student.id)
                 if not is_valid:
                     # Автоматически назначить свободный номер
-                    free_number = get_next_available_student_number(new_group_id)
+                    free_number = get_next_available_student_number(new_group_id, exclude_student_id=student.id)
+                    if not free_number:
+                        return jsonify({
+                            'success': False,
+                            'message': f'Свободные номера в группе "{new_group.name if new_group else new_group_id}" закончились (0-99)'
+                        }), 400
                     student.student_number = free_number
             
             student.group_id = new_group_id
